@@ -10,7 +10,7 @@ once it's real, following the format below.
 
 `World` and `Seat` do **not** extend this envelope. A `World` can't belong to
 itself (no `worldId`), and a `Seat` isn't permission-gated the way a document
-is — they get their own, simpler schemas (`packages/core`'s next PR).
+is — see [world-and-seats.md](world-and-seats.md).
 
 ## Fields
 
@@ -22,6 +22,12 @@ is — they get their own, simpler schemas (`packages/core`'s next PR).
 | `schemaVersion` | positive integer | Forward-only, starts at 1. See Data durability in CLAUDE.md |
 | `permissions` | see below | |
 | `createdAt`, `updatedAt` | ISO 8601 string | Not epoch numbers, not `Date` objects — see "Why ISO strings" below |
+
+`id`, `schemaVersion`, `createdAt`, and `updatedAt` come from `baseRecordSchema`
+— the same shared trio `World` and `Seat` extend (see
+[world-and-seats.md](world-and-seats.md)). `worldId`, `type`, and `permissions`
+are what `baseDocumentSchema` adds on top, specifically because those three are
+what make a document a *document*.
 
 ## Permissions
 
