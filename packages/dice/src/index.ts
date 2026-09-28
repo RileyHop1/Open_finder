@@ -20,6 +20,8 @@ export type {
 export { cryptoRandomSource } from './rng.js';
 export type { RandomSource } from './rng.js';
 
+export { degreeOfSuccess } from './degreesOfSuccess.js';
+
 export {
   DEGREES_OF_SUCCESS,
   type ConstantTerm,
