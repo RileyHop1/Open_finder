@@ -3,6 +3,10 @@
 - **Status:** Accepted
 - **Date:** 2026-09-28
 - **Supersedes:** the MongoDB choice in the original CLAUDE.md draft
+- **Note:** the specific driver choice below (`better-sqlite3`) was superseded
+  by [0009](0009-node-sqlite.md), which switched to `node:sqlite`. Every other
+  decision on this page — one file per world, WAL, transactions, synchronous
+  single-writer access — is unaffected and still in force.
 
 ## Context
 The original charter proposed MongoDB, justified as "documents map naturally to

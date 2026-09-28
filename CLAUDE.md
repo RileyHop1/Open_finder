@@ -141,15 +141,35 @@ Source: the community `foundryvtt/pf2e` repo's `packs/` JSON.
 - Client: Vue 3 (Composition API, `<script setup lang="ts">`) + Vite,
   Pinia for state, PixiJS for the map canvas. **Pin PixiJS's major version**;
   v7 → v8 was a substantial break and the canvas is the hardest thing to port
-- Web app only: TypeScript on both front and back end
-- Storage: **SQLite** (`better-sqlite3`, synchronous, no connection pool). One
-  database file per world, living in that world's folder, with document bodies
-  in JSON columns. Runs as a single Node process; a Docker image is a
-  convenience, not a requirement. See `docs/adr/0002-storage-sqlite.md`
+- Web architecture: TypeScript on both front and back end, the UI is
+  browser-rendered and talks to the server over HTTP/WebSocket. This describes
+  the architecture, not how the GM starts it — see Distribution below
+- Storage: **SQLite** (`node:sqlite`'s `DatabaseSync`, synchronous, no
+  connection pool). One database file per world, living in that world's
+  folder, with document bodies in JSON columns. Runs as a single Node process;
+  a Docker image is a convenience, not a requirement. See
+  `docs/adr/0002-storage-sqlite.md` and `docs/adr/0009-node-sqlite.md`
 - Assets (maps, portraits, audio): stored on disk in the world folder, no
   size limit. This is a table for friends, not a public service
 - Validation: Zod schemas shared between client and server
 - Tests: Vitest (unit), Playwright (e2e)
+
+## Distribution
+**The GM starts the app by double-clicking something. No terminal, no `npm
+install`, no command ever typed.** This is a binding requirement, not an
+aspiration — a milestone that needs a terminal to start is not "usable at a
+real table" for the GM this project is built for.
+
+The packaging mechanism itself (bundled-Node installer, a single executable via
+Node's SEA tooling, or a Tauri app) is **deliberately not chosen yet** — nothing
+in the early milestones needs it decided, and choosing early risks optimizing
+around constraints that don't end up mattering. It does mean the dependency
+tree is watched for anything that would foreclose an option by accident; the
+`node:sqlite` choice over a native SQLite binding exists partly for this
+reason. See `docs/adr/0010-distribution.md`.
+
+Players never see any of this — they open a browser and go to the GM's
+address, per the networking section in the README.
 
 ## Targets and budgets
 Stated so that "it feels slow" and "it doesn't work on my tablet" are testable
