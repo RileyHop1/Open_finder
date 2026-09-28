@@ -5,15 +5,23 @@ package defines what that means: the Zod schemas, the inferred types, the
 permission model, and the operation shapes the server validates against.
 
 ## What lives here
+- **The document envelope** (`document.ts`) — the shared shape every content
+  document extends: `id`, `worldId`, `type`, `schemaVersion`, `permissions`,
+  timestamps. See `docs/documents.md`. **Built.**
 - **Document schemas** — `Actor`, `Item`, `Party`, `JournalEntry`, `Scene`,
-  `Combat`, `ChatMessage`, `Calendar`, `RollTable`
-- **Permissions** — the none / limited / observer / owner model, resolved
-  against a seat
+  `Combat`, `ChatMessage`, `Calendar`, `RollTable`, each extending the
+  envelope above. Not yet — these land through milestones 3–9 as each type's
+  own feature needs it
+- **`World` and `Seat`** — the two schemas that do *not* extend the document
+  envelope. Next PR
 - **Operations** — the client-to-server vocabulary (see
-  `docs/adr/0005-concurrency.md`)
+  `docs/adr/0005-concurrency.md`) and permission resolution `(seat, document)
+  => level`. Not yet
 - **`Modifier` and `Statistic`** — the modifier resolution types from
-  `docs/adr/0008-modifier-resolution.md`
-- **`schemaVersion` and migrations** — the forward-only migration runner
+  `docs/adr/0008-modifier-resolution.md`. Not yet
+- **The migration runner** that acts on `schemaVersion`. Not yet — the field
+  exists on every document already, since retrofitting it later is the
+  expensive mistake
 
 Types are always *inferred from* the Zod schema, never written twice.
 
