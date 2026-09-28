@@ -4,6 +4,7 @@ import type { Expression } from './ast.js';
 import { evaluate } from './evaluator.js';
 import { parse } from './parser.js';
 import type { RandomSource } from './rng.js';
+import { neverRoll, sequenceRandomSource } from './testHelpers.js';
 
 function parseOk(source: string): Expression {
   const result = parse(source);
@@ -27,28 +28,6 @@ function seededRandomSource(seed: number): RandomSource {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     const value = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     return Math.floor(value * faces) + 1;
-  };
-}
-
-function neverRoll(): number {
-  throw new Error('rng should not have been called for a dice-free expression');
-}
-
-/**
- * An RNG that returns a fixed, pre-scripted sequence of results, one per
- * call, in order. Lets a test pin exactly which dice come up which faces --
- * including for the *new* die a reroll produces -- rather than relying on a
- * seeded PRNG's opaque output.
- */
-function sequenceRandomSource(values: readonly number[]): RandomSource {
-  let index = 0;
-  return () => {
-    const value = values[index];
-    if (value === undefined) {
-      throw new Error(`sequenceRandomSource exhausted after ${index} call(s)`);
-    }
-    index += 1;
-    return value;
   };
 }
 
