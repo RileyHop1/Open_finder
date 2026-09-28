@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+dist/
+coverage/
+systems/pf2e/.data/
+worlds/
+
+# Prose is hand-authored and hand-wrapped. Prettier's markdown handling adds no
+# correctness value here, and it rewrites *emphasis* to _emphasis_ and reflows
+# blank lines -- pure churn on every docs edit. Code formatting still applies.
+*.md

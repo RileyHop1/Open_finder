@@ -1,0 +1,21 @@
+{
+  "name": "@hearthtable/client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vue 3 UI and PixiJS canvas",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hearthtable/core": "workspace:*",
+    "@hearthtable/dice": "workspace:*",
+    "@hearthtable/pf2e": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.2"
+  }
+}
