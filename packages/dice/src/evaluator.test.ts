@@ -34,6 +34,24 @@ function neverRoll(): number {
   throw new Error('rng should not have been called for a dice-free expression');
 }
 
+/**
+ * An RNG that returns a fixed, pre-scripted sequence of results, one per
+ * call, in order. Lets a test pin exactly which dice come up which faces --
+ * including for the *new* die a reroll produces -- rather than relying on a
+ * seeded PRNG's opaque output.
+ */
+function sequenceRandomSource(values: readonly number[]): RandomSource {
+  let index = 0;
+  return () => {
+    const value = values[index];
+    if (value === undefined) {
+      throw new Error(`sequenceRandomSource exhausted after ${index} call(s)`);
+    }
+    index += 1;
+    return value;
+  };
+}
+
 describe('evaluate -- arithmetic and constants', () => {
   it('evaluates a flat integer without rolling', () => {
     const outcome = evaluate('7', parseOk('7'), { rng: neverRoll });
@@ -144,17 +162,197 @@ describe('evaluate -- @references', () => {
   });
 });
 
-describe('evaluate -- deferred modifiers', () => {
-  it.each(['2d20kh1', '4d6dl1', '1d6rr<2'])(
-    'rejects %s as unsupported until keep/drop/reroll land',
-    (source) => {
-      const outcome = evaluate(source, parseOk(source), { rng: () => 1 });
-      expect(outcome.ok).toBe(false);
-      if (!outcome.ok) {
-        expect(outcome.error.code).toBe('unsupported-modifiers');
+describe('evaluate -- keep and drop', () => {
+  it('keeps the highest N with an explicit count (kh1 on 2d20, fortune)', () => {
+    const outcome = evaluate('2d20kh1', parseOk('2d20kh1'), {
+      rng: sequenceRandomSource([12, 17]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(17);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 20, result: 12, kept: false, value: 0 },
+        { kind: 'die', faces: 20, result: 17, kept: true, value: 17 },
+      ]);
+    }
+  });
+
+  it('keeps the lowest N with an explicit count (kl1 on 2d20, misfortune)', () => {
+    const outcome = evaluate('2d20kl1', parseOk('2d20kl1'), {
+      rng: sequenceRandomSource([12, 17]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(12);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 20, result: 12, kept: true, value: 12 },
+        { kind: 'die', faces: 20, result: 17, kept: false, value: 0 },
+      ]);
+    }
+  });
+
+  it('defaults kh to keeping 1 when no count is given', () => {
+    const outcome = evaluate('4d6kh', parseOk('4d6kh'), {
+      rng: sequenceRandomSource([2, 6, 4, 1]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(6);
+      const kept = outcome.result.terms.filter((t) => t.kind === 'die' && t.kept);
+      expect(kept).toEqual([{ kind: 'die', faces: 6, result: 6, kept: true, value: 6 }]);
+    }
+  });
+
+  it('drops the lowest N with an explicit count (the classic 4d6dl1)', () => {
+    const outcome = evaluate('4d6dl1', parseOk('4d6dl1'), {
+      rng: sequenceRandomSource([2, 6, 4, 1]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      // drops the 1; keeps 2 + 6 + 4 = 12
+      expect(outcome.result.total).toBe(12);
+      expect(outcome.result.terms.at(-1)).toEqual({
+        kind: 'die',
+        faces: 6,
+        result: 1,
+        kept: false,
+        value: 0,
+      });
+    }
+  });
+
+  it('drops the highest N with an explicit count', () => {
+    const outcome = evaluate('4d6dh1', parseOk('4d6dh1'), {
+      rng: sequenceRandomSource([2, 6, 4, 1]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      // drops the 6; keeps 2 + 4 + 1 = 7
+      expect(outcome.result.total).toBe(7);
+    }
+  });
+
+  it('defaults dl to dropping 1 when no count is given', () => {
+    const outcome = evaluate('4d6dl', parseOk('4d6dl'), {
+      rng: sequenceRandomSource([2, 6, 4, 1]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(12); // same as the explicit-count case above
+    }
+  });
+
+  it('clamps a count larger than the dice pool instead of erroring', () => {
+    const outcome = evaluate('2d6kh5', parseOk('2d6kh5'), {
+      rng: sequenceRandomSource([3, 5]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(8); // both dice kept, nothing to drop
+      expect(outcome.result.terms.every((t) => t.kind === 'die' && t.kept)).toBe(true);
+    }
+  });
+});
+
+describe('evaluate -- reroll', () => {
+  it('rerolls a die matching the comparator exactly once', () => {
+    // rr<2 rerolls a 1; the roll sequence gives a 1 first, then a 5 for the reroll.
+    const outcome = evaluate('1d6rr<2', parseOk('1d6rr<2'), {
+      rng: sequenceRandomSource([1, 5]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(5);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 6, result: 1, kept: false, value: 0 },
+        { kind: 'die', faces: 6, result: 5, kept: true, value: 5 },
+      ]);
+    }
+  });
+
+  it('does not reroll a die that does not match the comparator', () => {
+    const outcome = evaluate('1d6rr<2', parseOk('1d6rr<2'), {
+      rng: sequenceRandomSource([4]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(4);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 6, result: 4, kept: true, value: 4 },
+      ]);
+    }
+  });
+
+  it('does not re-reroll the replacement even if it also matches', () => {
+    // Both the original and the reroll come up a 1 -- only one reroll happens.
+    const outcome = evaluate('1d6rr<2', parseOk('1d6rr<2'), {
+      rng: sequenceRandomSource([1, 1]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(1);
+      expect(outcome.result.terms).toHaveLength(2);
+      expect(outcome.result.terms[1]).toEqual({
+        kind: 'die',
+        faces: 6,
+        result: 1,
+        kept: true,
+        value: 1,
+      });
+    }
+  });
+
+  it.each([
+    ['<', 2, 1, true],
+    ['<=', 2, 2, true],
+    ['=', 3, 3, true],
+    ['>=', 5, 5, true],
+    ['>', 5, 6, true],
+    ['<', 2, 2, false],
+  ] as const)(
+    'comparator %s%d against a roll of %d rerolls: %s',
+    (comparator, value, roll, shouldReroll) => {
+      const source = `1d6rr${comparator}${value}`;
+      const rng = shouldReroll
+        ? sequenceRandomSource([roll, 3])
+        : sequenceRandomSource([roll]);
+      const outcome = evaluate(source, parseOk(source), { rng });
+      expect(outcome.ok).toBe(true);
+      if (outcome.ok) {
+        expect(outcome.result.terms).toHaveLength(shouldReroll ? 2 : 1);
       }
     },
   );
+});
+
+describe('evaluate -- chained modifiers', () => {
+  it('applies modifiers left to right, drop then reroll on the survivors', () => {
+    // 4d6dl1rr<2: drop the lowest of [2,6,4,1] -> drops the 1, leaving 2,6,4.
+    // Then rr<2 checks the *survivors* only -- none of 2,6,4 match, so no reroll.
+    const outcome = evaluate('4d6dl1rr<2', parseOk('4d6dl1rr<2'), {
+      rng: sequenceRandomSource([2, 6, 4, 1]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(12);
+      expect(outcome.result.terms).toHaveLength(4); // no reroll die appended
+    }
+  });
+
+  it('a die dropped by an earlier modifier is not touched by a later reroll', () => {
+    // 2d6dl1rr<2: rolls [1, 5]. dl1 drops the lower die (the 1) first. rr<2
+    // would match that same 1 -- but it is no longer active, so it is never
+    // rerolled. If dropped dice were still eligible, this would produce a
+    // third term (the reroll); instead there are exactly 2.
+    const outcome = evaluate('2d6dl1rr<2', parseOk('2d6dl1rr<2'), {
+      rng: sequenceRandomSource([1, 5]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.terms).toHaveLength(2);
+      expect(outcome.result.total).toBe(5);
+    }
+  });
 });
 
 describe('evaluate -- determinism', () => {
