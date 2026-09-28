@@ -113,9 +113,12 @@ Source: the community `foundryvtt/pf2e` repo's `packs/` JSON.
   not extend to us. So we only import entries whose source is a Remaster
   (ORC) book, and we never import its art (separately licensed)
 - **Never commit Paizo content to this repo.** The importer downloads the
-  pinned upstream `packs/` at setup time and writes converted data to a
-  git-ignored folder. The repo contains only our MIT code, schemas, and
-  test fixtures written by us
+  pinned upstream `packs/` at setup time and writes converted data to
+  git-ignored folders: `systems/pf2e/.data/upstream/` for the download and
+  `systems/pf2e/.data/imported/` for our converted output, alongside
+  `worlds/` for user data. CI fails if any of them becomes tracked, because
+  `.gitignore` cannot stop `git add -f` and history is permanent. The repo
+  contains only our MIT code, schemas, and test fixtures written by us
 - An importer script in `systems/pf2e/importer` converts Foundry-shaped JSON
   into our own Zod-validated schemas. Our data model must not depend on
   Foundry's format
@@ -163,8 +166,8 @@ claims rather than opinions.
 - **Tablets are supported, phones are not.** A player with an iPad at the table
   is a real use case: every tooltip works on tap, touch targets are at least
   44px, and the sheet and party bar are usable at 1024px wide. The GM tools and
-  the canvas assume a pointer and a keyboard, and a phone-sized layout is not a
-  goal
+  the canvas assume a pointer and a keyboard, and a phone-sized layout is not
+  supported in v1
 
 ## World folder layout
 One folder per world, and it is the unit of backup, export, and "move this to
