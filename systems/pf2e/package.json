@@ -1,0 +1,16 @@
+{
+  "name": "@hearthtable/pf2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pathfinder 2E rules, sheets, and rule elements",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hearthtable/core": "workspace:*",
+    "@hearthtable/dice": "workspace:*"
+  }
+}

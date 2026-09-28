@@ -1,0 +1,21 @@
+{
+  "name": "hearthtable",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A free, self-hostable virtual tabletop for Pathfinder 2E",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

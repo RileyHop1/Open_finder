@@ -1,0 +1,12 @@
+{
+  "name": "@hearthtable/dice",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dice expression parser and roller",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
