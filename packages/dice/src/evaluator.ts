@@ -1,8 +1,8 @@
 /**
  * The evaluation core: walks a parsed `Expression` and produces a
- * `RollResult`. Dice, arithmetic, `@reference` resolution, and keep/drop/
- * reroll modifiers. Fortune/misfortune, degrees of success, and damage each
- * land in their own later PR (see docs/dice.md and the plan). Never throws.
+ * `RollResult`. Dice, arithmetic, `@reference` resolution, keep/drop/reroll
+ * modifiers, and fortune/misfortune. Degrees of success and damage each land
+ * in their own later PR (see docs/dice.md and the plan). Never throws.
  */
 
 import type {
@@ -41,8 +41,35 @@ export interface EvaluateOptions {
   /** Produces a die roll for a given face count. Pass `cryptoRandomSource` in
    *  production; tests pass a seeded source so results are reproducible. */
   readonly rng: RandomSource;
+  /**
+   * A fortune effect is active on this roll: every die is rolled twice and
+   * the higher result is kept. Cancels with `misfortune` if both are set --
+   * see docs/dice.md, "Fortune and misfortune". A boolean, not a count,
+   * because PF2e itself never lets a second fortune effect stack; there is
+   * nothing to represent beyond "at least one is active".
+   */
+  readonly fortune?: boolean;
+  /** A misfortune effect is active: every die is rolled twice and the lower is kept. */
+  readonly misfortune?: boolean;
   /** Echoed into the result's `seed` field, for a test to label a deterministic run. */
   readonly seed?: string;
+}
+
+/** The resolved outcome of `fortune`/`misfortune` once cancellation is applied. */
+type RollMode = 'normal' | 'fortune' | 'misfortune';
+
+/**
+ * Resolves the raw `fortune`/`misfortune` flags per docs/dice.md: a second
+ * effect of the same kind never stacks (there is nothing to stack -- both
+ * flags are booleans), and one of each cancels back to a normal roll.
+ */
+function resolveRollMode(options: EvaluateOptions): RollMode {
+  const fortune = options.fortune ?? false;
+  const misfortune = options.misfortune ?? false;
+  if (fortune === misfortune) {
+    return 'normal'; // neither set, or both set and cancelling
+  }
+  return fortune ? 'fortune' : 'misfortune';
 }
 
 type TermOutcome =
@@ -162,6 +189,11 @@ function applyReroll(
  *
  * Mutates and returns `terms`; `explode` can never appear here, since
  * `parse()` already rejects it before an expression reaches `evaluate()`.
+ *
+ * `terms` may already contain entries marked `kept: false` on arrival (a
+ * fortune/misfortune roll discards one die of each pair before this ever
+ * runs) -- only the still-kept entries start out active, so a modifier
+ * chain never reconsiders a die fortune/misfortune already decided against.
  */
 function applyDiceModifiers(
   terms: DieTerm[],
@@ -169,7 +201,7 @@ function applyDiceModifiers(
   faces: number,
   rng: RandomSource,
 ): DieTerm[] {
-  let active = terms.map((_, index) => index);
+  let active = terms.flatMap((term, index) => (term.kept ? [index] : []));
 
   for (const modifier of modifiers) {
     if (modifier.kind === 'keep' || modifier.kind === 'drop') {
@@ -182,13 +214,44 @@ function applyDiceModifiers(
   return terms;
 }
 
-function rollDice(dice: DiceExpr, factor: 1 | -1, rng: RandomSource): readonly DieTerm[] {
+/**
+ * Rolls one die position under the given roll mode. Under `fortune` or
+ * `misfortune` this rolls twice and keeps the higher or lower face; the
+ * discarded roll is still returned, marked `kept: false`, for the same
+ * reason a dropped or rerolled-away die is: seeing what fortune passed over
+ * is most of the point of showing the math (docs/dice.md).
+ *
+ * A tie keeps the first roll -- which of two identical faces is "the" kept
+ * one is arbitrary by definition, so this just needs to be deterministic.
+ */
+function rollOnePosition(faces: number, rng: RandomSource, mode: RollMode): DieTerm[] {
+  if (mode === 'normal') {
+    const result = rng(faces);
+    return [{ kind: 'die', faces, result, kept: true, value: 0 }];
+  }
+
+  const first = rng(faces);
+  const second = rng(faces);
+  const firstIsKept = mode === 'fortune' ? first >= second : first <= second;
+  const [keptResult, discardedResult] = firstIsKept ? [first, second] : [second, first];
+
+  return [
+    { kind: 'die', faces, result: keptResult, kept: true, value: 0 },
+    { kind: 'die', faces, result: discardedResult, kept: false, value: 0 },
+  ];
+}
+
+function rollDice(
+  dice: DiceExpr,
+  factor: 1 | -1,
+  rng: RandomSource,
+  rollMode: RollMode,
+): readonly DieTerm[] {
   const rolled: DieTerm[] = [];
   for (let i = 0; i < dice.count; i += 1) {
-    const result = rng(dice.faces);
     // `value` is finalized below, once keep/drop/reroll have settled which
     // dice actually count.
-    rolled.push({ kind: 'die', faces: dice.faces, result, kept: true, value: 0 });
+    rolled.push(...rollOnePosition(dice.faces, rng, rollMode));
   }
 
   const settled = applyDiceModifiers(rolled, dice.modifiers, dice.faces, rng);
@@ -202,6 +265,7 @@ function rollDice(dice: DiceExpr, factor: 1 | -1, rng: RandomSource): readonly D
 function evaluateSignedTerm(
   signedTerm: SignedTerm,
   options: EvaluateOptions,
+  rollMode: RollMode,
 ): TermOutcome {
   const { sign, term } = signedTerm;
   const factor: 1 | -1 = sign === '-' ? -1 : 1;
@@ -230,13 +294,21 @@ function evaluateSignedTerm(
     return { ok: true, terms: [reference] };
   }
 
-  return { ok: true, terms: rollDice(term, factor, options.rng) };
+  return { ok: true, terms: rollDice(term, factor, options.rng, rollMode) };
 }
 
 /**
  * Evaluates a parsed expression against `options`. `source` is the original
  * expression text, echoed verbatim into the result's `expression` field --
  * see docs/dice.md, "Return shape".
+ *
+ * `fortune`/`misfortune`, once resolved, apply to every die in the
+ * expression uniformly -- this evaluator has no notion of "the check die" to
+ * single one out (that would mean knowing faces === 20 is special, which is
+ * PF2e-specific knowledge a system-agnostic package should not have). In
+ * practice a check expression has exactly one die, so this is equivalent to
+ * "fortune applies to the check" without this package needing to know what a
+ * check is.
  *
  * Trusts `expression` to be well-formed (as `parse()` produces it); it does
  * not re-validate structural invariants like "faces >= 1".
@@ -246,9 +318,11 @@ export function evaluate(
   expression: Expression,
   options: EvaluateOptions,
 ): EvaluateResult {
+  const rollMode = resolveRollMode(options);
+
   const terms: RollTerm[] = [];
   for (const signedTerm of expression.terms) {
-    const outcome = evaluateSignedTerm(signedTerm, options);
+    const outcome = evaluateSignedTerm(signedTerm, options, rollMode);
     if (!outcome.ok) {
       return outcome;
     }
