@@ -9,6 +9,17 @@
 export { parse } from './parser.js';
 export type { ParseError, ParseErrorCode, ParseResult } from './parser.js';
 
+export { evaluate } from './evaluator.js';
+export type {
+  EvaluateError,
+  EvaluateErrorCode,
+  EvaluateOptions,
+  EvaluateResult,
+} from './evaluator.js';
+
+export { cryptoRandomSource } from './rng.js';
+export type { RandomSource } from './rng.js';
+
 export {
   DEGREES_OF_SUCCESS,
   type ConstantTerm,
