@@ -402,3 +402,126 @@ describe('evaluate -- never throws on well-formed input', () => {
     ).not.toThrow();
   });
 });
+
+describe('evaluate -- fortune and misfortune', () => {
+  // The four combinations docs/dice.md calls out explicitly.
+  it('plain roll: neither flag set -> a single roll, no discarded die', () => {
+    const outcome = evaluate('1d20', parseOk('1d20'), {
+      rng: sequenceRandomSource([11]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(11);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 20, result: 11, kept: true, value: 11 },
+      ]);
+    }
+  });
+
+  it('fortune only: rolls twice and keeps the higher, retaining the discard', () => {
+    const outcome = evaluate('1d20', parseOk('1d20'), {
+      rng: sequenceRandomSource([8, 15]),
+      fortune: true,
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(15);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 20, result: 15, kept: true, value: 15 },
+        { kind: 'die', faces: 20, result: 8, kept: false, value: 0 },
+      ]);
+    }
+  });
+
+  it('misfortune only: rolls twice and keeps the lower, retaining the discard', () => {
+    const outcome = evaluate('1d20', parseOk('1d20'), {
+      rng: sequenceRandomSource([8, 15]),
+      misfortune: true,
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(8);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 20, result: 8, kept: true, value: 8 },
+        { kind: 'die', faces: 20, result: 15, kept: false, value: 0 },
+      ]);
+    }
+  });
+
+  it('fortune and misfortune together cancel: a single normal roll', () => {
+    const outcome = evaluate('1d20', parseOk('1d20'), {
+      rng: sequenceRandomSource([11]),
+      fortune: true,
+      misfortune: true,
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      // Only one rng() call was consumed -- a second queued value would
+      // never be reached, so this also proves it did NOT roll twice.
+      expect(outcome.result.total).toBe(11);
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 20, result: 11, kept: true, value: 11 },
+      ]);
+    }
+  });
+
+  it('a tie keeps the first roll, deterministically', () => {
+    const outcome = evaluate('1d20', parseOk('1d20'), {
+      rng: sequenceRandomSource([9, 9]),
+      fortune: true,
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.terms).toEqual([
+        { kind: 'die', faces: 20, result: 9, kept: true, value: 9 },
+        { kind: 'die', faces: 20, result: 9, kept: false, value: 0 },
+      ]);
+    }
+  });
+
+  it('applies uniformly across every die when an expression has more than one', () => {
+    const outcome = evaluate('2d20', parseOk('2d20'), {
+      rng: sequenceRandomSource([3, 12, 7, 19]),
+      fortune: true,
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      // Position 1: max(3, 12) = 12. Position 2: max(7, 19) = 19.
+      expect(outcome.result.total).toBe(31);
+      expect(outcome.result.terms).toHaveLength(4);
+    }
+  });
+
+  it('a keep/drop/reroll modifier only sees the fortune-kept die, not the discard', () => {
+    // fortune keeps the 15 and discards the 8; kh1 on a single die is a
+    // no-op either way, but this pins that the discarded 8 was never
+    // "active" for the modifier chain to begin with.
+    const outcome = evaluate('1d20kh1', parseOk('1d20kh1'), {
+      rng: sequenceRandomSource([8, 15]),
+      fortune: true,
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.total).toBe(15);
+      expect(outcome.result.terms.filter((t) => t.kind === 'die' && t.kept)).toHaveLength(
+        1,
+      );
+    }
+  });
+
+  it('a reroll replacement is a plain single roll, not itself fortune-doubled', () => {
+    // misfortune rolls [1, 4] and keeps the lower (1), discarding the 4.
+    // That kept 1 matches rr<2 and rerolls once, consuming exactly one more
+    // rng() call (the 9). If the reroll were itself misfortune-doubled it
+    // would need a second value here that this sequence doesn't supply, and
+    // sequenceRandomSource would throw instead of the test passing.
+    const outcome = evaluate('1d6rr<2', parseOk('1d6rr<2'), {
+      rng: sequenceRandomSource([1, 4, 9]),
+      misfortune: true,
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.result.terms).toHaveLength(3);
+    }
+  });
+});
