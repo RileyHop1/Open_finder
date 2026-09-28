@@ -22,6 +22,16 @@ export type { RandomSource } from './rng.js';
 
 export { degreeOfSuccess } from './degreesOfSuccess.js';
 
+export { evaluateDamage } from './damage.js';
+export type {
+  DamageComponent,
+  DamageDoubling,
+  EvaluateDamageError,
+  EvaluateDamageErrorCode,
+  EvaluateDamageOptions,
+  EvaluateDamageResult,
+} from './damage.js';
+
 export {
   DEGREES_OF_SUCCESS,
   type ConstantTerm,
