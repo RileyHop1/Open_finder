@@ -7,10 +7,14 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hearthtable/core": "workspace:*",
     "@hearthtable/dice": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.2"
   }
 }
