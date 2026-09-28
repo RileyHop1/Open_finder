@@ -5,12 +5,15 @@
  * Architecture. None of those concrete types exist yet; this module is just
  * the shape they will all extend.
  *
- * `World` and `Seat` (this package's next schemas) do NOT extend this: a
+ * `World` and `Seat` extend `baseRecordSchema` directly, not this schema: a
  * World cannot belong to itself (it has no `worldId`), and a Seat is not
- * permission-gated the way a document is. See docs/documents.md.
+ * permission-gated the way a document is. See docs/documents.md and
+ * docs/world-and-seats.md.
  */
 
 import { z } from 'zod';
+
+import { baseRecordSchema, idSchema } from './record.js';
 
 /**
  * The four-level access scale from CLAUDE.md's Architecture section,
@@ -46,32 +49,18 @@ export const documentPermissionsSchema = z.object({
 export type DocumentPermissions = z.infer<typeof documentPermissionsSchema>;
 
 /**
- * Every document ID is a v4 UUID, generated with `crypto.randomUUID()` --
- * available natively in both the browser and Node, needs no dependency, and
- * can be generated client-side before the server ever sees the document
- * (the same reasoning ADR 0005 applies to operation IDs, for the same
- * optimistic-update reason).
- */
-export const documentIdSchema = z.uuid();
-
-/**
- * ISO 8601 timestamp strings, not epoch numbers or native `Date` objects.
- * Documents round-trip through JSON (SQLite JSON columns, the export
- * archive), where `Date` has no native representation; an ISO string stays
- * human-readable in a raw database dump and sorts correctly as a plain
- * string, which an epoch number does too but is not human-readable, and a
- * `Date` object is neither.
- */
-export const timestampSchema = z.iso.datetime();
-
-/**
- * The shared envelope every content document carries. A concrete document
- * type extends this with its own fields and narrows `type` to a literal:
+ * The shared envelope every content document carries: the common
+ * `baseRecordSchema` trio (id/schemaVersion/timestamps), plus what makes a
+ * document specifically a *document* -- which world it belongs to, what
+ * kind it is, and who can see it.
+ *
+ * A concrete document type extends this with its own fields and narrows
+ * `type` to a literal:
  *
  * ```ts
  * const partySchema = baseDocumentSchema.extend({
  *   type: z.literal('party'),
- *   memberIds: z.array(documentIdSchema),
+ *   memberIds: z.array(idSchema),
  * });
  * ```
  *
@@ -81,20 +70,10 @@ export const timestampSchema = z.iso.datetime();
  * CLAUDE.md's Development order section on growing the surface per slice
  * rather than speculating the full list now.
  */
-export const baseDocumentSchema = z.object({
-  id: documentIdSchema,
-  worldId: documentIdSchema,
+export const baseDocumentSchema = baseRecordSchema.extend({
+  worldId: idSchema,
   type: z.string().min(1),
-  /**
-   * Forward-only, numbered from 1. The migration runner that acts on this
-   * field lands in a later PR; the field exists now regardless, because
-   * retrofitting it onto documents already sitting in a real campaign is
-   * the expensive mistake CLAUDE.md's Data durability section warns against.
-   */
-  schemaVersion: z.number().int().positive(),
   permissions: documentPermissionsSchema,
-  createdAt: timestampSchema,
-  updatedAt: timestampSchema,
 });
 
 export type BaseDocument = z.infer<typeof baseDocumentSchema>;

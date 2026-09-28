@@ -5,22 +5,25 @@ package defines what that means: the Zod schemas, the inferred types, the
 permission model, and the operation shapes the server validates against.
 
 ## What lives here
-- **The document envelope** (`document.ts`) — the shared shape every content
-  document extends: `id`, `worldId`, `type`, `schemaVersion`, `permissions`,
-  timestamps. See `docs/documents.md`. **Built.**
+- **The shared record base** (`record.ts`) — `id`, `schemaVersion`,
+  `createdAt`, `updatedAt`. Everything persisted extends this. **Built.**
+- **The document envelope** (`document.ts`) — extends the record base with
+  what makes a document specifically a *document*: `worldId`, `type`,
+  `permissions`. See `docs/documents.md`. **Built.**
+- **`World` and `Seat`** (`world.ts`, `seat.ts`) — extend the record base
+  directly, not the document envelope; neither is permission-gated the way a
+  document is. See `docs/world-and-seats.md`. **Built.**
 - **Document schemas** — `Actor`, `Item`, `Party`, `JournalEntry`, `Scene`,
   `Combat`, `ChatMessage`, `Calendar`, `RollTable`, each extending the
-  envelope above. Not yet — these land through milestones 3–9 as each type's
-  own feature needs it
-- **`World` and `Seat`** — the two schemas that do *not* extend the document
-  envelope. Next PR
+  document envelope. Not yet — these land through milestones 3–9 as each
+  type's own feature needs it
 - **Operations** — the client-to-server vocabulary (see
   `docs/adr/0005-concurrency.md`) and permission resolution `(seat, document)
-  => level`. Not yet
+  => level`. Next PR
 - **`Modifier` and `Statistic`** — the modifier resolution types from
   `docs/adr/0008-modifier-resolution.md`. Not yet
 - **The migration runner** that acts on `schemaVersion`. Not yet — the field
-  exists on every document already, since retrofitting it later is the
+  exists on every record already, since retrofitting it later is the
   expensive mistake
 
 Types are always *inferred from* the Zod schema, never written twice.

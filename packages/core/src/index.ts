@@ -1,17 +1,28 @@
 /**
  * @hearthtable/core -- the document model: Zod schemas, permissions, and
  * shared types every other package builds on. System-agnostic; see
- * CLAUDE.md's Architecture section and `docs/documents.md`.
+ * CLAUDE.md's Architecture section, `docs/documents.md`, and
+ * `docs/world-and-seats.md`.
  */
+
+export {
+  baseRecordSchema,
+  idSchema,
+  schemaVersionSchema,
+  timestampSchema,
+  type BaseRecord,
+} from './record.js';
 
 export {
   PERMISSION_LEVELS,
   baseDocumentSchema,
-  documentIdSchema,
   documentPermissionsSchema,
   permissionLevelSchema,
-  timestampSchema,
   type BaseDocument,
   type DocumentPermissions,
   type PermissionLevel,
 } from './document.js';
+
+export { worldSchema, type World } from './world.js';
+
+export { seatSchema, type Seat } from './seat.js';
