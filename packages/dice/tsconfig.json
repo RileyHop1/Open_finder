@@ -1,4 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The base config sets "types": [] so browser-targeted packages don't
+    // leak Node globals. This package needs node:crypto's types for
+    // rng.ts's production RNG -- see rng.ts for why that import is
+    // isolated to its own file rather than the package's main entry point.
+    "types": ["node"]
+  },
   "include": ["src/**/*.ts"]
 }
