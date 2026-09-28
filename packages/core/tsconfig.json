@@ -1,4 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // This package is isomorphic -- shared between apps/client (browser) and
+    // apps/server (Node). "DOM" adds the WHATWG globals both environments
+    // actually have (crypto.randomUUID() being the immediate case; see
+    // document.ts), without pulling in @types/node's Node-specific globals,
+    // which apps/client must NOT get.
+    "lib": ["ES2023", "DOM"]
+  },
   "include": ["src/**/*.ts"]
 }

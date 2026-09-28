@@ -21,7 +21,11 @@ If a page and CLAUDE.md disagree, CLAUDE.md wins and the page is a bug.
 
 ## Document types
 One page per document type (fields, permissions, examples), written as each type
-lands. None yet — the first will arrive with milestone 1.
+lands.
+
+| Page | What it covers |
+| --- | --- |
+| [documents.md](documents.md) | The shared envelope every document extends — not a type itself, but read this first |
 
 ## Writing a page here
 - Specify, do not narrate. Someone should be able to implement from it.
