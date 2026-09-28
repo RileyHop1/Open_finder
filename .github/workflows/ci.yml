@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # The charter's most important rule, mechanically enforced.
+  #
+  # .gitignore cannot stop `git add -f`, and git history is permanent. This job
+  # is the backstop. See docs/adr/0003-rules-data-licensing.md.
+  #
+  # It runs first and independently of the build, so a licensing violation is
+  # never masked by an unrelated test failure.
+  # ---------------------------------------------------------------------------
+  content-guard:
+    name: No imported content tracked
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if licensing-critical paths are tracked
+        run: |
+          tracked=$(git ls-files -- \
+            'systems/pf2e/.data' \
+            'systems/pf2e/.data/**' \
+            'worlds' \
+            'worlds/**' \
+            '*.db' '*.db-wal' '*.db-shm')
+          if [ -n "$tracked" ]; then
+            echo "::error::Imported rules data or world databases are tracked in git."
+            echo ""
+            echo "The project must never commit Paizo content. These files are tracked:"
+            echo "$tracked" | sed 's/^/  /'
+            echo ""
+            echo "Remove them with 'git rm --cached', and note that if they have"
+            echo "already reached a pushed branch the history itself needs rewriting."
+            echo "See docs/adr/0003-rules-data-licensing.md."
+            exit 1
+          fi
+          echo "No imported content tracked."
+
+      - name: Fail if the ignore patterns were weakened
+        run: |
+          missing=0
+          for pattern in \
+            'systems/pf2e/.data/upstream/' \
+            'systems/pf2e/.data/imported/' \
+            'worlds/'
+          do
+            if ! grep -qxF "$pattern" .gitignore; then
+              echo "::error::.gitignore no longer ignores '$pattern'"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          echo "Ignore patterns intact."
+
+  check:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
