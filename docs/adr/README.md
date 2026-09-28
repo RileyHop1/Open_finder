@@ -38,3 +38,5 @@ than a tidy file.
 | [0006](0006-content-scope-core-books.md) | Content scope: the core four books only | Accepted |
 | [0007](0007-seats-not-accounts.md) | Seats, not accounts: no authentication | Accepted |
 | [0008](0008-modifier-resolution.md) | Modifier resolution: compute an explained total | Accepted |
+| [0009](0009-node-sqlite.md) | Storage driver: `node:sqlite`, not `better-sqlite3` | Accepted |
+| [0010](0010-distribution.md) | Distribution: the GM never opens a terminal | Accepted |
