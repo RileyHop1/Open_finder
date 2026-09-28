@@ -1,0 +1,106 @@
+# Conditions
+
+Conditions are `Item` documents (see the document model in CLAUDE.md) attached to
+an `Actor`. They are the main way the rules engine changes a character mid-combat,
+and they are where automation is most visible to players — a wrong *frightened*
+value is noticed immediately.
+
+Rules references are Remaster (Player Core). Where marked **(confirm)**, verify
+against the book during implementation.
+
+## Remaster naming
+We are Remaster-only (see Ground rules), and the Remaster renamed several
+conditions. Use the current names everywhere — in schemas, slugs, and UI:
+
+- **off-guard**, not *flat-footed*. This is the one that will trip up anyone who
+  learned the game pre-Remaster, and the importer must not carry the old slug
+  through.
+
+Legacy names never appear in our data. If upstream content uses one, the importer
+maps it or drops the entry (see the exclusion rule in CLAUDE.md).
+
+## Shape
+```ts
+{
+  slug: string;              // "frightened", "off-guard"
+  valued: boolean;           // does it carry a number
+  value?: number;            // 1..N when valued
+  duration: Duration;
+  source: DocumentRef;       // what applied it — an item, spell, or another actor
+  modifiers: Modifier[];     // what it contributes (see ADR 0008)
+}
+```
+
+Conditions contribute **`Modifier` records**, never direct edits to a statistic.
+*Frightened 2* does not subtract 2 from your attack bonus; it contributes a −2
+status penalty that the resolver applies alongside everything else. That is what
+makes it show up correctly in a breakdown, and what makes two competing status
+penalties resolve by the stacking rules rather than by both being subtracted.
+
+## Valued conditions
+Carry a number that scales their effect: **clumsy, doomed, drained, dying,
+enfeebled, frightened, sickened, slowed, stunned, stupefied, wounded**.
+
+**Two sources of the same valued condition do not add.** Take the higher value.
+*Frightened 2* plus *frightened 1* is *frightened 2*, not *frightened 3*. This is
+the single most common automation bug in VTTs and it needs a golden test.
+
+## Binary conditions
+Present or absent: **blinded, concealed, confused, dazzled, deafened, fascinated,
+fatigued, fleeing, grabbed, hidden, immobilized, invisible, observed, off-guard,
+paralyzed, petrified, prone, quickened, restrained, unconscious, undetected,
+unnoticed** **(confirm the full list against Player Core's appendix)**.
+
+Several are mutually exclusive or form ladders — the detection states (observed /
+hidden / undetected / unnoticed) are a progression, not independent flags, and
+applying one must clear the others. Model detection as a single enum per
+observer-target pair rather than as four booleans.
+
+## Durations
+```
+until-end-of-turn      | whose turn, resolved against the Combat tracker
+until-start-of-turn    | likewise
+rounds(n)              | decremented by the combat tracker
+minutes(n) / hours(n)  | decremented by the Calendar clock
+sustained              | ends if the caster stops sustaining
+until-removed          | manual only
+until-condition-met    | e.g. until you Recover; needs an explicit trigger
+```
+
+Durations tick in the combat tracker (milestone 5), which is why conditions and
+the tracker ship close together. Outside combat, `minutes`/`hours` durations are
+advanced by the `Calendar` — the same clock that overworld travel and downtime
+use, which is why `Calendar` is a first-class document.
+
+**Expiry is a server operation**, not a client timer. A condition that expires
+must broadcast like any other change (ADR 0005).
+
+## The dying chain
+The fiddliest part of the system, and worth writing tests for before writing code.
+
+- **dying** increases as you take damage while unconscious; at **dying 4** the
+  character dies **(confirm the threshold and its interaction with doomed)**.
+- **wounded** raises the dying value you re-enter at, so repeated drops get
+  progressively more dangerous.
+- **doomed** reduces the dying value at which death occurs.
+- **Recovering** removes dying and increases wounded.
+
+These three interact multiplicatively and a mistake here kills a player character
+who should have lived. Treat every transition as a golden test case, and make the
+GM override path (see GM experience in CLAUDE.md) especially prominent on this
+one — it is the automation a GM is most likely to want to overrule.
+
+## Automation boundaries
+- The app **applies and tracks** conditions, and applies their modifiers.
+- The app **does not decide** whether a condition should be applied in an
+  ambiguous case. Where the trigger is unclear, prompt the GM rather than
+  guessing, and record the judgment call in `docs/rulings.md`.
+- Every condition can be added, edited, or removed manually by the GM regardless
+  of what automation thinks. No exceptions.
+
+## Testing
+- Same condition from two sources takes the higher value, both directions.
+- Each valued condition's modifiers resolve through ADR 0008 with the right type.
+- Detection states are mutually exclusive.
+- Duration expiry at end-of-turn and start-of-turn boundaries.
+- The full dying / wounded / doomed matrix.

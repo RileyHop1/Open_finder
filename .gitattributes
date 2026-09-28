@@ -1,0 +1,20 @@
+# Normalize line endings: the repo stores LF, everyone checks out LF.
+# Without this, a Windows checkout rewrites every file and diffs become noise.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.ogg binary
+*.webm binary
+*.db binary
+
+# Generated; collapse in diffs and exclude from language stats.
+pnpm-lock.yaml linguist-generated=true -diff

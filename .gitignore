@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test output
+coverage/
+.vitest/
+playwright-report/
+test-results/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ---------------------------------------------------------------------------
+# LICENSING-CRITICAL. Do not remove or narrow these patterns.
+#
+# The charter's most important rule is "never commit Paizo content" (CLAUDE.md,
+# Rules data; docs/adr/0003-rules-data-licensing.md). Upstream packs are
+# downloaded at setup time and converted output is written here. None of it may
+# ever enter git history, which is permanent.
+#
+# A CI job independently fails the build if anything under these paths becomes
+# tracked, because .gitignore alone cannot stop `git add -f`.
+# ---------------------------------------------------------------------------
+
+# Downloaded upstream foundryvtt/pf2e packs (pinned commit + checksum)
+systems/pf2e/.data/upstream/
+
+# Our converted, Zod-validated output
+systems/pf2e/.data/imported/
+
+# User world folders: world.db, assets/, snapshots/
+worlds/
+
+# SQLite databases anywhere
+*.db
+*.db-wal
+*.db-shm
