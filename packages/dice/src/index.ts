@@ -1,7 +1,21 @@
 /**
- * Placeholder export so the package typechecks before real code lands.
+ * @hearthtable/dice -- the dice expression parser and evaluator.
  *
- * Remove this when the first real module arrives; see the milestone list in
- * CLAUDE.md for what belongs here.
+ * System-agnostic: this package knows dice, arithmetic, keep/drop, and
+ * rerolls. It does not know what a Strike is or how a DC is computed. See
+ * docs/dice.md for the full specification.
  */
-export const PACKAGE_NAME = '@hearthtable/dice' as const;
+
+export { parse } from './parser.js';
+export type { ParseError, ParseErrorCode, ParseResult } from './parser.js';
+
+export {
+  DEGREES_OF_SUCCESS,
+  type ConstantTerm,
+  type DamageByType,
+  type DegreeOfSuccess,
+  type DieTerm,
+  type ReferenceTerm,
+  type RollResult,
+  type RollTerm,
+} from './types.js';

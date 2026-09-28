@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { PACKAGE_NAME } from './index.js';
+import { parse } from './index.js';
 
-describe('@hearthtable/dice', () => {
-  it('exposes its package name', () => {
-    expect(PACKAGE_NAME).toBe('@hearthtable/dice');
+describe('@hearthtable/dice public API', () => {
+  it('parses a simple expression via the package entry point', () => {
+    const result = parse('1d20+7');
+    expect(result.ok).toBe(true);
   });
 });
