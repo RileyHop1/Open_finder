@@ -366,6 +366,47 @@ carried through for a valued condition -- present on a binary one is
 ignored outright, matching the schema's own refinement that `maxValue`
 only applies when `valued` is true.
 
+## Dependency resolution (ADR 0003 decision 5)
+
+`resolveDependencies.ts` is what finally turns a `DraftEntry<T>` into the
+real, schema-valid thing (`DraftPf2eEntry` in, `Pf2eEntry` out), using the
+full set of entries that survived the license and scope filters -- the
+"full imported entry set" no single-entry mapper has.
+
+**Every `UnresolvedGrantItem` gets resolved or the entry is dropped.** A
+grant's upstream `uuid` names another upstream document by its trailing
+`_id` segment; `deterministicId` on that same segment is exactly the id the
+target entry was given when *it* was mapped, so resolving a grant is a
+single map lookup, no separate id-translation table needed. If the target
+isn't in the kept set -- excluded by an earlier filter, or dropped in an
+earlier round of this same pass -- the granting entry is dropped whole
+(`grant-target-excluded`), never silently stripped of the reference: ADR
+0003 decision 5 is explicit that this would change what the entry does.
+
+**Two more structural references get the same treatment**, since both are
+real cross-entry dependencies this importer produces, not upstream ones: a
+`heritage`'s `ancestrySlug` (`ancestry-excluded` if the named ancestry
+isn't kept) and a `classFeature`'s `classSlug` (`class-excluded`
+likewise). A heritage with no `ancestrySlug` at all is confidently
+versatile, not a dependency, and is never dropped for this reason.
+
+**The pass runs to a fixed point, because dropping cascades.** Dropping an
+entry can orphan another entry that granted *it* -- if A grants B grants C,
+and C was excluded before this pass even started, round 1 drops B (its
+grant target is gone) and round 2 drops A (its grant target, B, is now
+gone too). Each drop is recorded with its `round`, which is what a
+`coverage.md` report (a later PR) can use to show the cascade, not just
+the final casualty count. The pass stops once a full round drops nothing.
+
+**Deliberately not attempted:** resolving `@UUID[Compendium...]` links
+embedded in prose `description` text, and matching free-text
+`prerequisites` strings against excluded content by name. Both would mean
+trusting a drop decision to HTML/prose parsing or fuzzy name-matching --
+the same risk `mapSpell.ts` already declined for heightening. Guessing
+wrong here is worse than doing nothing: either an orphaned reference ships
+anyway, defeating the whole pass, or unrelated content gets dropped for no
+real reason. Revisit if a real-data survey shows either one matters.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -472,3 +513,12 @@ To move the pin to a new upstream commit:
   condition ignored rather than carried through; a non-string entry dropped
   from `overrides` rather than failing the whole condition; and every
   fail-closed path (a missing or non-boolean `isValued` flag).
+- `resolveDependencies.test.ts`: a `grantItem` target that resolves,
+  verified both directly and by parsing the resolved entry against its real
+  per-kind schema; non-grant elements passed through unchanged; a broken
+  grant dropping the whole entry even alongside other valid elements; an
+  A-grants-B-grants-C chain dropping across two successive rounds when C
+  was excluded from the start (and the mirror case where the whole chain
+  resolves and nothing is dropped); a versatile heritage kept regardless of
+  which ancestries exist; a heritage and a class feature each kept when
+  their reference resolves and dropped when it doesn't.
