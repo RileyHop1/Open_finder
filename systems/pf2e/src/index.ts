@@ -1,7 +1,23 @@
 /**
- * Placeholder export so the package typechecks before real code lands.
- *
- * Remove this when the first real module arrives; see the milestone list in
- * CLAUDE.md for what belongs here.
+ * @hearthtable/pf2e -- Pathfinder 2E content schemas, rule elements, the
+ * importer, and the rules engine. System-specific; the only system this
+ * project ships. See CLAUDE.md's Architecture section and
+ * `systems/pf2e/README.md`.
  */
-export const PACKAGE_NAME = '@hearthtable/pf2e' as const;
+
+export {
+  ACTION_COSTS,
+  ATTRIBUTES,
+  PROFICIENCY_BONUS,
+  PROFICIENCY_RANKS,
+  RARITIES,
+  actionCostSchema,
+  attributeSchema,
+  proficiencyRankSchema,
+  raritySchema,
+  traitSlugSchema,
+  type ActionCost,
+  type Attribute,
+  type ProficiencyRank,
+  type Rarity,
+} from './content/common.js';

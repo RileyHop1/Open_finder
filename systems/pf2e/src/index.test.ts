@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { PACKAGE_NAME } from './index.js';
+import { raritySchema } from './index.js';
 
-describe('@hearthtable/pf2e', () => {
-  it('exposes its package name', () => {
-    expect(PACKAGE_NAME).toBe('@hearthtable/pf2e');
+describe('@hearthtable/pf2e public API', () => {
+  it('exposes a content primitive via the package entry point', () => {
+    expect(raritySchema.safeParse('uncommon').success).toBe(true);
   });
 });
