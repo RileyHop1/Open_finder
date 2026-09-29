@@ -15,13 +15,20 @@ every change, persists it, and tells everyone else.
   permission, apply inside a transaction, assign a sequence number, broadcast
   (`docs/adr/0005-concurrency.md`). Not yet — the world store's `transaction`
   and `appendOperation` exist for this to be built on top of
-- **Migrations** — the forward-only runner, executed on world open. Not yet
-  — the world store's `meta` table exists for this to read/write its version
-  marker
+- **Migrations** (`migrations.ts`) — the forward-only runner, run
+  automatically whenever a world's database is opened; snapshots (via
+  `db.serialize()`, never a raw file copy — see the module's own doc comment
+  for why) before every individual migration, not once per batch. Currently
+  migrates the database's own table structure; no concrete document type
+  exists yet to need per-type body migrations. **Built.**
+- **The shared transaction helper** (`transaction.ts`) — `node:sqlite` has
+  no `db.transaction()` the way `better-sqlite3` did; this is that missing
+  primitive, used by both the world store and the migration runner. **Built.**
 - **Seats** — seat selection and device tokens; there is no authentication
-  (`docs/adr/0007-seats-not-accounts.md`). Not yet
-- **Snapshots and world export/import.** Not yet — the `snapshots/` folder is
-  already created per world by the world store
+  (`docs/adr/0007-seats-not-accounts.md`). Not yet for the operations, but
+  their storage table now exists (added by migration v2)
+- **Snapshots and world export/import.** Snapshotting exists (see
+  Migrations above); world export/import is not yet built
 
 ## Deployment notes
 - **Binds to localhost by default, never `0.0.0.0`.** This app is served on a
