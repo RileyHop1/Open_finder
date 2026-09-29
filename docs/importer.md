@@ -166,6 +166,21 @@ maps it onto a single `Predicate` value, failing the *whole* predicate (never
 just dropping one clause) when any element uses an operator our v1 language
 doesn't support (`gt`/`gte`/`lt`/`lte`/`eq`, `xor`/`nand`/`nor`).
 
+## Per-entry rule-element mapping
+
+`mapRuleElements.ts`'s `mapEntryRuleElements(rules)` runs `mapRuleElement`
+over one entry's full `system.rules` array and separately collects the
+inert results as `downgrades` -- `{ upstreamKind, reason }` pairs, flattened
+for counting. `downgrades` is a view, not a second source of truth: every
+downgrade also appears in `elements`, since inert elements are never
+dropped (ADR 0004 decision 4). This is the raw material the coverage report
+(a later PR) groups and counts.
+
+An absent or `null` `rules` field -- most entries carry no automation at
+all -- maps to no elements and no downgrades; it is not an error. A present
+but non-array value (which real upstream data never produces) is one
+`malformed-rules-array` downgrade.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -211,3 +226,8 @@ To move the pin to a new upstream commit:
   unsupported die size, a missing field, non-inline choices, a predicated
   grant or choice set), an unmapped element kind recorded by name, and a
   malformed (non-object) element.
+- `mapRuleElements.test.ts`: an absent/null/empty rules field all producing
+  nothing, a mix of mappable and unmappable elements preserving order and
+  collecting only the inert ones as downgrades, a fully-mappable array
+  producing no downgrades, the downgrade/elements consistency itself, and a
+  non-array rules value producing exactly one downgrade.
