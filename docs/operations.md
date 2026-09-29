@@ -29,10 +29,18 @@ connection, never from the payload; a client that could self-report its own
 
 | Type | Payload | Notes |
 | --- | --- | --- |
-| `seat.claim` | `{ seatId }` | The seat to claim. A connection already holding a different seat may send this directly to switch — the handler auto-releases the old one rather than requiring a separate release first |
+| `seat.claim` | `{ seatId, pin? }` | The seat to claim, plus an optional PIN. A connection already holding a different seat may send this directly to switch — the handler auto-releases the old one rather than requiring a separate release first |
 | `seat.release` | `{}` | No target — releasing is self-referential, the server already knows which seat this connection holds |
 | `chat.sendMessage` | `{ text }` | Plain chat |
 | `chat.sendRoll` | `{ expression }` | The **raw text** the player typed (`"1d20+7"`), never a computed result — see below |
+
+### The `pin` on `seat.claim`
+
+Only checked when the target seat has one set (`Seat.pin`, see
+[world-and-seats.md](world-and-seats.md)). Like the field it's checked
+against, this is **not authentication** — no hashing, no rate limiting. It
+exists only so a claim on a PIN-protected (typically GM) seat can carry the
+PIN, stopping an accidental claim, per ADR 0007.
 
 ### Why `chat.sendRoll` carries text, not a number
 
@@ -46,13 +54,20 @@ per CLAUDE.md's ChatMessage rule.
 ## The broadcast envelope
 
 ```ts
-{ sequence, operation, documents }
+{ sequence, operation, documents, seats }
 ```
 
-`documents` is the documents that changed — never a diff format. This is the
+`documents` and `seats` are what changed — never a diff format. This is the
 simplest shape that satisfies ADR 0005; a diff format is exactly the kind of
 complexity CLAUDE.md's Development order section says not to build ahead of a
 real need.
+
+`seats` is its own array, separate from `documents`, because a `Seat` isn't
+one — it doesn't extend `baseDocumentSchema` (see
+[world-and-seats.md](world-and-seats.md)) — so a seat change had nowhere to
+go in a `documents`-only envelope. It validates fully against `seatSchema`,
+not loosely: `Seat` has no concrete subtypes the way a document does, so
+there's no "losing a subtype's own fields" problem here to guard against.
 
 ### Why `documents` validates in loose mode
 
@@ -96,7 +111,9 @@ See `packages/core/src/operation.test.ts` and `permission.test.ts`. Notably:
 the union genuinely discriminates (a `seat.claim`-shaped payload sent as
 `chat.sendMessage` is rejected, not silently accepted); a `chat.sendRoll`
 payload carrying an extra `total` field parses successfully but that field is
-gone from the output, proving a client cannot smuggle a result through; and
+gone from the output, proving a client cannot smuggle a result through;
 `broadcastSchema` round-trips a document with unknown extra fields intact,
 proving `.loose()` actually behaves as documented above and not just in
-theory.
+theory; and a malformed seat in `broadcastSchema.seats` is rejected, proving
+that array is fully validated rather than accidentally inheriting `documents`'
+loose treatment.

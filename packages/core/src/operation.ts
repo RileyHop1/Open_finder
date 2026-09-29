@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import { baseDocumentSchema } from './document.js';
 import { idSchema, timestampSchema } from './record.js';
+import { seatSchema } from './seat.js';
 
 /**
  * What a client actually sends over the wire: an intent (`type`) and its
@@ -57,13 +58,18 @@ export type AppliedOperation = z.infer<typeof appliedOperationSchema>;
  * Claim a seat -- see ADR 0007. No envelope-level `seatId` is expected on
  * this operation's *applied* form in the common case: a connection sending
  * this usually doesn't hold a seat yet. A connection that already holds a
- * different seat may also send this to switch directly; the handler (a
- * later PR) auto-releases the old seat rather than requiring a separate
+ * different seat may also send this to switch directly; the handler
+ * auto-releases the old seat rather than requiring a separate
  * `seat.release` first, matching "click a character, unclick if wrong."
+ *
+ * `pin` is optional and only checked when the target seat has one set
+ * (Seat's own `pin` field -- see `seat.ts`). It is not a secret and this is
+ * not authentication; it exists only to stop an accidental GM-seat claim,
+ * per ADR 0007 and Seat's own TSDoc.
  */
 export const seatClaimOperationSchema = clientOperationSchema.extend({
   type: z.literal('seat.claim'),
-  payload: z.object({ seatId: idSchema }),
+  payload: z.object({ seatId: idSchema, pin: z.string().optional() }),
 });
 
 /**
@@ -112,11 +118,11 @@ export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
 
 /**
  * What the server sends to every connected client after applying an
- * operation: the sequence number, the applied operation itself, and the
- * documents that changed as a result -- never a diff format. This is the
- * simplest shape that satisfies ADR 0005; a diff format is exactly the kind
- * of speculative complexity CLAUDE.md's Development order section warns
- * against building ahead of a real need for it.
+ * operation: the sequence number, the applied operation itself, the
+ * documents that changed, and the seats that changed -- never a diff
+ * format. This is the simplest shape that satisfies ADR 0005; a diff format
+ * is exactly the kind of speculative complexity CLAUDE.md's Development
+ * order section warns against building ahead of a real need for it.
  *
  * `documents` validates against the shared envelope in **loose** mode
  * (`.loose()`, not the default), which matters: Zod's default `z.object()`
@@ -128,11 +134,18 @@ export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
  * type-specific validation already happened when the document was created
  * or updated against its own concrete schema, so this envelope only needs
  * to confirm "at least a document," not re-validate everything.
+ *
+ * `seats` is separate from `documents` because a `Seat` isn't one (`seat.ts`
+ * doesn't extend `baseDocumentSchema` -- see `docs/world-and-seats.md`), so
+ * it validates fully against `seatSchema` rather than needing the same
+ * loose-mode treatment; there's no concrete-subtype-losing-fields problem
+ * here since `Seat` has no subtypes.
  */
 export const broadcastSchema = z.object({
   sequence: z.number().int().positive(),
   operation: appliedOperationSchema,
   documents: z.array(baseDocumentSchema.loose()),
+  seats: z.array(seatSchema),
 });
 
 export type Broadcast = z.infer<typeof broadcastSchema>;
