@@ -50,3 +50,16 @@ export {
   type WeaponEntry,
   type WeaponGroup,
 } from './content/weapon.js';
+
+export {
+  ARMOR_CATEGORIES,
+  ARMOR_GROUPS,
+  armorCategorySchema,
+  armorEntrySchema,
+  armorGroupSchema,
+  type ArmorCategory,
+  type ArmorEntry,
+  type ArmorGroup,
+} from './content/armor.js';
+
+export { gearEntrySchema, type GearEntry } from './content/gear.js';
