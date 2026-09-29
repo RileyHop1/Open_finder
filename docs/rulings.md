@@ -44,6 +44,32 @@ ruling from silently drifting.
 
 ## Entries
 
-*None yet. The first entries will arrive with milestone 2 (rules data) and
-milestone 3 (character sheet), when the math starts being computed rather than
-stored.*
+### Proficiency without level is not supported
+- **Rules text:** Player Core's proficiency rules; the Remaster's default math
+  adds a character's level to every proficiency rank at trained or above.
+  Separately, the GM Core (and the pre-Remaster core rulebook before it)
+  publishes an optional variant, Proficiency Without Level, which drops the
+  level term entirely and rebalances DCs around flat rank bonuses instead.
+- **The ambiguity:** not a rules ambiguity so much as a scope question --
+  whether to support the variant rule at all, since some tables prefer its
+  flatter math.
+- **Our reading:** level-based proficiency only. `proficiencyModifier(rank,
+  level)` (`systems/pf2e/src/rules/proficiency.ts`) adds level to the rank's
+  own bonus for trained and above, and untrained is a flat `+0` -- never
+  level, at any rank.
+- **Alternative reading:** implement Proficiency Without Level as a togglable
+  variant, the way some other VTTs do.
+- **Why:** CLAUDE.md's Content scope section excludes variant rules by name
+  (alongside Free Archetype and Dual-Class) precisely because supporting more
+  than one build/math skeleton multiplies the surface area a solo maintainer
+  has to test. This is that exclusion applied to the resolver.
+- **Golden test:** no golden fixture yet -- Stack E (the golden harness) has
+  not landed. `proficiency.test.ts` pins the exact values for every rank at
+  levels 1 and 20 in the meantime; the golden Fighter (E.2) will exercise
+  this function for real once it exists, and this entry should gain a golden
+  fixture reference at that point.
+- **Override:** none needed at the table -- this is a build-time content
+  scope decision, not a per-character automation result a GM would want to
+  flip live. A table that wants Proficiency Without Level is not using the
+  rule this project implements at all, the same way a table using Free
+  Archetype is outside the wizard's one supported build skeleton.
