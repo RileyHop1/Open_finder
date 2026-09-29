@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -404,5 +404,29 @@ describe('seats', () => {
     // second close of the same database).
     store = openWorld(worldsRoot, seat.worldId);
     expect(store.getSeat(seat.id)).toEqual(seat);
+  });
+});
+
+describe('serialize', () => {
+  it('produces bytes another world can be restored from', () => {
+    const store = createWorld(worldsRoot, 'Serialize Test');
+    const seat = makeSeat(store.world.id);
+    store.putSeat(seat);
+    const bytes = store.serialize();
+    store.close();
+
+    const restoredRoot = mkdtempSync(join(tmpdir(), 'hearthtable-worldstore-restored-'));
+    try {
+      const restoredPaths = resolveWorldPaths(restoredRoot, store.world.id);
+      mkdirSync(restoredPaths.root, { recursive: true });
+      writeFileSync(restoredPaths.manifestFile, JSON.stringify(store.world, null, 2));
+      writeFileSync(restoredPaths.databaseFile, bytes);
+
+      const restored = openWorld(restoredRoot, store.world.id);
+      expect(restored.getSeat(seat.id)).toEqual(seat);
+      restored.close();
+    } finally {
+      rmSync(restoredRoot, { recursive: true, force: true });
+    }
   });
 });
