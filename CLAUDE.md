@@ -119,8 +119,8 @@ Source: the community `foundryvtt/pf2e` repo's `packs/` JSON.
   `worlds/` for user data. CI fails if any of them becomes tracked, because
   `.gitignore` cannot stop `git add -f` and history is permanent. The repo
   contains only our MIT code, schemas, and test fixtures written by us
-- An importer script in `systems/pf2e/importer` converts Foundry-shaped JSON
-  into our own Zod-validated schemas. Our data model must not depend on
+- An importer script in `systems/pf2e/src/importer` converts Foundry-shaped
+  JSON into our own Zod-validated schemas. Our data model must not depend on
   Foundry's format
 - The importer applies **two filters**: the license filter (ORC/Remaster, ADR
   0003) and the scope filter (the core four books, ADR 0006). It strips art and
