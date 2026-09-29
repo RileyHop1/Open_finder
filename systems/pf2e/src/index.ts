@@ -137,3 +137,5 @@ export {
   type Pf2eEntry,
   type Pf2eEntryKind,
 } from './content/entry.js';
+
+export { proficiencyModifier } from './rules/proficiency.js';
