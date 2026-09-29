@@ -111,3 +111,20 @@ export {
   type ClassSkills,
   type ProficiencyProgression,
 } from './content/class.js';
+
+export {
+  creatureAttributesSchema,
+  creatureDefenseAdjustmentSchema,
+  creatureEntrySchema,
+  creatureSavingThrowsSchema,
+  creatureSpeedsSchema,
+  creatureStrikeDamageSchema,
+  creatureStrikeSchema,
+  type CreatureAttributes,
+  type CreatureDefenseAdjustment,
+  type CreatureEntry,
+  type CreatureSavingThrows,
+  type CreatureSpeeds,
+  type CreatureStrike,
+  type CreatureStrikeDamage,
+} from './content/creature.js';

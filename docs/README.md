@@ -46,6 +46,7 @@ written as each lands. Simpler kinds stay documented in
 | [content/spell.md](content/spell.md) | `spell` -- rank, traditions, range, area, defense, heightening; no components, no rituals |
 | [content/ancestry.md](content/ancestry.md) | `ancestry`, `heritage`, `background` -- attribute boosts/flaws, versatile heritages, skill grants |
 | [content/class.md](content/class.md) | `class`, `classFeature` -- proficiency progressions, key attribute options, skill grants |
+| [content/creature.md](content/creature.md) | `creature` -- finished (not resolved) stat blocks, strikes, resistances/weaknesses |
 
 ## Writing a page here
 - Specify, do not narrate. Someone should be able to implement from it.
