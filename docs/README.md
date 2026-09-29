@@ -13,6 +13,7 @@ If a page and CLAUDE.md disagree, CLAUDE.md wins and the page is a bug.
 | [conditions.md](conditions.md) | Condition shape, valued vs. binary, durations, the dying chain, Remaster naming | 3, 5 |
 | [action-economy.md](action-economy.md) | Three actions, reactions, MAP, and the display-and-warn rule | 5 |
 | [grid.md](grid.md) | Square grid, PF2e diagonals, token size, reach, flanking, templates | 4–5 |
+| [operations.md](operations.md) | The client-to-server operation vocabulary, the broadcast envelope, permission resolution | 1 |
 | [rulings.md](rulings.md) | Every rules judgment call we have made, and why | ongoing |
 
 ## Decisions

@@ -17,9 +17,14 @@ permission model, and the operation shapes the server validates against.
   `Combat`, `ChatMessage`, `Calendar`, `RollTable`, each extending the
   document envelope. Not yet — these land through milestones 3–9 as each
   type's own feature needs it
-- **Operations** — the client-to-server vocabulary (see
-  `docs/adr/0005-concurrency.md`) and permission resolution `(seat, document)
-  => level`. Next PR
+- **Operations** (`operation.ts`) — the client-to-server vocabulary: the
+  `ClientOperation`/`AppliedOperation` envelopes, the broadcast shape, and
+  the four operations milestone 1 needs (`seat.claim`, `seat.release`,
+  `chat.sendMessage`, `chat.sendRoll`). See `docs/operations.md` and
+  `docs/adr/0005-concurrency.md`. **Built** — grows per slice as later
+  milestones add operations
+- **Permission resolution** (`permission.ts`) — `resolvePermission(seat,
+  document) => level`. **Built.**
 - **`Modifier` and `Statistic`** — the modifier resolution types from
   `docs/adr/0008-modifier-resolution.md`. Not yet
 - **The migration runner** that acts on `schemaVersion`. Not yet — the field

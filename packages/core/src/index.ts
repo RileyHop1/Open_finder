@@ -26,3 +26,20 @@ export {
 export { worldSchema, type World } from './world.js';
 
 export { seatSchema, type Seat } from './seat.js';
+
+export {
+  appliedOperationSchema,
+  broadcastSchema,
+  chatSendMessageOperationSchema,
+  chatSendRollOperationSchema,
+  clientOperationSchema,
+  clientOperationUnionSchema,
+  seatClaimOperationSchema,
+  seatReleaseOperationSchema,
+  type AnyClientOperation,
+  type AppliedOperation,
+  type Broadcast,
+  type ClientOperation,
+} from './operation.js';
+
+export { resolvePermission } from './permission.js';
