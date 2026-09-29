@@ -81,8 +81,17 @@ refused outright — see Deployment notes below.
   document ones. **Built.** Seat selection *operations* (`seat.claim`/
   `seat.release`, device tokens, GM PIN checking) are also **built** — see
   `realtime.ts` above and `docs/adr/0007-seats-not-accounts.md`
-- **Snapshots and world export/import.** Snapshotting exists (see
-  Migrations above); world export/import is not yet built
+- **Snapshots** exist (see Migrations above).
+- **The world export/import archive format** (`worldArchive.ts`) —
+  `exportWorldArchive`/`importWorldArchive`: a small, custom, streamed
+  container (not tar/zip) holding `world.json`, `WorldStore.serialize()`'s
+  bytes as `world.db`, and every file under `assets/`. Neither direction
+  buffers an asset's content beyond one underlying chunk, so this holds
+  regardless of how large or how many assets a campaign has. Preserves the
+  archived world's own id on import (its `world.db` rows already point at
+  it) and refuses rather than overwrites if that id already exists at the
+  destination. **Built**, not yet wired to an HTTP route — that's the next
+  PR (`GET /api/worlds/:id/export`, `POST /api/worlds/import`)
 
 ## Deployment notes
 - **Binds to localhost by default, never `0.0.0.0`.** This app is served on a

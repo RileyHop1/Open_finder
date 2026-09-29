@@ -81,6 +81,14 @@ export interface WorldStore {
   getSeatByDeviceToken(deviceToken: string): Seat | undefined;
   getMeta(key: string): string | undefined;
   setMeta(key: string, value: string): void;
+  /**
+   * A complete, self-contained snapshot of this world's database, reflecting
+   * every committed write regardless of where its bytes currently live on
+   * disk (WAL mode can leave recent commits only in the `-wal` file). Used
+   * by world export (`worldArchive.ts`) and by `migrations.ts`'s own
+   * pre-migration snapshots -- the same reason both avoid a raw file copy.
+   */
+  serialize(): Uint8Array;
   close(): void;
 }
 
@@ -274,6 +282,10 @@ function buildStore(db: DatabaseSync, world: World): WorldStore {
         `INSERT INTO meta (key, value) VALUES (?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
       ).run(key, value);
+    },
+
+    serialize(): Uint8Array {
+      return db.serialize();
     },
 
     close(): void {
