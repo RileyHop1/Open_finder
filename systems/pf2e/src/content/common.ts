@@ -113,3 +113,10 @@ export const DAMAGE_TYPES = [
 export type DamageType = (typeof DAMAGE_TYPES)[number];
 
 export const damageTypeSchema = z.enum(DAMAGE_TYPES);
+
+/** PF2e's size categories. Shared between ancestries (an ancestry's base size) and creatures (a later Stack B PR). */
+export const SIZES = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'] as const;
+
+export type Size = (typeof SIZES)[number];
+
+export const sizeSchema = z.enum(SIZES);
