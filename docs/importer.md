@@ -235,6 +235,19 @@ to 2; anything else defaults to 1) and `system.reload.value` (a string --
 `parseDieSize` (the `"d8"` -> `8` parser) moved from `elementMapper.ts` into
 `upstreamHelpers.ts` once this mapper became its second real caller.
 
+### The armor and gear mappers (C.7c)
+
+`mapArmor.ts`: same pattern, with one deliberate asymmetry worth calling
+out. `dexCap: 0` is kept as a real value (heavy armor commonly allows no
+Dexterity bonus at all), but `strength: 0` is treated as "no requirement" --
+upstream uses 0 there to mean "none set," since a real Strength score is
+never actually zero. Treating both the same way would either lose a real
+dex cap of 0 or invent a strength requirement that doesn't exist.
+
+`mapGear.ts` is the simplest mapper in the whole importer, matching
+`gear.ts`'s own minimalism: no kind-specific fields to extract at all,
+beyond the envelope every mapper already carries.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -301,3 +314,7 @@ To move the pin to a new upstream commit:
   range and reload, `"-"` reload omitted, the slug fallback, and every
   fail-closed path (unrecognized category/group, an unsupported die size,
   an energy damage type rejected as a base type, a missing damage block).
+- `mapArmor.test.ts` / `mapGear.test.ts`: light and heavy armor, `dexCap: 0`
+  kept as a real value, `strength: 0` treated as no requirement, unarmored
+  armor with no group, gear carrying rule elements through, the slug
+  fallback, and every fail-closed path.
