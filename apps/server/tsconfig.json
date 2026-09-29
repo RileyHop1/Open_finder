@@ -1,4 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // This is the server: Node-only, never runs in a browser. "node" gives
+    // Node's own globals and built-in module types (node:sqlite, node:fs,
+    // node:path, etc), which this app needs directly.
+    "types": ["node"]
+  },
   "include": ["src/**/*.ts"]
 }
