@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
+    "test:e2e": "pnpm --filter @hearthtable/e2e test:e2e",
     "build": "pnpm -r --if-present build"
   },
   "devDependencies": {

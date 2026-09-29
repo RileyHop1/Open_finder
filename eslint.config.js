@@ -13,6 +13,8 @@ export default tseslint.config(
       '**/node_modules/**',
       'systems/pf2e/.data/**',
       'worlds/**',
+      'playwright-report/**',
+      '**/test-results/**',
     ],
   },
 
