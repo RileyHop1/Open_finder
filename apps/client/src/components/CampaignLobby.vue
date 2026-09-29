@@ -7,15 +7,20 @@
  * seat protected by a PIN asks for it inline before claiming rather than
  * claiming immediately -- see `startClaim` below. Also where a GM adds
  * seats to the roster in the first place; there is no separate "manage
- * seats" screen yet.
+ * seats" screen yet. Owns the one realtime connection this app makes
+ * (`connectionStore`) -- `stores/lobby.ts` and `ChatLog`'s own
+ * `stores/chat.ts` both react to it, but neither opens it.
  */
 import type { Seat } from '@hearthtable/core';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-import { type ConnectionStatus, useLobbyStore } from '../stores/lobby.js';
+import { type ConnectionStatus, useConnectionStore } from '../stores/connection.js';
+import { useLobbyStore } from '../stores/lobby.js';
+import ChatLog from './ChatLog.vue';
 
 const props = defineProps<{ worldId: string; worldName: string }>();
 
+const connection = useConnectionStore();
 const store = useLobbyStore();
 
 const pinPromptSeatId = ref<string>();
@@ -26,10 +31,11 @@ const newSeatIsGM = ref(false);
 const newSeatPin = ref('');
 
 onMounted(() => {
-  store.connect(props.worldId);
+  connection.connect();
+  store.loadForWorld(props.worldId);
 });
 onUnmounted(() => {
-  store.disconnect();
+  connection.disconnect();
 });
 
 const STATUS_TEXT: Record<ConnectionStatus, string> = {
@@ -39,7 +45,7 @@ const STATUS_TEXT: Record<ConnectionStatus, string> = {
   disconnected: 'Disconnected',
 };
 
-const statusText = computed(() => STATUS_TEXT[store.status]);
+const statusText = computed(() => STATUS_TEXT[connection.status]);
 
 function startClaim(seat: Seat): void {
   if (seat.pin === undefined) {
@@ -126,6 +132,8 @@ async function handleCreateSeat(): Promise<void> {
       <input id="new-seat-pin" v-model="newSeatPin" type="text" autocomplete="off" />
       <button type="submit">Add seat</button>
     </form>
+
+    <ChatLog :world-id="worldId" />
   </section>
 </template>
 

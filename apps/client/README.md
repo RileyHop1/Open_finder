@@ -38,42 +38,57 @@ client server in production.
   connects over the realtime channel. Every response is validated against
   `@hearthtable/core`'s own `worldSchema` before the store ever sees it.
   **Built.**
+- **The realtime connection** (`stores/connection.ts`, `realtime/`) — the one
+  Socket.IO connection this app makes, shared by the lobby and chat rather
+  than each owning its own. `realtime/socket.ts` opens it typed against
+  `@hearthtable/core`'s shared `ClientToServerEvents`/`ServerToClientEvents`
+  contract (so this app and `apps/server` cannot drift on the wire protocol),
+  authenticated with a device token persisted in `localStorage`
+  (`realtime/deviceToken.ts`, ADR 0007). `connectionStore` knows nothing about
+  `seats` or `documents` specifically -- it just tracks connection `status`
+  and the last `broadcast`; `stores/lobby.ts` and `stores/chat.ts` each watch
+  that and pull out whatever they care about. **Built.**
 - **The lobby** (`components/CampaignLobby.vue`, `stores/lobby.ts`,
-  `api/seats.ts`, `realtime/`) — shown instead of CampaignSelect once a
-  campaign is active (`App.vue`'s own reactive switch, no router). Lists
-  every seat, lets a GM add one, and lets anyone claim or release one --
-  "click a character to become them... unclick if you picked wrong" (the
-  milestone 1 user story and ADR 0007). This is this package's first use of
-  the realtime channel: `realtime/socket.ts` opens a Socket.IO connection
-  typed against `@hearthtable/core`'s shared `ClientToServerEvents`/
-  `ServerToClientEvents` contract (so this app and `apps/server` cannot drift
-  on the wire protocol), authenticated with a device token persisted in
-  `localStorage` (`realtime/deviceToken.ts`, ADR 0007). `stores/lobby.ts`
-  fetches the current seat list over REST on connect and on every reconnect
-  (a full snapshot is simpler than replaying the operation log, which has no
-  device-token information to reconstruct "which seat is mine" from anyway),
-  then keeps it live from `broadcast` events, merged in by seat id since a
-  broadcast only ever carries what changed. Claiming a PIN-protected seat
-  asks for the PIN inline rather than claiming immediately; the client never
-  pre-checks it against the (visible, per `seatSchema`'s own "not a secret"
-  docs) fetched value -- it just submits whatever the user enters and lets
-  the server's own `seat.claim` handler accept or reject it. **Built.**
-  Verified against a real running server, not just the test suite: two
-  independent `socket.io-client` connections, one claims a seat, the other
-  receives the live broadcast, and a REST snapshot afterward agrees.
+  `api/seats.ts`) — shown instead of CampaignSelect once a campaign is active
+  (`App.vue`'s own reactive switch, no router). Lists every seat, lets a GM
+  add one, and lets anyone claim or release one -- "click a character to
+  become them... unclick if you picked wrong" (the milestone 1 user story and
+  ADR 0007). Fetches the current seat list over REST on connect and on every
+  reconnect (a full snapshot is simpler than replaying the operation log,
+  which has no device-token information to reconstruct "which seat is mine"
+  from anyway), then keeps it live from the shared connection's broadcasts,
+  merged in by seat id since a broadcast only ever carries what changed.
+  Claiming a PIN-protected seat asks for the PIN inline rather than claiming
+  immediately; the client never pre-checks it against the (visible, per
+  `seatSchema`'s own "not a secret" docs) fetched value -- it just submits
+  whatever the user enters and lets the server's own `seat.claim` handler
+  accept or reject it. **Built.**
+- **Chat** (`components/ChatLog.vue`, `stores/chat.ts`, `api/chat.ts`) --
+  rendered inside CampaignLobby, alongside the seat list: milestone 1's "chat
+  with a dice roll," the thin thread's own proof point end to end (schema ->
+  SQLite -> operation -> sequence -> broadcast -> Pinia store -> DOM). A
+  leading `/roll <expression>` dispatches `chat.sendRoll` instead of a plain
+  `chat.sendMessage`; a roll's term-by-term breakdown renders in a `<details>`
+  disclosure, reachable by keyboard and tap, not by mouse hover alone.
+  History loads once over `apps/server`'s `GET
+  /api/worlds/:id/documents?type=chatMessage` (the operation log can't
+  reconstruct it: a `chat.sendRoll` operation's payload is the raw typed
+  expression, not the evaluated result), then stays live from broadcasts.
+  **Sending is optimistic (ADR 0005):** a pending entry, tagged with the
+  operation's own client-generated id, appears immediately and is replaced by
+  the real document once its broadcast arrives, or removed if the server
+  rejects it. A pending roll never guesses a number -- its placeholder is
+  just "Rolling `<expression>`…" -- since the server rolls, never the client.
+  **Built.** Verified against a real running server, not just the test
+  suite: two independent `socket.io-client` connections, one claims a seat,
+  sends a message and a `/roll`, the other receives both live with a real
+  evaluated `RollResult`, and a REST history fetch afterward agrees, in order.
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
   number, never recomputed (`docs/adr/0008-modifier-resolution.md`). Not yet
-- **Chat, and Pinia stores that apply realtime operations optimistically and
-  must be able to roll them back** (ADR 0005) -- not yet for chat
-  specifically. `stores/lobby.ts` above already sends real operations
-  (`seat.claim`/`seat.release`) and reconciles from the server's ack/broadcast,
-  but doesn't apply them optimistically first (a claim's UI feedback is just
-  "wait for the ack," which is simple and correct for how rarely it happens).
-  Lands with chat, the next PR
 
 ## Rules this package lives under
 - **Optimistic updates must reconcile.** On rejection, roll back to the last

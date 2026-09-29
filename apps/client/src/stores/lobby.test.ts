@@ -2,12 +2,19 @@
 import type { Seat } from '@hearthtable/core';
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 
 import * as seatsApi from '../api/seats.js';
 import { getDeviceToken } from '../realtime/deviceToken.js';
 import { createSocket, emitOperation } from '../realtime/socket.js';
+import { useConnectionStore } from './connection.js';
 import { useLobbyStore } from './lobby.js';
 
+// stores/lobby.ts no longer owns a socket -- it reacts to the REAL
+// connectionStore (not mocked), which in turn is driven through the same
+// lower-level socket.js stub the rest of this app's tests use. This
+// exercises the actual handoff between the two stores, not just each one's
+// logic in isolation against a hand-rolled fake of the other.
 vi.mock('../api/seats.js');
 vi.mock('../realtime/socket.js');
 vi.mock('../realtime/deviceToken.js');
@@ -47,6 +54,21 @@ function makeSeat(overrides: Partial<Seat> = {}): Seat {
   };
 }
 
+function fakeBroadcast(seats: Seat[], operationId = crypto.randomUUID()) {
+  return {
+    sequence: 1,
+    operation: {
+      id: operationId,
+      worldId: 'w',
+      type: 'seat.claim',
+      payload: {},
+      appliedAt: '',
+    },
+    documents: [],
+    seats,
+  };
+}
+
 let stubSocket: StubSocket;
 
 beforeEach(() => {
@@ -58,14 +80,14 @@ beforeEach(() => {
   vi.mocked(createSocket).mockReturnValue(stubSocket as never);
 });
 
-describe('connect', () => {
+describe('loadForWorld', () => {
   it('fetches the current seat list immediately', async () => {
     const worldId = crypto.randomUUID();
     const seat = makeSeat();
     vi.mocked(seatsApi.listSeats).mockResolvedValue([seat]);
 
     const store = useLobbyStore();
-    store.connect(worldId);
+    store.loadForWorld(worldId);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -73,36 +95,18 @@ describe('connect', () => {
     expect(store.seats).toEqual([seat]);
   });
 
-  it('opens and connects a socket', () => {
-    const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
-
-    expect(createSocket).toHaveBeenCalledTimes(1);
-    expect(stubSocket.connect).toHaveBeenCalledTimes(1);
-  });
-
-  it('tears down a previous connection before opening a new one', () => {
-    const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
-    const firstSocket = stubSocket;
-
-    stubSocket = makeStubSocket();
-    vi.mocked(createSocket).mockReturnValue(stubSocket as never);
-    store.connect(crypto.randomUUID());
-
-    expect(firstSocket.disconnect).toHaveBeenCalledTimes(1);
-  });
-
-  it('sets status to connected and re-fetches seats when the socket connects', async () => {
+  it('re-fetches seats once the shared connection reaches connected', async () => {
     const worldId = crypto.randomUUID();
     const store = useLobbyStore();
-    store.connect(worldId);
+    const connection = useConnectionStore();
+    store.loadForWorld(worldId);
     await Promise.resolve();
 
+    connection.connect();
     vi.mocked(seatsApi.listSeats).mockClear();
     stubSocket.handlers.get('connect')?.();
+    await Promise.resolve();
 
-    expect(store.status).toBe('connected');
     expect(seatsApi.listSeats).toHaveBeenCalledWith(worldId);
   });
 
@@ -112,25 +116,17 @@ describe('connect', () => {
     vi.mocked(seatsApi.listSeats).mockResolvedValue([a, b]);
 
     const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
+    const connection = useConnectionStore();
+    store.loadForWorld(crypto.randomUUID());
+    connection.connect();
     await Promise.resolve();
     await Promise.resolve();
 
     const updatedA = { ...a, claimedByDeviceToken: MY_DEVICE_TOKEN };
-    // @ts-expect-error -- broadcast is a partial stub; only `seats` matters here
-    stubSocket.handlers.get('broadcast')?.({ seats: [updatedA] });
+    stubSocket.handlers.get('broadcast')?.(fakeBroadcast([updatedA]) as never);
+    await nextTick();
 
     expect(store.seats).toEqual([updatedA, b]);
-  });
-
-  it('records the connect_error message and sets status to error', () => {
-    const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
-
-    stubSocket.handlers.get('connect_error')?.(new Error('handshake failed') as never);
-
-    expect(store.status).toBe('error');
-    expect(store.error).toBe('handshake failed');
   });
 });
 
@@ -141,7 +137,7 @@ describe('mySeat', () => {
     vi.mocked(seatsApi.listSeats).mockResolvedValue([mine, someoneElses]);
 
     const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
+    store.loadForWorld(crypto.randomUUID());
     await Promise.resolve();
     await Promise.resolve();
 
@@ -152,7 +148,7 @@ describe('mySeat', () => {
     vi.mocked(seatsApi.listSeats).mockResolvedValue([makeSeat()]);
 
     const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
+    store.loadForWorld(crypto.randomUUID());
     await Promise.resolve();
     await Promise.resolve();
 
@@ -163,7 +159,8 @@ describe('mySeat', () => {
 describe('claimSeat', () => {
   it('emits a seat.claim operation with the seatId and pin', async () => {
     const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
+    const connection = useConnectionStore();
+    connection.connect();
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
 
     const seatId = crypto.randomUUID();
@@ -177,7 +174,8 @@ describe('claimSeat', () => {
 
   it('omits pin from the payload when not given', async () => {
     const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
+    const connection = useConnectionStore();
+    connection.connect();
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
 
     const seatId = crypto.randomUUID();
@@ -191,7 +189,8 @@ describe('claimSeat', () => {
 
   it('records the server-provided error on rejection', async () => {
     const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
+    const connection = useConnectionStore();
+    connection.connect();
     vi.mocked(emitOperation).mockResolvedValue({
       ok: false,
       error: 'seat is already claimed',
@@ -202,17 +201,19 @@ describe('claimSeat', () => {
     expect(store.error).toBe('seat is already claimed');
   });
 
-  it('does nothing when not connected', async () => {
+  it('records a "not connected" error and never calls emitOperation when not connected', async () => {
     const store = useLobbyStore();
     await store.claimSeat(crypto.randomUUID());
     expect(emitOperation).not.toHaveBeenCalled();
+    expect(store.error).toBe('not connected');
   });
 });
 
 describe('releaseSeat', () => {
   it('emits a seat.release operation with an empty payload', async () => {
     const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
+    const connection = useConnectionStore();
+    connection.connect();
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
 
     await store.releaseSeat();
@@ -231,7 +232,7 @@ describe('createSeat', () => {
     vi.mocked(seatsApi.createSeat).mockResolvedValue(created);
 
     const store = useLobbyStore();
-    store.connect(worldId);
+    store.loadForWorld(worldId);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -244,17 +245,5 @@ describe('createSeat', () => {
       undefined,
     );
     expect(store.seats).toContainEqual(created);
-  });
-});
-
-describe('disconnect', () => {
-  it('disconnects the socket and resets status', () => {
-    const store = useLobbyStore();
-    store.connect(crypto.randomUUID());
-
-    store.disconnect();
-
-    expect(stubSocket.disconnect).toHaveBeenCalledTimes(1);
-    expect(store.status).toBe('disconnected');
   });
 });
