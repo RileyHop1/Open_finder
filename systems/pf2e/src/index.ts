@@ -94,3 +94,20 @@ export { ancestryEntrySchema, type AncestryEntry } from './content/ancestry.js';
 export { heritageEntrySchema, type HeritageEntry } from './content/heritage.js';
 
 export { backgroundEntrySchema, type BackgroundEntry } from './content/background.js';
+
+export {
+  classArmorProficienciesSchema,
+  classEntrySchema,
+  classFeatureEntrySchema,
+  classProficienciesSchema,
+  classSavingThrowProficienciesSchema,
+  classSkillsSchema,
+  classWeaponProficienciesSchema,
+  proficiencyProgressionSchema,
+  rankAtLevel,
+  type ClassEntry,
+  type ClassFeatureEntry,
+  type ClassProficiencies,
+  type ClassSkills,
+  type ProficiencyProgression,
+} from './content/class.js';
