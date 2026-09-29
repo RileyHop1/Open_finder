@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   ACTION_COSTS,
   ATTRIBUTES,
+  DAMAGE_TYPES,
   PROFICIENCY_BONUS,
   PROFICIENCY_RANKS,
   RARITIES,
   actionCostSchema,
   attributeSchema,
+  damageTypeSchema,
   proficiencyRankSchema,
   raritySchema,
   traitSlugSchema,
@@ -85,5 +87,20 @@ describe('traitSlugSchema', () => {
   it('rejects a leading or trailing hyphen', () => {
     expect(traitSlugSchema.safeParse('-agile').success).toBe(false);
     expect(traitSlugSchema.safeParse('agile-').success).toBe(false);
+  });
+});
+
+describe('damageTypeSchema', () => {
+  it.each(DAMAGE_TYPES)('accepts %s', (damageType) => {
+    expect(damageTypeSchema.safeParse(damageType).success).toBe(true);
+  });
+
+  it('rejects a legacy alignment-damage spelling not used by the Remaster', () => {
+    expect(damageTypeSchema.safeParse('unholy').success).toBe(false);
+  });
+
+  it('rejects the pre-Remaster positive/negative naming', () => {
+    expect(damageTypeSchema.safeParse('positive').success).toBe(false);
+    expect(damageTypeSchema.safeParse('negative').success).toBe(false);
   });
 });

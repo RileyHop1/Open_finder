@@ -74,3 +74,42 @@ export const traitSlugSchema = z
   .string()
   .min(1)
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'must be a lowercase kebab-case slug');
+
+/**
+ * Every damage type the Remaster rules use: the three physical types, the
+ * energy types, `mental`/`poison`/`bleed`, the two life types (`vitality`
+ * replaces "positive", `void` replaces "negative"), and the four alignment
+ * types (rare after the Remaster, but not removed -- a handful of
+ * exorcism-adjacent effects still use them). **(confirm)** this list is
+ * exhaustive against real upstream data during the importer PRs -- getting
+ * this wrong rejects valid content at import time, which is worse than
+ * carrying one extra value nothing uses yet.
+ *
+ * Shared here rather than only on `weapon.ts`'s base damage (a strict
+ * subset -- see `WEAPON_DAMAGE_TYPES`) because spells (a later Stack B PR)
+ * and rule elements' `damageDice.damageType` override need the full range.
+ */
+export const DAMAGE_TYPES = [
+  'bludgeoning',
+  'piercing',
+  'slashing',
+  'acid',
+  'cold',
+  'electricity',
+  'fire',
+  'force',
+  'sonic',
+  'mental',
+  'poison',
+  'bleed',
+  'vitality',
+  'void',
+  'chaotic',
+  'evil',
+  'good',
+  'lawful',
+] as const;
+
+export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+export const damageTypeSchema = z.enum(DAMAGE_TYPES);

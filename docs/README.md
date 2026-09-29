@@ -34,6 +34,15 @@ lands.
 | [chatMessage.md](chatMessage.md) | `ChatMessage` — the first concrete document type: plain messages and dice rolls |
 | [compendium.md](compendium.md) | `CompendiumEntry` and pack manifests — also not a document type; a read-only import source (milestone 2) |
 
+## PF2e content kinds (`systems/pf2e`)
+One page per content kind whose fields are non-obvious enough to need a spec,
+written as each lands. Simpler kinds stay documented in
+[content-model.md](content-model.md) and their own TSDoc.
+
+| Page | What it covers |
+| --- | --- |
+| [content/weapon.md](content/weapon.md) | `weapon` -- category, group, structured base damage, hands, range, reload |
+
 ## Writing a page here
 - Specify, do not narrate. Someone should be able to implement from it.
 - Mark anything you are not certain of with **(confirm)** and the book to check.
