@@ -55,7 +55,59 @@ export {
   type ClientOperation,
 } from './operation.js';
 
+export {
+  MODIFIER_TYPES,
+  modifierSchema,
+  modifierTypeSchema,
+  resolvedModifierSchema,
+  statisticSchema,
+  type Modifier,
+  type ModifierType,
+  type ResolvedModifier,
+  type Statistic,
+} from './modifier.js';
+
+export { predicateSchema, testPredicate, type Predicate } from './predicate.js';
+
+export { resolveStatistic, type ResolveStatisticOptions } from './resolveStatistic.js';
+
+export {
+  DAMAGE_DICE_FACES,
+  choiceOptionSchema,
+  choiceSetElementSchema,
+  damageDiceElementSchema,
+  damageDiceFacesSchema,
+  flatModifierElementSchema,
+  grantItemElementSchema,
+  inertRuleElementSchema,
+  rollOptionElementSchema,
+  ruleElementSchema,
+  type ChoiceOption,
+  type ChoiceSetElement,
+  type DamageDiceElement,
+  type FlatModifierElement,
+  type GrantItemElement,
+  type InertRuleElement,
+  type RollOptionElement,
+  type RuleElement,
+} from './ruleElement.js';
+
 export { resolvePermission } from './permission.js';
+
+export {
+  LICENSES,
+  licenseSchema,
+  provenanceSchema,
+  type License,
+  type Provenance,
+} from './provenance.js';
+
+export {
+  compendiumEntrySchema,
+  packManifestSchema,
+  type CompendiumEntry,
+  type PackManifest,
+} from './compendium.js';
 
 export type {
   ClientToServerEvents,
