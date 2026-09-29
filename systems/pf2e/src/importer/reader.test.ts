@@ -47,8 +47,25 @@ describe('readUpstreamEntries', () => {
         name: SYNTHETIC_FEAT.name,
         type: SYNTHETIC_FEAT.type,
         system: SYNTHETIC_FEAT.system,
+        items: [],
       },
     ]);
+  });
+
+  it("reads an actor's embedded items array, when present", () => {
+    const dir = makeTempDir();
+    const embeddedItem = {
+      _id: 'cccccccccccccccc',
+      name: 'Invented Claw',
+      type: 'melee',
+    };
+    writeFileSync(
+      join(dir, 'invented-creature.json'),
+      JSON.stringify({ ...SYNTHETIC_FEAT, type: 'npc', items: [embeddedItem] }),
+    );
+
+    const entries = readUpstreamEntries(dir);
+    expect(entries[0]!.items).toEqual([embeddedItem]);
   });
 
   it('recurses into nested pack subdirectories, normalizing the path', () => {

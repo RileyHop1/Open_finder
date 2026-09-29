@@ -6,18 +6,13 @@
  * the real-data importer run.
  *
  * Upstream's `size` is an abbreviated code (`"sm"`, `"med"`, `"lg"`, ...),
- * not our full-word `Size` -- mapped via `SIZE_CODE_TO_SIZE`.
+ * not our full-word `Size` -- mapped via the shared `mapSizeCode`.
  */
 
 import type { Provenance } from '@hearthtable/core';
 
 import { type AncestryEntry } from '../content/ancestry.js';
-import {
-  ATTRIBUTES,
-  traitSlugSchema,
-  type Attribute,
-  type Size,
-} from '../content/common.js';
+import { ATTRIBUTES, traitSlugSchema, type Attribute } from '../content/common.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
@@ -26,19 +21,11 @@ import {
   asRecord,
   extractBoostSlots,
   filterValidTraitSlugs,
+  mapSizeCode,
   nestedStringArrayField,
   nestedStringField,
   slugify,
 } from './upstreamHelpers.js';
-
-const SIZE_CODE_TO_SIZE: Record<string, Size> = {
-  tiny: 'tiny',
-  sm: 'small',
-  med: 'medium',
-  lg: 'large',
-  huge: 'huge',
-  grg: 'gargantuan',
-};
 
 function isAttribute(value: string): value is Attribute {
   return (ATTRIBUTES as readonly string[]).includes(value);
@@ -80,8 +67,7 @@ export function mapAncestry(
     return { ok: false, reason: 'missing-or-invalid-hp' };
   }
 
-  const sizeCode = system.size;
-  const size = typeof sizeCode === 'string' ? SIZE_CODE_TO_SIZE[sizeCode] : undefined;
+  const size = mapSizeCode(system.size);
   if (size === undefined) {
     return { ok: false, reason: 'unrecognized-size' };
   }

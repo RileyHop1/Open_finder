@@ -18,6 +18,13 @@
  * object shaped like an entry, and Foundry folder objects can carry their
  * own `type` field (the *content* type the folder organizes) -- so the
  * array-vs-object check matters, not just presence of `type`.
+ *
+ * **`items` carries embedded documents, when present.** An Actor entry
+ * (a creature) has its strikes as sibling embedded Items (type `melee`),
+ * not nested inside `system`. It's optional on `UpstreamEntry` rather than
+ * defaulted to `[]` here so every other mapper's hand-built test fixtures
+ * (which predate this field and never set it) keep typechecking unchanged;
+ * `mapCreature.ts`, the one caller that needs it, defaults it itself.
  */
 
 import { readFileSync } from 'node:fs';
@@ -31,6 +38,8 @@ export interface UpstreamEntry {
   readonly name: string;
   readonly type: string;
   readonly system: unknown;
+  /** Embedded documents (an Actor's items). Absent for an Item-type entry. */
+  readonly items?: readonly unknown[];
 }
 
 interface EntryShaped {
@@ -38,6 +47,7 @@ interface EntryShaped {
   readonly name: string;
   readonly type: string;
   readonly system?: unknown;
+  readonly items?: unknown;
 }
 
 function isEntryShaped(value: unknown): value is EntryShaped {
@@ -84,6 +94,7 @@ export function readUpstreamEntries(packsDir: string): UpstreamEntry[] {
       name: parsed.name,
       type: parsed.type,
       system: parsed.system,
+      items: Array.isArray(parsed.items) ? parsed.items : [],
     });
   }
 
