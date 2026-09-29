@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { BaseDocument } from '@hearthtable/core';
+import type { BaseDocument, Seat } from '@hearthtable/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { resolveWorldPaths } from './paths.js';
@@ -50,6 +50,19 @@ function makeOperation(
     type: 'chat.sendMessage',
     payload: { text: 'hi' },
     appliedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function makeSeat(worldId: string, overrides: Partial<Seat> = {}): Seat {
+  return {
+    id: crypto.randomUUID(),
+    worldId,
+    schemaVersion: 1,
+    name: 'Valeros',
+    isGM: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     ...overrides,
   };
 }
@@ -295,5 +308,90 @@ describe('transaction', () => {
   it('propagates the return value on success', () => {
     const result = store.transaction(() => 42);
     expect(result).toBe(42);
+  });
+});
+
+describe('seats', () => {
+  let store: WorldStore;
+
+  beforeEach(() => {
+    store = createWorld(worldsRoot, 'Test Campaign');
+  });
+
+  afterEach(() => {
+    store.close();
+  });
+
+  it('round-trips a seat exactly', () => {
+    const seat = makeSeat(store.world.id);
+    store.putSeat(seat);
+    expect(store.getSeat(seat.id)).toEqual(seat);
+  });
+
+  it('returns undefined for an id that was never written', () => {
+    expect(store.getSeat(crypto.randomUUID())).toBeUndefined();
+  });
+
+  it('round-trips a GM seat with a pin', () => {
+    const seat = makeSeat(store.world.id, { isGM: true, pin: '4242' });
+    store.putSeat(seat);
+    expect(store.getSeat(seat.id)).toEqual(seat);
+  });
+
+  it('round-trips a claimed seat with a device token', () => {
+    const seat = makeSeat(store.world.id, { claimedByDeviceToken: crypto.randomUUID() });
+    store.putSeat(seat);
+    expect(store.getSeat(seat.id)).toEqual(seat);
+  });
+
+  it('omits pin and claimedByDeviceToken entirely when unset, not as null', () => {
+    const seat = makeSeat(store.world.id);
+    store.putSeat(seat);
+    const retrieved = store.getSeat(seat.id);
+    expect(retrieved).toBeDefined();
+    expect(Object.hasOwn(retrieved as object, 'pin')).toBe(false);
+    expect(Object.hasOwn(retrieved as object, 'claimedByDeviceToken')).toBe(false);
+  });
+
+  it('upserts on a second write with the same id', () => {
+    const seat = makeSeat(store.world.id, { name: 'Valeros' });
+    store.putSeat(seat);
+    const renamed = { ...seat, name: 'Seelah' };
+    store.putSeat(renamed);
+
+    expect(store.getSeat(seat.id)?.name).toBe('Seelah');
+    expect(store.listSeats()).toHaveLength(1); // an update, not a second row
+  });
+
+  it('lists every seat in the world', () => {
+    store.putSeat(makeSeat(store.world.id, { name: 'A' }));
+    store.putSeat(makeSeat(store.world.id, { name: 'B' }));
+    expect(store.listSeats()).toHaveLength(2);
+  });
+
+  it('finds a seat by its claimed device token', () => {
+    const token = crypto.randomUUID();
+    const seat = makeSeat(store.world.id, { claimedByDeviceToken: token });
+    store.putSeat(seat);
+    store.putSeat(makeSeat(store.world.id)); // an unrelated, unclaimed seat
+
+    expect(store.getSeatByDeviceToken(token)?.id).toBe(seat.id);
+  });
+
+  it('returns undefined when no seat is claimed by that device token', () => {
+    store.putSeat(makeSeat(store.world.id));
+    expect(store.getSeatByDeviceToken(crypto.randomUUID())).toBeUndefined();
+  });
+
+  it('persists seats across a close/reopen', () => {
+    const seat = makeSeat(store.world.id);
+    store.putSeat(seat);
+    store.close();
+
+    // Reassign `store` so the describe block's afterEach closes the reopened
+    // handle, not the one already closed above (node:sqlite throws on a
+    // second close of the same database).
+    store = openWorld(worldsRoot, seat.worldId);
+    expect(store.getSeat(seat.id)).toEqual(seat);
   });
 });

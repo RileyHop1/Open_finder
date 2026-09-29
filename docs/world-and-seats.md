@@ -61,10 +61,34 @@ the code later.
 
 `claimedByDeviceToken` is how a returning browser gets back to the same seat
 automatically (ADR 0007) — it's absent on an unclaimed seat, set to a device
-token on claim, and cleared on release. The actual `seat.claim` /
-`seat.release` operations that read and write this field are defined in a
-later PR (`packages/core`'s operations work); this page describes the stored
-shape only.
+token on claim, and cleared on release. The `seat.claim`/`seat.release`
+operation *schemas* exist already (`packages/core`'s `operation.ts`); the
+handlers that actually read and write this field via those operations land
+in a later PR — this page describes the stored shape and how it's created,
+not that dispatch logic.
+
+### Storage and creation
+
+Seats get their own table (`seats`, added by a migration — see
+`docs/adr/0002-storage-sqlite.md`'s "Migrations" note and
+`apps/server/src/migrations.ts`), not the generic `documents` table:
+`baseDocumentSchema` doesn't apply here (a `Seat` has no `type` or
+`permissions`), so there's nothing for the generic table's columns to hold.
+`WorldStore` exposes `putSeat` (insert-or-update), `getSeat`, `listSeats`,
+and `getSeatByDeviceToken` (for reconnect auto-rejoin) directly against it.
+
+A GM creates seats via REST, the same open-mutate-close pattern
+`POST /api/worlds` already uses for creating a world:
+
+```
+POST /api/worlds/:id/seats   { name, isGM, pin? }  →  201, the created Seat
+GET  /api/worlds/:id/seats                          →  200, every seat in that world
+```
+
+Both return the full `Seat` object, `pin` included, deliberately not
+redacted — see the comment above these routes in `app.ts` for why adding
+selective redaction here would be exactly the security theater `pin`'s own
+"not a secret" framing warns against.
 
 ## Why not one shared schema for both?
 
@@ -76,8 +100,14 @@ of each independently extending `baseRecordSchema`.
 
 ## Testing
 
-See `packages/core/src/world.test.ts` and `packages/core/src/seat.test.ts`.
-Both confirm the negative space explicitly — that `worldId` and `permissions`
-are genuinely absent from a parsed `World`, and that `permissions` is
-genuinely absent from a parsed `Seat` — not just that the fields each schema
-does have validate correctly.
+Schema-level: `packages/core/src/world.test.ts` and
+`packages/core/src/seat.test.ts`. Both confirm the negative space explicitly
+— that `worldId` and `permissions` are genuinely absent from a parsed
+`World`, and that `permissions` is genuinely absent from a parsed `Seat` —
+not just that the fields each schema does have validate correctly.
+
+Storage-level: `apps/server/src/worldStore.test.ts`'s `seats` block (round-trip,
+upsert, `getSeatByDeviceToken`, persistence across close/reopen) and
+`apps/server/src/app.test.ts`'s seat route tests, including one that
+specifically exercises `withWorldStore`'s reuse-the-active-connection path
+rather than only the open-a-fresh-one path every other test takes.
