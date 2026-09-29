@@ -407,6 +407,34 @@ wrong here is worse than doing nothing: either an orphaned reference ships
 anyway, defeating the whole pass, or unrelated content gets dropped for no
 real reason. Revisit if a real-data survey shows either one matters.
 
+## The writer (ADR 0012)
+
+`writePacks.ts` is the final stage: every entry it receives has already
+passed both filters, its mapper, and dependency resolution, so it should
+already be a valid `Pf2eEntry`. It's re-validated against
+`pf2eEntrySchema` one more time regardless -- not because upstream data
+might still be bad (every earlier stage already fails closed on that), but
+because a mismatch here means a bug in *this importer*, and that deserves
+a loud crash while writing, never a silently malformed pack file left on
+disk afterward.
+
+**Flat files, not a database (ADR 0012).** Entries are grouped by
+`packId` and written one JSON file per entry at
+`<outputDir>/<packId>/<slug>.json`, plus one `pack.json` manifest per pack
+recording the upstream pin, an entry count, and `generatedAt`. A duplicate
+`packId`/`slug` pair throws rather than silently overwriting the first
+entry -- the same "never quietly lose content" principle the rest of the
+importer already follows, applied to the one place a collision would be
+invisible (two different files landing at the same path).
+
+**Pure with respect to time.** `generatedAt` is a parameter the caller
+supplies, not `new Date().toISOString()` computed inside `writePacks`
+itself -- the same convention every mapper's own `importedAt` parameter
+already follows. Given the same entries, upstream pin, and `generatedAt`,
+two runs produce byte-identical output; nothing in this module reaches for
+the wall clock, which is exactly what the milestone's "a second run is
+byte-identical" verification step needs to be true.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -522,3 +550,11 @@ To move the pin to a new upstream commit:
   resolves and nothing is dropped); a versatile heritage kept regardless of
   which ancestries exist; a heritage and a class feature each kept when
   their reference resolves and dropped when it doesn't.
+- `writePacks.test.ts`: an entry written and read back identical to the
+  input; a pack manifest with the right pin, entry count, and
+  `generatedAt`; entries split into separate pack directories by `packId`;
+  an unrecognized `packId` falling back to itself as the manifest name;
+  byte-identical output verified directly across two separate output
+  directories given identical input; and both failure paths throwing
+  rather than writing bad or lossy output (an entry that fails its own
+  schema, and a duplicate slug within one pack).
