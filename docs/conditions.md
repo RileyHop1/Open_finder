@@ -19,7 +19,38 @@ conditions. Use the current names everywhere — in schemas, slugs, and UI:
 Legacy names never appear in our data. If upstream content uses one, the importer
 maps it or drops the entry (see the exclusion rule in CLAUDE.md).
 
-## Shape
+## Compendium definition (milestone 2)
+
+Before any of the runtime shape below exists, there is a read-only
+*definition* every applied instance is created from --
+`systems/pf2e`'s `conditionEntrySchema`, imported like any other content
+kind (`docs/compendium.md`):
+
+```ts
+{
+  kind: 'condition',
+  slug: 'frightened',
+  valued: true,
+  maxValue: 4,           // optional -- absent for an unbounded valued condition
+  group: 'detection',    // optional -- mutually exclusive progression membership
+  overrides: [],         // condition slugs this one supersedes when applied
+}
+```
+
+**Deliberate gap:** how a valued condition's number becomes a `Modifier`
+(frightened 2 → a −2 status penalty) is not part of this definition. The
+existing `flatModifier` rule element takes a fixed integer `value` -- it has
+no way to express "scale with this condition's own current value," which is
+an actor-instance fact, not static content. Designing that mapping is part
+of the runtime shape below, which this page still only specifies rather than
+implements (see the Milestones list in CLAUDE.md for when it lands).
+
+`group` and `overrides` are marked **(confirm)** in the schema pending real
+upstream data -- the detection ladder (`observed`/`hidden`/`undetected`/
+`unnoticed`) below is the intended shape of that grouping, not yet verified
+against how upstream actually structures it.
+
+## Shape (applied instance, milestone 3/5)
 ```ts
 {
   slug: string;              // "frightened", "off-guard"
@@ -99,6 +130,11 @@ one — it is the automation a GM is most likely to want to overrule.
   of what automation thinks. No exceptions.
 
 ## Testing
+- **Compendium definition** (milestone 2): see
+  `systems/pf2e/src/content/condition.test.ts` -- a valued condition with and
+  without a fixed max, a binary condition, `maxValue` rejected on a binary
+  condition, and a condition that belongs to a group and overrides others in
+  it.
 - Same condition from two sources takes the higher value, both directions.
 - Each valued condition's modifiers resolve through ADR 0008 with the right type.
 - Detection states are mutually exclusive.
