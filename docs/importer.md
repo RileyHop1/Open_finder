@@ -6,9 +6,12 @@ compendium entries (`docs/compendium.md`). Licensing-critical -- read
 [adr/0006-content-scope-core-books.md](adr/0006-content-scope-core-books.md)
 before touching it. Lives at `systems/pf2e/src/importer/`.
 
-This page grows with the importer; right now it covers the fetch-and-verify
-step (milestone 2, Stack C's first PR). The filters, mapping layer, coverage
-report, and CLI are documented here as each lands.
+This page covers the full pipeline: fetch, verify, read, both filters, the
+rule-element mapper, every per-kind content mapper, dependency resolution,
+the writer, the coverage report, and the CLI that wires all of it together
+(`pnpm --filter @hearthtable/pf2e import`). Stack D (rules math) and Stack E
+(the golden test set), which consume what this produces, are documented
+elsewhere.
 
 ## The pin
 
@@ -471,14 +474,60 @@ rendering: a summary, then one section per breakdown above, with a table
 for drops and `_none_` placeholders for empty sections rather than blank
 tables) -- the same file-writing shape `writePacks.ts` already established.
 
+## The CLI
+
+`systems/pf2e/src/importer/index.ts` wires every stage above into one run:
+fetch (unless `--skip-fetch`), verify the checksum, read, filter, map,
+resolve dependencies, write packs, write the coverage report, print a
+summary. Run it with:
+
+```
+pnpm --filter @hearthtable/pf2e import          # full run, fetches first
+pnpm --filter @hearthtable/pf2e import -- --skip-fetch   # reuse .data/upstream/
+```
+
+**Split the same way `apps/server/src/index.ts` splits from `app.ts`.**
+`runImporter.ts` holds the actual pipeline as one plain, testable function
+-- no top-level side effects, safe to import from a test, exercised by
+`runImporter.test.ts` against a small on-disk `packs/` fixture this test
+builds itself (never real upstream data). `index.ts` is the only file that
+reads the environment and argv, calls it for real, and sets a nonzero exit
+code on failure; it is deliberately never imported by a test, the same as
+its server counterpart.
+
+**The upstream pin is a parameter, not a constant `runImporter` reaches
+for itself** -- `index.ts` is the one real caller, and it's the one that
+supplies `upstream.ts`'s actual `UPSTREAM_REPO` / `UPSTREAM_COMMIT` /
+`UPSTREAM_PACKS_CHECKSUM`. Passing it in (the same way `writePacks` already
+takes an `UpstreamPin`) is what makes `runImporter` testable at all: a test
+fixture's checksum is computed for that fixture, never for a real fetch.
+
+**Dispatches to a mapper by the upstream entry's `type`** (`feat` ->
+`mapFeat`, `npc` -> `mapCreature`, and so on for all thirteen kinds).
+**A `type` with no mapper is not a filter rejection** -- it may well be
+Remaster, core-four-books content that this project simply hasn't built a
+content schema for yet. A GM Core hazard is the real example: Stack B never
+added a `hazard` content kind, so every `hazard`-type entry that passes
+both filters is counted separately
+(`RunImporterSummary.noMapperForType`) rather than silently landing in the
+same bucket as a license or scope rejection, or silently vanishing
+altogether.
+
+**The printed summary is aggregate-only, like the coverage report's own
+projection**: counts, and upstream `type` / mapping-failure-reason strings
+-- never an entry's name or slug. `coverage.md`, which does name entries,
+is written to disk for a maintainer to read locally and is never echoed to
+this console.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
 
 1. Update `UPSTREAM_COMMIT` in `upstream.ts` to the new SHA.
-2. Run `fetchUpstream` against that commit (via the importer CLI once it
-   exists, or by hand using the same steps as "Fetching" above).
-3. Run `checksumPacks` against the fetched `packs/` directory.
+2. Run the importer CLI (above) against that commit, without
+   `--skip-fetch`.
+3. Run `checksumPacks` against the fetched `packs/` directory (or read the
+   mismatch the CLI itself reports if the old checksum is still in place).
 4. Update `UPSTREAM_PACKS_CHECKSUM` in `upstream.ts` to the result.
 5. Open a reviewed PR with both changes together -- never one without the
    other, per ADR 0003's "re-importing is a deliberate, reviewed PR."
@@ -604,3 +653,10 @@ To move the pin to a new upstream commit:
   falling back to `_none_` placeholders for empty sections; and
   `writeCoverageReport` producing a round-trippable `coverage.json` and a
   `coverage.md` containing the expected heading.
+- `runImporter.test.ts`: an end-to-end run (against a synthetic on-disk
+  `packs/` fixture built by the test itself) counting every outcome
+  correctly in one pass -- a kept entry, a license rejection, a scope
+  rejection, a `type` with no mapper, a mapping failure, and a
+  dependency-resolution drop, all in the same six-entry batch; packs and
+  both coverage report files actually written to `outputDir`; and a
+  checksum mismatch throwing rather than importing unverified content.
