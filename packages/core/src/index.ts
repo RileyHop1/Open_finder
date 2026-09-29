@@ -71,6 +71,27 @@ export { predicateSchema, testPredicate, type Predicate } from './predicate.js';
 
 export { resolveStatistic, type ResolveStatisticOptions } from './resolveStatistic.js';
 
+export {
+  DAMAGE_DICE_FACES,
+  choiceOptionSchema,
+  choiceSetElementSchema,
+  damageDiceElementSchema,
+  damageDiceFacesSchema,
+  flatModifierElementSchema,
+  grantItemElementSchema,
+  inertRuleElementSchema,
+  rollOptionElementSchema,
+  ruleElementSchema,
+  type ChoiceOption,
+  type ChoiceSetElement,
+  type DamageDiceElement,
+  type FlatModifierElement,
+  type GrantItemElement,
+  type InertRuleElement,
+  type RollOptionElement,
+  type RuleElement,
+} from './ruleElement.js';
+
 export { resolvePermission } from './permission.js';
 
 export {
