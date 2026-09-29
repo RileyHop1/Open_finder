@@ -135,6 +135,37 @@ reviewed PR** (ADR 0006) -- exactly enough friction to make it deliberate,
 never accidental. An exact match only: a title one character off (a typo, a
 future "Player Core 3") fails closed like anything else not on the list.
 
+## The rule-element mapper (ADR 0004)
+
+`mapPredicate.ts` and `elementMapper.ts` are the only two modules in the
+entire repository that know Foundry's rule-element format exists. Nothing
+downstream of them may.
+
+`mapRuleElement(raw)` maps one upstream element (from an item's
+`system.rules` array) onto [rule-elements.md](rule-elements.md)'s v1 subset,
+or to `inert` with a `reason` when it can't be represented.
+
+**`GrantItem` is special.** Its `uuid` names another upstream document, and
+resolving that to one of *our* compendium entries (`{ packId, slug }`) needs
+the full imported entry set -- something a single-element mapper doesn't
+have. This stage produces an `UnresolvedGrantItem` carrying the raw `uuid`;
+the dependency-resolution pass (a later PR) finishes the job.
+
+**A known v1 gap, surfaced rather than worked around:**
+`grantItemElementSchema` and `choiceSetElementSchema` have no `predicate`
+field in `@hearthtable/core` -- neither was expected to need conditional
+application. Real upstream data can predicate both. Silently dropping the
+predicate would turn a conditional grant or choice into an unconditional
+one, a wrong answer rather than a missing one -- so a predicated `GrantItem`
+or `ChoiceSet` goes `inert` instead, with a reason that names exactly why.
+If the coverage report (a later PR) shows this is common, that's the
+evidence to add the field to `@hearthtable/core` -- not a guess made here.
+
+Upstream's `predicate` is itself an array (an implicit AND); `mapPredicate.ts`
+maps it onto a single `Predicate` value, failing the *whole* predicate (never
+just dropping one clause) when any element uses an operator our v1 language
+doesn't support (`gt`/`gte`/`lt`/`lte`/`eq`, `xor`/`nand`/`nor`).
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -171,3 +202,12 @@ To move the pin to a new upstream commit:
   content outside the four books rejected (Rage of Elements), a near-miss
   title rejected rather than fuzzy-matched, and an empty publication
   rejected.
+- `mapPredicate.test.ts`: single and multi-clause arrays, nested and/or/not,
+  an unsupported comparison operator failing the whole predicate (even when
+  only one of several clauses is the problem), and a non-array value
+  rejected.
+- `elementMapper.test.ts`: a well-formed case and every fail-closed path for
+  each of the five kinds (a formula value, an unrecognized modifier type, an
+  unsupported die size, a missing field, non-inline choices, a predicated
+  grant or choice set), an unmapped element kind recorded by name, and a
+  malformed (non-object) element.
