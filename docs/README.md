@@ -44,6 +44,7 @@ written as each lands. Simpler kinds stay documented in
 | [content/weapon.md](content/weapon.md) | `weapon` -- category, group, structured base damage, hands, range, reload |
 | [content/armor.md](content/armor.md) | `armor` -- category, group, AC bonus, dex cap, check/speed penalty, strength |
 | [content/spell.md](content/spell.md) | `spell` -- rank, traditions, range, area, defense, heightening; no components, no rituals |
+| [content/ancestry.md](content/ancestry.md) | `ancestry`, `heritage`, `background` -- attribute boosts/flaws, versatile heritages, skill grants |
 
 ## Writing a page here
 - Specify, do not narrate. Someone should be able to implement from it.

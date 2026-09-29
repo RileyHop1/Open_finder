@@ -7,11 +7,13 @@ import {
   PROFICIENCY_BONUS,
   PROFICIENCY_RANKS,
   RARITIES,
+  SIZES,
   actionCostSchema,
   attributeSchema,
   damageTypeSchema,
   proficiencyRankSchema,
   raritySchema,
+  sizeSchema,
   traitSlugSchema,
 } from './common.js';
 
@@ -102,5 +104,15 @@ describe('damageTypeSchema', () => {
   it('rejects the pre-Remaster positive/negative naming', () => {
     expect(damageTypeSchema.safeParse('positive').success).toBe(false);
     expect(damageTypeSchema.safeParse('negative').success).toBe(false);
+  });
+});
+
+describe('sizeSchema', () => {
+  it.each(SIZES)('accepts %s', (size) => {
+    expect(sizeSchema.safeParse(size).success).toBe(true);
+  });
+
+  it('rejects a size outside the six categories', () => {
+    expect(sizeSchema.safeParse('colossal').success).toBe(false);
   });
 });

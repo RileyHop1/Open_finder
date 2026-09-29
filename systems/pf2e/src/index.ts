@@ -12,17 +12,20 @@ export {
   PROFICIENCY_BONUS,
   PROFICIENCY_RANKS,
   RARITIES,
+  SIZES,
   actionCostSchema,
   attributeSchema,
   damageTypeSchema,
   proficiencyRankSchema,
   raritySchema,
+  sizeSchema,
   traitSlugSchema,
   type ActionCost,
   type Attribute,
   type DamageType,
   type ProficiencyRank,
   type Rarity,
+  type Size,
 } from './content/common.js';
 
 export { actionEntrySchema, type ActionEntry } from './content/action.js';
@@ -85,3 +88,9 @@ export {
   type SpellRange,
   type SpellSave,
 } from './content/spell.js';
+
+export { ancestryEntrySchema, type AncestryEntry } from './content/ancestry.js';
+
+export { heritageEntrySchema, type HeritageEntry } from './content/heritage.js';
+
+export { backgroundEntrySchema, type BackgroundEntry } from './content/background.js';
