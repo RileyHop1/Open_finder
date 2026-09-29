@@ -1,0 +1,99 @@
+/**
+ * Design tokens: CSS custom properties on :root, redefined under a
+ * dark-mode media query rather than duplicated per component. This is also
+ * where the a11y baseline from CLAUDE.md's Accessibility and Targets and
+ * budgets sections lives, enforced once here instead of repeated in every
+ * component that happens to have a button or a link.
+ *
+ * Conventions for anything built on top of this file:
+ * - Never rely on color alone for status or condition icons -- pair a color
+ *   change with an icon, shape, or text change too.
+ * - Every draggable interaction ships a keyboard or context-menu equivalent
+ *   in the same PR (CLAUDE.md's Accessibility section) -- not a CSS
+ *   concern, but the reason `:focus-visible` below matters: a keyboard
+ *   equivalent is only usable if you can see where focus is.
+ */
+
+:root {
+  --color-bg: #f5f2ec;
+  --color-surface: #ffffff;
+  --color-text: #1c1a17;
+  --color-text-muted: #5a5650;
+  --color-border: #cdc6b8;
+  --color-accent: #8a4b2f;
+  --color-accent-contrast: #ffffff;
+  --color-danger: #a3312a;
+  --color-success: #2f6a3f;
+  --color-focus-ring: #2f6ab0;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2rem;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-size-base: 1rem;
+  --line-height-base: 1.5;
+
+  /* CLAUDE.md's Targets and budgets: "every tooltip works on tap, touch
+     targets are at least 44px" -- tablets are supported, phones are not. */
+  --touch-target-min: 44px;
+  --focus-ring-width: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #17140f;
+    --color-surface: #221e18;
+    --color-text: #ece7dc;
+    --color-text-muted: #b3aa9a;
+    --color-border: #443d31;
+    --color-accent: #c98a5e;
+    --color-accent-contrast: #17140f;
+    --color-danger: #e2695f;
+    --color-success: #6fbf7e;
+    --color-focus-ring: #7db3f0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+/**
+ * Visible focus, everywhere -- CLAUDE.md's Accessibility section names this
+ * as a baseline requirement, not a per-component choice. `:focus-visible`
+ * (rather than a plain `:focus`) keeps this out of the way for mouse users
+ * while never silently removing it, which an unqualified `outline: none`
+ * would.
+ */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/**
+ * A baseline 44px touch target on every element that's interactive by
+ * default. A custom interactive element (a div acting as a button, say)
+ * opts in with the `.touch-target` class instead of reinventing this rule.
+ */
+button,
+a,
+input,
+select,
+textarea,
+[role='button'],
+.touch-target {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+}

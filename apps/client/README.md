@@ -3,15 +3,37 @@
 Vue 3 + Vite, with PixiJS for the map canvas. Everything the table actually
 looks at.
 
+## Running it
+
+```bash
+pnpm --filter @hearthtable/client dev
+```
+
+Starts Vite's dev server (default `http://localhost:5173`). `/api` and
+`/socket.io` are proxied to `@hearthtable/server`'s default address
+(`http://127.0.0.1:3000`) — start that separately for anything beyond the
+scaffold shell to actually work. `pnpm --filter @hearthtable/client build`
+produces the static output `apps/server` serves in production (`staticDir` in
+`apps/server/src/app.ts`); there is no separate client server in production.
+
 ## What lives here
+- **The scaffold** (`main.ts`, `App.vue`, `vite.config.ts`, `src/styles/tokens.css`)
+  — Vite + Vue 3 (`<script setup lang="ts">`) + Pinia, wired up but with
+  nothing built on top of it yet. `tokens.css` holds the design tokens (CSS
+  custom properties on `:root`, redefined under a dark-mode media query) and
+  the a11y baseline: visible `:focus-visible` outlines and a 44px minimum
+  touch target on interactive elements, both enforced once here rather than
+  per component. `App.vue`'s skip link is the first concrete instance of
+  "every action reachable without a mouse." **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
-  version pinned; upgrading it is its own reviewed PR
-- **Sheets, the party bar, and the action bar**
-- **Tooltips and the encyclopedia** — the "hover to learn" system
+  version pinned; upgrading it is its own reviewed PR. Not yet
+- **Sheets, the party bar, and the action bar**. Not yet
+- **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
-  number, never recomputed (`docs/adr/0008-modifier-resolution.md`)
+  number, never recomputed (`docs/adr/0008-modifier-resolution.md`). Not yet
 - **Pinia stores**, which apply operations optimistically and **must** be able
-  to roll them back
+  to roll them back. Not yet — Pinia is installed and active (`main.ts`), but
+  no store exists until a screen actually needs one (the campaign list, next)
 
 ## Rules this package lives under
 - **Optimistic updates must reconcile.** On rejection, roll back to the last
