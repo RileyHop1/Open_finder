@@ -17,6 +17,7 @@
     "@hearthtable/dice": "workspace:*",
     "@hearthtable/pf2e": "workspace:*",
     "pinia": "^4.0.3",
+    "socket.io-client": "^4.8.4",
     "vue": "^3.5.43",
     "zod": "^4.6.5"
   },

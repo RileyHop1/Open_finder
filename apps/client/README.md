@@ -12,12 +12,12 @@ pnpm --filter @hearthtable/client dev
 Starts Vite's dev server (default `http://localhost:5173`). `/api` and
 `/socket.io` are proxied to `@hearthtable/server`'s default address
 (`http://127.0.0.1:3000`) — start that separately (`pnpm --filter
-@hearthtable/server dev`) for the campaign screen to have real data to show.
-Verified directly: with both dev servers running, `GET`/`POST
-/api/worlds` through Vite's proxy round-trip to a real running server and a
-real SQLite-backed world. `pnpm --filter @hearthtable/client build` produces
-the static output `apps/server` serves in production (`staticDir` in
-`apps/server/src/app.ts`); there is no separate client server in production.
+@hearthtable/server dev`) for either screen to have real data: create a
+campaign, activate it, and the app switches to its lobby, where a seat can
+actually be added and claimed against the real server. `pnpm --filter
+@hearthtable/client build` produces the static output `apps/server` serves in
+production (`staticDir` in `apps/server/src/app.ts`); there is no separate
+client server in production.
 
 ## What lives here
 - **The scaffold** (`main.ts`, `App.vue`, `vite.config.ts`, `src/styles/tokens.css`)
@@ -38,16 +38,42 @@ the static output `apps/server` serves in production (`staticDir` in
   connects over the realtime channel. Every response is validated against
   `@hearthtable/core`'s own `worldSchema` before the store ever sees it.
   **Built.**
+- **The lobby** (`components/CampaignLobby.vue`, `stores/lobby.ts`,
+  `api/seats.ts`, `realtime/`) — shown instead of CampaignSelect once a
+  campaign is active (`App.vue`'s own reactive switch, no router). Lists
+  every seat, lets a GM add one, and lets anyone claim or release one --
+  "click a character to become them... unclick if you picked wrong" (the
+  milestone 1 user story and ADR 0007). This is this package's first use of
+  the realtime channel: `realtime/socket.ts` opens a Socket.IO connection
+  typed against `@hearthtable/core`'s shared `ClientToServerEvents`/
+  `ServerToClientEvents` contract (so this app and `apps/server` cannot drift
+  on the wire protocol), authenticated with a device token persisted in
+  `localStorage` (`realtime/deviceToken.ts`, ADR 0007). `stores/lobby.ts`
+  fetches the current seat list over REST on connect and on every reconnect
+  (a full snapshot is simpler than replaying the operation log, which has no
+  device-token information to reconstruct "which seat is mine" from anyway),
+  then keeps it live from `broadcast` events, merged in by seat id since a
+  broadcast only ever carries what changed. Claiming a PIN-protected seat
+  asks for the PIN inline rather than claiming immediately; the client never
+  pre-checks it against the (visible, per `seatSchema`'s own "not a secret"
+  docs) fetched value -- it just submits whatever the user enters and lets
+  the server's own `seat.claim` handler accept or reject it. **Built.**
+  Verified against a real running server, not just the test suite: two
+  independent `socket.io-client` connections, one claims a seat, the other
+  receives the live broadcast, and a REST snapshot afterward agrees.
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
   number, never recomputed (`docs/adr/0008-modifier-resolution.md`). Not yet
-- **Pinia stores that apply realtime operations optimistically and must be
-  able to roll them back** (ADR 0005) -- not yet; `stores/worlds.ts` above is
-  a plain REST-backed store, not this. Lands with the lobby and chat
-  (Socket.IO), the next two PRs
+- **Chat, and Pinia stores that apply realtime operations optimistically and
+  must be able to roll them back** (ADR 0005) -- not yet for chat
+  specifically. `stores/lobby.ts` above already sends real operations
+  (`seat.claim`/`seat.release`) and reconciles from the server's ack/broadcast,
+  but doesn't apply them optimistically first (a claim's UI feedback is just
+  "wait for the ack," which is simple and correct for how rarely it happens).
+  Lands with chat, the next PR
 
 ## Rules this package lives under
 - **Optimistic updates must reconcile.** On rejection, roll back to the last
