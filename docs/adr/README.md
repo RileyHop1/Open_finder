@@ -40,3 +40,6 @@ than a tidy file.
 | [0008](0008-modifier-resolution.md) | Modifier resolution: compute an explained total | Accepted |
 | [0009](0009-node-sqlite.md) | Storage driver: `node:sqlite`, not `better-sqlite3` | Accepted |
 | [0010](0010-distribution.md) | Distribution: the GM never opens a terminal | Accepted |
+| [0011](0011-importer-pipeline.md) | Importer pipeline: fetch by pinned SHA, verify by checksum | Accepted |
+| [0012](0012-pack-format.md) | Compendium packs are flat JSON files, not a database | Accepted |
+| [0013](0013-golden-test-methodology.md) | Golden tests are hermetic; the real import is a separate CI job | Accepted |
