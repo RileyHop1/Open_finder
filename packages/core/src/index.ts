@@ -69,6 +69,8 @@ export {
 
 export { predicateSchema, testPredicate, type Predicate } from './predicate.js';
 
+export { resolveStatistic, type ResolveStatisticOptions } from './resolveStatistic.js';
+
 export { resolvePermission } from './permission.js';
 
 export {
