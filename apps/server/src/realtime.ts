@@ -20,18 +20,28 @@
  * `onChange` listener (registered below) disconnects every socket so
  * clients reconnect against the new world's context rather than silently
  * keep receiving a stale world's broadcasts.
+ *
+ * The event contract itself (`ClientToServerEvents`/`ServerToClientEvents`/
+ * `OperationAck`/`SyncAck`) lives in `@hearthtable/core`, not here, so
+ * `apps/client` can share the exact same types rather than hand-rolling a
+ * second copy that could drift from this side. Re-exported below so this
+ * module's own existing imports (and `realtime.test.ts`) don't need to
+ * change where they import them from.
  */
 
 import type { Server as HTTPServer } from 'node:http';
 
 import type {
   AnyClientOperation,
-  AppliedOperation,
   BaseDocument,
   Broadcast,
   ChatRollMessage,
   ChatTextMessage,
+  ClientToServerEvents,
+  OperationAck,
   Seat,
+  ServerToClientEvents,
+  SyncAck,
 } from '@hearthtable/core';
 import { clientOperationUnionSchema } from '@hearthtable/core';
 import { cryptoRandomSource, evaluate, parse } from '@hearthtable/dice';
@@ -41,27 +51,11 @@ import { z } from 'zod';
 import type { ActiveWorldManager } from './activeWorld.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
+export type { ClientToServerEvents, OperationAck, ServerToClientEvents, SyncAck };
+
 /** Per-connection state. `seatId` is absent until this connection claims a seat, and cleared on release. */
 export interface SocketData {
   seatId?: string | undefined;
-}
-
-export interface OperationAck {
-  readonly ok: boolean;
-  readonly error?: string;
-}
-
-export interface SyncAck {
-  readonly operations: AppliedOperation[];
-}
-
-export interface ClientToServerEvents {
-  operation: (payload: unknown, ack: (response: OperationAck) => void) => void;
-  sync: (payload: unknown, ack: (response: SyncAck) => void) => void;
-}
-
-export interface ServerToClientEvents {
-  broadcast: (broadcast: Broadcast) => void;
 }
 
 type AppSocket = Socket<

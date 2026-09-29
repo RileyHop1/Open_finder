@@ -6,11 +6,11 @@ The goal: as easy to pick up as a video game, with the rules handled for you, at
 no cost. The design question we use to settle arguments is *"if Owlcat made a
 Pathfinder 2E game, how would it feel?"*
 
-> **Status: pre-alpha.** The server runs and has a world-management API; the
-> client can list, create, and activate campaigns, but there is no lobby yet
-> and no way to join a seat, so there is still nothing to actually play with
-> at a table. See [CLAUDE.md](CLAUDE.md) for what is being built and
-> [docs/](docs/) for how.
+> **Status: pre-alpha.** A GM can create and activate a campaign, and players
+> can join its lobby and claim a seat live over the network — but there's no
+> chat, no character sheet, and no map yet, so there is still nothing to
+> actually play with at a table. See [CLAUDE.md](CLAUDE.md) for what is being
+> built and [docs/](docs/) for how.
 
 ## Requirements
 
@@ -31,8 +31,9 @@ To run the server (see [apps/server/README.md](apps/server/README.md)):
 pnpm --filter @hearthtable/server dev
 ```
 
-And the client, in another terminal (see [apps/client/README.md](apps/client/README.md) —
-the campaign screen is the only real one so far; there is no lobby yet):
+And the client, in another terminal (see
+[apps/client/README.md](apps/client/README.md) — create a campaign, activate
+it, and add/claim a seat in its lobby):
 
 ```bash
 pnpm --filter @hearthtable/client dev

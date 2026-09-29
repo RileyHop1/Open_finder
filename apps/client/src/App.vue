@@ -1,13 +1,26 @@
 <script setup lang="ts">
 /**
  * The app's root shell: header, skip link, and the `<main>` landmark. What
- * renders inside `<main>` is CampaignSelect for now -- the GM's first
- * screen (see that component's own doc comment). The lobby (next PR) will
- * need App.vue to switch between the two once a campaign is active; that
- * conditional isn't here yet because the lobby it would switch to doesn't
- * exist yet either.
+ * renders inside `<main>` is CampaignSelect until a campaign is active, then
+ * Lobby -- reactively, via `worldsStore`'s own state, not a router (nothing
+ * here needs deep links or browser back/forward yet). CampaignSelect's own
+ * `onMounted` hook is what actually populates `worldsStore`; this component
+ * deliberately doesn't fetch a second time, just reads whatever that
+ * populates. There is no way back to CampaignSelect once a campaign is
+ * active -- the server has no "deactivate" route yet either, so there is
+ * nothing this screen could call even if it offered one.
  */
+import { computed } from 'vue';
+
+import CampaignLobby from './components/CampaignLobby.vue';
 import CampaignSelect from './components/CampaignSelect.vue';
+import { useWorldsStore } from './stores/worlds.js';
+
+const worldsStore = useWorldsStore();
+
+const activeWorld = computed(() =>
+  worldsStore.worlds.find((world) => world.id === worldsStore.activeWorldId),
+);
 </script>
 
 <template>
@@ -17,7 +30,12 @@ import CampaignSelect from './components/CampaignSelect.vue';
       <h1>Hearthtable</h1>
     </header>
     <main id="main-content">
-      <CampaignSelect />
+      <CampaignLobby
+        v-if="activeWorld"
+        :world-id="activeWorld.id"
+        :world-name="activeWorld.name"
+      />
+      <CampaignSelect v-else />
     </main>
   </div>
 </template>

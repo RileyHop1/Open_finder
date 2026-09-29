@@ -56,3 +56,10 @@ export {
 } from './operation.js';
 
 export { resolvePermission } from './permission.js';
+
+export type {
+  ClientToServerEvents,
+  OperationAck,
+  ServerToClientEvents,
+  SyncAck,
+} from './realtime.js';
