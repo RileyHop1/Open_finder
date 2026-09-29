@@ -185,6 +185,17 @@ describe('documents', () => {
     expect(parties).toHaveLength(1);
     expect(parties[0]?.type).toBe('party');
   });
+
+  it('orders by createdAt ascending, not insertion order -- a chat log must read oldest first', () => {
+    const newer = makeDocument(store.world.id, { createdAt: '2024-01-02T00:00:00.000Z' });
+    const older = makeDocument(store.world.id, { createdAt: '2024-01-01T00:00:00.000Z' });
+    // Written newer-first specifically so insertion order and createdAt order disagree.
+    store.putDocument(newer);
+    store.putDocument(older);
+
+    const documents = store.listDocuments() as BaseDocument[];
+    expect(documents.map((doc) => doc.id)).toEqual([older.id, newer.id]);
+  });
 });
 
 describe('operations', () => {

@@ -26,15 +26,20 @@ refused outright — see Deployment notes below.
   `GET`/`POST /api/worlds` to list and create, `POST /api/worlds/:id/activate`
   and `GET /api/worlds/active` for the single active world (server runtime
   state, never persisted — see `docs/world-and-seats.md`), `POST`/`GET
-  /api/worlds/:id/seats` for a GM to create and list seats. Serves a built
-  client's static files from `staticDir` if one is configured and exists;
-  there is nothing to serve yet, since `apps/client` has no build. **Built.**
+  /api/worlds/:id/seats` for a GM to create and list seats, and `GET
+  /api/worlds/:id/documents` (optional `?type=` filter) for reading back
+  whatever's in the generic documents table, oldest-created first — the
+  client's chat history fetch is the first real caller. Generic on purpose,
+  the same way `WorldStore.listDocuments` itself is: this route returns raw
+  stored JSON rather than validating against any one concrete schema, since
+  it doesn't know which one applies. Serves a built client's static files
+  from `staticDir` if one is configured and exists. **Built.**
 - **`withWorldStore`** (`worldAccess.ts`) — resolves the `WorldStore` for a
   world id, reusing the active world's already-open connection when it
   matches rather than opening a second one to the same file. Used by the seat
-  routes above. The realtime layer doesn't need it: every operation dispatches
-  against whatever world is currently active, never an arbitrary world id, so
-  it just calls `activeWorld.get()` directly. **Built.**
+  and document routes above. The realtime layer doesn't need it: every
+  operation dispatches against whatever world is currently active, never an
+  arbitrary world id, so it just calls `activeWorld.get()` directly. **Built.**
 - **Realtime dispatch** (`realtime.ts`) — Socket.IO, attached directly to
   the app's underlying HTTP server (no extra Fastify plugin). The full
   ADR 0005 pipeline: validate the incoming message against
