@@ -112,6 +112,29 @@ type LicenseFilterResult =
   | { ok: false; reason: string };
 ```
 
+## The scope filter (ADR 0006)
+
+`scopeFilter.ts`'s `applyScopeFilter(provenance)` runs after the license
+filter -- it only has a `Provenance` to check because that filter already
+produced one. The allow-list is the exact title strings real upstream data
+uses:
+
+```ts
+PUBLICATION_ALLOW_LIST = [
+  'Pathfinder Player Core',
+  'Pathfinder Player Core 2',
+  'Pathfinder GM Core',
+  'Pathfinder Monster Core',
+]
+```
+
+Confirmed against a real fetch, not assumed -- these carry the "Pathfinder "
+prefix, which a guess from the book covers alone ("Player Core") would have
+missed entirely. **Adding a book is a one-line change to this array plus a
+reviewed PR** (ADR 0006) -- exactly enough friction to make it deliberate,
+never accidental. An exact match only: a title one character off (a typo, a
+future "Player Core 3") fails closed like anything else not on the list.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -144,3 +167,7 @@ To move the pin to a new upstream commit:
   no publication anywhere rejected, and a non-object/null `system` rejected;
   plus the mapped `Provenance` returned on success and a deterministic
   tie-break for the (unreal) case where both paths are somehow present.
+- `scopeFilter.test.ts`: every allow-listed book accepted, real ORC/Remaster
+  content outside the four books rejected (Rage of Elements), a near-miss
+  title rejected rather than fuzzy-matched, and an empty publication
+  rejected.
