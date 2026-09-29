@@ -347,6 +347,25 @@ this mapper is **(confirm)** against the real-data importer run; a creature
 stat block is the highest-stakes place in the importer to get that wrong,
 since a GM trusts it at the table without checking it against a book.
 
+### The condition mapper (C.7h)
+
+The last of the per-kind content mappers. `system.value.isValued` is
+assumed present on **every** condition item, valued or binary alike --
+Foundry's own condition data template applies that field uniformly, so
+relying on its presence rather than treating a missing `system.value` as
+"must be binary" means a wrong assumption here fails every condition
+closed together, visibly, instead of a subset silently importing with the
+wrong `valued` flag. **(confirm)** against real upstream data.
+
+`maxValue`, `group`, and `overrides` are all optional in
+`conditionEntrySchema`, and stay optional here: none of the three is
+load-bearing enough to sink the whole entry the way a missing damage block
+is for a weapon, so a missing or malformed value for any of them just
+means "this condition doesn't have one." A max value is also only ever
+carried through for a valued condition -- present on a binary one is
+ignored outright, matching the schema's own refinement that `maxValue`
+only applies when `valued` is true.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -448,3 +467,8 @@ To move the pin to a new upstream commit:
   embedded items array is read through when present, and every existing
   case's expectation now includes `items: []` for entries that don't have
   one.
+- `mapCondition.test.ts`: a valued condition with a max, a group, and
+  overrides; a binary condition with none of those; a max value on a binary
+  condition ignored rather than carried through; a non-string entry dropped
+  from `overrides` rather than failing the whole condition; and every
+  fail-closed path (a missing or non-boolean `isValued` flag).
