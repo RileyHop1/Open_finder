@@ -89,7 +89,10 @@ export const damageByTypeSchema: z.ZodType<DamageByType> = z.record(
 export const rollResultSchema = z.object({
   expression: z.string().min(1),
   total: z.number().int(),
-  terms: z.array(rollTermSchema),
+  // .readonly() matches RollResult.terms's own `readonly RollTerm[]` --
+  // without it, Zod infers a mutable array and a real RollResult (which IS
+  // readonly) fails to assign to this schema's inferred type.
+  terms: z.array(rollTermSchema).readonly(),
   degree: degreeOfSuccessSchema.optional(),
   natural: z.number().int().optional(),
   damage: damageByTypeSchema.optional(),

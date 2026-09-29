@@ -56,11 +56,13 @@ typecheck.
 
 Composing `degree`/`natural`/`damage` onto a base `RollResult` isn't
 `@hearthtable/dice`'s job — `evaluate()` returns only
-`{ expression, total, terms, seed? }`. A check-rolling or damage-rolling
-caller (the `chat.sendRoll` handler, landing next) calls `evaluate()` and, for
-a check, `degreeOfSuccess()`, or, for damage, `evaluateDamage()` (which does
-return `damage` already populated), and assembles the final `RollResult` it
-stores.
+`{ expression, total, terms, seed? }`. `apps/server`'s `chat.sendRoll` handler
+(`realtime.ts`) calls `evaluate()` this way today; this milestone's operation
+has no DC in its payload (see [operations.md](operations.md)), so it never
+sets `degree`/`natural` — a future check-rolling caller that has a DC to
+compare against would call `degreeOfSuccess()` too and compose it onto its
+own `RollResult`, the same way a damage-rolling caller would use
+`evaluateDamage()` (which does return `damage` already populated).
 
 ## Why `seatId` is required here but optional on `AppliedOperation`
 

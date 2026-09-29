@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Seat } from '@hearthtable/core';
+import type { BaseDocument, ChatRollMessage, Seat } from '@hearthtable/core';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -48,7 +48,9 @@ function emitSync(socket: ClientSocket, lastSequence: number): Promise<SyncAck> 
   });
 }
 
-function waitForBroadcast(socket: ClientSocket): Promise<{ seats: Seat[] }> {
+function waitForBroadcast(
+  socket: ClientSocket,
+): Promise<{ seats: Seat[]; documents: BaseDocument[] }> {
   return new Promise((resolve) => {
     socket.once('broadcast', resolve);
   });
@@ -329,14 +331,33 @@ describe('sync', () => {
   });
 });
 
-describe('invalid and unimplemented operations', () => {
+describe('invalid operations', () => {
   it('rejects a payload that does not match any known operation', async () => {
     const socket = await connect('device-a');
     const ack = await emitOperation(socket, { garbage: true });
     expect(ack.ok).toBe(false);
   });
+});
 
-  it('rejects chat operations as not yet implemented', async () => {
+async function connectAndClaimSeat(
+  deviceToken: string,
+): Promise<{ socket: ClientSocket; seatId: string }> {
+  const seat = makeSeat();
+  store.putSeat(seat);
+  const socket = await connect(deviceToken);
+  const ack = await emitOperation(socket, {
+    id: crypto.randomUUID(),
+    type: 'seat.claim',
+    payload: { seatId: seat.id },
+  });
+  if (!ack.ok) {
+    throw new Error('test setup failed to claim a seat');
+  }
+  return { socket, seatId: seat.id };
+}
+
+describe('chat.sendMessage', () => {
+  it('rejects a connection that has not claimed a seat', async () => {
     const socket = await connect('device-a');
     const ack = await emitOperation(socket, {
       id: crypto.randomUUID(),
@@ -344,6 +365,106 @@ describe('invalid and unimplemented operations', () => {
       payload: { text: 'hello' },
     });
     expect(ack.ok).toBe(false);
+  });
+
+  it('stores and broadcasts a text ChatMessage attributed to the sending seat', async () => {
+    const { socket: sender, seatId } = await connectAndClaimSeat('device-a');
+    const observer = await connect('device-b');
+    const broadcastPromise = waitForBroadcast(observer);
+
+    const ack = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendMessage',
+      payload: { text: 'Rolling for initiative.' },
+    });
+    expect(ack.ok).toBe(true);
+
+    const broadcast = await broadcastPromise;
+    expect(broadcast.documents).toHaveLength(1);
+    const [message] = broadcast.documents;
+    expect(message).toMatchObject({
+      type: 'chatMessage',
+      kind: 'text',
+      text: 'Rolling for initiative.',
+      seatId,
+    });
+  });
+
+  it('rejects an empty text body', async () => {
+    const { socket: sender } = await connectAndClaimSeat('device-a');
+    const ack = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendMessage',
+      payload: { text: '' },
+    });
+    expect(ack.ok).toBe(false);
+  });
+});
+
+describe('chat.sendRoll', () => {
+  it('rejects a connection that has not claimed a seat', async () => {
+    const socket = await connect('device-a');
+    const ack = await emitOperation(socket, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: '1d20+7' },
+    });
+    expect(ack.ok).toBe(false);
+  });
+
+  it('evaluates the expression server-side and stores/broadcasts a structured RollResult', async () => {
+    const { socket: sender } = await connectAndClaimSeat('device-a');
+    const observer = await connect('device-b');
+    const broadcastPromise = waitForBroadcast(observer);
+
+    const ack = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: '2d6+4' },
+    });
+    expect(ack.ok).toBe(true);
+
+    const broadcast = await broadcastPromise;
+    expect(broadcast.documents).toHaveLength(1);
+    const [message] = broadcast.documents as unknown as [ChatRollMessage];
+    expect(message.kind).toBe('roll');
+    expect(message.roll.expression).toBe('2d6+4');
+    expect(message.roll.total).toBeGreaterThanOrEqual(6);
+    expect(message.roll.total).toBeLessThanOrEqual(16);
+    expect(message.roll.terms.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a malformed expression with the parser error, not a generic one', async () => {
+    const { socket: sender } = await connectAndClaimSeat('device-a');
+    const ack = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: 'not a roll' },
+    });
+    expect(ack.ok).toBe(false);
+    expect(ack.error).toMatch(/invalid roll expression/);
+  });
+
+  it('rejects an expression referencing an unresolved @reference', async () => {
+    const { socket: sender } = await connectAndClaimSeat('device-a');
+    const ack = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: '1d20+@perception' },
+    });
+    expect(ack.ok).toBe(false);
+  });
+
+  it('does not append an operation or store a document for a rejected roll', async () => {
+    const { socket: sender } = await connectAndClaimSeat('device-a');
+    const before = store.listOperationsSince(0).length;
+    await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: 'not a roll' },
+    });
+    expect(store.listOperationsSince(0)).toHaveLength(before);
+    expect(store.listDocuments('chatMessage')).toHaveLength(0);
   });
 });
 

@@ -7,11 +7,11 @@
  * `clientOperationUnionSchema`, apply whatever check that operation type
  * needs, apply it in a transaction, assign a sequence, broadcast.
  *
- * Ships with `seat.claim`/`seat.release` as its concrete proof -- the only
- * operations that don't presuppose infrastructure (like a `ChatMessage`
- * schema) that doesn't exist yet, and the ones every other operation needs
- * anyway, since nothing can be attributed to a sender until a seat is
- * claimed.
+ * Ships with `seat.claim`/`seat.release` and, as of this PR, `chat.sendMessage`
+ * `chat.sendRoll` -- see `handleChatSendMessage`/`handleChatSendRoll` below.
+ * A `chat.*` operation always requires the sending connection to already hold
+ * a seat, for the same reason seat operations had to come first: nothing can
+ * be attributed to a sender until one is claimed.
  *
  * There is only ever one active world for the whole server (see
  * `activeWorld.ts`), so there are no Socket.IO rooms here -- every connected
@@ -29,9 +29,12 @@ import type {
   AppliedOperation,
   BaseDocument,
   Broadcast,
+  ChatRollMessage,
+  ChatTextMessage,
   Seat,
 } from '@hearthtable/core';
 import { clientOperationUnionSchema } from '@hearthtable/core';
+import { cryptoRandomSource, evaluate, parse } from '@hearthtable/dice';
 import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
 
@@ -170,6 +173,79 @@ function handleSeatRelease(store: WorldStore, seatId: string): Seat[] {
   return [released];
 }
 
+/** A ChatMessage's `permissions` is hardcoded observer-by-default here, not left to a caller: chat is public at the table, per docs/documents.md's "Why no default default". */
+const CHAT_MESSAGE_PERMISSIONS = { default: 'observer', seats: {} } as const;
+
+/** Stores a plain text chat message from `seatId`. */
+function handleChatSendMessage(
+  store: WorldStore,
+  seatId: string,
+  payload: { text: string },
+): ChatTextMessage {
+  const now = new Date().toISOString();
+  const message: ChatTextMessage = {
+    id: crypto.randomUUID(),
+    worldId: store.world.id,
+    type: 'chatMessage',
+    schemaVersion: 1,
+    permissions: CHAT_MESSAGE_PERMISSIONS,
+    createdAt: now,
+    updatedAt: now,
+    seatId,
+    kind: 'text',
+    text: payload.text,
+  };
+  store.putDocument(message);
+  return message;
+}
+
+/**
+ * Parses and evaluates `payload.expression` -- server-side, never trusting a
+ * client-computed result, per `@hearthtable/dice`'s "the server rolls" rule
+ * -- and stores the structured `RollResult`, never a rendered string, per
+ * CLAUDE.md's ChatMessage rule. Rejects a malformed expression or an unknown
+ * `@reference` with the parser's/evaluator's own message rather than a
+ * generic one, since these are genuinely the sender's own mistake to fix,
+ * not an internal error to hide.
+ *
+ * No DC is part of this operation's payload (see `operation.ts`), so this
+ * never produces `degree`/`natural` -- a future check-rolling caller that
+ * has a DC to compare against composes those onto its own `RollResult`
+ * itself, the same way `docs/chatMessage.md` describes.
+ */
+function handleChatSendRoll(
+  store: WorldStore,
+  seatId: string,
+  payload: { expression: string },
+): ChatRollMessage {
+  const parsed = parse(payload.expression);
+  if (!parsed.ok) {
+    throw new OperationRejected(`invalid roll expression: ${parsed.error.message}`);
+  }
+  const evaluated = evaluate(payload.expression, parsed.expression, {
+    rng: cryptoRandomSource,
+  });
+  if (!evaluated.ok) {
+    throw new OperationRejected(evaluated.error.message);
+  }
+
+  const now = new Date().toISOString();
+  const message: ChatRollMessage = {
+    id: crypto.randomUUID(),
+    worldId: store.world.id,
+    type: 'chatMessage',
+    schemaVersion: 1,
+    permissions: CHAT_MESSAGE_PERMISSIONS,
+    createdAt: now,
+    updatedAt: now,
+    seatId,
+    kind: 'roll',
+    roll: evaluated.result,
+  };
+  store.putDocument(message);
+  return message;
+}
+
 function assertNever(value: never): never {
   throw new OperationRejected(`unhandled operation type: ${JSON.stringify(value)}`);
 }
@@ -203,10 +279,22 @@ function dispatch(
       socket.data.seatId = undefined;
       return { seatId, seats, documents: [] };
     }
-    case 'chat.sendMessage':
-    case 'chat.sendRoll':
-      // Lands in PR 12, once packages/core has a ChatMessage schema to store into.
-      throw new OperationRejected('not yet implemented');
+    case 'chat.sendMessage': {
+      const { seatId } = socket.data;
+      if (seatId === undefined) {
+        throw new OperationRejected('this connection has not claimed a seat');
+      }
+      const message = handleChatSendMessage(store, seatId, operation.payload);
+      return { seatId, seats: [], documents: [message] };
+    }
+    case 'chat.sendRoll': {
+      const { seatId } = socket.data;
+      if (seatId === undefined) {
+        throw new OperationRejected('this connection has not claimed a seat');
+      }
+      const message = handleChatSendRoll(store, seatId, operation.payload);
+      return { seatId, seats: [], documents: [message] };
+    }
     default:
       return assertNever(operation);
   }

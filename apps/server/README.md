@@ -46,10 +46,15 @@ refused outright — see Deployment notes below.
   connection it auto-rejoins whatever seat that device token already holds
   (`getSeatByDeviceToken`). Ships with `seat.claim` (auto-releasing any other
   seat the same device token holds, and checking a GM seat's pin per
-  ADR 0007) and `seat.release` as its concrete proof — `chat.sendMessage`/
-  `chat.sendRoll` are wired into the dispatch switch but reject with "not yet
-  implemented" until `packages/core` has a `ChatMessage` schema (next PR). A
-  `sync` event replays every operation after a given sequence, for
+  ADR 0007), `seat.release`, and now `chat.sendMessage`/`chat.sendRoll` —
+  the latter parses and evaluates the roll expression server-side with
+  `@hearthtable/dice` (never trusting a client-computed result), storing the
+  structured `RollResult` as a `ChatMessage` document via `putDocument`, never
+  a rendered string. A malformed expression or an unresolved `@reference` is
+  rejected with the parser's/evaluator's own message. Both chat operations
+  require the sending connection to already hold a seat, same as every
+  operation that isn't `seat.claim`/`seat.release` themselves. A `sync` event
+  replays every operation after a given sequence, for
   reconnect — no gap-size limit yet; there's no log pruning to make "gap too
   large" a real case yet either. When the GM activates a different world,
   every connected socket is disconnected so clients reconnect against the
