@@ -23,3 +23,17 @@ client sends a roll request as an operation; the server evaluates it here,
 persists the structured result, and broadcasts it.
 
 Imported by: `@hearthtable/pf2e`, `@hearthtable/server`, `@hearthtable/client`.
+
+## Two entry points
+- **`@hearthtable/dice`** — the full public API, including `cryptoRandomSource`.
+  That one function imports `node:crypto`, so this entry point is server-only.
+- **`@hearthtable/dice/pure`** — everything else: the parser, the evaluator,
+  degrees of success, damage evaluation, and every exported type. No Node
+  dependency anywhere in this entry point's module graph, so an isomorphic
+  package can import it without pulling Node's types into a project that
+  doesn't configure them. `@hearthtable/core` imports from here to mirror
+  `RollResult` for its `ChatMessage` schema — see `packages/core/src/chatMessage.ts`.
+  `evaluate()`/`evaluateDamage()` still work fine from this entry point: they
+  take a `RandomSource` as a parameter rather than importing one, so a caller
+  supplies its own (the server passes `cryptoRandomSource` from the main entry
+  point).

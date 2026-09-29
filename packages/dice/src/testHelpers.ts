@@ -3,7 +3,7 @@
  * index.ts -- this is test infrastructure, not public API.
  */
 
-import type { RandomSource } from './rng.js';
+import type { RandomSource } from './types.js';
 
 /**
  * An RNG that returns a fixed, pre-scripted sequence of results, one per

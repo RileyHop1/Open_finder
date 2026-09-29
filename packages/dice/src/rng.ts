@@ -2,12 +2,17 @@
  * The evaluator's randomness source. Injected rather than called directly, so
  * production can use a cryptographically strong generator while tests use a
  * seeded, deterministic one -- see docs/dice.md, "The server rolls".
+ *
+ * The `RandomSource` type itself lives in `types.ts`, not here -- see that
+ * file's doc comment. This file re-exports it so every existing `import
+ * type { RandomSource } from './rng.js'` keeps working unchanged.
  */
 
 import { randomInt } from 'node:crypto';
 
-/** Rolls one die with the given number of faces, returning a value in [1, faces]. */
-export type RandomSource = (faces: number) => number;
+import type { RandomSource } from './types.js';
+
+export type { RandomSource };
 
 /**
  * The production randomness source: cryptographically strong, uniform over

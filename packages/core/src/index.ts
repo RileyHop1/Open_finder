@@ -25,6 +25,19 @@ export {
 
 export { worldSchema, type World } from './world.js';
 
+export {
+  chatMessageSchema,
+  chatRollMessageSchema,
+  chatTextMessageSchema,
+  damageByTypeSchema,
+  degreeOfSuccessSchema,
+  rollResultSchema,
+  rollTermSchema,
+  type ChatMessage,
+  type ChatRollMessage,
+  type ChatTextMessage,
+} from './chatMessage.js';
+
 export { seatSchema, type Seat } from './seat.js';
 
 export {

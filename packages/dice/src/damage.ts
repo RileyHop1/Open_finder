@@ -35,10 +35,9 @@
  *     of a single damage roll's evaluation.
  */
 
-import type { RollTerm, RollResult } from './types.js';
+import type { RandomSource, RollResult, RollTerm } from './types.js';
 import { evaluate } from './evaluator.js';
 import { parse } from './parser.js';
-import type { RandomSource } from './rng.js';
 
 /**
  * How a damage component behaves under a critical hit.
