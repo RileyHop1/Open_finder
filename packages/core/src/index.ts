@@ -57,6 +57,14 @@ export {
 
 export { resolvePermission } from './permission.js';
 
+export {
+  LICENSES,
+  licenseSchema,
+  provenanceSchema,
+  type License,
+  type Provenance,
+} from './provenance.js';
+
 export type {
   ClientToServerEvents,
   OperationAck,
