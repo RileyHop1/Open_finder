@@ -248,6 +248,34 @@ dex cap of 0 or invent a strength requirement that doesn't exist.
 `gear.ts`'s own minimalism: no kind-specific fields to extract at all,
 beyond the envelope every mapper already carries.
 
+### The spell mapper (C.7d)
+
+`mapSpell.ts` is the most involved content mapper, because upstream stores
+several spell fields as loosely-structured or free-text strings where our
+schema wants a real structure -- every parse below is `(confirm)`, and a
+failed parse fails the whole entry closed rather than guessing:
+
+- `range.value` is a human-readable string (`"30 feet"`, `"touch"`,
+  `"self"`, `"unlimited"`), parsed into the discriminated `SpellRange`.
+- `time.value` is `"1"`/`"2"`/`"3"`/`"reaction"`/`"free"` for the common
+  case (translated to our `ACTION_COSTS` vocabulary) or free text for a
+  slower cast (passed through unchanged).
+- `area` is `{ value, type }`, close enough to our own `{ shape, size }`
+  shape to map directly.
+- **`sustained` comes from the `sustained` trait**, not a separate field --
+  upstream tags a sustained spell in its traits list rather than a distinct
+  boolean.
+- `defense.save.{statistic,basic}` maps to our `{ save, basic }`.
+
+**Heightening is deliberately never mapped.** Upstream's heightened effects
+are typically prose embedded in the main description under a "Heightened
+(+1)" / "Heightened (4th)" sub-heading, not separated into the structure
+`spellHeighteningSchema` wants. Guessing at extracting that from HTML risked
+being wrong in a way nobody would notice; omitting it loses nothing, since
+the full prose (heightening included) is still in `description` -- it just
+isn't separately structured. Revisit once real data shows what
+`system.heightening` actually contains.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -318,3 +346,10 @@ To move the pin to a new upstream commit:
   kept as a real value, `strength: 0` treated as no requirement, unarmored
   armor with no group, gear carrying rule elements through, the slug
   fallback, and every fail-closed path.
+- `mapSpell.test.ts`: every range form (touch/self/unlimited/feet, singular
+  and plural), every standard cast time plus a non-standard one passed
+  through unchanged, an area, `sustained` derived from the trait, a basic
+  save defense, heightening deliberately omitted even when upstream has one,
+  the slug fallback, and every fail-closed path (a regression test here
+  caught a real regex bug: `feet?` matches "fee"/"feet" but not "foot",
+  which is a different word, not a missing letter).
