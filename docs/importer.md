@@ -58,6 +58,34 @@ The importer compares this against `UPSTREAM_PACKS_CHECKSUM` after every
 fetch. A mismatch is a hard failure -- the importer refuses to proceed
 rather than import content nobody has reviewed.
 
+## Reading
+
+`reader.ts`'s `readUpstreamEntries(packsDir)` walks every `.json` file under
+the fetched `packs/` directory into a loose shape:
+
+```ts
+{ path: 'feats/toughness.json', id: '...', name: 'Toughness', type: 'feat', system: {...} }
+```
+
+`system` is `unknown` -- nothing at this stage validates against our own
+schemas (that starts at the license filter, the next PR) or interprets
+Foundry's document types (that stays confined to the mapping stages, ADR
+0004 decision 3). This module only reads JSON; it does not know what any of
+it means.
+
+**Malformed JSON is an error, not a skip** -- a file that fails to parse
+means something is wrong with the fetch or the pin. **A well-formed file
+that isn't an entry at all is skipped silently**: upstream's `_folders.json`
+files are the real example, each one a JSON *array* of folder metadata
+rather than a single object shaped like an entry. The array-vs-object check
+is what distinguishes them, not the presence of `type` -- a Foundry folder
+object can carry its own `type` field (the *content* type it organizes), so
+checking for `type` alone would not have been enough.
+
+Entries are returned sorted by path, so downstream stages see a
+deterministic order regardless of the filesystem's own directory-listing
+order.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -80,3 +108,8 @@ To move the pin to a new upstream commit:
   requested.
 - `upstream.test.ts`: the pin is a real 40-character SHA and a real 64-hex
   checksum, not a placeholder.
+- `reader.test.ts`: a well-formed entry read correctly, nested directories
+  and non-JSON files handled, a folder-metadata array skipped without
+  erroring, an incomplete object skipped, malformed JSON throwing with the
+  offending file named, and deterministic path-sorted output. Fixtures are
+  synthetic, invented entries -- never real upstream content (ADR 0013).
