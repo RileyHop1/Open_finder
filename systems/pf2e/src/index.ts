@@ -128,3 +128,5 @@ export {
   type CreatureStrike,
   type CreatureStrikeDamage,
 } from './content/creature.js';
+
+export { conditionEntrySchema, type ConditionEntry } from './content/condition.js';
