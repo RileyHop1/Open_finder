@@ -82,16 +82,23 @@ refused outright — see Deployment notes below.
   `seat.release`, device tokens, GM PIN checking) are also **built** — see
   `realtime.ts` above and `docs/adr/0007-seats-not-accounts.md`
 - **Snapshots** exist (see Migrations above).
-- **The world export/import archive format** (`worldArchive.ts`) —
-  `exportWorldArchive`/`importWorldArchive`: a small, custom, streamed
-  container (not tar/zip) holding `world.json`, `WorldStore.serialize()`'s
-  bytes as `world.db`, and every file under `assets/`. Neither direction
-  buffers an asset's content beyond one underlying chunk, so this holds
-  regardless of how large or how many assets a campaign has. Preserves the
-  archived world's own id on import (its `world.db` rows already point at
-  it) and refuses rather than overwrites if that id already exists at the
-  destination. **Built**, not yet wired to an HTTP route — that's the next
-  PR (`GET /api/worlds/:id/export`, `POST /api/worlds/import`)
+- **World export/import** (`worldArchive.ts`, wired up in `app.ts`) —
+  `GET /api/worlds/:id/export` streams a download; `POST /api/worlds/import`
+  restores one. The archive itself is a small, custom, streamed container
+  (not tar/zip) holding `world.json`, `WorldStore.serialize()`'s bytes as
+  `world.db`, and every file under `assets/`. Neither direction buffers an
+  asset's content beyond one underlying chunk, so this holds regardless of
+  how large or how many assets a campaign has — the Fastify body limit is
+  raised well past its 1 MiB default for exactly this reason, and the
+  import route registers a streaming content-type parser so the upload is
+  never buffered either. Preserves the archived world's own id on import
+  (its `world.db` rows already point at it) and refuses rather than
+  overwrites if that id already exists at the destination. **Built.**
+  Verified against two real, separate server processes (two different
+  `HEARTHTABLE_WORLDS_ROOT`s, standing in for "another machine"): exported a
+  world with a seat and a 3 MiB fake asset from one, imported it into the
+  other, and confirmed the world, the seat, and the asset's own SHA-256 all
+  survived the round trip
 
 ## Deployment notes
 - **Binds to localhost by default, never `0.0.0.0`.** This app is served on a

@@ -460,3 +460,116 @@ describe('GET /api/worlds/:id/documents', () => {
     expect(jsonAs<BaseDocument[]>(response)).toHaveLength(1);
   });
 });
+
+describe('GET /api/worlds/:id/export', () => {
+  it('returns 404 for a world that does not exist', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${crypto.randomUUID()}/export`,
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('streams a downloadable archive with a slugified filename', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/export`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toBe('application/octet-stream');
+    expect(response.headers['content-disposition']).toBe(
+      `attachment; filename="test-campaign-${worldId}.htworld"`,
+    );
+    expect(response.rawPayload.length).toBeGreaterThan(0);
+  });
+
+  it('reuses the active connection when the requested world is active', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/export`,
+    });
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe('POST /api/worlds/import', () => {
+  it('restores an exported world -- same id, seats, and documents -- under a new worlds root', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'Valeros', isGM: false },
+    });
+    putTestDocument(worldId);
+    const exported = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/export`,
+    });
+
+    const destRoot = mkdtempSync(join(tmpdir(), 'hearthtable-import-test-'));
+    const destActiveWorld = createActiveWorldManager();
+    const destApp = createApp({
+      worldsRoot: destRoot,
+      activeWorld: destActiveWorld,
+      logger: false,
+    });
+    try {
+      const response = await destApp.inject({
+        method: 'POST',
+        url: '/api/worlds/import',
+        headers: { 'content-type': 'application/octet-stream' },
+        payload: exported.rawPayload,
+      });
+      expect(response.statusCode).toBe(201);
+      expect(jsonAs<WorldSummary>(response).id).toBe(worldId);
+
+      const seats = await destApp.inject({
+        method: 'GET',
+        url: `/api/worlds/${worldId}/seats`,
+      });
+      expect(jsonAs<SeatSummary[]>(seats).map((seat) => seat.name)).toEqual(['Valeros']);
+
+      const documents = await destApp.inject({
+        method: 'GET',
+        url: `/api/worlds/${worldId}/documents`,
+      });
+      expect(jsonAs<BaseDocument[]>(documents)).toHaveLength(1);
+    } finally {
+      await destApp.close();
+      destActiveWorld.clear();
+      rmSync(destRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('returns 400 when a world with that id already exists at the destination', async () => {
+    const worldId = await createTestWorld();
+    const exported = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/export`,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/import',
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: exported.rawPayload,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(jsonAs<{ error: string }>(response).error).toMatch(/already exists/);
+  });
+
+  it('returns 400 for a body that is not a valid archive', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/import',
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('not an archive'),
+    });
+    expect(response.statusCode).toBe(400);
+  });
+});
