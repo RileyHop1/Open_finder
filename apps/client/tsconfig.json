@@ -1,4 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts"]
+  "compilerOptions": {
+    // A browser app: the WHATWG globals (DOM, fetch, etc.), never Node's.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts"]
 }

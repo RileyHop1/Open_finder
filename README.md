@@ -6,8 +6,9 @@ The goal: as easy to pick up as a video game, with the rules handled for you, at
 no cost. The design question we use to settle arguments is *"if Owlcat made a
 Pathfinder 2E game, how would it feel?"*
 
-> **Status: pre-alpha.** The server runs and has a world-management API; there
-> is no client yet, so there is nothing to actually play with at a table. See
+> **Status: pre-alpha.** The server runs and has a world-management API; the
+> client is a scaffold with no real screens yet (no campaign list, no lobby),
+> so there is still nothing to actually play with at a table. See
 > [CLAUDE.md](CLAUDE.md) for what is being built and
 > [docs/](docs/) for how.
 
@@ -24,10 +25,17 @@ pnpm typecheck
 pnpm test
 ```
 
-To run the server itself (no client yet — see [apps/server/README.md](apps/server/README.md)):
+To run the server (see [apps/server/README.md](apps/server/README.md)):
 
 ```bash
 pnpm --filter @hearthtable/server dev
+```
+
+And the client scaffold, in another terminal (see [apps/client/README.md](apps/client/README.md) —
+there are no real screens yet, just the toolchain proven working end to end):
+
+```bash
+pnpm --filter @hearthtable/client dev
 ```
 
 ## Running it for your table
