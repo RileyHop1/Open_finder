@@ -299,6 +299,27 @@ slot with fewer than six eligible attributes. The granted skill feat needs
 no special handling: it's an ordinary `grantItem` rule element, already
 covered by `mapEntryRuleElements`.
 
+### The class and class-feature mappers (C.7f)
+
+`mapClass.ts` is the most speculative mapper so far: `classEntrySchema`'s
+proficiency progressions (perception, saves, class DC, weapon and armor
+categories -- thirteen tables in total) have no confirmed upstream
+counterpart yet, so the mapper reads a hypothetical
+`system.{perception,savingThrows,classDC,weapons,armor}` shape that mirrors
+our own schema field-for-field, via a shared `readProgression` helper that
+validates each table against `proficiencyProgressionSchema` itself. A
+malformed table (a higher rank reached before a lower one) fails the whole
+class closed with `invalid-proficiency-progression`, rather than importing
+a progression the resolver could misread later. Every field path here is
+**(confirm)** against the real-data importer run.
+
+`mapClassFeature.ts` treats its class reference the same defensive way
+`mapHeritage.ts` treats an ancestry reference (bare slug, object `slug`, or
+a slugified `name`) -- but unlike a heritage's ancestry link, `classSlug` is
+**required** by the schema, so a missing or unparseable reference fails the
+entry closed rather than falling back to any default: there is no such
+thing as a class feature with no class.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -383,3 +404,9 @@ To move the pin to a new upstream commit:
   rejected rather than downgraded to versatile, the constrained boost slot
   extracted for a background, its granted skill feat as an ordinary
   `grantItem`, and every fail-closed path.
+- `mapClass.test.ts` / `mapClassFeature.test.ts`: a well-formed class with
+  every proficiency table populated, a choice-of-key-ability class with more
+  than one key attribute option, a class feature with each parseable
+  class-reference shape, and every fail-closed path (missing key attribute,
+  non-positive hp, a progression with ranks out of order, a missing trained
+  skill count, and a missing or unparseable class reference).
