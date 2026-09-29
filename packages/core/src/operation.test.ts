@@ -28,6 +28,27 @@ describe('clientOperationUnionSchema -- seat.claim', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('accepts a claim with a pin, for claiming a GM seat', () => {
+    const result = seatClaimOperationSchema.safeParse({
+      id: crypto.randomUUID(),
+      type: 'seat.claim',
+      payload: { seatId: crypto.randomUUID(), pin: '4242' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a claim with no pin -- most seats have none to check', () => {
+    const result = seatClaimOperationSchema.safeParse({
+      id: crypto.randomUUID(),
+      type: 'seat.claim',
+      payload: { seatId: crypto.randomUUID() },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(Object.hasOwn(result.data.payload, 'pin')).toBe(false);
+    }
+  });
 });
 
 describe('clientOperationUnionSchema -- seat.release', () => {
@@ -165,11 +186,25 @@ describe('broadcastSchema', () => {
     };
   }
 
-  it('accepts a broadcast with no changed documents', () => {
+  function validSeat(extra: Record<string, unknown> = {}) {
+    return {
+      id: crypto.randomUUID(),
+      worldId: crypto.randomUUID(),
+      schemaVersion: 1,
+      name: 'Valeros',
+      isGM: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...extra,
+    };
+  }
+
+  it('accepts a broadcast with no changed documents or seats', () => {
     const result = broadcastSchema.safeParse({
       sequence: 1,
       operation: validOperation(),
       documents: [],
+      seats: [],
     });
     expect(result.success).toBe(true);
   });
@@ -182,6 +217,7 @@ describe('broadcastSchema', () => {
       sequence: 1,
       operation: validOperation(),
       documents: [validDocument({ memberIds: ['a', 'b'] })],
+      seats: [],
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -194,6 +230,39 @@ describe('broadcastSchema', () => {
       sequence: 1,
       operation: validOperation(),
       documents: [validDocument({ id: 'not-a-uuid' })],
+      seats: [],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a changed seat, validated fully (not loosely)', () => {
+    const result = broadcastSchema.safeParse({
+      sequence: 1,
+      operation: validOperation(),
+      documents: [],
+      seats: [validSeat({ claimedByDeviceToken: crypto.randomUUID() })],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.seats[0]?.name).toBe('Valeros');
+    }
+  });
+
+  it('rejects a malformed seat', () => {
+    const result = broadcastSchema.safeParse({
+      sequence: 1,
+      operation: validOperation(),
+      documents: [],
+      seats: [validSeat({ isGM: 'not-a-boolean' })],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('requires the seats field -- it is not optional', () => {
+    const result = broadcastSchema.safeParse({
+      sequence: 1,
+      operation: validOperation(),
+      documents: [],
     });
     expect(result.success).toBe(false);
   });
