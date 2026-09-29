@@ -17,7 +17,9 @@ import { DatabaseSync } from 'node:sqlite';
 import type { AppliedOperation, BaseDocument, World } from '@hearthtable/core';
 import { worldSchema } from '@hearthtable/core';
 
-import { resolveWorldPaths } from './paths.js';
+import { runMigrations } from './migrations.js';
+import { type WorldPaths, resolveWorldPaths } from './paths.js';
+import { withTransaction } from './transaction.js';
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS documents (
@@ -56,10 +58,8 @@ export interface WorldStore {
   readonly world: World;
   /**
    * Runs `fn` inside a SQLite transaction, committing on return and rolling
-   * back on throw. `node:sqlite` has no built-in transaction helper (unlike
-   * `better-sqlite3`'s `db.transaction()`), so this wraps manual
-   * `BEGIN`/`COMMIT`/`ROLLBACK` -- see ADR 0005: every write goes through a
-   * transaction, and this is the one place that's true.
+   * back on throw -- see `transaction.ts` and ADR 0005: every write goes
+   * through a transaction, and this is the one place that's true.
    */
   transaction<T>(fn: () => T): T;
   /** Inserts a new document, or updates it in place if `document.id` already exists. */
@@ -112,15 +112,7 @@ function buildStore(db: DatabaseSync, world: World): WorldStore {
     world,
 
     transaction<T>(fn: () => T): T {
-      db.exec('BEGIN');
-      try {
-        const result = fn();
-        db.exec('COMMIT');
-        return result;
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
-      }
+      return withTransaction(db, fn);
     },
 
     putDocument(document: BaseDocument): void {
@@ -205,10 +197,11 @@ function buildStore(db: DatabaseSync, world: World): WorldStore {
   };
 }
 
-function openDatabase(databaseFile: string): DatabaseSync {
-  const db = new DatabaseSync(databaseFile);
+function openDatabase(paths: WorldPaths): DatabaseSync {
+  const db = new DatabaseSync(paths.databaseFile);
   db.exec('PRAGMA journal_mode = WAL');
   db.exec(SCHEMA_SQL);
+  runMigrations(db, paths.snapshotsDir);
   return db;
 }
 
@@ -231,7 +224,7 @@ export function createWorld(worldsRoot: string, name: string): WorldStore {
   mkdirSync(paths.snapshotsDir, { recursive: true });
   writeFileSync(paths.manifestFile, JSON.stringify(world, null, 2));
 
-  return buildStore(openDatabase(paths.databaseFile), world);
+  return buildStore(openDatabase(paths), world);
 }
 
 /**
@@ -250,7 +243,7 @@ export function openWorld(worldsRoot: string, worldId: string): WorldStore {
     throw new Error(`no world found at ${paths.root}`);
   }
   const world = worldSchema.parse(JSON.parse(readFileSync(paths.manifestFile, 'utf8')));
-  return buildStore(openDatabase(paths.databaseFile), world);
+  return buildStore(openDatabase(paths), world);
 }
 
 /**

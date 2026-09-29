@@ -235,19 +235,22 @@ describe('meta', () => {
     store.close();
   });
 
+  // 'schemaVersion' is a reserved key the migration runner owns (see
+  // migrations.ts) -- these use an arbitrary key the store itself has no
+  // opinion about, so they test getMeta/setMeta in isolation from that.
   it('returns undefined for a key never set', () => {
-    expect(store.getMeta('schemaVersion')).toBeUndefined();
+    expect(store.getMeta('exampleKey')).toBeUndefined();
   });
 
   it('round-trips a value', () => {
-    store.setMeta('schemaVersion', '1');
-    expect(store.getMeta('schemaVersion')).toBe('1');
+    store.setMeta('exampleKey', 'a');
+    expect(store.getMeta('exampleKey')).toBe('a');
   });
 
   it('upserts on a second set with the same key', () => {
-    store.setMeta('schemaVersion', '1');
-    store.setMeta('schemaVersion', '2');
-    expect(store.getMeta('schemaVersion')).toBe('2');
+    store.setMeta('exampleKey', 'a');
+    store.setMeta('exampleKey', 'b');
+    expect(store.getMeta('exampleKey')).toBe('b');
   });
 });
 
