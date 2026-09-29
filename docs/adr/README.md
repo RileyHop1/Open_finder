@@ -41,3 +41,4 @@ than a tidy file.
 | [0009](0009-node-sqlite.md) | Storage driver: `node:sqlite`, not `better-sqlite3` | Accepted |
 | [0010](0010-distribution.md) | Distribution: the GM never opens a terminal | Accepted |
 | [0011](0011-importer-pipeline.md) | Importer pipeline: fetch by pinned SHA, verify by checksum | Accepted |
+| [0012](0012-pack-format.md) | Compendium packs are flat JSON files, not a database | Accepted |
