@@ -6,6 +6,7 @@ import {
   nestedNumberField,
   nestedStringArrayField,
   nestedStringField,
+  parseDieSize,
   slugify,
 } from './upstreamHelpers.js';
 
@@ -92,5 +93,25 @@ describe('filterValidTraitSlugs', () => {
 
   it('returns an empty array when the input is undefined', () => {
     expect(filterValidTraitSlugs(undefined, () => true)).toEqual([]);
+  });
+});
+
+describe('parseDieSize', () => {
+  it.each([
+    ['d4', 4],
+    ['d6', 6],
+    ['d8', 8],
+    ['d10', 10],
+    ['d12', 12],
+  ] as const)('parses %s to %i', (dieSize, expected) => {
+    expect(parseDieSize(dieSize)).toBe(expected);
+  });
+
+  it('returns undefined for a die size PF2e does not use', () => {
+    expect(parseDieSize('d20')).toBeUndefined();
+  });
+
+  it('returns undefined for a non-string value', () => {
+    expect(parseDieSize(8)).toBeUndefined();
   });
 });

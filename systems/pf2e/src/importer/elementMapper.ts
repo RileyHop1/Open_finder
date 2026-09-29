@@ -36,6 +36,7 @@ import type {
 import { MODIFIER_TYPES } from '@hearthtable/core';
 
 import { mapPredicateArray } from './mapPredicate.js';
+import { parseDieSize } from './upstreamHelpers.js';
 
 export interface UnresolvedGrantItem {
   readonly kind: 'unresolvedGrantItem';
@@ -57,14 +58,6 @@ export type MappedElement =
   | ChoiceSetElement
   | UnresolvedGrantItem
   | InertRuleElement;
-
-const DIE_SIZE_TO_FACES: Record<string, 4 | 6 | 8 | 10 | 12> = {
-  d4: 4,
-  d6: 6,
-  d8: 8,
-  d10: 10,
-  d12: 12,
-};
 
 function inert(upstreamKind: string, reason: string): InertRuleElement {
   return { kind: 'inert', upstreamKind, reason };
@@ -124,7 +117,8 @@ function mapDamageDice(record: Record<string, unknown>): MappedElement {
   if (typeof selector !== 'string' || selector.length === 0) {
     return inert('DamageDice', 'unsupported-shape');
   }
-  if (typeof dieSize !== 'string' || !(dieSize in DIE_SIZE_TO_FACES)) {
+  const dieFaces = parseDieSize(dieSize);
+  if (dieFaces === undefined) {
     return inert('DamageDice', 'unsupported-die-size');
   }
   const predicateResult = mapPredicateArray(record.predicate);
@@ -136,7 +130,7 @@ function mapDamageDice(record: Record<string, unknown>): MappedElement {
     kind: 'damageDice',
     selector,
     diceNumber,
-    dieFaces: DIE_SIZE_TO_FACES[dieSize]!,
+    dieFaces,
     ...(typeof damageType === 'string' ? { damageType } : {}),
     ...(predicateResult.predicate !== undefined
       ? { predicate: predicateResult.predicate }

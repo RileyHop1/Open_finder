@@ -225,6 +225,16 @@ CI job (ADR 0013) safe.
 used by every per-kind mapper: `{ ok: true, entry }` or `{ ok: false,
 reason }`, the same convention every other importer stage uses.
 
+### The weapon mapper (C.7b)
+
+`mapWeapon.ts` follows the same pattern. Two more upstream field paths,
+also `(confirm)`: `system.usage.value` (`"held-in-two-hands"` maps `hands`
+to 2; anything else defaults to 1) and `system.reload.value` (a string --
+`"0"`, `"-"`, absent, or unparsable all mean no reload step).
+
+`parseDieSize` (the `"d8"` -> `8` parser) moved from `elementMapper.ts` into
+`upstreamHelpers.ts` once this mapper became its second real caller.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -287,3 +297,7 @@ To move the pin to a new upstream commit:
   ones) carried through, id determinism, and every fail-closed path
   (malformed system, missing/invalid level, unrecognized category, a
   missing or unrecognized action cost).
+- `mapWeapon.test.ts`: one- and two-handed weapons, a ranged weapon with
+  range and reload, `"-"` reload omitted, the slug fallback, and every
+  fail-closed path (unrecognized category/group, an unsupported die size,
+  an energy damage type rejected as a base type, a missing damage block).

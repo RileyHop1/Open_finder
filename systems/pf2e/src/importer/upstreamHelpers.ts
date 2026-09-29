@@ -100,3 +100,21 @@ export function filterValidTraitSlugs(
 ): string[] {
   return (traits ?? []).filter(isValid);
 }
+
+const DIE_SIZE_TO_FACES: Record<string, 4 | 6 | 8 | 10 | 12> = {
+  d4: 4,
+  d6: 6,
+  d8: 8,
+  d10: 10,
+  d12: 12,
+};
+
+/**
+ * Parses upstream's die-size string (`"d8"`) into the numeric face count
+ * `damageDiceFacesSchema` expects. Shared by `elementMapper.ts`'s
+ * `DamageDice` mapping and `mapWeapon.ts`'s base damage -- extracted here
+ * now that a second real caller needs it.
+ */
+export function parseDieSize(dieSize: unknown): 4 | 6 | 8 | 10 | 12 | undefined {
+  return typeof dieSize === 'string' ? DIE_SIZE_TO_FACES[dieSize] : undefined;
+}
