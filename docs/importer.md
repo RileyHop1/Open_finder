@@ -435,6 +435,42 @@ two runs produce byte-identical output; nothing in this module reaches for
 the wall clock, which is exactly what the milestone's "a second run is
 byte-identical" verification step needs to be true.
 
+## The coverage report (ADR 0004 decision 5)
+
+`coverageReport.ts` answers CLAUDE.md's open question -- "which
+rule-element types beyond the v1 subset are worth the cost" -- with real
+numbers instead of a guess, once the real-data importer run (C.11, a later
+PR) produces some. `buildCoverageReport(entries, drops)` is a pure function
+over the final kept entry set and `resolveDependencies`'s drop list; it
+needs no new plumbing anywhere upstream, because everything it counts is
+already sitting in those two values:
+
+- **Entries by publication**, from each entry's own `provenance`.
+- **Rule elements by kind**, tallying every non-`inert` element across
+  every entry's `ruleElements` -- `flatModifier`, `damageDice`,
+  `rollOption`, `grantItem`, `choiceSet`.
+- **Inert rule elements, grouped by `(upstreamKind, reason)`** -- e.g. how
+  many `FlatModifier`s went inert specifically for `formula-value` versus
+  every other reason. Grouped, never per-entry, so this list is already
+  aggregate-safe on its own.
+- **Every dependency drop**, sorted by round then slug, so the cascade the
+  "Dependency resolution" section above describes is visible in the report
+  itself, not just the final casualty count.
+
+**Two projections, two audiences.** The detailed `CoverageReport` names
+dropped entries by slug -- fine for `coverage.md`, which a maintainer reads
+locally, but a slug derives from Paizo's published content, so this shape
+must never be printed by CI. `aggregateCoverage(report)` strips every name
+down to bare counts (`dropsByReason`, `dropsByKind`, `dropsByRound`) --
+the only shape CI's `import-smoke` job (a later PR) is allowed to print,
+per the milestone's plan.
+
+`writeCoverageReport(report, outputDir)` writes both `coverage.json` (the
+detailed report, machine-readable) and `coverage.md` (`renderCoverageMarkdown`'s
+rendering: a summary, then one section per breakdown above, with a table
+for drops and `_none_` placeholders for empty sections rather than blank
+tables) -- the same file-writing shape `writePacks.ts` already established.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -558,3 +594,13 @@ To move the pin to a new upstream commit:
   directories given identical input; and both failure paths throwing
   rather than writing bad or lossy output (an entry that fails its own
   schema, and a duplicate slug within one pack).
+- `coverageReport.test.ts`: counts by publication; mapped rule elements by
+  kind with inert ones excluded; inert elements grouped by
+  `(upstreamKind, reason)` and merged across entries; drops sorted by round
+  then slug; `aggregateCoverage` stripping every slug down to bare counts
+  (verified directly by asserting the serialized aggregate never contains a
+  dropped entry's slug) while carrying every other field through unchanged;
+  the rendered markdown naming publications, kinds, and dropped slugs, and
+  falling back to `_none_` placeholders for empty sections; and
+  `writeCoverageReport` producing a round-trippable `coverage.json` and a
+  `coverage.md` containing the expected heading.
