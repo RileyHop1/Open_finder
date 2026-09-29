@@ -102,6 +102,13 @@ export {
   type Provenance,
 } from './provenance.js';
 
+export {
+  compendiumEntrySchema,
+  packManifestSchema,
+  type CompendiumEntry,
+  type PackManifest,
+} from './compendium.js';
+
 export type {
   ClientToServerEvents,
   OperationAck,
