@@ -155,3 +155,14 @@ export {
 } from './rules/defenses.js';
 
 export { proficiencyModifier } from './rules/proficiency.js';
+
+export {
+  buildClassDc,
+  buildPerception,
+  buildSkill,
+  SKILLS,
+  type BuildClassDcOptions,
+  type BuildPerceptionOptions,
+  type BuildSkillOptions,
+  type Skill,
+} from './rules/skills.js';
