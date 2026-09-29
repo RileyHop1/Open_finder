@@ -260,3 +260,16 @@ export function listWorldIds(worldsRoot: string): string[] {
     .map((entry) => entry.name)
     .filter((id) => existsSync(resolveWorldPaths(worldsRoot, id).manifestFile));
 }
+
+/**
+ * Reads every world's manifest under `worldsRoot` -- for a listing screen,
+ * where the caller wants the actual `World` data, not just ids. Reads
+ * `world.json` only; never opens a database, since a listing has no need
+ * for one.
+ */
+export function listWorlds(worldsRoot: string): World[] {
+  return listWorldIds(worldsRoot).map((id) => {
+    const paths = resolveWorldPaths(worldsRoot, id);
+    return worldSchema.parse(JSON.parse(readFileSync(paths.manifestFile, 'utf8')));
+  });
+}

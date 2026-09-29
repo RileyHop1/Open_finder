@@ -7,16 +7,21 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
+    "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.5",
     "@hearthtable/core": "workspace:*",
     "@hearthtable/dice": "workspace:*",
-    "@hearthtable/pf2e": "workspace:*"
+    "@hearthtable/pf2e": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
+    "tsx": "^4.23.15",
     "vitest": "^5.0.2"
   }
 }
