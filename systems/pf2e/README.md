@@ -7,7 +7,7 @@ Foundry separates its core from a game system.
 - **The rules engine** — statistics, proficiency, DCs, strikes, spellcasting
 - **Rule elements** — our own schema and the v1 subset
   (`docs/adr/0004-rule-elements.md`)
-- **The importer** (`importer/`) — converts upstream `foundryvtt/pf2e` JSON into
+- **The importer** (`src/importer/`) — converts upstream `foundryvtt/pf2e` JSON into
   our schemas, applying the license filter and the core-four-books scope filter
 - **Sheets** — the PF2e-specific character and creature sheet logic
 - **Golden tests** — reference characters and our own invented creatures with
