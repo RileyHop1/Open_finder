@@ -21,3 +21,13 @@ export {
   type ProficiencyRank,
   type Rarity,
 } from './content/common.js';
+
+export { actionEntrySchema, type ActionEntry } from './content/action.js';
+
+export {
+  FEAT_CATEGORIES,
+  featCategorySchema,
+  featEntrySchema,
+  type FeatCategory,
+  type FeatEntry,
+} from './content/feat.js';
