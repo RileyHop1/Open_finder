@@ -15,10 +15,10 @@ import type {
   RerollModifier,
   SignedTerm,
 } from './ast.js';
-import type { RandomSource } from './rng.js';
 import type {
   ConstantTerm,
   DieTerm,
+  RandomSource,
   ReferenceTerm,
   RollResult,
   RollTerm,

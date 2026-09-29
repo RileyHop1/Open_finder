@@ -7,6 +7,19 @@
  */
 
 /**
+ * The evaluator's randomness source type. Deliberately kept here rather than
+ * in `rng.ts` alongside its only concrete implementation
+ * (`cryptoRandomSource`): this file has no imports and needs none, while
+ * `rng.ts` imports `node:crypto` for that implementation. A module that only
+ * needs the *type* -- `evaluator.ts`, `damage.ts`, and an isomorphic package
+ * like `packages/core` mirroring `RollResult` for its `ChatMessage` schema --
+ * can import it from here without ever pulling `node:crypto`'s types into a
+ * project (such as `apps/client`'s, or `packages/core`'s own standalone
+ * typecheck) that doesn't configure them. See `rng.ts` and `pure.ts`.
+ */
+export type RandomSource = (faces: number) => number;
+
+/**
  * One die or constant that contributed to a roll's total.
  *
  * Dice dropped by `kh`/`kl`/`dh`/`dl` are retained here with `kept: false`,

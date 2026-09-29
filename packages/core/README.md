@@ -13,10 +13,16 @@ permission model, and the operation shapes the server validates against.
 - **`World` and `Seat`** (`world.ts`, `seat.ts`) — extend the record base
   directly, not the document envelope; neither is permission-gated the way a
   document is. See `docs/world-and-seats.md`. **Built.**
-- **Document schemas** — `Actor`, `Item`, `Party`, `JournalEntry`, `Scene`,
-  `Combat`, `ChatMessage`, `Calendar`, `RollTable`, each extending the
-  document envelope. Not yet — these land through milestones 3–9 as each
-  type's own feature needs it
+- **`ChatMessage`** (`chatMessage.ts`) — the first concrete document schema,
+  extending the document envelope. Two variants under a `kind` field: a plain
+  text message and a dice roll, the latter mirroring `@hearthtable/dice`'s own
+  `RollResult` field for field (imported from that package's `/pure` entry
+  point — see its README — so this package's own isomorphic typecheck never
+  needs Node's types). **Built.**
+- **Other document schemas** — `Actor`, `Item`, `Party`, `JournalEntry`,
+  `Scene`, `Combat`, `Calendar`, `RollTable`, each extending the document
+  envelope. Not yet — these land through milestones 3–9 as each type's own
+  feature needs it
 - **Operations** (`operation.ts`) — the client-to-server vocabulary: the
   `ClientOperation`/`AppliedOperation` envelopes, the broadcast shape, and
   the four operations milestone 1 needs (`seat.claim`, `seat.release`,

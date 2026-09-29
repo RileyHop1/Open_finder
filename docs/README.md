@@ -28,6 +28,7 @@ lands.
 | --- | --- |
 | [documents.md](documents.md) | The shared envelope every document extends — not a type itself, but read this first |
 | [world-and-seats.md](world-and-seats.md) | `World` and `Seat` — also not document types; the two other top-level schemas |
+| [chatMessage.md](chatMessage.md) | `ChatMessage` — the first concrete document type: plain messages and dice rolls |
 
 ## Writing a page here
 - Specify, do not narrate. Someone should be able to implement from it.

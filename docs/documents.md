@@ -3,10 +3,11 @@
 This page describes the shared envelope every content document carries —
 `@hearthtable/core`'s `baseDocumentSchema`. It is not a page for one document
 type; it's the shape `Actor`, `Item`, `Party`, `JournalEntry`, `Scene`,
-`Combat`, `ChatMessage`, `Calendar`, and `RollTable` will each extend once they
-exist. None of them do yet — see the Milestones section of
-[CLAUDE.md](../CLAUDE.md) for when each lands. Each will get its own page here
-once it's real, following the format below.
+`Combat`, `ChatMessage`, `Calendar`, and `RollTable` will each extend.
+`ChatMessage` is the first to actually exist — see
+[chatMessage.md](chatMessage.md). The rest don't yet; see the Milestones
+section of [CLAUDE.md](../CLAUDE.md) for when each lands. Each gets its own
+page here once it's real, following the format below.
 
 `World` and `Seat` do **not** extend this envelope. A `World` can't belong to
 itself (no `worldId`), and a `Seat` isn't permission-gated the way a document
