@@ -6,29 +6,10 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-function listFilesRecursively(rootDir: string): string[] {
-  const files: string[] = [];
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else {
-        files.push(full);
-      }
-    }
-  };
-  walk(rootDir);
-  return files;
-}
-
-/** `path`, with OS-specific separators normalized to `/` -- so the checksum doesn't depend on whether it was computed on Windows or Linux (dev machine vs. CI). */
-function toPosixRelativePath(rootDir: string, file: string): string {
-  return relative(rootDir, file).split(sep).join('/');
-}
+import { listFilesRecursively, toPosixRelativePath } from './listFiles.js';
 
 /**
  * Sha256 over every file under `rootDir`, sorted by (normalized) relative
