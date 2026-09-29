@@ -12,11 +12,13 @@
 
 import { existsSync } from 'node:fs';
 
+import type { Seat } from '@hearthtable/core';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { createActiveWorldManager } from './activeWorld.js';
+import { withWorldStore } from './worldAccess.js';
 import { createWorld, listWorlds } from './worldStore.js';
 
 export interface AppOptions {
@@ -33,6 +35,12 @@ export interface AppOptions {
 }
 
 const createWorldBodySchema = z.object({ name: z.string().min(1) });
+
+const createSeatBodySchema = z.object({
+  name: z.string().min(1),
+  isGM: z.boolean(),
+  pin: z.string().min(1).max(16).optional(),
+});
 
 export function createApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? true });
@@ -77,6 +85,57 @@ export function createApp(options: AppOptions): FastifyInstance {
       return;
     }
     await reply.send(store.world);
+  });
+
+  // These two routes return the full Seat object, pin included -- not
+  // redacted. Seat.pin already documents itself as not a secret (ADR 0007),
+  // and this app's whole threat model is "anyone who can reach the port is
+  // already trusted" (ADR 0007 again). Building selective redaction here
+  // would be exactly the security theater that field's own docs warn
+  // against; it protects against nothing this app's model actually defends
+  // against, while adding a response shape divergent from the stored one.
+  app.post('/api/worlds/:id/seats', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = createSeatBodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      await reply
+        .status(400)
+        .send({ error: 'invalid request body', issues: parsed.error.issues });
+      return;
+    }
+
+    try {
+      const seat = withWorldStore(activeWorld, options.worldsRoot, id, (store) => {
+        const now = new Date().toISOString();
+        const newSeat: Seat = {
+          id: crypto.randomUUID(),
+          worldId: id,
+          schemaVersion: 1,
+          name: parsed.data.name,
+          isGM: parsed.data.isGM,
+          createdAt: now,
+          updatedAt: now,
+          ...(parsed.data.pin === undefined ? {} : { pin: parsed.data.pin }),
+        };
+        store.putSeat(newSeat);
+        return newSeat;
+      });
+      await reply.status(201).send(seat);
+    } catch {
+      await reply.status(404).send({ error: `no world found with id ${id}` });
+    }
+  });
+
+  app.get('/api/worlds/:id/seats', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const seats = withWorldStore(activeWorld, options.worldsRoot, id, (store) =>
+        store.listSeats(),
+      );
+      await reply.send(seats);
+    } catch {
+      await reply.status(404).send({ error: `no world found with id ${id}` });
+    }
   });
 
   if (options.staticDir !== undefined && existsSync(options.staticDir)) {

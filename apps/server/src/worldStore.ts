@@ -14,7 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
-import type { AppliedOperation, BaseDocument, World } from '@hearthtable/core';
+import type { AppliedOperation, BaseDocument, Seat, World } from '@hearthtable/core';
 import { worldSchema } from '@hearthtable/core';
 
 import { runMigrations } from './migrations.js';
@@ -72,6 +72,13 @@ export interface WorldStore {
   appendOperation(operation: NewOperation): AppliedOperation;
   /** Every operation applied after `sequence`, in order -- what a reconnecting client replays (ADR 0005). */
   listOperationsSince(sequence: number): AppliedOperation[];
+  /** Inserts a new seat, or updates it in place if `seat.id` already exists. */
+  putSeat(seat: Seat): void;
+  getSeat(id: string): Seat | undefined;
+  /** Every seat in this world -- what the lobby lists. */
+  listSeats(): Seat[];
+  /** The seat currently claimed by `deviceToken`, if any -- for auto-rejoin on reconnect (ADR 0007). */
+  getSeatByDeviceToken(deviceToken: string): Seat | undefined;
   getMeta(key: string): string | undefined;
   setMeta(key: string, value: string): void;
   close(): void;
@@ -95,6 +102,18 @@ interface MetaRow {
   value: string;
 }
 
+interface SeatRow {
+  id: string;
+  world_id: string;
+  schema_version: number;
+  name: string;
+  is_gm: number; // SQLite has no boolean column type; stored as 0/1
+  pin: string | null;
+  claimed_by_device_token: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 function rowToOperation(row: OperationRow): AppliedOperation {
   const base = {
     id: row.id,
@@ -105,6 +124,22 @@ function rowToOperation(row: OperationRow): AppliedOperation {
     appliedAt: row.applied_at,
   };
   return row.seat_id === null ? base : { ...base, seatId: row.seat_id };
+}
+
+function rowToSeat(row: SeatRow): Seat {
+  return {
+    id: row.id,
+    worldId: row.world_id,
+    schemaVersion: row.schema_version,
+    name: row.name,
+    isGM: row.is_gm !== 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    ...(row.pin === null ? {} : { pin: row.pin }),
+    ...(row.claimed_by_device_token === null
+      ? {}
+      : { claimedByDeviceToken: row.claimed_by_device_token }),
+  };
 }
 
 function buildStore(db: DatabaseSync, world: World): WorldStore {
@@ -176,6 +211,50 @@ function buildStore(db: DatabaseSync, world: World): WorldStore {
         )
         .all(world.id, sequence) as unknown as OperationRow[];
       return rows.map(rowToOperation);
+    },
+
+    putSeat(seat: Seat): void {
+      db.prepare(
+        `INSERT INTO seats (id, world_id, schema_version, name, is_gm, pin, claimed_by_device_token, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           schema_version = excluded.schema_version,
+           name = excluded.name,
+           is_gm = excluded.is_gm,
+           pin = excluded.pin,
+           claimed_by_device_token = excluded.claimed_by_device_token,
+           updated_at = excluded.updated_at`,
+      ).run(
+        seat.id,
+        seat.worldId,
+        seat.schemaVersion,
+        seat.name,
+        seat.isGM ? 1 : 0,
+        seat.pin ?? null,
+        seat.claimedByDeviceToken ?? null,
+        seat.createdAt,
+        seat.updatedAt,
+      );
+    },
+
+    getSeat(id: string): Seat | undefined {
+      const row = db.prepare('SELECT * FROM seats WHERE id = ?').get(id) as
+        SeatRow | undefined;
+      return row === undefined ? undefined : rowToSeat(row);
+    },
+
+    listSeats(): Seat[] {
+      const rows = db
+        .prepare('SELECT * FROM seats WHERE world_id = ?')
+        .all(world.id) as unknown as SeatRow[];
+      return rows.map(rowToSeat);
+    },
+
+    getSeatByDeviceToken(deviceToken: string): Seat | undefined {
+      const row = db
+        .prepare('SELECT * FROM seats WHERE world_id = ? AND claimed_by_device_token = ?')
+        .get(world.id, deviceToken) as SeatRow | undefined;
+      return row === undefined ? undefined : rowToSeat(row);
     },
 
     getMeta(key: string): string | undefined {

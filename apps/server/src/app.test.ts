@@ -39,6 +39,23 @@ interface WorldSummary {
   readonly schemaVersion: number;
 }
 
+interface SeatSummary {
+  readonly id: string;
+  readonly worldId: string;
+  readonly name: string;
+  readonly isGM: boolean;
+  readonly pin?: string;
+}
+
+async function createTestWorld(): Promise<string> {
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/worlds',
+    payload: { name: 'Test Campaign' },
+  });
+  return jsonAs<WorldSummary>(response).id;
+}
+
 describe('GET /api/worlds', () => {
   it('returns an empty array when no worlds exist', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/worlds' });
@@ -199,5 +216,132 @@ describe('static file serving', () => {
     expect(() =>
       createApp({ worldsRoot, staticDir: missingDir, logger: false }),
     ).not.toThrow();
+  });
+});
+
+describe('POST /api/worlds/:id/seats', () => {
+  it('creates a seat and returns it with a 201', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'Valeros', isGM: false },
+    });
+    expect(response.statusCode).toBe(201);
+    const seat = jsonAs<SeatSummary>(response);
+    expect(seat.name).toBe('Valeros');
+    expect(seat.isGM).toBe(false);
+    expect(seat.worldId).toBe(worldId);
+  });
+
+  it('creates a GM seat with a pin', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'GM', isGM: true, pin: '4242' },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(jsonAs<SeatSummary>(response).pin).toBe('4242');
+  });
+
+  it('rejects a missing isGM with 400 -- there is no default', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'Valeros' },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('rejects an empty name with 400', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: '', isGM: false },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('returns 404 for a world that does not exist', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${crypto.randomUUID()}/seats`,
+      payload: { name: 'Valeros', isGM: false },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('creates a seat on the currently active world without conflict', async () => {
+    // Exercises the withWorldStore reuse-the-active-connection path, not
+    // just the open-a-fresh-one path the other tests above take.
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'Valeros', isGM: false },
+    });
+    expect(response.statusCode).toBe(201);
+  });
+});
+
+describe('GET /api/worlds/:id/seats', () => {
+  it('returns an empty array for a world with no seats', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/seats`,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([]);
+  });
+
+  it('returns every seat created for that world', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'A', isGM: false },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'B', isGM: false },
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/seats`,
+    });
+    const seats = jsonAs<SeatSummary[]>(response);
+    expect(seats.map((s) => s.name).sort()).toEqual(['A', 'B']);
+  });
+
+  it("does not return another world's seats", async () => {
+    const worldA = await createTestWorld();
+    const worldB = await createTestWorld();
+    await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldA}/seats`,
+      payload: { name: 'A', isGM: false },
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldB}/seats`,
+    });
+    expect(jsonAs<SeatSummary[]>(response)).toEqual([]);
+  });
+
+  it('returns 404 for a world that does not exist', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${crypto.randomUUID()}/seats`,
+    });
+    expect(response.statusCode).toBe(404);
   });
 });
