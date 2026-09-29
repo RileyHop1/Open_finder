@@ -63,3 +63,25 @@ export {
 } from './content/armor.js';
 
 export { gearEntrySchema, type GearEntry } from './content/gear.js';
+
+export {
+  AREA_SHAPES,
+  MAGICAL_TRADITIONS,
+  SPELL_SAVES,
+  areaShapeSchema,
+  magicalTraditionSchema,
+  spellAreaSchema,
+  spellDefenseSchema,
+  spellEntrySchema,
+  spellHeighteningSchema,
+  spellRangeSchema,
+  spellSaveSchema,
+  type AreaShape,
+  type MagicalTradition,
+  type SpellArea,
+  type SpellDefense,
+  type SpellEntry,
+  type SpellHeightening,
+  type SpellRange,
+  type SpellSave,
+} from './content/spell.js';
