@@ -55,6 +55,8 @@ export {
   type ClientOperation,
 } from './operation.js';
 
+export { predicateSchema, testPredicate, type Predicate } from './predicate.js';
+
 export { resolvePermission } from './permission.js';
 
 export {
