@@ -86,6 +86,32 @@ Entries are returned sorted by path, so downstream stages see a
 deterministic order regardless of the filesystem's own directory-listing
 order.
 
+## The license filter (ADR 0003)
+
+`licenseFilter.ts`'s `applyLicenseFilter(entry)` is the first of the two
+filters (the scope filter is next). It looks for a publication object at
+either of two paths upstream actually uses -- confirmed against a real
+fetch, not assumed:
+
+- **Item**-type entries (feat, weapon, spell, ...): `system.publication`
+- **Actor**-type entries (npc, hazard, character): `system.details.publication`
+
+Both carry the identical shape (`{ title, license, remaster }`); a real
+entry only ever has one. Whichever is found gets reshaped onto
+`@hearthtable/core`'s `provenanceSchema` field names (`title` ->
+`publication`) and validated against it directly -- reusing that schema's
+own ORC/remaster enforcement rather than re-implementing the check here.
+
+**Fails closed**: no publication found, an unrecognized license, or
+`remaster: false` are all rejected with a reason (`missing-provenance` or
+`not-orc-remaster`); nothing is included by default.
+
+```ts
+type LicenseFilterResult =
+  | { ok: true; provenance: Provenance }
+  | { ok: false; reason: string };
+```
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -113,3 +139,8 @@ To move the pin to a new upstream commit:
   erroring, an incomplete object skipped, malformed JSON throwing with the
   offending file named, and deterministic path-sorted output. Fixtures are
   synthetic, invented entries -- never real upstream content (ADR 0013).
+- `licenseFilter.test.ts`: an accept/reject table covering both provenance
+  paths, OGL rejected, `remaster: false` rejected, a missing title rejected,
+  no publication anywhere rejected, and a non-object/null `system` rejected;
+  plus the mapped `Provenance` returned on success and a deterministic
+  tie-break for the (unreal) case where both paths are somehow present.
