@@ -1,4 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The base config sets "types": [] so browser-targeted packages don't
+    // leak Node globals. This package needs node:fs/node:path (the
+    // importer, milestone 2) and node:crypto (via @hearthtable/dice) --
+    // same reasoning as apps/server and packages/dice's own tsconfig.
+    "types": ["node"]
+  },
   "include": ["src/**/*.ts"]
 }
