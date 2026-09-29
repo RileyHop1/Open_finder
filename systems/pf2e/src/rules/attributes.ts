@@ -12,6 +12,8 @@
  * boost does to a score. This module only has the latter.
  */
 
+import type { Attribute } from '../content/common.js';
+
 /** floor((score - 10) / 2) -- PF2e's standard score-to-modifier table. */
 export function attributeModifier(score: number): number {
   return Math.floor((score - 10) / 2);
@@ -30,3 +32,19 @@ export function applyBoost(score: number): number {
 export function applyFlaw(score: number): number {
   return score - 2;
 }
+
+/**
+ * Display names for `content/common.ts`'s three-letter attribute slugs.
+ * Used wherever an attribute's contribution to a statistic needs a real
+ * label for the breakdown UI (ADR 0008's "show the math") rather than the
+ * bare slug -- AC's Dexterity modifier and a save's own attribute are the
+ * first two callers (`defenses.ts`).
+ */
+export const ATTRIBUTE_LABELS: Readonly<Record<Attribute, string>> = {
+  str: 'Strength',
+  dex: 'Dexterity',
+  con: 'Constitution',
+  int: 'Intelligence',
+  wis: 'Wisdom',
+  cha: 'Charisma',
+};

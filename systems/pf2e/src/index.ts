@@ -138,6 +138,20 @@ export {
   type Pf2eEntryKind,
 } from './content/entry.js';
 
-export { applyBoost, applyFlaw, attributeModifier } from './rules/attributes.js';
+export {
+  applyBoost,
+  applyFlaw,
+  attributeModifier,
+  ATTRIBUTE_LABELS,
+} from './rules/attributes.js';
+
+export {
+  buildArmorClass,
+  buildSave,
+  SAVE_TYPES,
+  type BuildArmorClassOptions,
+  type BuildSaveOptions,
+  type SaveType,
+} from './rules/defenses.js';
 
 export { proficiencyModifier } from './rules/proficiency.js';
