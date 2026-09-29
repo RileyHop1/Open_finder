@@ -11,6 +11,7 @@
  */
 
 import { existsSync } from 'node:fs';
+import type { Readable } from 'node:stream';
 
 import type { Seat } from '@hearthtable/core';
 import fastifyStatic from '@fastify/static';
@@ -18,7 +19,9 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
+import { resolveWorldPaths } from './paths.js';
 import { withWorldStore } from './worldAccess.js';
+import { exportWorldArchive, importWorldArchive } from './worldArchive.js';
 import { createWorld, listWorlds } from './worldStore.js';
 
 export interface AppOptions {
@@ -43,6 +46,27 @@ export interface AppOptions {
   readonly logger?: boolean;
 }
 
+// Assets are explicitly unbounded (CLAUDE.md's Storage section: "no size
+// limit... this is a table for friends, not a public service"), so
+// Fastify's 1 MiB default body limit would break importing any campaign
+// that has grown past a trivial size.
+const WORLD_ARCHIVE_BODY_LIMIT = 4 * 1024 * 1024 * 1024; // 4 GiB
+
+/**
+ * Keeps a downloaded archive's filename to `[a-z0-9-]` only. A world's name
+ * is freeform GM-chosen text (CLAUDE.md's Seats section: no validation on
+ * it beyond non-empty) -- without this, a name containing `"` or a CRLF
+ * could inject into the `Content-Disposition` response header rather than
+ * just render oddly.
+ */
+function slugForFilename(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug.length > 0 ? slug : 'world';
+}
+
 const createWorldBodySchema = z.object({ name: z.string().min(1) });
 
 const createSeatBodySchema = z.object({
@@ -52,8 +76,18 @@ const createSeatBodySchema = z.object({
 });
 
 export function createApp(options: AppOptions): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? true });
+  const app = Fastify({
+    logger: options.logger ?? true,
+    bodyLimit: WORLD_ARCHIVE_BODY_LIMIT,
+  });
   const { activeWorld } = options;
+
+  // Hands the raw upload stream straight to the import route below instead
+  // of buffering it -- the whole point of `importWorldArchive`'s own
+  // streaming reader (`worldArchive.ts`).
+  app.addContentTypeParser('application/octet-stream', (_request, payload, done) => {
+    done(null, payload);
+  });
 
   app.get('/api/worlds', () => listWorlds(options.worldsRoot));
 
@@ -163,6 +197,59 @@ export function createApp(options: AppOptions): FastifyInstance {
       await reply.send(documents);
     } catch {
       await reply.status(404).send({ error: `no world found with id ${id}` });
+    }
+  });
+
+  // Streams the archive straight to the response (`exportWorldArchive` reads
+  // assets off disk one chunk at a time) rather than building it up first --
+  // `reply.send` recognizes a Readable and pipes it. `store.serialize()`
+  // runs synchronously here, inside `withWorldStore`'s callback, so it's
+  // guaranteed a live database handle regardless of whether that's the
+  // active world's connection or a fresh one this call opened and will
+  // close right after -- the returned stream itself no longer needs either,
+  // since by then it only holds the already-extracted bytes and a plain
+  // filesystem path to the assets directory.
+  app.get('/api/worlds/:id/export', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const { stream, world } = withWorldStore(
+        activeWorld,
+        options.worldsRoot,
+        id,
+        (store) => {
+          const paths = resolveWorldPaths(options.worldsRoot, id);
+          return {
+            stream: exportWorldArchive(store.world, store.serialize(), paths.assetsDir),
+            world: store.world,
+          };
+        },
+      );
+      const filename = `${slugForFilename(world.name)}-${world.id}.htworld`;
+      await reply
+        .header('content-type', 'application/octet-stream')
+        .header('content-disposition', `attachment; filename="${filename}"`)
+        .send(stream);
+    } catch {
+      await reply.status(404).send({ error: `no world found with id ${id}` });
+    }
+  });
+
+  // Bare `/api/worlds/import`, not `/api/worlds/:id/import`: importing
+  // creates a brand-new world (see `importWorldArchive`'s own doc comment
+  // on why it preserves the archived id rather than minting one), so there
+  // is no existing id to route through -- the same reason `POST
+  // /api/worlds` (create) has no id segment either.
+  app.post('/api/worlds/import', async (request, reply) => {
+    try {
+      const world = await importWorldArchive(
+        options.worldsRoot,
+        request.body as Readable,
+      );
+      await reply.status(201).send(world);
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : 'failed to import world archive';
+      await reply.status(400).send({ error: message });
     }
   });
 
