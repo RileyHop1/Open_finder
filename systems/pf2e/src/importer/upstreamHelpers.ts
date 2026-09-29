@@ -7,7 +7,7 @@
  * false, reason: '...'`) instead of crashing the whole import run.
  */
 
-import type { ActionCost } from '../content/common.js';
+import type { ActionCost, Size } from '../content/common.js';
 
 export function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -144,4 +144,23 @@ export function extractBoostSlots(boosts: unknown): readonly string[][] {
     }
   }
   return slots;
+}
+
+const SIZE_CODE_TO_SIZE: Record<string, Size> = {
+  tiny: 'tiny',
+  sm: 'small',
+  med: 'medium',
+  lg: 'large',
+  huge: 'huge',
+  grg: 'gargantuan',
+};
+
+/**
+ * Upstream's `size` is an abbreviated code (`"sm"`, `"med"`, `"lg"`, ...),
+ * not our full-word `Size` -- shared by `mapAncestry.ts` and
+ * `mapCreature.ts`, the two content kinds that carry a size at all.
+ * **(confirm)** against real upstream data.
+ */
+export function mapSizeCode(sizeCode: unknown): Size | undefined {
+  return typeof sizeCode === 'string' ? SIZE_CODE_TO_SIZE[sizeCode] : undefined;
 }

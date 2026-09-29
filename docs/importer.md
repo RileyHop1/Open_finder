@@ -320,6 +320,33 @@ a slugified `name`) -- but unlike a heritage's ancestry link, `classSlug` is
 entry closed rather than falling back to any default: there is no such
 thing as a class feature with no class.
 
+### The creature mapper (C.7g)
+
+**A creature's strikes live outside `system`.** Every other mapper reads
+only `entry.system`, but a creature is an Actor whose attacks are sibling
+embedded Items (type `melee`), not fields nested inside its own `system`
+blob. `reader.ts` now carries that embedded array as `UpstreamEntry.items`
+(optional, so every earlier mapper's hand-built fixtures keep typechecking
+without change) and `mapCreature.ts` is the first, and so far only, mapper
+to read it.
+
+Because there is no per-element "downgrade" channel for strikes the way
+rule elements have one, an embedded `melee` item this mapper can't fully
+parse **fails the whole creature closed** rather than importing a stat
+block missing (or worse, silently wrong about) one of its attacks. Supple-
+mentary fields -- resistances, weaknesses, skills -- get the opposite
+treatment: a malformed entry among them is dropped individually, the same
+lenience `filterValidTraitSlugs` already gives traits, since losing one
+skill bonus is a visible gap, not a wrong number the GM would trust.
+
+`mapSizeCode` (shared with `mapAncestry.ts`, moved into `upstreamHelpers.ts`
+in this PR) reads the size code from `system.traits.size.value` here,
+rather than the top-level `system.size` an ancestry uses -- both feed the
+same size-code table, just at different upstream paths. Every field path in
+this mapper is **(confirm)** against the real-data importer run; a creature
+stat block is the highest-stakes place in the importer to get that wrong,
+since a GM trusts it at the table without checking it against a book.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -410,3 +437,14 @@ To move the pin to a new upstream commit:
   class-reference shape, and every fail-closed path (missing key attribute,
   non-positive hp, a progression with ranks out of order, a missing trained
   skill count, and a missing or unparseable class reference).
+- `mapCreature.test.ts`: a well-formed creature with a strike, other-speed
+  types, resistances, and weaknesses; a creature with no strikes at all; a
+  non-`melee` embedded item ignored rather than mapped; a level of `-1`; a
+  malformed resistance entry dropped rather than failing the whole entry;
+  and every fail-closed path (bad level, size, perception, AC, saving
+  throws, hp, speed, attributes, and an unparseable embedded strike via both
+  a missing attack bonus and an unsupported damage die size).
+- `reader.test.ts` gained a case for the new `items` field: an actor's
+  embedded items array is read through when present, and every existing
+  case's expectation now includes `items: []` for entries that don't have
+  one.
