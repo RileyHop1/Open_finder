@@ -1,11 +1,13 @@
 <script setup lang="ts">
 /**
- * The scaffold's root component. Real screens (campaign select, the lobby)
- * land in the next two PRs; this just proves the toolchain -- Vite, Vue's
- * `<script setup>`, the design tokens, Pinia (wired in `main.ts`), and the
- * a11y baseline below -- actually works end to end before anything is built
- * on top of it.
+ * The app's root shell: header, skip link, and the `<main>` landmark. What
+ * renders inside `<main>` is CampaignSelect for now -- the GM's first
+ * screen (see that component's own doc comment). The lobby (next PR) will
+ * need App.vue to switch between the two once a campaign is active; that
+ * conditional isn't here yet because the lobby it would switch to doesn't
+ * exist yet either.
  */
+import CampaignSelect from './components/CampaignSelect.vue';
 </script>
 
 <template>
@@ -15,10 +17,7 @@
       <h1>Hearthtable</h1>
     </header>
     <main id="main-content">
-      <p>
-        The server runs the game. This screen will let a GM pick a campaign and let
-        players join its lobby.
-      </p>
+      <CampaignSelect />
     </main>
   </div>
 </template>

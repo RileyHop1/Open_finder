@@ -7,9 +7,9 @@ no cost. The design question we use to settle arguments is *"if Owlcat made a
 Pathfinder 2E game, how would it feel?"*
 
 > **Status: pre-alpha.** The server runs and has a world-management API; the
-> client is a scaffold with no real screens yet (no campaign list, no lobby),
-> so there is still nothing to actually play with at a table. See
-> [CLAUDE.md](CLAUDE.md) for what is being built and
+> client can list, create, and activate campaigns, but there is no lobby yet
+> and no way to join a seat, so there is still nothing to actually play with
+> at a table. See [CLAUDE.md](CLAUDE.md) for what is being built and
 > [docs/](docs/) for how.
 
 ## Requirements
@@ -31,8 +31,8 @@ To run the server (see [apps/server/README.md](apps/server/README.md)):
 pnpm --filter @hearthtable/server dev
 ```
 
-And the client scaffold, in another terminal (see [apps/client/README.md](apps/client/README.md) —
-there are no real screens yet, just the toolchain proven working end to end):
+And the client, in another terminal (see [apps/client/README.md](apps/client/README.md) —
+the campaign screen is the only real one so far; there is no lobby yet):
 
 ```bash
 pnpm --filter @hearthtable/client dev
