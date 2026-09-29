@@ -72,6 +72,26 @@ list is exhaustive against real upstream data during the importer PRs.
 string, so a malformed trait fails at import time rather than becoming a
 tag nothing ever matches.
 
+## The entry union
+
+Every content kind is one variant of `pf2eEntrySchema`
+(`systems/pf2e/src/content/entry.ts`), discriminated on `kind`:
+
+```
+action, feat, weapon, armor, gear, spell,
+ancestry, heritage, background,
+class, classFeature,
+creature, condition
+```
+
+This is what the importer (milestone 2, Stack C) validates each converted
+entry against before writing it, and what a future pack loader reading one
+back gets. `conditionEntrySchema` is a refined schema (its `.refine()` checks
+`maxValue` only applies to a valued condition), not a plain `z.object` like
+the other twelve -- `z.discriminatedUnion` was confirmed to handle that
+correctly (both routing and running the refinement) before relying on it,
+rather than assumed.
+
 ## Testing
 
 See `systems/pf2e/src/content/common.test.ts`: acceptance of every value in
@@ -79,3 +99,9 @@ each closed vocabulary, rejection of values outside it, a cross-check that
 `PROFICIENCY_RANKS` and `PROFICIENCY_BONUS` name exactly the same ranks, and
 the trait slug format's boundary cases (empty, uppercase, spaces,
 underscores, leading/trailing hyphen).
+
+See `systems/pf2e/src/content/entry.test.ts` for the union: one minimal
+well-formed entry per kind, a kind routed to a schema that then rejects it
+for missing kind-specific fields, the condition refinement still firing
+through the union, and a cross-check that `PF2E_ENTRY_KINDS` names exactly
+the kinds the union accepts.

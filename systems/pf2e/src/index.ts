@@ -130,3 +130,10 @@ export {
 } from './content/creature.js';
 
 export { conditionEntrySchema, type ConditionEntry } from './content/condition.js';
+
+export {
+  PF2E_ENTRY_KINDS,
+  pf2eEntrySchema,
+  type Pf2eEntry,
+  type Pf2eEntryKind,
+} from './content/entry.js';
