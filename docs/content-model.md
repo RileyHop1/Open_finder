@@ -45,6 +45,25 @@ counts) are not a shared primitive -- no content kind needed one common
 enough to generalize yet, so it's each schema's own concern if and when it
 comes up.
 
+## Damage type
+
+```ts
+DAMAGE_TYPES = [
+  'bludgeoning', 'piercing', 'slashing',
+  'acid', 'cold', 'electricity', 'fire', 'force', 'sonic',
+  'mental', 'poison', 'bleed',
+  'vitality', 'void',
+  'chaotic', 'evil', 'good', 'lawful',
+]
+```
+
+Every damage type the Remaster rules use, including the four alignment
+types (rare after the Remaster, but not removed) and the Remaster's
+`vitality`/`void` naming (replacing legacy "positive"/"negative"). A
+weapon's own base damage is always one of the three physical types --
+`weapon.ts`'s `WEAPON_DAMAGE_TYPES` is that strict subset. **(confirm)** this
+list is exhaustive against real upstream data during the importer PRs.
+
 ## Trait slugs
 
 `traitSlugSchema` validates a lowercase, kebab-case, alphanumeric slug --

@@ -8,16 +8,19 @@
 export {
   ACTION_COSTS,
   ATTRIBUTES,
+  DAMAGE_TYPES,
   PROFICIENCY_BONUS,
   PROFICIENCY_RANKS,
   RARITIES,
   actionCostSchema,
   attributeSchema,
+  damageTypeSchema,
   proficiencyRankSchema,
   raritySchema,
   traitSlugSchema,
   type ActionCost,
   type Attribute,
+  type DamageType,
   type ProficiencyRank,
   type Rarity,
 } from './content/common.js';
@@ -31,3 +34,19 @@ export {
   type FeatCategory,
   type FeatEntry,
 } from './content/feat.js';
+
+export {
+  WEAPON_CATEGORIES,
+  WEAPON_DAMAGE_TYPES,
+  WEAPON_GROUPS,
+  weaponCategorySchema,
+  weaponDamageSchema,
+  weaponDamageTypeSchema,
+  weaponEntrySchema,
+  weaponGroupSchema,
+  type WeaponCategory,
+  type WeaponDamage,
+  type WeaponDamageType,
+  type WeaponEntry,
+  type WeaponGroup,
+} from './content/weapon.js';
