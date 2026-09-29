@@ -66,7 +66,7 @@ export interface WorldStore {
   putDocument(document: BaseDocument): void;
   /** Returns the raw parsed JSON body, or undefined if no document has this id. Not validated -- see module doc. */
   getDocument(id: string): unknown;
-  /** All documents in this world, optionally filtered by type. Same caveat as `getDocument`. */
+  /** All documents in this world, optionally filtered by type, oldest-created first. Same not-validated caveat as `getDocument`. */
   listDocuments(type?: string): unknown[];
   /** Appends an operation to the log, returning it with its assigned sequence. */
   appendOperation(operation: NewOperation): AppliedOperation;
@@ -180,9 +180,15 @@ function buildStore(db: DatabaseSync, world: World): WorldStore {
 
     listDocuments(type?: string): unknown[] {
       const rows = (type === undefined
-        ? db.prepare('SELECT body FROM documents WHERE world_id = ?').all(world.id)
+        ? db
+            .prepare(
+              'SELECT body FROM documents WHERE world_id = ? ORDER BY created_at ASC',
+            )
+            .all(world.id)
         : db
-            .prepare('SELECT body FROM documents WHERE world_id = ? AND type = ?')
+            .prepare(
+              'SELECT body FROM documents WHERE world_id = ? AND type = ? ORDER BY created_at ASC',
+            )
             .all(world.id, type)) as unknown as DocumentRow[];
       return rows.map((row) => JSON.parse(row.body) as unknown);
     },

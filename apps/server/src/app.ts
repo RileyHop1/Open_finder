@@ -147,6 +147,25 @@ export function createApp(options: AppOptions): FastifyInstance {
     }
   });
 
+  // Generic on purpose, the same way WorldStore.listDocuments itself is: this
+  // route doesn't know Actor from ChatMessage, so it returns raw stored JSON
+  // rather than validating against any one concrete schema. A caller that
+  // wants a specific type -- the client's chat history fetch, e.g.
+  // `?type=chatMessage` -- validates the response itself, the same way it
+  // already validates a Broadcast's own `documents` array.
+  app.get('/api/worlds/:id/documents', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { type } = request.query as { type?: string };
+    try {
+      const documents = withWorldStore(activeWorld, options.worldsRoot, id, (store) =>
+        store.listDocuments(type),
+      );
+      await reply.send(documents);
+    } catch {
+      await reply.status(404).send({ error: `no world found with id ${id}` });
+    }
+  });
+
   if (options.staticDir !== undefined && existsSync(options.staticDir)) {
     void app.register(fastifyStatic, { root: options.staticDir });
   }

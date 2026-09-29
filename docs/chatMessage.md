@@ -73,6 +73,22 @@ operation can be sent at all, the dispatching connection already holds a seat,
 so the `ChatMessage` document it produces always has one. The two fields look
 similar but describe different moments.
 
+## Reading history
+
+New messages arrive live over the realtime `broadcast` event, but a client
+that just connected needs the ones that already exist. That's `GET
+/api/worlds/:id/documents?type=chatMessage` (`apps/server`'s generic,
+type-agnostic document-listing route — it has no idea what a `ChatMessage`
+is, so it returns raw stored JSON, oldest-created first), which a caller
+validates against `chatMessageSchema` itself, the same way it would validate
+a `Broadcast`'s own loosely-typed `documents` array.
+
+**Not** the `sync` event / operation log replay: a `chat.sendRoll`
+operation's payload is the raw expression text a player typed, not the
+evaluated `RollResult` — replaying it would call `@hearthtable/dice` again
+and roll different numbers than what actually happened. History has to come
+from what was actually stored, not from re-deriving it.
+
 ## Example
 
 ```ts

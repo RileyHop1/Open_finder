@@ -2,11 +2,13 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { BaseDocument } from '@hearthtable/core';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { type ActiveWorldManager, createActiveWorldManager } from './activeWorld.js';
 import { createApp } from './app.js';
+import { openWorld } from './worldStore.js';
 
 let worldsRoot: string;
 let app: FastifyInstance;
@@ -58,6 +60,34 @@ async function createTestWorld(): Promise<string> {
     payload: { name: 'Test Campaign' },
   });
   return jsonAs<WorldSummary>(response).id;
+}
+
+/**
+ * Writes a document directly through the store, bypassing HTTP -- there is
+ * no REST route for creating a generic document (only the realtime
+ * operation handlers do, e.g. `chat.sendMessage`), so this is the only way
+ * to set up a fixture for the read-only `GET /api/worlds/:id/documents`
+ * route under test here.
+ */
+function putTestDocument(
+  worldId: string,
+  overrides: Partial<BaseDocument> = {},
+): BaseDocument {
+  const now = new Date().toISOString();
+  const document: BaseDocument = {
+    id: crypto.randomUUID(),
+    worldId,
+    type: 'chatMessage',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+  const store = openWorld(worldsRoot, worldId);
+  store.putDocument(document);
+  store.close();
+  return document;
 }
 
 describe('GET /api/worlds', () => {
@@ -357,5 +387,76 @@ describe('GET /api/worlds/:id/seats', () => {
       url: `/api/worlds/${crypto.randomUUID()}/seats`,
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('GET /api/worlds/:id/documents', () => {
+  it('returns an empty array for a world with no documents', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/documents`,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([]);
+  });
+
+  it('returns every document in the world, oldest first', async () => {
+    const worldId = await createTestWorld();
+    const older = putTestDocument(worldId, { createdAt: '2024-01-01T00:00:00.000Z' });
+    const newer = putTestDocument(worldId, { createdAt: '2024-01-02T00:00:00.000Z' });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/documents`,
+    });
+    const documents = jsonAs<BaseDocument[]>(response);
+    expect(documents.map((doc) => doc.id)).toEqual([older.id, newer.id]);
+  });
+
+  it('filters by type when a ?type= query is given', async () => {
+    const worldId = await createTestWorld();
+    const chatMessage = putTestDocument(worldId, { type: 'chatMessage' });
+    putTestDocument(worldId, { type: 'journalEntry' });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/documents?type=chatMessage`,
+    });
+    const documents = jsonAs<BaseDocument[]>(response);
+    expect(documents.map((doc) => doc.id)).toEqual([chatMessage.id]);
+  });
+
+  it("does not return another world's documents", async () => {
+    const worldA = await createTestWorld();
+    const worldB = await createTestWorld();
+    putTestDocument(worldA);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldB}/documents`,
+    });
+    expect(jsonAs<BaseDocument[]>(response)).toEqual([]);
+  });
+
+  it('returns 404 for a world that does not exist', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${crypto.randomUUID()}/documents`,
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('reuses the active connection when the requested world is active', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+    putTestDocument(worldId);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/documents`,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(jsonAs<BaseDocument[]>(response)).toHaveLength(1);
   });
 });
