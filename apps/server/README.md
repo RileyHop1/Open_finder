@@ -3,6 +3,17 @@
 Fastify + Socket.IO. The authoritative half of the application: it validates
 every change, persists it, and tells everyone else.
 
+## Running it
+
+```bash
+pnpm --filter @hearthtable/server dev
+```
+
+Binds to `127.0.0.1:3000` by default. Override with `HEARTHTABLE_HOST`,
+`HEARTHTABLE_PORT`, `HEARTHTABLE_WORLDS_ROOT`, and `HEARTHTABLE_STATIC_DIR`
+(env vars; see `index.ts`). Setting `HEARTHTABLE_HOST` to `0.0.0.0` or `::` is
+refused outright — see Deployment notes below.
+
 ## What lives here
 - **The world store** (`worldStore.ts`, `paths.ts`) — one `node:sqlite`
   database per world, the on-disk folder layout from CLAUDE.md, transactions,
@@ -11,6 +22,12 @@ every change, persists it, and tells everyone else.
   whole swap point if that still-experimental API changes. See
   `docs/adr/0002-storage-sqlite.md` and `docs/adr/0009-node-sqlite.md`.
   **Built.**
+- **The HTTP API** (`app.ts`, `activeWorld.ts`) — Fastify. `GET`/`POST
+  /api/worlds` to list and create, `POST /api/worlds/:id/activate` and `GET
+  /api/worlds/active` for the single active world (server runtime state,
+  never persisted — see `docs/world-and-seats.md`). Serves a built client's
+  static files from `staticDir` if one is configured and exists; there is
+  nothing to serve yet, since `apps/client` has no build. **Built.**
 - **Operation dispatch** — validate against the Zod schema, check the seat's
   permission, apply inside a transaction, assign a sequence number, broadcast
   (`docs/adr/0005-concurrency.md`). Not yet — the world store's `transaction`
