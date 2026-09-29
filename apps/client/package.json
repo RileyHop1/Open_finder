@@ -17,7 +17,8 @@
     "@hearthtable/dice": "workspace:*",
     "@hearthtable/pf2e": "workspace:*",
     "pinia": "^4.0.3",
-    "vue": "^3.5.43"
+    "vue": "^3.5.43",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.9",
