@@ -62,10 +62,12 @@ the code later.
 `claimedByDeviceToken` is how a returning browser gets back to the same seat
 automatically (ADR 0007) — it's absent on an unclaimed seat, set to a device
 token on claim, and cleared on release. The `seat.claim`/`seat.release`
-operation *schemas* exist already (`packages/core`'s `operation.ts`); the
-handlers that actually read and write this field via those operations land
-in a later PR — this page describes the stored shape and how it's created,
-not that dispatch logic.
+operations (`packages/core`'s `operation.ts` for the schemas, `apps/server`'s
+`realtime.ts` for the handlers) read and write this field: claiming checks
+the target seat's `pin` when it has one, auto-releases any other seat the
+same device token already holds, and a fresh connection presenting a known
+device token gets `claimedByDeviceToken` looked up and restored to
+`socket.data.seatId` automatically — see `docs/operations.md`.
 
 ### Storage and creation
 
