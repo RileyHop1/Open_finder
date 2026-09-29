@@ -31,14 +31,31 @@ refused outright — see Deployment notes below.
   there is nothing to serve yet, since `apps/client` has no build. **Built.**
 - **`withWorldStore`** (`worldAccess.ts`) — resolves the `WorldStore` for a
   world id, reusing the active world's already-open connection when it
-  matches rather than opening a second one to the same file. Shared by the
-  seat routes above and, from the next PR, the realtime dispatch pipeline.
-  **Built.**
-- **Operation dispatch** — validate against the Zod schema, check the seat's
-  permission, apply inside a transaction, assign a sequence number, broadcast
-  (`docs/adr/0005-concurrency.md`). Not yet — the world store's `transaction`,
-  `appendOperation`, and seat methods below exist for this to be built on
-  top of
+  matches rather than opening a second one to the same file. Used by the seat
+  routes above. The realtime layer doesn't need it: every operation dispatches
+  against whatever world is currently active, never an arbitrary world id, so
+  it just calls `activeWorld.get()` directly. **Built.**
+- **Realtime dispatch** (`realtime.ts`) — Socket.IO, attached directly to
+  the app's underlying HTTP server (no extra Fastify plugin). The full
+  ADR 0005 pipeline: validate the incoming message against
+  `clientOperationUnionSchema`, apply whatever check that operation type
+  needs, apply it inside a transaction, assign a sequence number, broadcast
+  to every connected client — there's only ever one active world for the
+  whole server, so there are no Socket.IO rooms. A connection must present a
+  `deviceToken` in its handshake `auth` or it's refused outright; on
+  connection it auto-rejoins whatever seat that device token already holds
+  (`getSeatByDeviceToken`). Ships with `seat.claim` (auto-releasing any other
+  seat the same device token holds, and checking a GM seat's pin per
+  ADR 0007) and `seat.release` as its concrete proof — `chat.sendMessage`/
+  `chat.sendRoll` are wired into the dispatch switch but reject with "not yet
+  implemented" until `packages/core` has a `ChatMessage` schema (next PR). A
+  `sync` event replays every operation after a given sequence, for
+  reconnect — no gap-size limit yet; there's no log pruning to make "gap too
+  large" a real case yet either. When the GM activates a different world,
+  every connected socket is disconnected so clients reconnect against the
+  new world's context. **Built.** Tested with a real listening server and a
+  real `socket.io-client` (`realtime.test.ts`) — Fastify's `.inject()` can't
+  drive WebSockets.
 - **Migrations** (`migrations.ts`) — the forward-only runner, run
   automatically whenever a world's database is opened; snapshots (via
   `db.serialize()`, never a raw file copy — see the module's own doc comment
@@ -52,8 +69,8 @@ refused outright — see Deployment notes below.
   `getSeatByDeviceToken`) — the seats table has its own storage methods now,
   a `Seat` doesn't extend the document envelope so it can't reuse the generic
   document ones. **Built.** Seat selection *operations* (`seat.claim`/
-  `seat.release`, device tokens, GM PIN checking) are not yet — see
-  `docs/adr/0007-seats-not-accounts.md`
+  `seat.release`, device tokens, GM PIN checking) are also **built** — see
+  `realtime.ts` above and `docs/adr/0007-seats-not-accounts.md`
 - **Snapshots and world export/import.** Snapshotting exists (see
   Migrations above); world export/import is not yet built
 

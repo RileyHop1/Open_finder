@@ -17,10 +17,12 @@
     "@hearthtable/dice": "workspace:*",
     "@hearthtable/pf2e": "workspace:*",
     "fastify": "^5.12.5",
+    "socket.io": "^4.8.4",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
+    "socket.io-client": "^4.8.4",
     "tsx": "^4.23.15",
     "vitest": "^5.0.2"
   }

@@ -5,18 +5,22 @@ import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { type ActiveWorldManager, createActiveWorldManager } from './activeWorld.js';
 import { createApp } from './app.js';
 
 let worldsRoot: string;
 let app: FastifyInstance;
+let activeWorld: ActiveWorldManager;
 
 beforeEach(() => {
   worldsRoot = mkdtempSync(join(tmpdir(), 'hearthtable-app-test-'));
-  app = createApp({ worldsRoot, logger: false });
+  activeWorld = createActiveWorldManager();
+  app = createApp({ worldsRoot, activeWorld, logger: false });
 });
 
 afterEach(async () => {
   await app.close();
+  activeWorld.clear();
   rmSync(worldsRoot, { recursive: true, force: true });
 });
 
@@ -202,7 +206,12 @@ describe('static file serving', () => {
     const staticDir = mkdtempSync(join(tmpdir(), 'hearthtable-static-test-'));
     writeFileSync(join(staticDir, 'index.html'), '<h1>Hearthtable</h1>');
 
-    const staticApp = createApp({ worldsRoot, staticDir, logger: false });
+    const staticApp = createApp({
+      worldsRoot,
+      activeWorld: createActiveWorldManager(),
+      staticDir,
+      logger: false,
+    });
     const response = await staticApp.inject({ method: 'GET', url: '/index.html' });
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain('Hearthtable');
@@ -214,7 +223,12 @@ describe('static file serving', () => {
   it('does not crash when staticDir is provided but does not exist', () => {
     const missingDir = join(worldsRoot, 'does-not-exist');
     expect(() =>
-      createApp({ worldsRoot, staticDir: missingDir, logger: false }),
+      createApp({
+        worldsRoot,
+        activeWorld: createActiveWorldManager(),
+        staticDir: missingDir,
+        logger: false,
+      }),
     ).not.toThrow();
   });
 });

@@ -17,13 +17,22 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { createActiveWorldManager } from './activeWorld.js';
+import type { ActiveWorldManager } from './activeWorld.js';
 import { withWorldStore } from './worldAccess.js';
 import { createWorld, listWorlds } from './worldStore.js';
 
 export interface AppOptions {
   /** Where world folders live -- see `paths.ts`. Always explicit, never defaulted here. */
   readonly worldsRoot: string;
+  /**
+   * Tracks which world is currently being served. Owned by the caller
+   * (`index.ts`), not created here: the realtime layer (`realtime.ts`) needs
+   * this exact same instance to dispatch operations against and to react
+   * when the GM activates a different world, so one manager has to outlive
+   * and be shared by both `createApp` and `attachRealtime` rather than each
+   * building its own.
+   */
+  readonly activeWorld: ActiveWorldManager;
   /**
    * The built client's output directory, if there is one to serve.
    * Optional and usually absent for now: `apps/client` has no build yet.
@@ -44,7 +53,7 @@ const createSeatBodySchema = z.object({
 
 export function createApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? true });
-  const activeWorld = createActiveWorldManager();
+  const { activeWorld } = options;
 
   app.get('/api/worlds', () => listWorlds(options.worldsRoot));
 
@@ -141,10 +150,6 @@ export function createApp(options: AppOptions): FastifyInstance {
   if (options.staticDir !== undefined && existsSync(options.staticDir)) {
     void app.register(fastifyStatic, { root: options.staticDir });
   }
-
-  app.addHook('onClose', () => {
-    activeWorld.clear();
-  });
 
   return app;
 }
