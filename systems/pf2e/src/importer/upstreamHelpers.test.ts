@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  extractBoostSlots,
   filterValidTraitSlugs,
   mapActionCost,
   nestedNumberField,
@@ -113,5 +114,31 @@ describe('parseDieSize', () => {
 
   it('returns undefined for a non-string value', () => {
     expect(parseDieSize(8)).toBeUndefined();
+  });
+});
+
+describe('extractBoostSlots', () => {
+  it("extracts each slot's eligible-attribute array", () => {
+    const boosts = {
+      '0': { value: ['dex'] },
+      '1': { value: ['str', 'con'] },
+      '2': { value: ['str', 'dex', 'con', 'int', 'wis', 'cha'] },
+    };
+    expect(extractBoostSlots(boosts)).toEqual([
+      ['dex'],
+      ['str', 'con'],
+      ['str', 'dex', 'con', 'int', 'wis', 'cha'],
+    ]);
+  });
+
+  it('returns an empty array for a missing or malformed boosts value', () => {
+    expect(extractBoostSlots(undefined)).toEqual([]);
+    expect(extractBoostSlots(null)).toEqual([]);
+    expect(extractBoostSlots('not an object')).toEqual([]);
+  });
+
+  it('skips a slot with a malformed value', () => {
+    const boosts = { '0': { value: ['dex'] }, '1': { value: 'not an array' } };
+    expect(extractBoostSlots(boosts)).toEqual([['dex']]);
   });
 });

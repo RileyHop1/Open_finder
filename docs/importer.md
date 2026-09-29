@@ -276,6 +276,29 @@ the full prose (heightening included) is still in `description` -- it just
 isn't separately structured. Revisit once real data shows what
 `system.heightening` actually contains.
 
+### The ancestry, heritage, and background mappers (C.7e)
+
+`mapAncestry.ts`: upstream's `size` is an abbreviated code (`"sm"`, `"med"`,
+`"lg"`, ...), mapped via `SIZE_CODE_TO_SIZE` to our full-word `Size`. Boosts
+and flaws use `extractBoostSlots` (`upstreamHelpers.ts`, shared with the
+background mapper): each slot names its eligible attributes, a single-
+attribute slot is a fixed boost, more than one is a free-choice slot.
+
+`mapHeritage.ts` handles the ancestry reference **defensively rather than
+via the `GrantItem`-style resolution mechanism**: it tries a plain string,
+then an object's `slug`, then a slugified `name`, and **fails the whole
+entry closed** if none of those fit -- rather than silently falling back to
+"versatile," which would let a player pick a heritage their ancestry
+shouldn't have access to. A genuinely absent reference (no key at all) is a
+confident, correct "this is versatile," not a parse failure.
+
+`mapBackground.ts`: a background's boost slots are (in the common case) one
+constrained choice plus one universal free slot (all six attributes
+eligible) -- `boostOptions` wants the constrained one, identified as the
+slot with fewer than six eligible attributes. The granted skill feat needs
+no special handling: it's an ordinary `grantItem` rule element, already
+covered by `mapEntryRuleElements`.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -353,3 +376,10 @@ To move the pin to a new upstream commit:
   the slug fallback, and every fail-closed path (a regression test here
   caught a real regex bug: `feet?` matches "fee"/"feet" but not "foot",
   which is a different word, not a missing letter).
+- `mapAncestry.test.ts` / `mapHeritage.test.ts` / `mapBackground.test.ts`:
+  human- and elf-shaped ancestries (all-free vs. fixed-plus-free boosts),
+  every size code, a heritage with each parseable ancestry-reference shape
+  and the confidently-versatile absent case, an unparseable reference
+  rejected rather than downgraded to versatile, the constrained boost slot
+  extracted for a background, its granted skill feat as an ordinary
+  `grantItem`, and every fail-closed path.
