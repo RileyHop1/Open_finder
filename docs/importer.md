@@ -181,6 +181,50 @@ all -- maps to no elements and no downgrades; it is not an error. A present
 but non-array value (which real upstream data never produces) is one
 `malformed-rules-array` downgrade.
 
+## Content mapping and draft entries
+
+Per-kind mappers (`mapFeat.ts`, `mapAction.ts`, and the ones that follow them
+across the rest of Stack C) turn a license-and-scope-filtered upstream entry
+into a **draft** content entry, not yet the fully schema-validated thing.
+
+**Why a draft, not the real thing yet:** an entry's `ruleElements` may
+contain an `UnresolvedGrantItem` (from the element mapper), which is not a
+valid member of `@hearthtable/core`'s `ruleElementSchema` union. Resolving a
+grant's upstream `uuid` into one of *our* compendium entries needs the full
+imported entry set, which a single-entry mapper doesn't have -- that's the
+dependency-resolution pass, a later PR. Only once every grant is resolved
+can an entry be validated against its real Zod schema; the writer (a later
+PR) is what does that, after resolution runs. `DraftEntry<T>` is the shared
+type for this: identical to the real entry except `ruleElements: readonly
+MappedElement[]` instead of `readonly RuleElement[]`.
+
+**Deterministic ids.** `compendiumEntrySchema.id` requires a real UUID, but
+importing the same upstream commit twice must produce the same ids --
+otherwise a rerun is never byte-identical, and anything referencing an entry
+by id would break on the next import. `deterministicId.ts` derives a UUID v5
+(RFC 4122, name-based, SHA-1) from an entry's upstream `_id`, implemented
+directly against `node:crypto` rather than adding a dependency. Verified
+against the well-known `uuid` npm package's output for the same input during
+development (not shipped as a dependency) -- worth doing for a hand-rolled
+cryptographic-adjacent algorithm rather than trusting internal
+self-consistency alone.
+
+**Fields not yet verified against real data**, each marked `(confirm)` in
+its mapper: `system.level.value`, `system.category`,
+`system.prerequisites.value` (assumed to be `{ value: string }[]`, with a
+plain-string-array fallback in case that's wrong), and
+`system.actionType.value` / `system.actions.value`. A wrong path fails
+closed (`ok: false` with a reason) rather than importing a garbage field,
+which is what makes deferring real-data verification to the `import-smoke`
+CI job (ADR 0013) safe.
+
+**Slugs** use `system.slug` when present, falling back to a slugified name
+(`slugify.ts`) -- matching how Foundry itself derives one when absent.
+
+**A shared result shape** (`MapContentResult<T>`, in `draftEntry.ts`) is
+used by every per-kind mapper: `{ ok: true, entry }` or `{ ok: false,
+reason }`, the same convention every other importer stage uses.
+
 ## Re-pinning
 
 To move the pin to a new upstream commit:
@@ -231,3 +275,15 @@ To move the pin to a new upstream commit:
   collecting only the inert ones as downgrades, a fully-mappable array
   producing no downgrades, the downgrade/elements consistency itself, and a
   non-array rules value producing exactly one downgrade.
+- `deterministicId.test.ts`: determinism, different inputs producing
+  different ids, a well-formed UUID with the right version/variant bits, and
+  a match against the `uuid` npm package's output for a standard test input.
+- `upstreamHelpers.test.ts`: every nested-field reader's happy path and
+  failure modes, `slugify`'s punctuation handling, every `mapActionCost`
+  case, and `filterValidTraitSlugs` dropping invalid entries.
+- `mapFeat.test.ts` / `mapAction.test.ts`: a well-formed entry each, the
+  slug fallback, both prerequisite shapes (feat only), an invalid trait
+  filtered rather than failing the entry, rule elements (including inert
+  ones) carried through, id determinism, and every fail-closed path
+  (malformed system, missing/invalid level, unrecognized category, a
+  missing or unrecognized action cost).
