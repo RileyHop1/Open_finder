@@ -71,7 +71,8 @@ data shape that might still move. See the Development order section of
 - Golden fixtures are written by us. Never paste a published stat block into a
   fixture — see the Testing section of CLAUDE.md for why that is a licensing
   issue and not just a style one.
-- Playwright covers core end-to-end flows.
+- Playwright covers core end-to-end flows — see [e2e/README.md](e2e/README.md)
+  for how to run it (`pnpm test:e2e`, separate from `pnpm test`).
 
 ## Rules disagreements
 

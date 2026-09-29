@@ -39,6 +39,14 @@ it, add/claim a seat in its lobby, and chat, including `/roll 1d20+7`):
 pnpm --filter @hearthtable/client dev
 ```
 
+That same flow, in two browser contexts at once, is also covered end to end —
+see [e2e/README.md](e2e/README.md):
+
+```bash
+pnpm --filter @hearthtable/e2e exec playwright install chromium   # once
+pnpm test:e2e
+```
+
 ## Running it for your table
 
 This is **self-hosted software for a group of friends**. One person — usually

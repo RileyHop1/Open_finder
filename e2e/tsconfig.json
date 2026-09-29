@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // Playwright's config and test runner both run under Node, never a browser.
+    "types": ["node", "@playwright/test"]
+  },
+  "include": ["**/*.ts"]
+}
