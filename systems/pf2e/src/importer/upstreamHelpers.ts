@@ -118,3 +118,30 @@ const DIE_SIZE_TO_FACES: Record<string, 4 | 6 | 8 | 10 | 12> = {
 export function parseDieSize(dieSize: unknown): 4 | 6 | 8 | 10 | 12 | undefined {
   return typeof dieSize === 'string' ? DIE_SIZE_TO_FACES[dieSize] : undefined;
 }
+
+/**
+ * Upstream's boost/flaw structure: an object keyed by slot index, each slot
+ * `{ value: string[] }` naming the attributes eligible for that slot -- a
+ * single-attribute slot is a fixed boost, more than one is a player choice
+ * among the listed options (often, but not always, all six). Used by
+ * `mapAncestry.ts` (boosts and flaws) and `mapBackground.ts` (the one
+ * constrained boost slot) -- shared here since both need it in this PR.
+ * **(confirm)** against real upstream data.
+ */
+export function extractBoostSlots(boosts: unknown): readonly string[][] {
+  const record = asRecord(boosts);
+  if (record === undefined) {
+    return [];
+  }
+  const slots: string[][] = [];
+  for (const slot of Object.values(record)) {
+    const value = asRecord(slot)?.value;
+    if (
+      Array.isArray(value) &&
+      value.every((item): item is string => typeof item === 'string')
+    ) {
+      slots.push(value);
+    }
+  }
+  return slots;
+}
