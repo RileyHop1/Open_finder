@@ -55,6 +55,18 @@ export {
   type ClientOperation,
 } from './operation.js';
 
+export {
+  MODIFIER_TYPES,
+  modifierSchema,
+  modifierTypeSchema,
+  resolvedModifierSchema,
+  statisticSchema,
+  type Modifier,
+  type ModifierType,
+  type ResolvedModifier,
+  type Statistic,
+} from './modifier.js';
+
 export { predicateSchema, testPredicate, type Predicate } from './predicate.js';
 
 export { resolvePermission } from './permission.js';
