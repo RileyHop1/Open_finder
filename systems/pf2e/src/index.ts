@@ -196,3 +196,18 @@ export {
   type ApplyRuleElementsOptions,
   type RuleElementSource,
 } from './rules/applyRuleElements.js';
+
+export {
+  appliedConditionSchema,
+  characterAttributesSchema,
+  characterDataSchema,
+  characterItemEntrySchema,
+  characterItemSchema,
+  characterRanksSchema,
+  contentRefSchema,
+  itemSourceSchema,
+  type AppliedCondition,
+  type CharacterData,
+  type CharacterItem,
+  type CharacterRanks,
+} from './content/character.js';
