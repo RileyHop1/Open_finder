@@ -118,3 +118,46 @@ ruling from silently drifting.
   with a specific collision's outcome re-pins after fixing it upstream-side
   or special-casing it in a mapper, the same as any other importer
   correction.
+
+### Which conditions change a number, and which we leave to the GM
+- **Rules text:** Player Core's conditions appendix. Some conditions apply a
+  fixed or valued penalty to statistics (clumsy, frightened, off-guard, ...).
+  Others change the action economy (slowed, stunned, quickened), depend on what
+  a creature can perceive (blinded, dazzled, concealed, hidden), or drive the
+  dying chain.
+- **The ambiguity:** not a reading of the text but a scope question: which of
+  those we can compute correctly without combat state or line of sight.
+- **Our reading:** `conditionModifiers` applies only conditions whose effect is
+  a plain typed modifier on a known statistic. Every other condition is stored
+  and shown, and contributes no modifier. Blinded's -4 Perception penalty,
+  for example, applies only when sight is a creature's only precise sense, and
+  we cannot know that, so we do not apply it.
+- **Alternative reading:** apply a best guess for the situational ones.
+- **Why:** a wrong number the player trusts is worse than a visible gap
+  (CLAUDE.md, Rulings and ambiguity).
+- **Golden test:** `systems/pf2e/src/rules/conditionModifiers.test.ts` pins each
+  covered condition and the "contributes nothing" set. Golden character cases
+  land in the next Stack A test PR (A.8); until then this entry is pinned by
+  unit tests only.
+- **Override:** the GM adds a manual modifier for an uncovered condition, or
+  disables one we applied (`Modifier.enabled`).
+
+### Implied off-guard is a separate line that the resolver dedupes
+- **Rules text:** prone, restrained, grabbed, paralyzed, confused, and
+  unconscious each say the creature is off-guard. Off-guard is a -2
+  circumstance penalty to AC, and circumstance penalties of the same type do
+  not stack.
+- **The ambiguity:** whether to model "has off-guard" as a set (add off-guard
+  once) or as each condition contributing its own penalty.
+- **Our reading:** each implying condition contributes its own `off-guard:<slug>`
+  modifier with the causing condition as its source, and the resolver keeps only
+  the best circumstance penalty. The total is -2 either way.
+- **Alternative reading:** collapse them into a single off-guard modifier before
+  resolving.
+- **Why:** it reuses ADR 0008's stacking with no special case, and the
+  breakdown shows which conditions caused it, including after one is removed.
+  A prone creature that is also off-guard from a feint shows one applied line
+  and one suppressed line rather than hiding the second source.
+- **Golden test:** `conditionModifiers.test.ts`, "counts off-guard once even when
+  a second condition implies it."
+- **Override:** disable either modifier, or remove the condition.

@@ -190,6 +190,8 @@ export {
   type DcAdjustment,
 } from './rules/dcs.js';
 
+export { conditionModifiers, type ConditionTarget } from './rules/conditionModifiers.js';
+
 export {
   applyRuleElements,
   type AppliedRuleElements,

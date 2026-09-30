@@ -5,7 +5,7 @@ an `Actor`. They are the main way the rules engine changes a character mid-comba
 and they are where automation is most visible to players — a wrong *frightened*
 value is noticed immediately.
 
-Rules references are Remaster (Player Core). Where marked **(confirm)**, verify
+Rules references are Remaster (Player Core), spot-checked against Archives of Nethys (https://2e.aonprd.com/Conditions.aspx). Where marked **(confirm)**, verify
 against the book during implementation.
 
 ## Remaster naming
@@ -67,6 +67,35 @@ Conditions contribute **`Modifier` records**, never direct edits to a statistic.
 status penalty that the resolver applies alongside everything else. That is what
 makes it show up correctly in a breakdown, and what makes two competing status
 penalties resolve by the stacking rules rather than by both being subtracted.
+
+## Modifiers from conditions (milestone 3)
+
+`conditionModifiers(conditions, target)` (`systems/pf2e/src/rules/conditionModifiers.ts`)
+answers the gap above. It is asked per statistic, because whether a condition
+applies depends on the attribute a statistic is based on. A `ConditionTarget`
+is `ac`, `save` (with which save), `perception`, `classDc` (with the key
+attribute), `skill` (any slug, so Lores work), `attack` and `damage` (each with
+the attribute the roll adds), or `maxHp` (with the level).
+
+| Condition | Effect |
+| --- | --- |
+| clumsy N | -N status to rolls and DCs based on Dexterity (AC, Reflex, Dex skills, Dex attacks) |
+| enfeebled N | -N status to Strength-based rolls and DCs, and to Strength damage **(confirm the damage part)** |
+| stupefied N | -N status to Intelligence-, Wisdom-, and Charisma-based rolls and DCs (Will, Perception, their skills) |
+| drained N | -N status to Constitution-based rolls and DCs (Fortitude), and max HP reduced by level x N **(confirm the max HP part)** |
+| frightened N, sickened N | -N status to every check and DC |
+| off-guard | -2 circumstance to AC |
+| prone | -2 circumstance to attack rolls, plus off-guard |
+| restrained, grabbed, paralyzed, confused | off-guard |
+| fatigued | -1 status to AC and saves |
+| fascinated | -2 status to Perception and skill checks |
+| unconscious | -4 status to AC, Perception, and Reflex, plus off-guard (it also carries blinded; see rulings) |
+
+Everything else (slowed, stunned, quickened, dying, wounded, doomed, blinded,
+dazzled, concealed, the detection states) contributes no modifier and is not
+guessed at. See [rulings.md](rulings.md). Merging a second source of a
+condition, and clearing mutually exclusive ones, is a separate step that lands
+with the operations that apply conditions.
 
 ## Valued conditions
 Carry a number that scales their effect: **clumsy, doomed, drained, dying,
