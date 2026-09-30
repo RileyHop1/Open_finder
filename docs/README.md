@@ -35,6 +35,8 @@ lands.
 | [world-and-seats.md](world-and-seats.md) | `World` and `Seat` — also not document types; the two other top-level schemas |
 | [chatMessage.md](chatMessage.md) | `ChatMessage` — the first concrete document type: plain messages and dice rolls |
 | [compendium.md](compendium.md) | `CompendiumEntry` and pack manifests — also not a document type; a read-only import source (milestone 2) |
+| [actor.md](actor.md) | `Actor` -- the system-agnostic envelope; the system payload is opaque to core (milestone 3) |
+| [party.md](party.md) | `Party` -- ordered members and the party level (milestone 3) |
 
 ## PF2e content kinds (`systems/pf2e`)
 One page per content kind whose fields are non-obvious enough to need a spec,
