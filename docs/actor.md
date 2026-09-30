@@ -60,7 +60,7 @@ total is derived by `prepareCharacter` (a later PR) and never stored.
 | `keyAttribute` | Drives the class DC |
 | `ranks` | Explicit proficiency ranks: `perception`, the three saves, `classDc`, `weapons` (unarmed/simple/martial/advanced), `armor` (unarmored/light/medium/heavy), and an open `skills` record so a Lore needs no special case. Anything absent is `untrained` |
 | `ancestry`, `heritage`, `background`, `class` | Optional `{ name, source? }` references; a hand-built character may use none |
-| `ancestryHp`, `classHp` | Inputs to max HP (`ancestryHp + (classHp + con) * level`); max HP itself is derived |
+| `ancestryHp`, `classHp` | Inputs to max HP. Max HP itself is derived by `buildMaxHitPoints` (`ancestryHp + (classHp + con) * level`, plus `hp`-selector rule elements and drained), never stored |
 | `hp` | `{ current, temp }` |
 | `items` | Embedded copies of weapon, armor, gear, feat, classFeature, spell, and action entries, each with its own id, an optional `source`, `equipped`, and `quantity` |
 | `conditions` | `{ slug, value? }`, one per slug. Modifiers are computed, never stored ([conditions.md](conditions.md)) |

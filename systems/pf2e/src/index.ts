@@ -192,6 +192,8 @@ export {
 
 export { conditionModifiers, type ConditionTarget } from './rules/conditionModifiers.js';
 
+export { buildMaxHitPoints, type BuildMaxHitPointsOptions } from './rules/hitPoints.js';
+
 export {
   applyRuleElements,
   type AppliedRuleElements,
