@@ -174,3 +174,10 @@ export {
   type RollStrikeAttackOptions,
   type StrikeAttackRoll,
 } from './rules/strike.js';
+
+export {
+  buildStrikeDamage,
+  rollStrikeDamage,
+  type BuildStrikeDamageOptions,
+  type RollStrikeDamageOptions,
+} from './rules/strikeDamage.js';

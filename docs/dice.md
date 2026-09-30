@@ -97,11 +97,15 @@ expression rather than multiplying the result blindly.
   do not double each component separately and re-sum (same answer for addition,
   but it makes the breakdown unreadable).
 - **`deadly`** adds an extra damage die of the listed size on a critical hit, and
-  **that extra die is not doubled**. With striking runes the number of extra dice
-  scales with the weapon's damage dice **(confirm the exact scaling)**.
+  **that extra die is not doubled**. Its die count scales with striking runes, but
+  not the way it looks at first glance: a plain striking rune does **not** add a
+  second deadly die -- only greater striking (2 dice) and major striking (3 dice)
+  do. Confirmed against Archives of Nethys; see `systems/pf2e/src/rules/strikeDamage.ts`.
 - **`fatal`** changes the weapon damage die to the listed size on a critical hit
-  and adds one additional die of that size; the doubling then applies to the
-  result **(confirm)**.
+  and adds one additional die of that size; unlike `deadly`'s extra die, this
+  upgraded pool has no "not doubled" carve-out, so ordinary critical doubling
+  applies to it same as the rest of the total. Confirmed against Archives of
+  Nethys (Player Core p.282); see `systems/pf2e/src/rules/strikeDamage.ts`.
 - **Splash damage is not doubled** on a critical hit.
 - **Precision damage is doubled**, because it is part of the damage roll.
 - **Persistent damage** is a condition with its own recurring roll, not part of
