@@ -105,6 +105,15 @@ policy:
 - **Golden tests encode our chosen reading**, so a "fix" that quietly changes a
   ruling shows up as a failing golden value rather than as a silent behavior
   change months later.
+- **Check the rules against Archives of Nethys when in doubt.** The public
+  Remaster reference is <https://2e.aonprd.com>; conditions are at
+  <https://2e.aonprd.com/Conditions.aspx>. Use it to verify a number, a bonus
+  type, or which statistics a rule touches, and to clear a **(confirm)**
+  marker in code or docs, noting the date checked. It is for *checking*: do not
+  paste its text into the repo (the "never commit Paizo content" rule in Rules
+  data still applies), and prefer the Remaster page when a legacy page also
+  exists. If a lookup does not cover something, leave the **(confirm)** marker
+  in place rather than claiming it was verified.
 
 ## Rules data
 Source: the community `foundryvtt/pf2e` repo's `packs/` JSON.
