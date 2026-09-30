@@ -63,11 +63,11 @@ ruling from silently drifting.
   (alongside Free Archetype and Dual-Class) precisely because supporting more
   than one build/math skeleton multiplies the surface area a solo maintainer
   has to test. This is that exclusion applied to the resolver.
-- **Golden test:** no golden fixture yet -- Stack E (the golden harness) has
-  not landed. `proficiency.test.ts` pins the exact values for every rank at
-  levels 1 and 20 in the meantime; the golden Fighter (E.2) will exercise
-  this function for real once it exists, and this entry should gain a golden
-  fixture reference at that point.
+- **Golden test:** `systems/pf2e/src/golden/fighter.test.ts` (the golden
+  Fighter, E.2) exercises this function for real: its Fortitude, Reflex,
+  Perception (Expert at level 1), Will, and Class DC (Trained) all resolve
+  through `proficiencyModifier`, plus `proficiency.test.ts`'s own exact
+  values for every rank at levels 1 and 20.
 - **Override:** none needed at the table -- this is a build-time content
   scope decision, not a per-character automation result a GM would want to
   flip live. A table that wants Proficiency Without Level is not using the
