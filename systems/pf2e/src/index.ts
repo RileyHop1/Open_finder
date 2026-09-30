@@ -215,3 +215,9 @@ export {
   type CharacterItem,
   type CharacterRanks,
 } from './content/character.js';
+
+export {
+  prepareCharacter,
+  type InertItem,
+  type PreparedCharacter,
+} from './rules/prepareCharacter.js';

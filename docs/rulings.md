@@ -161,3 +161,23 @@ ruling from silently drifting.
 - **Golden test:** `conditionModifiers.test.ts`, "counts off-guard once even when
   a second condition implies it."
 - **Override:** disable either modifier, or remove the condition.
+
+### Only equipped weapons, armor, and gear grant their rule elements
+- **Rules text:** items with passive effects generally work only while worn,
+  wielded, or (for magic items) invested. Player Core and GM Core describe
+  investing and the limit of ten invested items.
+- **The ambiguity:** what to do without modeling investiture, hands, or the
+  ten-item limit. A backpack of unequipped items, a spare sword, and a worn
+  cloak are all just "items."
+- **Our reading:** a weapon, armor, or gear item contributes its rule elements
+  only while marked `equipped`. Feats, class features, actions, and spells
+  always contribute. There is no investiture and no cap.
+- **Alternative reading:** count everything the character carries, or model
+  investiture and worn slots.
+- **Why:** the smallest rule that stops a pack full of spare gear from stacking
+  bonuses, with a single toggle players understand. Investiture is a v1 non-goal.
+- **Golden test:** `prepareCharacter.test.ts`, "applies a feat's rule elements
+  always, but an unequipped item's only when equipped" and the armor-in-the-pack
+  case. Pinned by unit tests only until the golden set is routed through
+  `prepareCharacter` (A.7).
+- **Override:** the GM equips or unequips the item, or adds a manual modifier.
