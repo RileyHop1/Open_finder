@@ -80,9 +80,9 @@ the attribute the roll adds), or `maxHp` (with the level).
 | Condition | Effect |
 | --- | --- |
 | clumsy N | -N status to rolls and DCs based on Dexterity (AC, Reflex, Dex skills, Dex attacks) |
-| enfeebled N | -N status to Strength-based rolls and DCs, and to Strength damage **(confirm the damage part)** |
+| enfeebled N | -N status to Strength-based rolls and DCs, and to Strength damage |
 | stupefied N | -N status to Intelligence-, Wisdom-, and Charisma-based rolls and DCs (Will, Perception, their skills) |
-| drained N | -N status to Constitution-based rolls and DCs (Fortitude), and max HP reduced by level x N **(confirm the max HP part)** |
+| drained N | -N status to Constitution-based rolls and DCs (Fortitude), and max HP reduced by level x N |
 | frightened N, sickened N | -N status to every check and DC |
 | off-guard | -2 circumstance to AC |
 | prone | -2 circumstance to attack rolls, plus off-guard |
