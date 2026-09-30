@@ -70,7 +70,20 @@ function mapCastTime(timeValue: string): string {
   return mapping[timeValue] ?? timeValue;
 }
 
-/** Upstream's `range.value` is a human-readable string ("30 feet", "touch", "self", "unlimited"), not structured -- parsed here into our discriminated `SpellRange`. */
+/**
+ * Upstream's `range.value` is a human-readable string ("30 feet", "touch",
+ * "self", "unlimited"), not structured -- parsed here into our
+ * discriminated `SpellRange`.
+ *
+ * **"0 feet" means touch, not a zero-length range.** Confirmed against a
+ * real upstream entry (Create Water): upstream doesn't consistently spell
+ * touch range as the string "touch" -- some spells encode it numerically
+ * instead. A spell you must touch the target to cast has no other
+ * mechanical meaning in the rules than touch range, so this maps `0 feet`
+ * onto `{ kind: 'touch' }` rather than `{ kind: 'feet', value: 0 }`, which
+ * `spellRangeSchema` would reject outright (`feet.value` is `.positive()`
+ * on purpose -- a real ranged distance is never zero).
+ */
 function mapRange(rangeValue: string): SpellRange | undefined {
   const trimmed = rangeValue.trim().toLowerCase();
   if (trimmed === 'touch') return { kind: 'touch' };
@@ -78,7 +91,8 @@ function mapRange(rangeValue: string): SpellRange | undefined {
   if (trimmed === 'unlimited') return { kind: 'unlimited' };
   const match = /^(\d+)\s*(?:feet|foot)$/.exec(trimmed);
   if (match) {
-    return { kind: 'feet', value: Number.parseInt(match[1]!, 10) };
+    const value = Number.parseInt(match[1]!, 10);
+    return value === 0 ? { kind: 'touch' } : { kind: 'feet', value };
   }
   return undefined;
 }
