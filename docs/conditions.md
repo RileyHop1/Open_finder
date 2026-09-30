@@ -5,7 +5,7 @@ an `Actor`. They are the main way the rules engine changes a character mid-comba
 and they are where automation is most visible to players — a wrong *frightened*
 value is noticed immediately.
 
-Rules references are Remaster (Player Core). Where marked **(confirm)**, verify
+Rules references are Remaster (Player Core), spot-checked against Archives of Nethys (https://2e.aonprd.com/Conditions.aspx). Where marked **(confirm)**, verify
 against the book during implementation.
 
 ## Remaster naming
@@ -80,16 +80,16 @@ the attribute the roll adds), or `maxHp` (with the level).
 | Condition | Effect |
 | --- | --- |
 | clumsy N | -N status to rolls and DCs based on Dexterity (AC, Reflex, Dex skills, Dex attacks) |
-| enfeebled N | -N status to Strength-based rolls and DCs, and to Strength damage |
+| enfeebled N | -N status to Strength-based rolls and DCs, and to Strength damage **(confirm the damage part)** |
 | stupefied N | -N status to Intelligence-, Wisdom-, and Charisma-based rolls and DCs (Will, Perception, their skills) |
-| drained N | -N status to Constitution-based rolls and DCs (Fortitude), and max HP reduced by level x N |
+| drained N | -N status to Constitution-based rolls and DCs (Fortitude), and max HP reduced by level x N **(confirm the max HP part)** |
 | frightened N, sickened N | -N status to every check and DC |
 | off-guard | -2 circumstance to AC |
 | prone | -2 circumstance to attack rolls, plus off-guard |
 | restrained, grabbed, paralyzed, confused | off-guard |
-| fatigued | -1 status to AC and saves **(confirm)** |
-| fascinated | -2 status to Perception and skill checks **(confirm)** |
-| unconscious | -4 status to AC, Perception, and Reflex, plus off-guard **(confirm)** |
+| fatigued | -1 status to AC and saves |
+| fascinated | -2 status to Perception and skill checks |
+| unconscious | -4 status to AC, Perception, and Reflex, plus off-guard (it also carries blinded; see rulings) |
 
 Everything else (slowed, stunned, quickened, dying, wounded, doomed, blinded,
 dazzled, concealed, the detection states) contributes no modifier and is not

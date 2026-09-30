@@ -77,7 +77,7 @@ const ATTRIBUTE_PENALTIES: Readonly<
 /** Valued conditions whose status penalty hits every check and DC. */
 const ALL_CHECKS_AND_DCS: ReadonlySet<string> = new Set(['frightened', 'sickened']);
 
-/** Conditions that carry the off-guard condition with them. **(confirm)** each against Player Core's appendix. */
+/** Conditions that carry the off-guard condition with them (Archives of Nethys, checked 2026-09-30). */
 const IMPLIES_OFF_GUARD: ReadonlySet<string> = new Set([
   'prone',
   'restrained',
@@ -93,7 +93,7 @@ interface FlatPenalty {
   readonly applies: (target: ConditionTarget) => boolean;
 }
 
-/** Fixed penalties from binary conditions. **(confirm)** the numbers for fatigued, fascinated, and unconscious against Player Core's appendix. */
+/** Fixed penalties from binary conditions (numbers checked against Archives of Nethys, 2026-09-30). Unconscious also carries blinded, whose sight-dependent penalty is deliberately not applied; see `docs/rulings.md`. */
 const FLAT_PENALTIES: Readonly<Record<string, FlatPenalty>> = {
   'off-guard': { type: 'circumstance', value: -2, applies: (t) => t.kind === 'ac' },
   prone: { type: 'circumstance', value: -2, applies: (t) => t.kind === 'attack' },
