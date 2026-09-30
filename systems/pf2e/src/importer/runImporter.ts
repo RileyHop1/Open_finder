@@ -94,6 +94,8 @@ export interface RunImporterSummary {
   readonly noMapperForType: Readonly<Record<string, number>>;
   readonly mappingFailed: Readonly<Record<string, number>>;
   readonly dependencyDropped: number;
+  /** Entries that survived dependency resolution but lost a `(packId, slug)` collision at write time -- see `writePacks.ts`'s module doc. Already excluded from `packs[].entryCount`. */
+  readonly duplicatesDropped: number;
   readonly kept: number;
   readonly packs: readonly { readonly packId: string; readonly entryCount: number }[];
   readonly coverage: CoverageAggregate;
@@ -152,16 +154,22 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
     drafts.push(mapped.entry);
   }
 
-  const { kept, drops } = resolveDependencies(drafts);
+  const { kept, drops: dependencyDrops } = resolveDependencies(drafts);
 
-  const { packs } = writePacks({
+  const { packs, drops: duplicateDrops } = writePacks({
     entries: kept,
     outputDir: options.outputDir,
     upstream: options.upstream,
     generatedAt: options.importedAt,
   });
 
-  const report = buildCoverageReport(kept, drops);
+  // Entries the writer dropped for a slug collision never reached disk --
+  // exclude them here too, so the coverage report's counts describe what
+  // was actually written, not what merely survived dependency resolution.
+  const droppedIds = new Set(duplicateDrops.map((drop) => drop.id));
+  const written = kept.filter((entry) => !droppedIds.has(entry.id));
+
+  const report = buildCoverageReport(written, [...dependencyDrops, ...duplicateDrops]);
   writeCoverageReport(report, options.outputDir);
 
   return {
@@ -170,7 +178,8 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
     rejectedByScope,
     noMapperForType,
     mappingFailed,
-    dependencyDropped: drops.length,
+    dependencyDropped: dependencyDrops.length,
+    duplicatesDropped: duplicateDrops.length,
     kept: kept.length,
     packs,
     coverage: aggregateCoverage(report),

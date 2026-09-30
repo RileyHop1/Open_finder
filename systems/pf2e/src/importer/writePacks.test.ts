@@ -211,19 +211,67 @@ describe('writePacks -- fails loudly rather than writing bad or lossy output', (
       }),
     ).toThrow(/fails its own schema/);
   });
+});
 
-  it('throws on a duplicate slug within the same pack rather than silently overwriting', () => {
+describe('writePacks -- duplicate slugs (docs/rulings.md: "Duplicate upstream slugs")', () => {
+  it('keeps the first entry and drops the rest sharing its (packId, slug), rather than throwing', () => {
     const outputDir = makeTempDir();
     const first = makeFeat('aaaaaaaaaaaaaaaa', { slug: 'shared-slug' });
     const second = makeFeat('bbbbbbbbbbbbbbbb', { slug: 'shared-slug' });
 
-    expect(() =>
-      writePacks({
-        entries: [first, second],
-        outputDir,
-        upstream: UPSTREAM,
-        generatedAt: GENERATED_AT,
-      }),
-    ).toThrow(/duplicate slug/);
+    const result = writePacks({
+      entries: [first, second],
+      outputDir,
+      upstream: UPSTREAM,
+      generatedAt: GENERATED_AT,
+    });
+
+    expect(result.packs).toEqual([{ packId: 'feats', entryCount: 1 }]);
+    const written: unknown = JSON.parse(
+      readFileSync(join(outputDir, 'feats', 'shared-slug.json'), 'utf8'),
+    );
+    expect(written).toEqual(first);
+  });
+
+  it('records the dropped entry as a DependencyDrop with reason "duplicate-slug"', () => {
+    const outputDir = makeTempDir();
+    const first = makeFeat('aaaaaaaaaaaaaaaa', { slug: 'shared-slug' });
+    const second = makeFeat('bbbbbbbbbbbbbbbb', { slug: 'shared-slug' });
+
+    const result = writePacks({
+      entries: [first, second],
+      outputDir,
+      upstream: UPSTREAM,
+      generatedAt: GENERATED_AT,
+    });
+
+    expect(result.drops).toEqual([
+      {
+        id: second.id,
+        slug: second.slug,
+        kind: second.kind,
+        reason: 'duplicate-slug',
+        round: 0,
+      },
+    ]);
+  });
+
+  it('only drops entries colliding within the same pack, not across packs', () => {
+    const outputDir = makeTempDir();
+    const feat = makeFeat('aaaaaaaaaaaaaaaa', { slug: 'shared-slug' });
+    const action = makeAction('cccccccccccccccc', { slug: 'shared-slug' });
+
+    const result = writePacks({
+      entries: [feat, action],
+      outputDir,
+      upstream: UPSTREAM,
+      generatedAt: GENERATED_AT,
+    });
+
+    expect(result.drops).toEqual([]);
+    expect(result.packs).toEqual([
+      { packId: 'actions', entryCount: 1 },
+      { packId: 'feats', entryCount: 1 },
+    ]);
   });
 });
