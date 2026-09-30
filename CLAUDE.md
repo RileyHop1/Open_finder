@@ -561,5 +561,3 @@ The maintainer reviews every PR by hand, so PRs must be easy to read in one sitt
   should walk through one of them concretely rather than both vaguely
 - Which rule-element types beyond the v1 subset are worth the cost? Answer with
   the importer's coverage report from milestone 2, not by guessing
-- Does the golden set need a character at every level, or is level 1 / 5 / 11 / 17
-  enough to catch proficiency and scaling bugs?
