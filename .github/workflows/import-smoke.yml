@@ -1,0 +1,61 @@
+name: Import smoke test
+
+# A separate workflow, not a job in ci.yml, because it runs on a different
+# trigger (docs/adr/0013-golden-test-methodology.md's decision 3 and its
+# "alternatives considered" section): only when systems/pf2e actually
+# changes, plus a daily schedule as a backstop for upstream drift on days
+# nothing here changes. GitHub Actions' path filters are workflow-level, not
+# job-level, so a job that should run on a narrower trigger than the rest of
+# ci.yml needs its own workflow file.
+#
+# This is the one job that fetches real, pinned upstream content and runs
+# the real importer against it. Every other job (ci.yml's `check`) stays
+# hermetic -- Stack C's own tests and the golden set both run against
+# synthetic, hand-authored fixtures, never this.
+
+on:
+  pull_request:
+    paths:
+      - 'systems/pf2e/**'
+      - '.github/workflows/import-smoke.yml'
+  schedule:
+    # 06:00 UTC daily -- catches upstream drift (a force-pushed ref, a
+    # content change behind the pinned commit) on days nothing in
+    # systems/pf2e changed to trigger the path-filtered run above.
+    - cron: '0 6 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  import-smoke:
+    name: Import smoke test (real upstream data)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Keyed on the pin file itself (which carries the upstream commit and
+      # its packs checksum, ADR 0011), so a re-pin always fetches fresh and
+      # nothing else ever invalidates a cache holding gigabytes of content
+      # for no reason.
+      - uses: actions/cache@v4
+        id: upstream-cache
+        with:
+          path: systems/pf2e/.data/upstream
+          key: import-smoke-upstream-${{ hashFiles('systems/pf2e/src/importer/upstream.ts') }}
+
+      - name: Run the importer against real upstream data
+        working-directory: systems/pf2e
+        env:
+          SKIP_FETCH: ${{ steps.upstream-cache.outputs.cache-hit == 'true' && '--skip-fetch' || '' }}
+        run: pnpm import:smoke -- $SKIP_FETCH
