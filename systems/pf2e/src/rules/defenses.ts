@@ -18,7 +18,8 @@ import { proficiencyModifier } from './proficiency.js';
 
 export interface BuildArmorClassOptions {
   readonly attributeModifiers: Readonly<Record<Attribute, number>>;
-  readonly armor: ArmorEntry;
+  /** The worn armor, or absent for an unarmored character (no Dexterity cap, no item bonus). */
+  readonly armor?: ArmorEntry;
   readonly proficiencyRank: ProficiencyRank;
   readonly level: number;
   /** Anything beyond the base/Dexterity/proficiency/armor lines -- a shield's circumstance bonus, a spell's status penalty, and so on. */
@@ -43,7 +44,7 @@ export interface BuildArmorClassOptions {
 export function buildArmorClass(options: BuildArmorClassOptions): Statistic {
   const rawDexModifier = options.attributeModifiers.dex;
   const dexModifier =
-    options.armor.dexCap === undefined
+    options.armor?.dexCap === undefined
       ? rawDexModifier
       : Math.min(rawDexModifier, options.armor.dexCap);
 
@@ -65,7 +66,7 @@ export function buildArmorClass(options: BuildArmorClassOptions): Statistic {
       enabled: true,
     },
     proficiencyModifier(options.proficiencyRank, options.level),
-    ...(options.armor.acBonus !== 0
+    ...(options.armor !== undefined && options.armor.acBonus !== 0
       ? [
           {
             slug: 'armor',

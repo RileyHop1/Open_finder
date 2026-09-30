@@ -74,3 +74,34 @@ Tested in `systems/pf2e/src/content/character.test.ts`: defaults for a minimal
 character, explicit ranks including a Lore, embedded items and their defaults,
 an uncarriable entry kind, duplicate item ids, duplicate conditions, and range
 checks.
+
+## Deriving the sheet: `prepareCharacter`
+
+`prepareCharacter(data)` (`systems/pf2e/src/rules/prepareCharacter.ts`) turns
+stored `CharacterData` into every number the sheet shows. The sheet, the
+server's roll handlers, and the golden tests all call it, so a value is computed
+one way. It returns:
+
+- `statistics`, keyed `ac`, `fortitude`, `reflex`, `will`, `perception`,
+  `classDc`, and `skill:<slug>` for all sixteen named skills plus any Lore in
+  `ranks.skills`. Each is a `Statistic` with its full modifier breakdown.
+- `hp`: stored `current` and `temp`, plus `max` as a `Statistic`.
+- `inertItems`: items carrying automation we could not map, for the sheet to
+  flag "automation not applied" (ADR 0004).
+- `rollOptions`: what rule elements activated.
+
+Strikes are prepared by a separate function (next PR).
+
+**Active items.** Feats, class features, actions, and spells always contribute
+rule elements. Weapons, armor, and gear only while `equipped`.
+
+**Selectors.** A rule element's `selector` picks its statistic: `ac`,
+`fortitude`/`reflex`/`will`, `perception`, `class-dc`, `skill:<slug>`, `hp`.
+The importer passes upstream selector strings through, so these upstream
+spellings are accepted as aliases: a bare skill slug (`athletics`),
+`saving-throw` (all three saves), `skill-check` (all skills), and `all`
+(every statistic except HP). **(confirm)** the alias list against the
+importer's coverage report.
+
+Tested in `systems/pf2e/src/rules/prepareCharacter.test.ts`, including a
+character built to match the golden Fighter's values.
