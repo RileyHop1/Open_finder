@@ -38,6 +38,16 @@ export {
   type ChatTextMessage,
 } from './chatMessage.js';
 
+export {
+  ACTOR_KINDS,
+  actorKindSchema,
+  actorSchema,
+  type Actor,
+  type ActorKind,
+} from './actor.js';
+
+export { partySchema, type Party } from './party.js';
+
 export { seatSchema, type Seat } from './seat.js';
 
 export {
