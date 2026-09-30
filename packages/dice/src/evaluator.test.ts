@@ -4,7 +4,7 @@ import type { Expression } from './ast.js';
 import { evaluate } from './evaluator.js';
 import { parse } from './parser.js';
 import type { RandomSource } from './rng.js';
-import { neverRoll, sequenceRandomSource } from './testHelpers.js';
+import { neverRoll, seededRandomSource, sequenceRandomSource } from './testHelpers.js';
 
 function parseOk(source: string): Expression {
   const result = parse(source);
@@ -12,23 +12,6 @@ function parseOk(source: string): Expression {
     throw new Error(`expected "${source}" to parse, got: ${result.error.message}`);
   }
   return result.expression;
-}
-
-/**
- * A small deterministic PRNG (mulberry32) for tests only. Production uses
- * `cryptoRandomSource` from rng.ts; this exists purely so a fixed seed
- * reproduces the same roll sequence across runs, per docs/dice.md.
- */
-function seededRandomSource(seed: number): RandomSource {
-  let state = seed >>> 0;
-  return (faces: number) => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    const value = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    return Math.floor(value * faces) + 1;
-  };
 }
 
 describe('evaluate -- arithmetic and constants', () => {
