@@ -11,7 +11,7 @@
  * entry's slug derives from Paizo's published content, so this detailed
  * shape must never be printed by CI (`docs/adr/0003-rules-data-licensing.md`).
  * `aggregateCoverage` strips every name down to bare counts -- the only
- * shape CI's `import-smoke` job (a later PR) is allowed to print.
+ * shape CI's `import-smoke` job (`importSmoke.ts`) is allowed to print.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';

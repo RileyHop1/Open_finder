@@ -236,7 +236,14 @@ migrations later means hand-patching real campaigns.
 - **Cover one character of each class** in the golden set. Sixteen classes is a
   small enough number to do this exhaustively, and it is the cheapest possible
   guard against a modifier change breaking one class's math quietly
-- CI runs the importer (cached by upstream commit) before golden tests
+- **Golden tests are hermetic.** They run against hand-authored fixtures, the
+  same way importer *logic* tests do (the license filter, the scope filter,
+  dependency resolution) -- never against a real fetch, so the main CI path
+  needs no network access and never blocks on a third-party repository. A
+  separate `import-smoke` job runs the real importer against the pinned
+  upstream commit (cached by its checksum) and asserts aggregate invariants
+  only, printing nothing that derives from Paizo's content. See
+  `docs/adr/0013-golden-test-methodology.md`
 - Playwright e2e for core flows (login, roll, combat turn)
 
 ## Accessibility
