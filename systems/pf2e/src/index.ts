@@ -181,3 +181,11 @@ export {
   type BuildStrikeDamageOptions,
   type RollStrikeDamageOptions,
 } from './rules/strikeDamage.js';
+
+export {
+  adjustDc,
+  DC_ADJUSTMENTS,
+  levelDc,
+  simpleDc,
+  type DcAdjustment,
+} from './rules/dcs.js';
