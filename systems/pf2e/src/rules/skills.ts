@@ -62,7 +62,7 @@ const SKILL_ATTRIBUTES: Readonly<Record<Skill, Attribute>> = {
 };
 
 /** A named skill's fixed attribute, or Intelligence for anything else -- every Lore skill uses Intelligence, regardless of its subject. */
-function attributeForSkill(skill: string): Attribute {
+export function attributeForSkill(skill: string): Attribute {
   return (SKILL_ATTRIBUTES as Readonly<Record<string, Attribute>>)[skill] ?? 'int';
 }
 
