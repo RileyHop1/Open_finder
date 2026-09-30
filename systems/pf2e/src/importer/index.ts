@@ -47,6 +47,7 @@ try {
   );
   console.log(`  mapping failed: ${JSON.stringify(summary.mappingFailed)}`);
   console.log(`  dropped by dependency resolution: ${summary.dependencyDropped}`);
+  console.log(`  dropped for a duplicate slug: ${summary.duplicatesDropped}`);
   console.log(`kept ${summary.kept} entries across ${summary.packs.length} packs`);
   for (const pack of summary.packs) {
     console.log(`  ${pack.packId}: ${pack.entryCount}`);

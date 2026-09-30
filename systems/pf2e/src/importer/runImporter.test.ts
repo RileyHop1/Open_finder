@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -71,6 +78,33 @@ const DEPENDENCY_DROPPED_FEAT = {
     category: 'general',
     publication: PLAYER_CORE_ITEM_PROVENANCE,
     rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.feats.Item.9999999999999999' }],
+  },
+};
+
+// Two upstream entries sharing a slug -- the real-data case that motivated
+// writePacks.ts's duplicate-slug handling (a "Reactive Strike" reprinted in
+// both the real actions compendium and a bestiary ability glossary).
+const DUPLICATE_SLUG_FEAT_FIRST = {
+  _id: '7777777777777777',
+  name: 'Invented Duplicated Feat (first)',
+  type: 'feat',
+  system: {
+    slug: 'invented-duplicated-feat',
+    level: { value: 1 },
+    category: 'general',
+    publication: PLAYER_CORE_ITEM_PROVENANCE,
+  },
+};
+
+const DUPLICATE_SLUG_FEAT_SECOND = {
+  _id: '8888888888888888',
+  name: 'Invented Duplicated Feat (second)',
+  type: 'feat',
+  system: {
+    slug: 'invented-duplicated-feat',
+    level: { value: 1 },
+    category: 'general',
+    publication: PLAYER_CORE_ITEM_PROVENANCE,
   },
 };
 
@@ -175,5 +209,31 @@ describe('runImporter', () => {
         importedAt: '2026-09-29T00:00:00.000Z',
       }),
     ).toThrow(/checksum mismatch/);
+  });
+
+  it('keeps the first of two entries sharing a slug and counts the other as duplicatesDropped, rather than crashing', () => {
+    const { upstream, upstreamDir } = setUpstreamFixture([
+      DUPLICATE_SLUG_FEAT_FIRST,
+      DUPLICATE_SLUG_FEAT_SECOND,
+    ]);
+    const outputDir = makeTempDir();
+
+    const summary = runImporter({
+      upstream,
+      upstreamDir,
+      outputDir,
+      skipFetch: true,
+      importedAt: '2026-09-29T00:00:00.000Z',
+    });
+
+    expect(summary.dependencyDropped).toBe(0);
+    expect(summary.duplicatesDropped).toBe(1);
+    expect(summary.kept).toBe(2);
+    expect(summary.packs).toEqual([{ packId: 'feats', entryCount: 1 }]);
+
+    const written: unknown = JSON.parse(
+      readFileSync(join(outputDir, 'feats', 'invented-duplicated-feat.json'), 'utf8'),
+    );
+    expect(written).toMatchObject({ name: 'Invented Duplicated Feat (first)' });
   });
 });

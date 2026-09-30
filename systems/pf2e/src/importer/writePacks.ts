@@ -18,6 +18,20 @@
  * convention every mapper's own `importedAt` parameter already follows.
  * Given the same entries, pin, and `generatedAt`, two runs produce
  * byte-identical output; nothing in here reaches for the wall clock itself.
+ *
+ * **A duplicate slug within a pack is dropped, not a hard failure.**
+ * Running against real upstream data (not just this module's own synthetic
+ * fixtures) turned up entries that collide on purpose: upstream carries a
+ * `bestiary-ability-glossary-srd` compendium that reprints common actions
+ * (e.g. "Reactive Strike") under the same name as the real `actions`
+ * compendium's own copy, purely so a creature stat block has something to
+ * link to. See `docs/rulings.md`'s "Duplicate upstream slugs" entry for the
+ * policy this implements: keep whichever entry sorted first by upstream
+ * file path (deterministic, since `reader.ts` already sorts that way), and
+ * record every entry it beat as a `DependencyDrop` with reason
+ * `'duplicate-slug'` -- the same shape (and the same coverage-report
+ * bucket) `resolveDependencies.ts` already uses, rather than a second,
+ * parallel "why was this dropped" list.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -25,6 +39,7 @@ import { join } from 'node:path';
 
 import type { Pf2eEntry } from '../content/entry.js';
 import { pf2eEntrySchema } from '../content/entry.js';
+import type { DependencyDrop } from './resolveDependencies.js';
 
 /**
  * Display names for the packs this importer actually produces (see the
@@ -62,6 +77,8 @@ export interface WritePacksOptions {
 
 export interface WritePacksResult {
   readonly packs: readonly { readonly packId: string; readonly entryCount: number }[];
+  /** Entries dropped because another entry already claimed their `(packId, slug)` -- see the module doc. */
+  readonly drops: readonly DependencyDrop[];
 }
 
 function packName(packId: string): string {
@@ -73,6 +90,7 @@ export function writePacks(options: WritePacksOptions): WritePacksResult {
 
   const entriesByPack = new Map<string, Pf2eEntry[]>();
   const seenSlugs = new Set<string>();
+  const drops: DependencyDrop[] = [];
 
   for (const entry of entries) {
     const validated = pf2eEntrySchema.safeParse(entry);
@@ -84,10 +102,18 @@ export function writePacks(options: WritePacksOptions): WritePacksResult {
 
     const key = `${entry.packId}/${entry.slug}`;
     if (seenSlugs.has(key)) {
-      // A silent overwrite would drop an entry with no record of it ever
-      // having existed -- exactly the kind of quiet data loss the rest of
-      // this importer fails closed on instead.
-      throw new Error(`duplicate slug within pack, would overwrite: ${key}`);
+      // Keep whichever entry came first (callers pass entries in a
+      // deterministic order -- see the module doc); record this one as
+      // dropped rather than silently overwriting the file the first entry
+      // already wrote.
+      drops.push({
+        id: entry.id,
+        slug: entry.slug,
+        kind: entry.kind,
+        reason: 'duplicate-slug',
+        round: 0,
+      });
+      continue;
     }
     seenSlugs.add(key);
 
@@ -120,5 +146,8 @@ export function writePacks(options: WritePacksOptions): WritePacksResult {
     packs.push({ packId, entryCount: packEntries.length });
   }
 
-  return { packs: packs.sort((a, b) => a.packId.localeCompare(b.packId)) };
+  return {
+    packs: packs.sort((a, b) => a.packId.localeCompare(b.packId)),
+    drops: drops.sort((a, b) => a.slug.localeCompare(b.slug)),
+  };
 }

@@ -73,3 +73,48 @@ ruling from silently drifting.
   flip live. A table that wants Proficiency Without Level is not using the
   rule this project implements at all, the same way a table using Free
   Archetype is outside the wizard's one supported build skeleton.
+
+### Duplicate upstream slugs
+- **What happened:** running the importer against real upstream data for the
+  first time (`ci/import-smoke`'s prep work) crashed on `writePacks`'s
+  duplicate-slug check. Upstream carries a `bestiary-ability-glossary-srd`
+  compendium that reprints common actions -- "Reactive Strike" is the one
+  that surfaced this -- under the same name as the real `actions`
+  compendium's own copy, purely so a creature stat block has something to
+  link to for its rules text. A real-data survey found 112 same-type,
+  same-name collisions across the dataset (`action`, `feat`, `npc`, and
+  `hazard` entries), so this is systemic, not a one-off.
+- **The ambiguity:** nothing in ADR 0003 or ADR 0012 says what should happen
+  when two upstream entries legitimately collide on `(packId, slug)`. The
+  importer's every other stage fails closed on bad *content*, but this
+  isn't bad content -- both entries are valid, in-scope, ORC-licensed
+  Remaster material that happen to share a name.
+- **Our reading:** keep whichever entry sorts first by upstream file path
+  (deterministic, since `reader.ts` already sorts that way before anything
+  downstream sees it), and record every entry it beat as a dropped entry
+  with reason `'duplicate-slug'` -- the same `DependencyDrop` shape (and the
+  same coverage-report bucket) `resolveDependencies.ts` already produces,
+  rather than inventing a second, parallel "why was this dropped" list.
+  `writePacks.ts`'s module doc has the implementation.
+- **Alternative reading:** hardcode a preference for the "real" compendium
+  over known reference/glossary packs (`bestiary-ability-glossary-srd` and
+  any future lookalikes). Rejected for now: it requires the importer to
+  know upstream pack *names* are meaningful, which cuts against ADR 0004
+  decision 3's "nothing outside the importer knows Foundry's format"
+  principle more than a path-order tiebreak does, and the coverage report
+  already surfaces every collision for a maintainer to review -- if
+  path-order ever picks the wrong entry in practice, that is evidence for
+  revisiting this, not a reason to guess a smarter rule now.
+- **Why:** simple and deterministic beats clever and unverified. The
+  coverage report turns "did the tiebreak matter" into an answerable
+  question instead of a guess, the same way ADR 0004 decision 5 already
+  treats the inert-element coverage report as evidence over guesswork.
+- **Golden test:** `writePacks.test.ts`'s "duplicate slugs" suite, and
+  `runImporter.test.ts`'s end-to-end duplicate-slug case. No golden
+  *character* fixture is affected -- this is importer plumbing, not rules
+  math.
+- **Override:** none at the table -- this resolves at import time, long
+  before a GM or player ever sees the content. A maintainer who disagrees
+  with a specific collision's outcome re-pins after fixing it upstream-side
+  or special-casing it in a mapper, the same as any other importer
+  correction.

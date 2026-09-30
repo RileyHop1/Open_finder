@@ -424,11 +424,21 @@ disk afterward.
 **Flat files, not a database (ADR 0012).** Entries are grouped by
 `packId` and written one JSON file per entry at
 `<outputDir>/<packId>/<slug>.json`, plus one `pack.json` manifest per pack
-recording the upstream pin, an entry count, and `generatedAt`. A duplicate
-`packId`/`slug` pair throws rather than silently overwriting the first
-entry -- the same "never quietly lose content" principle the rest of the
-importer already follows, applied to the one place a collision would be
-invisible (two different files landing at the same path).
+recording the upstream pin, an entry count, and `generatedAt`.
+
+**A duplicate `packId`/`slug` pair keeps the first entry and drops the
+rest, rather than silently overwriting or throwing.** A real-data run
+turned up upstream entries that legitimately collide -- a
+`bestiary-ability-glossary-srd` compendium reprints common actions like
+"Reactive Strike" under the same name as the real `actions` compendium's
+own copy, purely for a creature stat block to link to. See
+`docs/rulings.md`'s "Duplicate upstream slugs" entry for the policy
+(first entry by upstream file path wins, deterministically) and why
+throwing was wrong: it turned a real, ~1% occurrence in real data into an
+importer that could never finish a real run at all. Every dropped entry is
+recorded with reason `'duplicate-slug'` in the same coverage-report bucket
+`resolveDependencies`'s drops use -- "never quietly lose content" still
+holds, it just means "recorded," not "the import refuses to proceed."
 
 **Pure with respect to time.** `generatedAt` is a parameter the caller
 supplies, not `new Date().toISOString()` computed inside `writePacks`
@@ -640,9 +650,10 @@ To move the pin to a new upstream commit:
   `generatedAt`; entries split into separate pack directories by `packId`;
   an unrecognized `packId` falling back to itself as the manifest name;
   byte-identical output verified directly across two separate output
-  directories given identical input; and both failure paths throwing
-  rather than writing bad or lossy output (an entry that fails its own
-  schema, and a duplicate slug within one pack).
+  directories given identical input; an entry that fails its own schema
+  throwing rather than writing bad output; and a duplicate `(packId,
+  slug)` pair keeping the first entry, dropping the rest with reason
+  `'duplicate-slug'`, and never colliding across two different packs.
 - `coverageReport.test.ts`: counts by publication; mapped rule elements by
   kind with inert ones excluded; inert elements grouped by
   `(upstreamKind, reason)` and merged across entries; drops sorted by round
@@ -658,5 +669,7 @@ To move the pin to a new upstream commit:
   correctly in one pass -- a kept entry, a license rejection, a scope
   rejection, a `type` with no mapper, a mapping failure, and a
   dependency-resolution drop, all in the same six-entry batch; packs and
-  both coverage report files actually written to `outputDir`; and a
-  checksum mismatch throwing rather than importing unverified content.
+  both coverage report files actually written to `outputDir`; a checksum
+  mismatch throwing rather than importing unverified content; and two
+  entries sharing a slug counted as `duplicatesDropped` (not
+  `dependencyDropped`) with only the first actually written.
