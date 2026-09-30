@@ -75,14 +75,24 @@ so there is exactly one implementation.
 - Every fixture uses invented names, matching the rest of Stack D's test
   fixtures (ADR 0013).
 
+## The strike-roll shape (decided in E.2)
+
+`GoldenStatisticExpectation` covers a pre-roll `Statistic` -- an attack
+bonus, a DC -- and that's as far as `describeGolden` goes. A strike's
+*rolled* attack and damage (`rollStrikeAttack`/`rollStrikeDamage`, both
+`systems/pf2e/src/rules/strike.ts`/`strikeDamage.ts`) are asserted with
+plain `it()` blocks alongside the fixture instead of a new expectation
+shape: a roll needs a scripted RNG (`sequenceRandomSource`, from
+`@hearthtable/dice/testing`) and an invented target DC, neither of which
+fits `GoldenFixture`'s per-statistic shape without forcing every other
+statistic to carry roll-only fields it doesn't need. See
+`systems/pf2e/src/golden/fighter.test.ts` for the pattern: `describeGolden`
+for the character's own statistics, then a `describe` block with a couple
+of `it()`s for the strike roll.
+
 ## What's not decided yet
 
 - **Level coverage** -- whether every class needs a fixture at every level,
   or a smaller sweep (1 / 5 / 11 / 17) is enough. This is CLAUDE.md's open
   question; E.9 answers it once there is a real scaling fixture to point to,
   and that PR is what strikes the question from CLAUDE.md.
-- **The strike-roll fixture shape** -- today's `GoldenStatisticExpectation`
-  covers a pre-roll `Statistic` (an attack bonus, a DC). Whether a rolled
-  result (total plus degree of success) needs its own expectation shape, or
-  reuses this one with the rolled total substituted in, is E.2's call to
-  make once a real Fighter fixture needs one.
