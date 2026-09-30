@@ -166,3 +166,11 @@ export {
   type BuildSkillOptions,
   type Skill,
 } from './rules/skills.js';
+
+export {
+  buildStrikeAttack,
+  rollStrikeAttack,
+  type BuildStrikeAttackOptions,
+  type RollStrikeAttackOptions,
+  type StrikeAttackRoll,
+} from './rules/strike.js';
