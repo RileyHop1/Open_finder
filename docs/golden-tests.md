@@ -90,9 +90,39 @@ statistic to carry roll-only fields it doesn't need. See
 for the character's own statistics, then a `describe` block with a couple
 of `it()`s for the strike roll.
 
-## What's not decided yet
+## Level coverage (decided in the scaling sweep)
 
-- **Level coverage** -- whether every class needs a fixture at every level,
-  or a smaller sweep (1 / 5 / 11 / 17) is enough. This is CLAUDE.md's open
-  question; E.9 answers it once there is a real scaling fixture to point to,
-  and that PR is what strikes the question from CLAUDE.md.
+Every one of the sixteen classes gets a level 1 fixture (`bard.test.ts`
+through `wizard.test.ts`), and three representative classes --
+Fighter, Cleric, and Rogue -- additionally get fixtures at levels 5, 11,
+and 17 (`fighterScaling.test.ts`, `clericScaling.test.ts`,
+`rogueScaling.test.ts`), rather than all sixteen at every level.
+
+**Why three classes, not all sixteen:** proficiency-rank *steps* are what a
+higher-level fixture actually exists to catch -- a bug that only shows up
+once a rank changes, which a level 1 fixture can never exercise, since
+`proficiencyModifier`'s rank-to-bonus table (`PROFICIENCY_BONUS`) and its
+level-addition rule are both single, shared functions. Once one class's
+fixture proves a rank step resolves correctly at levels 5/11/17, testing
+the same shared function again per class stops finding new bugs in
+`proficiencyModifier` and starts only re-testing each class's own
+proficiency *table* -- which the level 1 fixtures already assert the
+starting values of, book by book. Fighter, Cleric, and Rogue were chosen
+specifically because their progression tables disagree the most: Fighter
+advances almost everything on a steady schedule, Cleric leaves Fortitude
+and Class DC flat at Trained forever, and Rogue is the only class in the
+golden set to reach Legendary in anything (Perception and Reflex, both at
+level 13) by level 17. Between them, the sweep exercises every rank
+transition (trained→expert→master→legendary) at least once.
+
+**Why levels 5, 11, and 17, not every level:** these land inside three of
+the four rank bands every class's progression tables use (early, mid, and
+late advancement), while level 1 (already covered by every class's own
+fixture) anchors the first. A fixture at every level between would mostly
+repeat the same rank with a different level term added -- `proficiencyModifier`
+already has dedicated, exhaustive tests for that (`proficiency.test.ts`),
+so a golden fixture doesn't need to re-prove it at every intermediate level
+too.
+
+This answers CLAUDE.md's open question about level coverage, which now
+points here instead of carrying the question itself.
