@@ -18,6 +18,7 @@ If a page and CLAUDE.md disagree, CLAUDE.md wins and the page is a bug.
 | [rule-elements.md](rule-elements.md) | The rule-element schema, the v1 subset, the inert fallback | 2 |
 | [importer.md](importer.md) | The pin, fetch, verify, and re-pin procedure; grows as the importer does | 2 |
 | [content-model.md](content-model.md) | Rarity, proficiency rank, attribute, action cost, and trait slugs | 2 |
+| [golden-tests.md](golden-tests.md) | The golden fixture format, the harness, and determinism via seeded dice | 2 |
 | [rulings.md](rulings.md) | Every rules judgment call we have made, and why | ongoing |
 
 ## Decisions
