@@ -77,6 +77,9 @@ describe('mapSpell -- success', () => {
     ['unlimited', { kind: 'unlimited' }],
     ['30 feet', { kind: 'feet', value: 30 }],
     ['1 foot', { kind: 'feet', value: 1 }],
+    // Real upstream data (Create Water) encodes touch range this way
+    // instead of the string "touch" -- see mapRange's own doc comment.
+    ['0 feet', { kind: 'touch' }],
   ] as const)('parses range %s', (rangeValue, expected) => {
     const result = mapSpell(
       makeEntry(baseSystem({ range: { value: rangeValue } })),
