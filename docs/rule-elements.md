@@ -50,8 +50,19 @@ subset -- evidence, not guesswork (ADR 0004 decision 5).
 A rule element on a compendium entry is a *definition*. Turning an actor's
 items' rule elements into an actual `Modifier[]` for `resolveStatistic`
 (`docs/modifiers.md`) is separate logic, in `systems/pf2e`'s rules layer
-(milestone 2, Stack D) -- this package only defines what a rule element can
-say, not how it gets applied.
+(`systems/pf2e/src/rules/applyRuleElements.ts`) -- this package only defines
+what a rule element can say, not how it gets applied.
+
+`applyRuleElements` resolves the active roll option set (`choiceSet`
+selections, then `rollOption` elements swept to a fixed point, since one can
+depend on another) and groups `flatModifier`/`damageDice` elements by
+`selector`. The two element kinds treat their own `predicate` differently on
+purpose: a `flatModifier`'s predicate rides along on the resulting
+`Modifier` for `resolveStatistic` to evaluate at resolution time (ADR 0008
+decision 6); a `damageDice`'s predicate is evaluated immediately, because
+`@hearthtable/dice`'s `DamageComponent` has no predicate field to defer it
+to. `grantItem` is out of scope here -- granting an item onto a character is
+build-time state (milestone 7), not something resolved on every statistic.
 
 ## Testing
 

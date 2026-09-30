@@ -189,3 +189,10 @@ export {
   simpleDc,
   type DcAdjustment,
 } from './rules/dcs.js';
+
+export {
+  applyRuleElements,
+  type AppliedRuleElements,
+  type ApplyRuleElementsOptions,
+  type RuleElementSource,
+} from './rules/applyRuleElements.js';
