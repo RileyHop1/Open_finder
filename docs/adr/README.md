@@ -43,3 +43,4 @@ than a tidy file.
 | [0011](0011-importer-pipeline.md) | Importer pipeline: fetch by pinned SHA, verify by checksum | Accepted |
 | [0012](0012-pack-format.md) | Compendium packs are flat JSON files, not a database | Accepted |
 | [0013](0013-golden-test-methodology.md) | Golden tests are hermetic; the real import is a separate CI job | Accepted |
+| [0014](0014-actor-document-shape.md) | Actors: a system-agnostic envelope, a PF2e payload, embedded item copies | Proposed |
