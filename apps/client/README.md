@@ -187,6 +187,15 @@ client server in production.
   alone, and each change is announced in a status line so it is heard as well as
   seen. It sends `party.addMember`, `party.removeMember`, and `party.reorder`, and
   the bar changes when the broadcast returns. **Built.**
+- **Portraits** (`components/sheet/PortraitPicker.vue`, `api/assets.ts`) -- the
+  image (or the initial placeholder) at the top of the sheet. An owner or the GM
+  gets a labelled file input restricted to PNG, JPEG, WebP, and GIF, and a
+  Remove button. A file of another type is refused in words before anything is
+  sent; otherwise the raw file is posted to `apps/server`'s asset route
+  (`docs/assets.md`), then the actor's `portrait` is set to the stored name with
+  an optimistic `actor.update`, and the party bar shows it. If the server
+  refuses the file (it checks the contents, not just the label), its reason is
+  shown beside the picker and nothing changes. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
