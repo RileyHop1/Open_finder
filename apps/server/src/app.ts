@@ -19,6 +19,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
+import type { CompendiumIndex } from './compendium.js';
+import { emptyCompendium, MAX_SEARCH_LIMIT } from './compendium.js';
 import { resolveWorldPaths } from './paths.js';
 import { readableDocuments } from './visibility.js';
 import { withWorldStore } from './worldAccess.js';
@@ -43,6 +45,11 @@ export interface AppOptions {
    * When present and it exists on disk, its files are served at `/`.
    */
   readonly staticDir?: string;
+  /**
+   * The imported compendium (`compendium.ts`, ADR 0015). Absent means an empty
+   * one: the routes still answer, saying nothing is available.
+   */
+  readonly compendium?: CompendiumIndex;
   /** Defaults to true. Tests pass false to keep their output readable. */
   readonly logger?: boolean;
 }
@@ -76,12 +83,19 @@ const createSeatBodySchema = z.object({
   pin: z.string().min(1).max(16).optional(),
 });
 
+const compendiumSearchQuerySchema = z.object({
+  kind: z.string().min(1).max(40).optional(),
+  q: z.string().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_SEARCH_LIMIT).optional(),
+});
+
 export function createApp(options: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: options.logger ?? true,
     bodyLimit: WORLD_ARCHIVE_BODY_LIMIT,
   });
   const { activeWorld } = options;
+  const compendium = options.compendium ?? emptyCompendium();
 
   // Hands the raw upload stream straight to the import route below instead
   // of buffering it -- the whole point of `importWorldArchive`'s own
@@ -263,6 +277,31 @@ export function createApp(options: AppOptions): FastifyInstance {
         caught instanceof Error ? caught.message : 'failed to import world archive';
       await reply.status(400).send({ error: message });
     }
+  });
+
+  // The compendium is read-only reference data, public to every seat: it is
+  // the imported rules content, not anything a world owns (ADR 0015).
+  app.get('/api/compendium', () => compendium.status());
+
+  app.get('/api/compendium/search', async (request, reply) => {
+    const parsed = compendiumSearchQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      await reply
+        .status(400)
+        .send({ error: 'invalid search query', issues: parsed.error.issues });
+      return;
+    }
+    await reply.send(compendium.search(parsed.data));
+  });
+
+  app.get('/api/compendium/:packId/:slug', async (request, reply) => {
+    const { packId, slug } = request.params as { packId: string; slug: string };
+    const entry = compendium.get(packId, slug);
+    if (entry === undefined) {
+      await reply.status(404).send({ error: `no compendium entry ${packId}/${slug}` });
+      return;
+    }
+    await reply.send(entry);
   });
 
   if (options.staticDir !== undefined && existsSync(options.staticDir)) {

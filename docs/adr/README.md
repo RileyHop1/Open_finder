@@ -44,3 +44,4 @@ than a tidy file.
 | [0012](0012-pack-format.md) | Compendium packs are flat JSON files, not a database | Accepted |
 | [0013](0013-golden-test-methodology.md) | Golden tests are hermetic; the real import is a separate CI job | Accepted |
 | [0014](0014-actor-document-shape.md) | Actors: a system-agnostic envelope, a PF2e payload, embedded item copies | Proposed |
+| [0015](0015-compendium-read-side.md) | The compendium is loaded into memory at startup and served read-only | Proposed |
