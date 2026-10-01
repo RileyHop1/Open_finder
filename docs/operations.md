@@ -41,6 +41,7 @@ connection, never from the payload; a client that could self-report its own
 | `actor.addCondition` | `{ actorId, slug, value? }` | The ordinary way. A second source of a valued condition keeps the **higher** value, never the sum; the value is clamped to the condition's maximum; it clears whatever the condition supersedes. `value` 1 to 99 |
 | `actor.setCondition` | `{ actorId, slug, value? }` | The manual override: sets the value exactly, so it can go down, and `value: 0` removes the condition. Same clamping and clearing |
 | `actor.removeCondition` | `{ actorId, slug }` | Removing one the character does not have is not an error |
+| `actor.rollCheck` | `{ actorId, statistic, dc? }` | Rolls Perception, a save (`fortitude`, `reflex`, `will`), or `skill:<slug>` for a character and posts a `check` chat message ([chatMessage.md](chatMessage.md)). `dc` 0 to 99 adds a degree of success. Owner or GM only; anything else (`ac`, `classDc`, an unknown skill) is refused |
 | `party.addMember` | `{ actorId }` | **GM only.** Appends to the party, creating it on first use. A character or NPC; a hazard is refused. Adding a current member changes nothing |
 | `party.removeMember` | `{ actorId }` | **GM only.** Not being a member is not an error |
 | `party.reorder` | `{ memberIds }` | **GM only.** Must list exactly the current members, each once; anything else is rejected so a stale client cannot add or drop someone by reordering |

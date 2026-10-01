@@ -167,6 +167,8 @@ export {
   type Skill,
 } from './rules/skills.js';
 
+export { rollCheck, type CheckRoll, type RollCheckOptions } from './rules/rollCheck.js';
+
 export {
   buildStrikeAttack,
   rollStrikeAttack,

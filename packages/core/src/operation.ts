@@ -238,6 +238,24 @@ export const actorRemoveConditionOperationSchema = clientOperationSchema.extend(
   payload: z.object({ actorId: idSchema, slug: conditionSlugSchema }),
 });
 
+/** The largest DC a roll payload may carry: a sanity bound, as for conditions. */
+export const MAX_ROLL_DC = 99;
+
+/**
+ * Roll a check from a character's sheet: the server resolves the statistic
+ * (`perception`, a save, or `skill:<slug>`), rolls the d20, and posts a
+ * structured `check` chat message. `dc`, when given, adds a degree of
+ * success. Owner or GM only.
+ */
+export const actorRollCheckOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.rollCheck'),
+  payload: z.object({
+    actorId: idSchema,
+    statistic: z.string().min(1).max(80),
+    dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
+  }),
+});
+
 /** Add an actor to the party (created on first use). GM only. */
 export const partyAddMemberOperationSchema = clientOperationSchema.extend({
   type: z.literal('party.addMember'),
@@ -280,6 +298,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorRemoveItemOperationSchema,
   actorAddConditionOperationSchema,
   actorSetConditionOperationSchema,
+  actorRollCheckOperationSchema,
   partyAddMemberOperationSchema,
   partyRemoveMemberOperationSchema,
   partyReorderOperationSchema,

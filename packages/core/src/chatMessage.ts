@@ -33,6 +33,7 @@ import { DEGREES_OF_SUCCESS } from '@hearthtable/dice/pure';
 import { z } from 'zod';
 
 import { baseDocumentSchema } from './document.js';
+import { statisticSchema } from './modifier.js';
 import { idSchema } from './record.js';
 
 const dieTermSchema = z.object({
@@ -124,10 +125,36 @@ export const chatRollMessageSchema = chatMessageBaseSchema.extend({
 
 export type ChatRollMessage = z.infer<typeof chatRollMessageSchema>;
 
+/**
+ * A check rolled from a character sheet (a skill, a save, Perception). It
+ * stores the roll *and* the statistic it was made with -- every modifier,
+ * applied or suppressed -- so the hover breakdown (milestone 6) is a view over
+ * this message and not a recomputation that could disagree with what was
+ * rolled. `actorName` and `label` are snapshots, so history still reads
+ * correctly after the character is renamed or deleted.
+ */
+export const chatCheckMessageSchema = chatMessageBaseSchema.extend({
+  kind: z.literal('check'),
+  actorId: idSchema,
+  actorName: z.string().min(1),
+  /** The statistic rolled, keyed as the sheet keys it: `perception`, `fortitude`, `skill:athletics`. */
+  statistic: z.string().min(1),
+  /** The statistic's display name, e.g. `Athletics`. */
+  label: z.string().min(1),
+  /** The DC rolled against, if the roller named one. */
+  dc: z.number().int().optional(),
+  /** The statistic as resolved when the roll was made. */
+  breakdown: statisticSchema,
+  roll: rollResultSchema,
+});
+
+export type ChatCheckMessage = z.infer<typeof chatCheckMessageSchema>;
+
 /** Every shape a `ChatMessage` document can take. */
 export const chatMessageSchema = z.discriminatedUnion('kind', [
   chatTextMessageSchema,
   chatRollMessageSchema,
+  chatCheckMessageSchema,
 ]);
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

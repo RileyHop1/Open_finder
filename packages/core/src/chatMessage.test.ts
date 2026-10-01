@@ -188,3 +188,53 @@ describe('rollResultSchema against real @hearthtable/dice output', () => {
     expect(parsed.terms.some((term) => term.kind === 'die' && !term.kept)).toBe(true);
   });
 });
+
+describe('chatCheckMessageSchema', () => {
+  const base = {
+    id: crypto.randomUUID(),
+    worldId: crypto.randomUUID(),
+    type: 'chatMessage' as const,
+    schemaVersion: 1,
+    permissions: { default: 'observer' as const, seats: {} },
+    createdAt: '2026-09-30T00:00:00.000Z',
+    updatedAt: '2026-09-30T00:00:00.000Z',
+    seatId: crypto.randomUUID(),
+    kind: 'check' as const,
+    actorId: crypto.randomUUID(),
+    actorName: 'Hero',
+    statistic: 'skill:athletics',
+    label: 'Athletics',
+    breakdown: {
+      total: 7,
+      modifiers: [
+        {
+          slug: 'str',
+          label: 'Strength',
+          type: 'ability' as const,
+          value: 4,
+          source: 'Strength',
+          enabled: true,
+          applied: true,
+        },
+      ],
+    },
+    roll: { ...evaluateExpression('1d20+7'), natural: 12 },
+  };
+
+  it('round-trips through the ChatMessage union with its breakdown and roll', () => {
+    expect(chatMessageSchema.parse(base)).toEqual(base);
+  });
+
+  it('accepts a DC and a degree, and rejects a message with no breakdown or label', () => {
+    expect(
+      chatMessageSchema.safeParse({
+        ...base,
+        dc: 20,
+        roll: { ...base.roll, degree: 'success' },
+      }).success,
+    ).toBe(true);
+    const { breakdown: _breakdown, ...noBreakdown } = base;
+    expect(chatMessageSchema.safeParse(noBreakdown).success).toBe(false);
+    expect(chatMessageSchema.safeParse({ ...base, label: '' }).success).toBe(false);
+  });
+});
