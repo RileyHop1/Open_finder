@@ -12,6 +12,7 @@
 import type { Statistic } from '@hearthtable/core';
 
 import type {
+  AppliedCondition,
   ArmorEntry,
   Attribute,
   CharacterData,
@@ -43,6 +44,8 @@ export interface GoldenCharacterSpec {
   readonly skills?: Readonly<Record<string, ProficiencyRank>>;
   /** Anything else the character carries, such as an item whose rule elements the fixture exercises. */
   readonly extraItems?: readonly CharacterItem[];
+  /** Conditions currently on the character, as `{ slug, value? }`. */
+  readonly conditions?: readonly AppliedCondition[];
   readonly ancestryHp?: number;
   readonly classHp?: number;
 }
@@ -76,6 +79,7 @@ export function goldenCharacter(spec: GoldenCharacterSpec): CharacterData {
     ancestryHp: spec.ancestryHp ?? 0,
     classHp: spec.classHp ?? 0,
     hp: { current: 1 },
+    conditions: spec.conditions ?? [],
     items: [equipped(spec.armor), equipped(spec.weapon), ...(spec.extraItems ?? [])],
   });
 }
