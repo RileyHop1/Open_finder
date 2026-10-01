@@ -33,6 +33,7 @@ import { useScenesStore } from '../stores/scenes.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import MapView from './map/MapView.vue';
+import { startActorDrag } from './map/placement.js';
 import SceneManager from './scenes/SceneManager.vue';
 import { useDrawer } from './useDrawer.js';
 import PartyBar from './PartyBar.vue';
@@ -129,17 +130,35 @@ function sendItem(type: string, payload: Record<string, unknown>): void {
 /** Bumped when an import finishes, so panels that listed content (the item picker, the condition picker) look again. */
 const contentVersion = ref(0);
 
+const drawerEl = useTemplateRef<HTMLElement>('drawer');
+const sceneDrawerEl = useTemplateRef<HTMLElement>('sceneDrawer');
+
 /** The character drawer (open state, focus in and back out) and the GM's scene drawer. */
-const {
-  open: drawerOpen,
-  show: openDrawer,
-  hide: closeDrawer,
-} = useDrawer(useTemplateRef<HTMLElement>('drawer'));
+const { open: drawerOpen, show: openDrawer, hide: closeDrawer } = useDrawer(drawerEl);
 const {
   open: sceneDrawerOpen,
   show: openSceneDrawer,
   hide: closeSceneDrawer,
-} = useDrawer(useTemplateRef<HTMLElement>('sceneDrawer'));
+} = useDrawer(sceneDrawerEl);
+
+const mapView = useTemplateRef<InstanceType<typeof MapView>>('mapView');
+
+/** True while a character is being dragged out of the roster, so the drawer can get out of the way of the drop. */
+const placing = ref(false);
+
+/** The GM's "Place on map": the token goes in the middle of the part of the map the open drawers leave visible. */
+async function placeOnMap(actorId: string): Promise<void> {
+  await mapView.value?.placeAtCentre(actorId, {
+    left: drawerOpen.value ? (drawerEl.value?.offsetWidth ?? 0) : 0,
+    right: sceneDrawerOpen.value ? (sceneDrawerEl.value?.offsetWidth ?? 0) : 0,
+  });
+}
+
+function startPlacing(event: DragEvent, actorId: string): void {
+  startActorDrag(event, actorId, () => {
+    placing.value = true;
+  });
+}
 
 /** The scene the party is on, for the preview banner. */
 const partyScene = computed(() =>
@@ -272,7 +291,7 @@ async function handleCreate(): Promise<void> {
           tabindex="-1"
           data-testid="map-pane"
         >
-          <MapView :world-id="worldId" @open-actor="openSheetOf" />
+          <MapView ref="mapView" :world-id="worldId" @open-actor="openSheetOf" />
         </section>
 
         <Transition name="drawer">
@@ -282,6 +301,7 @@ async function handleCreate(): Promise<void> {
             id="scene-pane"
             ref="sceneDrawer"
             class="sheet-pane scene-pane"
+            :class="{ 'is-placing': placing }"
             aria-labelledby="scene-heading"
             tabindex="-1"
             @keydown.esc.stop="closeSceneDrawer"
@@ -302,6 +322,7 @@ async function handleCreate(): Promise<void> {
             id="sheet-pane"
             ref="drawer"
             class="sheet-pane"
+            :class="{ 'is-placing': placing }"
             aria-labelledby="sheet-heading"
             tabindex="-1"
             @keydown.esc.stop="closeDrawer"
@@ -315,6 +336,16 @@ async function handleCreate(): Promise<void> {
 
             <ul v-if="documents.actors.length > 0" class="roster">
               <li v-for="actor in documents.actors" :key="actor.id">
+                <span
+                  v-if="lobby.mySeat?.isGM"
+                  class="drag-handle"
+                  draggable="true"
+                  aria-hidden="true"
+                  title="Drag onto the map to place a token"
+                  @dragstart="startPlacing($event, actor.id)"
+                  @dragend="placing = false"
+                  >⠿</span
+                >
                 <button
                   type="button"
                   :aria-pressed="actor.id === selectedId"
@@ -323,9 +354,21 @@ async function handleCreate(): Promise<void> {
                   {{ actor.name }}
                   <span class="kind">({{ actor.kind }})</span>
                 </button>
+                <button
+                  v-if="lobby.mySeat?.isGM"
+                  type="button"
+                  :disabled="scenes.shownScene === undefined"
+                  :aria-label="`Place ${actor.name} on the map`"
+                  @click="placeOnMap(actor.id)"
+                >
+                  Place on map
+                </button>
               </li>
             </ul>
             <p v-else class="empty">No characters yet. Make one below.</p>
+            <p v-if="lobby.mySeat?.isGM && scenes.shownScene === undefined" class="empty">
+              Make a scene and move the party to it (the Scenes button) to place tokens.
+            </p>
 
             <form class="new-character" @submit.prevent="handleCreate">
               <label for="new-character-name">New character name</label>
@@ -478,8 +521,32 @@ async function handleCreate(): Promise<void> {
   padding: 0;
 }
 
+.roster li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .roster button {
   min-height: var(--touch-target-min);
+}
+
+/* Pointer-only: the "Place on map" button is the keyboard route to the same thing. */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  min-height: var(--touch-target-min);
+  color: var(--color-text-muted);
+  cursor: grab;
+  user-select: none;
+}
+
+/* While a character is dragged out, the drawer lets the map underneath take the drop. */
+.is-placing {
+  opacity: 0.2;
+  pointer-events: none;
 }
 
 button[aria-pressed='true'] {

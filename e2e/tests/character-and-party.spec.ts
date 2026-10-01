@@ -86,7 +86,7 @@ test('a player builds a character, the GM adds it to the party, and they play wi
 
     // --- The GM sees the new character, and adds it to the party. ---
     await gm.getByRole('button', { name: 'Characters', exact: true }).click();
-    await expect(gm.getByRole('button', { name: /Valeria/ })).toBeVisible();
+    await expect(gm.getByRole('button', { name: 'Valeria (character)' })).toBeVisible();
     await gm.getByText('Manage party').click();
     await gm.getByLabel('Add to party').selectOption({ label: 'Valeria (character)' });
     await gm.getByRole('button', { name: 'Add', exact: true }).click();

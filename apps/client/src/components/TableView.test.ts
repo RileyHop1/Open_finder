@@ -13,6 +13,7 @@ import { createSocket, emitOperation } from '../realtime/socket.js';
 import { useConnectionStore } from '../stores/connection.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
+import { ACTOR_DRAG_TYPE } from './map/placement.js';
 import TableView from './TableView.vue';
 
 // The lobby store (releasing a seat) and the chat panel are other components'
@@ -302,6 +303,107 @@ describe('the GM’s scene drawer', () => {
 
     await banner.get('button').trigger('click');
     expect(wrapper.find('.preview-banner').exists()).toBe(false);
+  });
+});
+
+describe('placing tokens from the roster', () => {
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: WORLD,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  const makeScene = (): Scene =>
+    sceneSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'scene',
+      schemaVersion: 1,
+      permissions: { default: 'none', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      name: 'Bog',
+      kind: 'battle',
+    });
+
+  const placeButton = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
+    wrapper.find('button[aria-label="Place Valeros on the map"]');
+
+  async function tableWithScene(isGM: boolean) {
+    mySeat = seat(isGM);
+    const hero = makeActor('Valeros');
+    const bog = makeScene();
+    vi.mocked(documentsApi.listActors).mockResolvedValue([hero]);
+    vi.mocked(documentsApi.listScenes).mockResolvedValue([bog]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue({
+      ...makeParty([hero.id]),
+      sceneId: bog.id,
+    });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    return { wrapper: await mountTable(), hero, bog };
+  }
+
+  it('offers the GM a button and a drag handle for each character, and a player neither', async () => {
+    const gm = (await tableWithScene(true)).wrapper;
+    expect(placeButton(gm).exists()).toBe(true);
+    expect(gm.find('.drag-handle').attributes('aria-hidden')).toBe('true');
+    gm.unmount();
+
+    const player = (await tableWithScene(false)).wrapper;
+    expect(placeButton(player).exists()).toBe(false);
+    expect(player.find('.drag-handle').exists()).toBe(false);
+  });
+
+  it('places the character on the shown scene when the button is pressed', async () => {
+    const { wrapper, hero, bog } = await tableWithScene(true);
+    await placeButton(wrapper).trigger('click');
+    await flushPromises();
+    expect(emitOperation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        type: 'token.create',
+        payload: { sceneId: bog.id, actorId: hero.id },
+      }),
+    );
+    expect(wrapper.get('p[role="status"].visually-hidden').text()).toBe(
+      'Valeros placed on the map.',
+    );
+  });
+
+  it('disables the button, and says why, while there is no scene to place on', async () => {
+    mySeat = seat(true);
+    vi.mocked(documentsApi.listActors).mockResolvedValue([makeActor('Valeros')]);
+    const wrapper = await mountTable();
+    expect(placeButton(wrapper).attributes('disabled')).toBeDefined();
+    expect(wrapper.get('#sheet-pane').text()).toContain('Make a scene');
+  });
+
+  it('starts a roster drag carrying the character, and gets out of the way of the drop', async () => {
+    const { wrapper, hero } = await tableWithScene(true);
+    const data: Record<string, string> = {};
+    const event = new Event('dragstart', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'dataTransfer', {
+      value: {
+        setData: (type: string, value: string) => {
+          data[type] = value;
+        },
+        effectAllowed: 'none',
+      },
+    });
+    wrapper.get('.drag-handle').element.dispatchEvent(event);
+    expect(data).toEqual({ [ACTOR_DRAG_TYPE]: hero.id });
+
+    // The drawer fades (after a beat: changing the page inside `dragstart` can cancel the drag).
+    expect(wrapper.get('#sheet-pane').classes()).not.toContain('is-placing');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(wrapper.get('#sheet-pane').classes()).toContain('is-placing');
+
+    await wrapper.get('.drag-handle').trigger('dragend');
+    expect(wrapper.get('#sheet-pane').classes()).not.toContain('is-placing');
   });
 });
 

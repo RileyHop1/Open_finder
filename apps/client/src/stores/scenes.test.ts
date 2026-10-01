@@ -331,6 +331,55 @@ describe('this seat’s own drag', () => {
   });
 });
 
+describe('placeToken', () => {
+  it('asks for a token on the shown scene, at the point given', async () => {
+    const { store, bog } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const actorId = crypto.randomUUID();
+
+    expect(await store.placeToken(actorId, { x: 300, y: 400 })).toBe(true);
+    expect(emitOperation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        type: 'token.create',
+        payload: { sceneId: bog.id, actorId, at: { x: 300, y: 400 } },
+      }),
+    );
+  });
+
+  it('leaves the place to the server when none is given', async () => {
+    const { store, bog } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const actorId = crypto.randomUUID();
+    await store.placeToken(actorId);
+    const sent = vi.mocked(emitOperation).mock.calls[0]?.[1];
+    expect(sent?.payload).toEqual({ sceneId: bog.id, actorId });
+  });
+
+  it('places on the scene being previewed, not the party’s', async () => {
+    const { store, keep } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    store.previewScene(keep.id);
+    await store.placeToken(crypto.randomUUID());
+    const sent = vi.mocked(emitOperation).mock.calls[0]?.[1];
+    expect(sent?.payload).toMatchObject({ sceneId: keep.id });
+  });
+
+  it('does nothing with no scene shown, and says nothing was placed', async () => {
+    setActivePinia(createPinia());
+    const store = useScenesStore();
+    expect(await store.placeToken(crypto.randomUUID())).toBe(false);
+    expect(emitOperation).not.toHaveBeenCalled();
+  });
+
+  it('records a refusal', async () => {
+    const { store } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'GM only' });
+    expect(await store.placeToken(crypto.randomUUID())).toBe(false);
+    expect(store.error).toBe('GM only');
+  });
+});
+
 describe('send', () => {
   it('records a refusal, and clears it on the next try', async () => {
     const { store } = await table();

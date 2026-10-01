@@ -118,6 +118,16 @@ client server in production.
   one small `scene.update`, and editing previews the scene, so the grid is lined
   up with the picture by eye. While a preview is on, a banner above the map says
   which scene the players are on and offers the way back. **Built.**
+- **Placing tokens** (`components/map/placement.ts`, the roster in `TableView.vue`,
+  `MapView.vue`) -- the GM puts a character or monster on the map from the
+  Characters drawer, two ways to the same `token.create`. **Place on map** puts it
+  in the middle of the part of the map the open drawers leave visible (a token
+  placed under the drawer would be placed where nobody can see it), and is the
+  keyboard route; or drag the handle beside a name onto the map, where the drawer
+  fades so the drop lands on the map under it. The token goes on the scene this
+  browser shows, so a scene being built in a preview gets its tokens before the
+  players are there. The server sizes and snaps it; it appears when the
+  broadcast arrives, and a screen reader is told. **Built.**
 - **The table** (`components/TableView.vue`) -- what a seated player sees,
   shown by the lobby while this device holds a seat (the seat list folds into a
   "Seats" disclosure, still there for a GM adding seats). **Map-first** since
