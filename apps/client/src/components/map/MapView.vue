@@ -37,6 +37,11 @@
  * moved in feet beside it; the others see a throttled live preview, and letting
  * go sends the one real move (`token.move`). Escape while holding puts it back.
  * Grabbing a token this seat may not move only selects it.
+ *
+ * **Placing tokens** (GM): dropping a character from the roster onto the map puts
+ * a token there, and `placeAtCentre` (for the roster's "Place on map" button, the
+ * keyboard route to the same thing) puts one in the middle of what can be seen.
+ * The server sizes and snaps it; it appears when the broadcast arrives.
  */
 import type { Application } from 'pixi.js';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -57,6 +62,7 @@ import MapCanvas from './MapCanvas.vue';
 import { gridForScene } from './mapGrid.js';
 import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
+import { ACTOR_DRAG_TYPE, type Covered, viewCentre } from './placement.js';
 import { createThrottle } from './throttle.js';
 import { canMoveToken, describeToken, tokenAt, tokenViews } from './tokenModel.js';
 import { ARROW_DIRECTIONS, type Direction, dragTarget, stepToken } from './tokenStep.js';
@@ -360,6 +366,67 @@ function onPointerUp(event: PointerEvent): void {
   dragging.value = input.dragging;
 }
 
+/** Puts `actorId`'s token on the shown scene at `at`, or in the middle of what can be seen, and says so. */
+async function placeActor(actorId: string, at?: Point): Promise<void> {
+  const scene = scenes.shownScene;
+  const actor = documents.actorById(actorId);
+  if (scene === undefined || actor === undefined) {
+    return;
+  }
+  const accepted = await scenes.placeToken(actorId, at);
+  announcement.value = accepted ? `${actor.name} placed on the map.` : '';
+}
+
+/**
+ * Places `actorId` in the middle of the visible map. `covered` is how much of
+ * its left and right edges a drawer hides, so the token lands where it can be seen.
+ */
+function placeAtCentre(actorId: string, covered?: Covered): Promise<void> {
+  const scene = scenes.shownScene;
+  return placeActor(
+    actorId,
+    scene === undefined || camera === undefined
+      ? undefined
+      : viewCentre(camera, viewportSize(), scene, covered),
+  );
+}
+
+defineExpose({ placeAtCentre });
+
+/** Whether a drag carries a character from the roster, and this seat may place it (the GM). */
+function isActorDrag(event: DragEvent): boolean {
+  return (
+    lobby.mySeat?.isGM === true &&
+    event.dataTransfer?.types.includes(ACTOR_DRAG_TYPE) === true
+  );
+}
+
+function onDragOver(event: DragEvent): void {
+  if (isActorDrag(event)) {
+    // Without this the browser refuses the drop.
+    event.preventDefault();
+    if (event.dataTransfer !== null) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+}
+
+function onDrop(event: DragEvent): void {
+  const actorId = event.dataTransfer?.getData(ACTOR_DRAG_TYPE);
+  if (!isActorDrag(event) || actorId === undefined || actorId === '') {
+    return;
+  }
+  event.preventDefault();
+  const box = surface.value?.getBoundingClientRect();
+  void placeActor(
+    actorId,
+    screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), {
+      x: event.clientX - (box?.left ?? 0),
+      y: event.clientY - (box?.top ?? 0),
+    }),
+  );
+}
+
 function onWheel(event: WheelEvent): void {
   const box = surface.value?.getBoundingClientRect();
   input.wheel({
@@ -493,6 +560,8 @@ onBeforeUnmount(() => {
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
       @wheel.prevent="onWheel"
+      @dragover="onDragOver"
+      @drop="onDrop"
       @keydown="onKeyDown"
     >
       <MapCanvas @ready="onReady" />

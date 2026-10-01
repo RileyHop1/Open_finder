@@ -7,6 +7,7 @@ import { defineComponent, reactive } from 'vue';
 
 import MapView from './MapView.vue';
 import * as mapImage from './mapImage.js';
+import { ACTOR_DRAG_TYPE } from './placement.js';
 import * as sceneViewModule from './sceneView.js';
 
 const NOW = '2026-10-01T00:00:00.000Z';
@@ -15,10 +16,13 @@ const moveToken = vi.fn<(id: string, x: number, y: number) => Promise<boolean>>(
 const setLocalDrag = vi.fn<(id: string, x: number, y: number) => void>();
 const clearLocalDrag = vi.fn<(id: string) => void>();
 const sendDrag = vi.fn<(id: string, x: number, y: number) => void>();
+const placeToken =
+  vi.fn<(actorId: string, at?: { x: number; y: number }) => Promise<boolean>>();
 const state = reactive<{
   shownScene: Scene | undefined;
   shownTokens: Token[];
   error: string | undefined;
+  placeToken: typeof placeToken;
   moveToken: typeof moveToken;
   setLocalDrag: typeof setLocalDrag;
   clearLocalDrag: typeof clearLocalDrag;
@@ -27,6 +31,7 @@ const state = reactive<{
   shownScene: undefined,
   shownTokens: [],
   error: undefined,
+  placeToken,
   moveToken,
   setLocalDrag,
   clearLocalDrag,
@@ -108,6 +113,7 @@ beforeEach(() => {
   state.shownTokens = [];
   state.error = undefined;
   moveToken.mockResolvedValue(true);
+  placeToken.mockResolvedValue(true);
   lobby.mySeat = undefined;
   docs.actors = [];
   vi.mocked(sceneViewModule.createSceneView).mockReturnValue(view);
@@ -917,5 +923,115 @@ describe('dragging tokens', () => {
     await drag(surface, 249, 149);
     wrapper.unmount();
     expect(clearLocalDrag).toHaveBeenCalledWith(token.id);
+  });
+});
+
+describe('placing tokens', () => {
+  const world = crypto.randomUUID();
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  const hero: Actor = {
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name: 'Valeros',
+    system: {},
+  };
+
+  /** Scene 2000 x 1000 fitted at 0.5, centre on screen (524, 274): screen (149, 149) is scene (250, 250). */
+  async function setup(who: Seat) {
+    lobby.mySeat = who;
+    docs.actors = [hero];
+    state.shownScene = makeScene();
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, surface: wrapper.get('.map-surface') };
+  }
+
+  /** A drag event as a browser makes it: jsdom has no `DragEvent`, so the data is attached by hand. */
+  function dragEvent(type: string, data: Record<string, string>, x = 0, y = 0) {
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperties(event, {
+      clientX: { value: x },
+      clientY: { value: y },
+      dataTransfer: {
+        value: {
+          types: Object.keys(data),
+          getData: (key: string) => data[key] ?? '',
+          dropEffect: 'none',
+        },
+      },
+    });
+    return event as Event & { dataTransfer: { dropEffect: string } };
+  }
+
+  const status = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('p[role="status"].visually-hidden').text();
+
+  it('places a character dropped on the map where it was dropped', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    const event = dragEvent('drop', { [ACTOR_DRAG_TYPE]: hero.id }, 149, 149);
+    surface.element.dispatchEvent(event);
+    await flushPromises();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(placeToken).toHaveBeenCalledWith(hero.id, { x: 250, y: 250 });
+    expect(status(wrapper)).toBe('Valeros placed on the map.');
+  });
+
+  it('accepts a roster drag over the map, as a copy', async () => {
+    const { surface } = await setup(seat(true));
+    const event = dragEvent('dragover', { [ACTOR_DRAG_TYPE]: hero.id });
+    surface.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(event.dataTransfer.dropEffect).toBe('copy');
+  });
+
+  it('ignores a drag of anything else, and a drop from a player', async () => {
+    const { surface } = await setup(seat(true));
+    const other = dragEvent('dragover', { 'text/plain': 'hello' });
+    surface.element.dispatchEvent(other);
+    expect(other.defaultPrevented).toBe(false);
+    surface.element.dispatchEvent(dragEvent('drop', { 'text/plain': 'hello' }));
+    expect(placeToken).not.toHaveBeenCalled();
+
+    lobby.mySeat = seat(false);
+    const refused = dragEvent('drop', { [ACTOR_DRAG_TYPE]: hero.id });
+    surface.element.dispatchEvent(refused);
+    expect(refused.defaultPrevented).toBe(false);
+    expect(placeToken).not.toHaveBeenCalled();
+  });
+
+  it('places in the middle of what a drawer leaves visible', async () => {
+    const { wrapper } = await setup(seat(true));
+    // 400 px of the left edge covered: the visible middle is screen x 724, which is scene x 1400.
+    await wrapper.vm.placeAtCentre(hero.id, { left: 400, right: 0 });
+    expect(placeToken).toHaveBeenCalledWith(hero.id, { x: 1400, y: 500 });
+    expect(status(wrapper)).toBe('Valeros placed on the map.');
+  });
+
+  it('says nothing was placed when the server refuses', async () => {
+    placeToken.mockResolvedValue(false);
+    const { wrapper } = await setup(seat(true));
+    await wrapper.vm.placeAtCentre(hero.id);
+    expect(status(wrapper)).toBe('');
+  });
+
+  it('does nothing for a character that is gone', async () => {
+    const { wrapper } = await setup(seat(true));
+    await wrapper.vm.placeAtCentre(crypto.randomUUID());
+    expect(placeToken).not.toHaveBeenCalled();
   });
 });

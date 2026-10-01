@@ -259,6 +259,25 @@ export const useScenesStore = defineStore('scenes', () => {
     return ack.ok;
   }
 
+  /**
+   * Puts a token for `actorId` on the scene this browser shows (the GM's preview
+   * counts: a scene being built is where its tokens go), at `at` in scene pixels
+   * or, with none, the scene's middle. The server sizes and snaps it and the
+   * token arrives as a broadcast; nothing is shown early. Returns whether it was
+   * accepted.
+   */
+  function placeToken(actorId: string, at?: { x: number; y: number }): Promise<boolean> {
+    const sceneId = shownSceneId.value;
+    if (sceneId === undefined) {
+      return Promise.resolve(false);
+    }
+    return send('token.create', {
+      sceneId,
+      actorId,
+      ...(at === undefined ? {} : { at }),
+    });
+  }
+
   /** Shows `tokenId` at `x`, `y` while this seat holds it. Nothing is sent: see `sendDrag`. */
   function setLocalDrag(tokenId: string, x: number, y: number): void {
     localDrags.value = { ...localDrags.value, [tokenId]: { x, y } };
@@ -289,6 +308,7 @@ export const useScenesStore = defineStore('scenes', () => {
     load,
     previewScene,
     moveToken,
+    placeToken,
     send,
     sendDrag,
     setLocalDrag,
