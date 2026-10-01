@@ -99,3 +99,27 @@ elements, confirmation that a compendium entry carries no `worldId` or
 `permissions`, rejection of missing or non-Remaster provenance, and the
 manifest's own boundary cases (a zero-entry pack is valid; a negative one
 isn't).
+
+## Reading packs at runtime (milestone 3)
+
+The server loads every pack under `systems/pf2e/.data/imported` (override with
+`HEARTHTABLE_COMPENDIUM_DIR`) into memory once at startup and serves it
+read-only. Rationale and alternatives are in
+[ADR 0015](adr/0015-compendium-read-side.md); the code is
+`apps/server/src/compendium.ts`.
+
+| Route | Returns |
+| --- | --- |
+| `GET /api/compendium` | `{ available, packs, entryCount, skipped }`. `available` is false until the importer has been run, which lets a UI say so instead of showing an empty list |
+| `GET /api/compendium/search?kind=&q=&limit=` | Summaries `{ packId, slug, name, kind, traits }`. `q` is a case-insensitive substring of the name, names starting with it first. `limit` is 1 to 200, default 50. A malformed query is a 400 |
+| `GET /api/compendium/:packId/:slug` | The full entry, or 404 |
+
+Missing data never stops the server: a missing directory is an empty
+compendium, and a pack with no manifest, an unparseable file, or an entry that
+fails its schema is skipped and counted in `skipped`. A `packId` or `slug` from
+a request is only ever a map key, never part of a filesystem path.
+
+Tested in `apps/server/src/compendium.test.ts` (loading, the degraded cases,
+lookup, search ranking, kind filter, limits) and `app.compendium.test.ts` (the
+routes, with and without content). Not yet run against a real import; see the
+open A.0 spike.

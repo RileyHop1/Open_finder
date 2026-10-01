@@ -19,6 +19,7 @@ import { join } from 'node:path';
 
 import { createActiveWorldManager } from './activeWorld.js';
 import { createApp } from './app.js';
+import { loadCompendium } from './compendium.js';
 import { assertNotAllInterfaces } from './hostGuard.js';
 import { attachRealtime } from './realtime.js';
 
@@ -32,14 +33,19 @@ const port =
     ? DEFAULT_PORT
     : Number(process.env.HEARTHTABLE_PORT);
 const staticDir = process.env.HEARTHTABLE_STATIC_DIR;
+const compendiumDir =
+  process.env.HEARTHTABLE_COMPENDIUM_DIR ??
+  join(process.cwd(), 'systems', 'pf2e', '.data', 'imported');
 
 assertNotAllInterfaces(host);
 
 const activeWorld = createActiveWorldManager();
+const compendium = loadCompendium(compendiumDir);
 
 const app = createApp({
   worldsRoot,
   activeWorld,
+  compendium,
   ...(staticDir === undefined ? {} : { staticDir }),
 });
 
@@ -49,6 +55,12 @@ app
   .listen({ host, port })
   .then(() => {
     app.log.info(`worlds root: ${worldsRoot}`);
+    const status = compendium.status();
+    app.log.info(
+      status.available
+        ? `compendium: ${String(status.entryCount)} entries in ${String(status.packs.length)} packs (${String(status.skipped)} skipped) from ${compendiumDir}`
+        : `compendium: nothing imported at ${compendiumDir}; run the importer to add rules content`,
+    );
   })
   .catch((error: unknown) => {
     app.log.error(error);
