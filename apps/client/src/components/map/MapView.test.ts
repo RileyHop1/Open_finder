@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { Actor, Scene, Token } from '@hearthtable/core';
+import type { Actor, Scene, Seat, Token } from '@hearthtable/core';
 import { sceneSchema, tokenSchema } from '@hearthtable/core';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,10 +11,15 @@ import * as sceneViewModule from './sceneView.js';
 
 const NOW = '2026-10-01T00:00:00.000Z';
 
-const state = reactive<{ shownScene: Scene | undefined; shownTokens: Token[] }>({
-  shownScene: undefined,
-  shownTokens: [],
-});
+const moveToken = vi.fn<(id: string, x: number, y: number) => Promise<boolean>>();
+const state = reactive<{
+  shownScene: Scene | undefined;
+  shownTokens: Token[];
+  error: string | undefined;
+  moveToken: typeof moveToken;
+}>({ shownScene: undefined, shownTokens: [], error: undefined, moveToken });
+const lobby = reactive<{ mySeat: Seat | undefined }>({ mySeat: undefined });
+vi.mock('../../stores/lobby.js', () => ({ useLobbyStore: () => lobby }));
 const docs = reactive<{ actors: Actor[] }>({ actors: [] });
 vi.mock('../../stores/scenes.js', () => ({ useScenesStore: () => state }));
 vi.mock('../../stores/documents.js', () => ({
@@ -61,6 +66,8 @@ const mounted: { unmount: () => void }[] = [];
 function mountView() {
   const wrapper = mount(MapView, {
     props: { worldId: 'world-1' },
+    // Attached to the page so focus can be asserted.
+    attachTo: document.body,
     global: { stubs: { MapCanvas: CanvasStub } },
   });
   mounted.push(wrapper);
@@ -85,6 +92,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   state.shownScene = undefined;
   state.shownTokens = [];
+  state.error = undefined;
+  moveToken.mockResolvedValue(true);
+  lobby.mySeat = undefined;
   docs.actors = [];
   vi.mocked(sceneViewModule.createSceneView).mockReturnValue(view);
   vi.mocked(sceneViewModule.maxTextureSize).mockReturnValue(8192);
@@ -144,7 +154,9 @@ describe('MapView', () => {
     await ready(wrapper);
 
     expect(view.update).toHaveBeenCalledWith(state.shownScene, undefined);
-    expect(wrapper.get('[role="status"]').text()).toContain('could not be loaded');
+    expect(wrapper.get('.map-note[role="status"]').text()).toContain(
+      'could not be loaded',
+    );
   });
 
   it('redraws when the picture or grid changes, but not for a change that is not drawn', async () => {
@@ -435,12 +447,16 @@ describe('tokens', () => {
 
     const list = wrapper.get('[aria-label="Tokens on the map"]');
     expect(list.findAll('li').map((li) => li.text())).toEqual([
-      'Valeros',
+      'Valeros Sheet',
       'Unknown (hidden)',
     ]);
-    // Only the token whose actor this seat can see is a button.
-    expect(list.findAll('button')).toHaveLength(1);
-    await list.get('button').trigger('click');
+    // Everyone can be selected; only the token whose actor this seat can see has a sheet button.
+    expect(list.findAll('button').map((b) => b.text())).toEqual([
+      'Valeros',
+      'Sheet',
+      'Unknown (hidden)',
+    ]);
+    await list.get('button.sheet').trigger('click');
     expect(wrapper.emitted('openActor')).toEqual([[hero.id]]);
   });
 
@@ -480,6 +496,202 @@ describe('tokens', () => {
 
     expect(lastViews()).toHaveLength(1);
     expect((view.setTokens.mock.lastCall?.[1] as Map<string, unknown>).size).toBe(0);
-    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    expect(wrapper.find('.map-note').exists()).toBe(false);
+  });
+});
+
+describe('selecting and moving tokens', () => {
+  const GM: Seat = {
+    id: crypto.randomUUID(),
+    worldId: 'w',
+    schemaVersion: 1,
+    name: 'GM',
+    isGM: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  const world = crypto.randomUUID();
+  const player: Seat = { ...GM, id: crypto.randomUUID(), worldId: world, isGM: false };
+
+  const makeActor = (name: string, owner?: Seat): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: {
+      default: 'observer',
+      seats: owner === undefined ? {} : { [owner.id]: 'owner' },
+    },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    system: {},
+  });
+
+  const makeToken = (sceneId: string, actorId: string, x = 250, y = 250): Token =>
+    tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: world,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId,
+      actorId,
+      x,
+      y,
+    });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  /** A scene 2000 x 1000 fitted at 0.5 with its centre at (524, 274) on screen, so scene (250, 250) is at screen (149, 149). */
+  async function setup(seat: Seat | undefined, owner?: Seat) {
+    lobby.mySeat = seat;
+    const hero = makeActor('Valeros', owner);
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    const token = makeToken(scene.id, hero.id);
+    state.shownTokens = [token];
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, hero, token, surface: wrapper.get('.map-surface') };
+  }
+
+  const press = (
+    surface: { trigger: (e: string, o: object) => Promise<unknown> },
+    key: string,
+  ) => surface.trigger('keydown', { key });
+
+  it('selects a token from the list, hands focus to the map, and says how to move it', async () => {
+    const { wrapper, token, surface } = await setup(GM);
+    const select = wrapper.get('.token-list button');
+    await select.trigger('click');
+
+    expect(select.attributes('aria-pressed')).toBe('true');
+    expect(document.activeElement).toBe(surface.element);
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'Valeros selected. The arrow keys move it.',
+    );
+    const looks = view.setTokens.mock.lastCall?.[0] as {
+      id: string;
+      selected: boolean;
+    }[];
+    expect(looks.find((v) => v.id === token.id)?.selected).toBe(true);
+  });
+
+  it('selects a token by clicking it, and not the empty ground', async () => {
+    const { wrapper, token, surface } = await setup(GM);
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 0,
+      clientX: 149,
+      clientY: 149,
+    });
+    await pointer(surface, 'pointerup', { pointerId: 1, clientX: 149, clientY: 149 });
+    expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('true');
+
+    // A click on a token does not start a pan.
+    view.setCamera.mockClear();
+    await pointer(surface, 'pointermove', { pointerId: 1, clientX: 300, clientY: 300 });
+    expect(view.setCamera).not.toHaveBeenCalled();
+    expect(token.id).toBeDefined();
+  });
+
+  it('lets the GM move the selected token one square with the arrows, at once', async () => {
+    const { wrapper, token, surface } = await setup(GM);
+    await wrapper.get('.token-list button').trigger('click');
+
+    await press(surface, 'ArrowRight');
+    expect(moveToken).toHaveBeenCalledWith(token.id, 350, 250);
+    await press(surface, 'ArrowDown');
+    expect(moveToken).toHaveBeenLastCalledWith(token.id, 250, 350);
+    await flushPromises();
+    expect(wrapper.get('[role="status"]').text()).toBe('Valeros moved 5 ft.');
+  });
+
+  it('keeps the arrows for panning when nothing is selected, and stops the page scrolling for a move', async () => {
+    const { wrapper, surface } = await setup(GM);
+    view.setCamera.mockClear();
+    await press(surface, 'ArrowRight');
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(view.setCamera).toHaveBeenCalled();
+
+    await wrapper.get('.token-list button').trigger('click');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', cancelable: true });
+    surface.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(moveToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a player move a token they own', async () => {
+    const { wrapper, token, surface } = await setup(player, player);
+    await wrapper.get('.token-list button').trigger('click');
+    await press(surface, 'ArrowLeft');
+    expect(moveToken).toHaveBeenCalledWith(token.id, 150, 250);
+  });
+
+  it('does not let a player move a token they do not own, and the arrows pan instead', async () => {
+    const { wrapper, surface } = await setup(player);
+    await wrapper.get('.token-list button').trigger('click');
+    expect(wrapper.get('[role="status"]').text()).toBe('Valeros selected.');
+
+    view.setCamera.mockClear();
+    await press(surface, 'ArrowLeft');
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(view.setCamera).toHaveBeenCalled();
+  });
+
+  it('says so, and sends nothing, at the edge of the map', async () => {
+    const hero = makeActor('Valeros');
+    docs.actors = [hero];
+    lobby.mySeat = GM;
+    const scene = makeScene();
+    state.shownScene = scene;
+    state.shownTokens = [makeToken(scene.id, hero.id, 50, 250)];
+    const wrapper = mountView();
+    await ready(wrapper);
+    await wrapper.get('.token-list button').trigger('click');
+
+    await press(wrapper.get('.map-surface'), 'ArrowLeft');
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'Valeros is at the edge of the map.',
+    );
+  });
+
+  it('lets go of the selection on Escape', async () => {
+    const { wrapper, surface } = await setup(GM);
+    await wrapper.get('.token-list button').trigger('click');
+    await press(surface, 'Escape');
+    expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('false');
+    await press(surface, 'ArrowRight');
+    expect(moveToken).not.toHaveBeenCalled();
+  });
+
+  it('drops the selection when its token goes away', async () => {
+    const { wrapper } = await setup(GM);
+    await wrapper.get('.token-list button').trigger('click');
+    state.shownTokens = [];
+    await flushPromises();
+    expect(wrapper.find('.token-list').exists()).toBe(false);
+  });
+
+  it('shows the server’s reason when a move is refused, and announces nothing', async () => {
+    moveToken.mockResolvedValue(false);
+    const { wrapper, surface } = await setup(GM);
+    await wrapper.get('.token-list button').trigger('click');
+    await press(surface, 'ArrowRight');
+    await flushPromises();
+    state.error = 'you do not have permission to move this token';
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('permission');
+    // Nothing is announced as moved, and the earlier message is not left standing.
+    expect(wrapper.get('.visually-hidden').text()).toBe('');
   });
 });
