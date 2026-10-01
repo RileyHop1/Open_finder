@@ -136,9 +136,10 @@ ruling from silently drifting.
 - **Why:** a wrong number the player trusts is worse than a visible gap
   (CLAUDE.md, Rulings and ambiguity).
 - **Golden test:** `systems/pf2e/src/rules/conditionModifiers.test.ts` pins each
-  covered condition and the "contributes nothing" set. Golden character cases
-  land in the next Stack A test PR (A.8); until then this entry is pinned by
-  unit tests only.
+  covered condition and the "contributes nothing" set, and
+  `systems/pf2e/src/golden/conditions.test.ts` pins them end to end on the
+  golden Fighter (frightened, clumsy, stupefied, enfeebled, drained, off-guard
+  and prone, unconscious) plus a set of conditions that must change no number.
 - **Override:** the GM adds a manual modifier for an uncovered condition, or
   disables one we applied (`Modifier.enabled`).
 
@@ -159,7 +160,9 @@ ruling from silently drifting.
   A prone creature that is also off-guard from a feint shows one applied line
   and one suppressed line rather than hiding the second source.
 - **Golden test:** `conditionModifiers.test.ts`, "counts off-guard once even when
-  a second condition implies it."
+  a second condition implies it," and `golden/conditions.test.ts`, "off-guard,
+  prone," which pins the total and which line is suppressed (a tie goes to the
+  earlier modifier in the list).
 - **Override:** disable either modifier, or remove the condition.
 
 ### Only equipped weapons, armor, and gear grant their rule elements
@@ -178,8 +181,9 @@ ruling from silently drifting.
   bonuses, with a single toggle players understand. Investiture is a v1 non-goal.
 - **Golden test:** `prepareCharacter.test.ts`, "applies a feat's rule elements
   always, but an unequipped item's only when equipped" and the armor-in-the-pack
-  case. Pinned by unit tests only until the golden set is routed through
-  `prepareCharacter` (A.7).
+  case. The golden fixtures exercise the equipped half end to end (every worn
+  armor and wielded weapon), but none holds an unequipped item, so that half is
+  pinned by unit tests only.
 - **Override:** the GM equips or unequips the item, or adds a manual modifier.
 
 ### Which attribute a strike uses, with only a weapon's `range` to go on
@@ -201,6 +205,7 @@ ruling from silently drifting.
   finesse, since the better modifier is always the player's pick.
 - **Golden test:** `prepareStrikes.test.ts` pins melee, finesse (both
   directions), ranged, thrown, and propulsive (positive and negative Strength).
-  Unit tests only until the golden set is routed through `prepareCharacter` (A.7).
+  The golden class fixtures cover melee, finesse (both attribute outcomes), and
+  ranged strikes end to end; thrown and propulsive are unit-tested only.
 - **Override:** add a manual attack modifier, or equip the weapon as another entry.
   A melee-and-thrown weapon used the other way is the known gap.
