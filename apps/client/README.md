@@ -133,6 +133,16 @@ client server in production.
   nothing imported yet the picker says so instead of showing an empty list.
   Item changes are not optimistic: they appear when the server's broadcast
   returns. **Built**, against fixtures: no real import has been run through it.
+- **Roll cards in chat** (`components/ChatRollCard.vue`) -- a sheet check, a
+  strike's attack, and its damage render as a card: who rolled what, the total
+  against the DC with the degree written out ("Success", "Critical failure"),
+  the natural d20, damage by type, and a "Breakdown" disclosure listing the dice
+  and every modifier. A modifier that did not count is struck through *and* says
+  why in words ("not applied: Bless is better"); a Multiple Attack Penalty shows
+  as its own line. The card reads the statistic stored in the message, so the
+  breakdown is exactly what was rolled. The hover version is milestone 6.
+  Nothing sends these rolls yet; the roll buttons are the next change.
+  **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet

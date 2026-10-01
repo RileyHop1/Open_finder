@@ -11,6 +11,7 @@
  */
 import { onMounted, ref } from 'vue';
 
+import ChatRollCard from './ChatRollCard.vue';
 import { useChatStore } from '../stores/chat.js';
 import { useLobbyStore } from '../stores/lobby.js';
 
@@ -63,6 +64,15 @@ async function handleSubmit(): Promise<void> {
           <span class="sender">{{ seatName(entry.seatId) }}:</span>
           <span>{{ entry.text }}</span>
         </template>
+        <ChatRollCard
+          v-else-if="
+            entry.kind === 'check' ||
+            entry.kind === 'strikeAttack' ||
+            entry.kind === 'strikeDamage'
+          "
+          :message="entry"
+          :sender="seatName(entry.seatId)"
+        />
         <template v-else>
           <span class="sender"
             >{{ seatName(entry.seatId) }} rolled {{ entry.roll.expression }}:</span
