@@ -256,6 +256,29 @@ export const actorRollCheckOperationSchema = clientOperationSchema.extend({
   }),
 });
 
+/**
+ * Roll a strike's attack for an equipped weapon. `attackNumber` is the 1st,
+ * 2nd, or 3rd attack this turn, which sets the Multiple Attack Penalty (the
+ * server does not track turns until the combat tracker, milestone 5, so the
+ * roller says which attack this is). `dc` adds a degree of success. Owner or
+ * GM only.
+ */
+export const actorRollStrikeOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.rollStrike'),
+  payload: z.object({
+    actorId: idSchema,
+    itemId: idSchema,
+    attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
+  }),
+});
+
+/** Roll a strike's damage, normal or critical, for an equipped weapon. Owner or GM only. */
+export const actorRollDamageOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.rollDamage'),
+  payload: z.object({ actorId: idSchema, itemId: idSchema, critical: z.boolean() }),
+});
+
 /** Add an actor to the party (created on first use). GM only. */
 export const partyAddMemberOperationSchema = clientOperationSchema.extend({
   type: z.literal('party.addMember'),
@@ -299,6 +322,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorAddConditionOperationSchema,
   actorSetConditionOperationSchema,
   actorRollCheckOperationSchema,
+  actorRollStrikeOperationSchema,
+  actorRollDamageOperationSchema,
   partyAddMemberOperationSchema,
   partyRemoveMemberOperationSchema,
   partyReorderOperationSchema,

@@ -27,6 +27,8 @@ export { worldSchema, type World } from './world.js';
 
 export {
   chatCheckMessageSchema,
+  chatStrikeAttackMessageSchema,
+  chatStrikeDamageMessageSchema,
   chatMessageSchema,
   chatRollMessageSchema,
   chatTextMessageSchema,
@@ -35,6 +37,8 @@ export {
   rollResultSchema,
   rollTermSchema,
   type ChatCheckMessage,
+  type ChatStrikeAttackMessage,
+  type ChatStrikeDamageMessage,
   type ChatMessage,
   type ChatRollMessage,
   type ChatTextMessage,
@@ -62,6 +66,8 @@ export {
   MAX_CONDITION_VALUE,
   MAX_ROLL_DC,
   actorRollCheckOperationSchema,
+  actorRollDamageOperationSchema,
+  actorRollStrikeOperationSchema,
   partyAddMemberOperationSchema,
   partyRemoveMemberOperationSchema,
   partyReorderOperationSchema,

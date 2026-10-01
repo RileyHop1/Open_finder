@@ -27,3 +27,38 @@ describe('actor.rollCheck', () => {
     }
   });
 });
+
+describe('actor.rollStrike and actor.rollDamage', () => {
+  const actorId = crypto.randomUUID();
+  const itemId = crypto.randomUUID();
+
+  it('accepts attack numbers 1 to 3, with or without a DC', () => {
+    for (const attackNumber of [1, 2, 3]) {
+      expect(op('actor.rollStrike', { actorId, itemId, attackNumber }).success).toBe(
+        true,
+      );
+    }
+    expect(
+      op('actor.rollStrike', { actorId, itemId, attackNumber: 1, dc: 18 }).success,
+    ).toBe(true);
+  });
+
+  it('rejects attack number 0, 4, or a fraction, and a missing item', () => {
+    for (const attackNumber of [0, 4, 1.5]) {
+      expect(op('actor.rollStrike', { actorId, itemId, attackNumber }).success).toBe(
+        false,
+      );
+    }
+    expect(op('actor.rollStrike', { actorId, attackNumber: 1 }).success).toBe(false);
+  });
+
+  it('requires critical to be stated on a damage roll', () => {
+    expect(op('actor.rollDamage', { actorId, itemId, critical: true }).success).toBe(
+      true,
+    );
+    expect(op('actor.rollDamage', { actorId, itemId, critical: false }).success).toBe(
+      true,
+    );
+    expect(op('actor.rollDamage', { actorId, itemId }).success).toBe(false);
+  });
+});

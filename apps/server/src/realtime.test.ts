@@ -756,6 +756,38 @@ describe('actor.create and actor.delete', () => {
     }
   });
 
+  it('routes strike rolls through the same owner check and weapon lookup', async () => {
+    const table = await seatedTable();
+    const { owner, other } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+    const itemId = crypto.randomUUID();
+
+    expect(
+      await emitOperation(
+        owner,
+        op('actor.rollStrike', { actorId, itemId, attackNumber: 1 }),
+      ),
+    ).toEqual({ ok: false, error: `no item found with id ${itemId}` });
+    expect(
+      await emitOperation(
+        owner,
+        op('actor.rollDamage', { actorId, itemId, critical: false }),
+      ),
+    ).toEqual({ ok: false, error: `no item found with id ${itemId}` });
+    expect(
+      (
+        await emitOperation(
+          other,
+          op('actor.rollStrike', { actorId, itemId, attackNumber: 1 }),
+        )
+      ).ok,
+    ).toBe(false);
+    expect(store.listDocuments('chatMessage')).toEqual([]);
+  });
+
   it('lets only the GM manage the party, and drops a deleted member from it', async () => {
     const table = await seatedTable();
     const { owner, gm } = table;

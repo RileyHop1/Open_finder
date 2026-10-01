@@ -6,7 +6,7 @@ shared envelope this extends (`id`, `worldId`, `type`, `schemaVersion`,
 roll" is the thin thread's proof of the whole pipeline: schema → SQLite →
 operation → sequence → broadcast.
 
-## Three variants under `kind`
+## Five variants under `kind`
 
 A plain text message and a dice roll are different enough shapes — a roll has
 no free text, a message has no `RollResult` — that one schema trying to cover
@@ -22,6 +22,7 @@ already fixes to the literal `'chatMessage'` (that's what makes it a
 | `text` | non-empty string | Only on `kind: 'text'` |
 | `roll` | `RollResult` | On `kind: 'roll'` and `kind: 'check'` — see below |
 | (check fields) | | Only on `kind: 'check'` — see "The `check` variant" |
+| (strike fields) | | Only on `strikeAttack` / `strikeDamage` — see "The strike variants" |
 
 ## The `roll` variant stores structure, never a string
 
@@ -93,6 +94,27 @@ numbers others roll against, and strikes get their own operations.
 **GM override.** A wrong result is fixed the way the table already can: roll
 again, or post the number you meant with `chat.sendRoll`. Adjusting a sheet check
 in place arrives with the roll buttons in the UI, not as a server operation.
+
+## The strike variants
+
+Strikes get two kinds, because an attack and a damage roll are rolled separately
+and carry different facts. Both share `actorId`, `actorName`, `itemId` (the
+carried weapon) and `weaponName` (a snapshot), plus a `breakdown` `Statistic`
+and the `roll`.
+
+| Kind | Extra fields | `breakdown` is | `roll` |
+| --- | --- | --- | --- |
+| `strikeAttack` | `attackNumber` 1, 2, or 3; `dc?` | The attack bonus, **including the Multiple Attack Penalty** as its own modifier line | `1d20+total`, `natural` always, `degree` with a DC |
+| `strikeDamage` | `critical` | The flat damage modifier added to the weapon's dice, each source named | The damage roll; `roll.damage` totals by damage type. A critical doubles it and applies `deadly`/`fatal` |
+
+`apps/server/src/strikeRolls.ts` builds both from the strike `prepareCharacter`
+made for the equipped weapon (`damageInputs` and the `attacks` statistics), so the
+bonus rolled is the bonus the sheet shows. The attack is rolled with `rollCheck`
+over that statistic rather than `rollStrikeAttack`, because the DC is optional
+here and `rollStrikeAttack` requires one; both produce the same expression.
+**The server does not count a turn's attacks** (the combat tracker is milestone 5),
+so the roller states which attack this is; a wrong number is a wrong penalty,
+visible in the breakdown and fixed by rolling again.
 
 ## Why `seatId` is required here but optional on `AppliedOperation`
 

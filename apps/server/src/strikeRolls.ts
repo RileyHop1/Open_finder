@@ -1,0 +1,142 @@
+/**
+ * Rolling a strike from a character sheet: the attack (with its Multiple
+ * Attack Penalty step) and the damage (normal or critical). As with checks
+ * (`checks.ts`), the server prepares the character itself and rolls the dice,
+ * so neither the bonus nor the dice come from the client; the chat message
+ * keeps the statistic that was rolled beside the roll.
+ *
+ * Both use the strike `prepareCharacter` built for the equipped weapon, so what
+ * the sheet shows and what gets rolled are the same numbers
+ * (`prepareStrikes.ts`). The weapon is named by its item id; one that is not
+ * carried, not a weapon, or not equipped has no prepared strike and is refused.
+ */
+
+import type {
+  Actor,
+  ChatStrikeAttackMessage,
+  ChatStrikeDamageMessage,
+  Seat,
+} from '@hearthtable/core';
+import { actorSchema } from '@hearthtable/core';
+import type { RandomSource } from '@hearthtable/dice';
+import {
+  characterDataSchema,
+  prepareCharacter,
+  rollCheck,
+  rollStrikeDamage,
+} from '@hearthtable/pf2e';
+import type { PreparedStrike } from '@hearthtable/pf2e';
+
+import { OperationRejected } from './rejection.js';
+import { loadOwnedDocument } from './writeGuard.js';
+import type { WorldStore } from './worldStore.js';
+
+/** The actor and prepared strike for `itemId`, or a rejection saying why there is none. */
+function strikeFor(
+  store: WorldStore,
+  seat: Seat,
+  actorId: string,
+  itemId: string,
+): { actor: Actor; strike: PreparedStrike } {
+  const { raw } = loadOwnedDocument(store, seat, actorId, 'actor', 'actor');
+  const actor = actorSchema.parse(raw);
+  if (actor.kind !== 'character') {
+    throw new OperationRejected(`a ${actor.kind} does not have a character sheet`);
+  }
+  const data = characterDataSchema.parse(actor.system);
+  if (!data.items.some((item) => item.id === itemId)) {
+    throw new OperationRejected(`no item found with id ${itemId}`);
+  }
+  const strike = prepareCharacter(data).strikes.find((s) => s.itemId === itemId);
+  if (strike === undefined) {
+    throw new OperationRejected('only an equipped weapon can make a strike');
+  }
+  return { actor, strike };
+}
+
+function messageBase(
+  store: WorldStore,
+  seat: Seat,
+  actor: Actor,
+  strike: PreparedStrike,
+) {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    worldId: store.world.id,
+    type: 'chatMessage' as const,
+    schemaVersion: 1,
+    permissions: { default: 'observer' as const, seats: {} },
+    createdAt: now,
+    updatedAt: now,
+    seatId: seat.id,
+    actorId: actor.id,
+    actorName: actor.name,
+    itemId: strike.itemId,
+    weaponName: strike.name,
+  };
+}
+
+/** Rolls the `attackNumber`th attack of a turn with the weapon `payload.itemId`, against `payload.dc` if given. */
+export function rollActorStrike(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  payload: {
+    actorId: string;
+    itemId: string;
+    attackNumber: 1 | 2 | 3;
+    dc?: number | undefined;
+  },
+): ChatStrikeAttackMessage {
+  const { actor, strike } = strikeFor(store, seat, payload.actorId, payload.itemId);
+  const breakdown = strike.attacks[payload.attackNumber - 1];
+  if (breakdown === undefined) {
+    throw new OperationRejected('attackNumber must be 1, 2, or 3');
+  }
+  const { roll } = rollCheck({
+    statistic: breakdown,
+    rng,
+    ...(payload.dc === undefined ? {} : { dc: payload.dc }),
+  });
+  const message: ChatStrikeAttackMessage = {
+    ...messageBase(store, seat, actor, strike),
+    kind: 'strikeAttack',
+    attackNumber: payload.attackNumber,
+    ...(payload.dc === undefined ? {} : { dc: payload.dc }),
+    breakdown,
+    roll,
+  };
+  store.putDocument(message);
+  return message;
+}
+
+/** Rolls the weapon `payload.itemId`'s damage: doubled and with `deadly`/`fatal` applied if `critical`. */
+export function rollActorDamage(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  payload: { actorId: string; itemId: string; critical: boolean },
+): ChatStrikeDamageMessage {
+  const { actor, strike } = strikeFor(store, seat, payload.actorId, payload.itemId);
+  const rolled = rollStrikeDamage({
+    ...strike.damageInputs,
+    critical: payload.critical,
+    rng,
+  });
+  if (!rolled.ok) {
+    // The expressions are generated from validated data, not typed by a user.
+    throw new Error(
+      `internal error: strike damage failed to roll: ${rolled.error.message}`,
+    );
+  }
+  const message: ChatStrikeDamageMessage = {
+    ...messageBase(store, seat, actor, strike),
+    kind: 'strikeDamage',
+    critical: payload.critical,
+    breakdown: strike.damageModifiers,
+    roll: rolled.result,
+  };
+  store.putDocument(message);
+  return message;
+}
