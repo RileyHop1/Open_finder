@@ -56,6 +56,24 @@ export { applyChanges, parsePath, PatchError } from './patch.js';
 
 export { partySchema, type Party } from './party.js';
 
+export {
+  GRID_TYPES,
+  MAX_SCENE_PIXELS,
+  SCENE_KINDS,
+  gridTypeSchema,
+  sceneGridSchema,
+  sceneKindSchema,
+  sceneLinkSchema,
+  sceneSchema,
+  type GridType,
+  type Scene,
+  type SceneGrid,
+  type SceneKind,
+  type SceneLink,
+} from './scene.js';
+
+export { MAX_TOKEN_SIZE, tokenSchema, type Token } from './token.js';
+
 export { seatSchema, type Seat } from './seat.js';
 
 export {

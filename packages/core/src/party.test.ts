@@ -23,6 +23,15 @@ describe('partySchema', () => {
     expect(parsed.level).toBe(1);
   });
 
+  it('has no scene until the GM places the party, then keeps the scene id', () => {
+    expect(partySchema.parse(partyFields()).sceneId).toBeUndefined();
+    const sceneId = crypto.randomUUID();
+    expect(partySchema.parse({ ...partyFields(), sceneId }).sceneId).toBe(sceneId);
+    expect(partySchema.safeParse({ ...partyFields(), sceneId: 'nope' }).success).toBe(
+      false,
+    );
+  });
+
   it('accepts an empty party and keeps member order', () => {
     expect(partySchema.safeParse({ ...partyFields(), memberIds: [] }).success).toBe(true);
     const fields = partyFields();

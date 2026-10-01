@@ -37,7 +37,9 @@ lands.
 | [chatMessage.md](chatMessage.md) | `ChatMessage` — plain messages, dice rolls, and the structured sheet rolls (checks, strike attacks and damage) |
 | [compendium.md](compendium.md) | `CompendiumEntry` and pack manifests — also not a document type; a read-only import source (milestone 2) |
 | [actor.md](actor.md) | `Actor` -- the system-agnostic envelope; the system payload is opaque to core (milestone 3) |
-| [party.md](party.md) | `Party` -- ordered members and the party level (milestone 3) |
+| [party.md](party.md) | `Party` -- ordered members, the party level, and the scene it is in (milestones 3-4) |
+| [scene.md](scene.md) | `Scene` -- a map, its grid, and exits to other scenes (milestone 4) |
+| [token.md](token.md) | `Token` -- one actor's marker on a scene (milestone 4) |
 | [assets.md](assets.md) | Content-addressed image uploads and how they are served (milestone 3) |
 
 ## PF2e content kinds (`systems/pf2e`)
