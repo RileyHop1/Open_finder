@@ -389,6 +389,30 @@ describe('editing a character', () => {
     expect(wrapper.find('.hp-read').text()).toBe('7 / 18');
   });
 
+  describe('managing the party', () => {
+    it('is offered to the GM and sends party.addMember for the chosen character', async () => {
+      mySeat = seat({ isGM: true });
+      vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+      const hero = makeActor('Anna');
+      const wrapper = await openHero(hero);
+
+      await wrapper.find('#party-add').setValue(hero.id);
+      await wrapper.find('form.add').trigger('submit');
+      await flushPromises();
+
+      expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+        type: 'party.addMember',
+        payload: { actorId: hero.id },
+      });
+    });
+
+    it('is not offered to a player', async () => {
+      mySeat = seat();
+      const wrapper = await openHero(makeActor('Anna'));
+      expect(wrapper.find('.party-manager').exists()).toBe(false);
+    });
+  });
+
   it('offers editing to the GM on a character they do not own', async () => {
     mySeat = seat({ isGM: true });
     const wrapper = await openHero({

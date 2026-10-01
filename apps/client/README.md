@@ -180,8 +180,13 @@ client server in production.
   folded into "+N more". The whole card is one button, so click, tap, Enter, and
   Space open that member's sheet, and it is at least 44px tall. Numbers come from
   `prepareCharacter`, so the bar and the sheet cannot disagree. An NPC member
-  shows by name alone. Adding, removing, and reordering members is the GM's
-  menu, in the next change. **Built.**
+  shows by name alone. **Managing the party** (`components/PartyManager.vue`) is the GM's "Manage
+  party" disclosure under the bar, shown to the GM only (the server refuses anyone
+  else too): Move up / Move down / Remove per member, and an "Add to party" picker
+  of the characters and NPCs not yet in it. Reordering is buttons, never drag
+  alone, and each change is announced in a status line so it is heard as well as
+  seen. It sends `party.addMember`, `party.removeMember`, and `party.reorder`, and
+  the bar changes when the broadcast returns. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet

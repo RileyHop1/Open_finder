@@ -22,6 +22,7 @@ import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
 import PartyBar from './PartyBar.vue';
+import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
 import ConditionsPanel from './sheet/ConditionsPanel.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
@@ -68,6 +69,11 @@ function sendCondition(type: string, payload: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
     void documents.send(type, { actorId: selectedId.value, ...payload });
   }
+}
+
+/** Party changes are the GM's and are server logic (the party is created on first use), so they are sent and shown when the broadcast returns. */
+function sendParty(type: string, payload: Record<string, unknown>): void {
+  void documents.send(type, payload);
 }
 
 function saveChanges(changes: Record<string, unknown>): void {
@@ -150,6 +156,14 @@ async function handleCreate(): Promise<void> {
         :selected-id="selectedId"
         :world-id="worldId"
         @select="(id) => (selectedId = id)"
+      />
+      <PartyManager
+        v-if="lobby.mySeat?.isGM"
+        :members="documents.members"
+        :actors="documents.actors"
+        @add="(actorId) => sendParty('party.addMember', { actorId })"
+        @remove="(actorId) => sendParty('party.removeMember', { actorId })"
+        @reorder="(memberIds) => sendParty('party.reorder', { memberIds })"
       />
     </nav>
 
