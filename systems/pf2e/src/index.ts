@@ -223,3 +223,10 @@ export {
 } from './rules/prepareCharacter.js';
 
 export { prepareStrikes, type PreparedStrike } from './rules/prepareStrikes.js';
+
+export {
+  addCondition,
+  removeCondition,
+  setCondition,
+  type ConditionDefinitions,
+} from './rules/conditionMerge.js';

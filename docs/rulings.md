@@ -209,3 +209,26 @@ ruling from silently drifting.
   ranged strikes end to end; thrown and propulsive are unit-tested only.
 - **Override:** add a manual attack modifier, or equip the weapon as another entry.
   A melee-and-thrown weapon used the other way is the known gap.
+
+### Detection states are cleared as a group on the character, not per observer
+- **Rules text:** the detection states (observed, hidden, undetected, unnoticed)
+  describe how one creature perceives another, so the same creature can be
+  hidden from one observer and observed by another. Player Core's conditions
+  appendix lists them.
+- **The ambiguity:** `docs/conditions.md` says detection is best modeled as one
+  enum per observer-target pair. A character's condition list has no observer.
+- **Our reading:** a character carries at most one condition from each `group`
+  the compendium defines, and adding one clears the others in that group. That
+  is a per-character simplification. Per-observer detection is not modeled
+  until the combat tracker (milestone 5) has the context to need it.
+- **Alternative reading:** model detection as a table of observer to state.
+- **Why:** it keeps a character's conditions a flat list, and avoids shipping
+  half of a per-observer system with no combat to drive it. Whether the
+  importer's `group` data actually groups these four is still to be read from a
+  real import.
+- **Golden test:** `conditionMerge.test.ts` pins group clearing with an invented
+  ladder (`observed`, `hidden`, `undetected`) and `overrides` clearing. No
+  golden character fixture uses it; the compendium's real group data is
+  unverified.
+- **Override:** the GM sets or removes any condition directly with
+  `setCondition` / `removeCondition`.

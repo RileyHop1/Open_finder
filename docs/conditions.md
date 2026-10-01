@@ -93,9 +93,26 @@ the attribute the roll adds), or `maxHp` (with the level).
 
 Everything else (slowed, stunned, quickened, dying, wounded, doomed, blinded,
 dazzled, concealed, the detection states) contributes no modifier and is not
-guessed at. See [rulings.md](rulings.md). Merging a second source of a
-condition, and clearing mutually exclusive ones, is a separate step that lands
-with the operations that apply conditions.
+guessed at. See [rulings.md](rulings.md).
+
+### Adding, setting, and removing
+
+`addCondition`, `setCondition`, and `removeCondition`
+(`systems/pf2e/src/rules/conditionMerge.ts`) are the pure logic behind the
+server's condition operations. A character holds one entry per slug.
+
+- `addCondition` is for automation and ordinary play. A second source of a
+  valued condition keeps the **higher** value, never the sum **(confirm)** the
+  wording against Player Core's conditions appendix. The value is clamped to at
+  least 1 and to the definition's `maxValue`. A binary condition already present
+  is left as it was.
+- `setCondition` is the GM override: it sets the value exactly (so it can go
+  down), and a value of 0 removes the condition.
+- Both clear what the new condition supersedes: the slugs in its definition's
+  `overrides`, and any other member of its `group`. **(confirm)** both fields
+  against the importer's output once a real import has been read.
+- Without a definition (the compendium may not be loaded), a condition counts as
+  valued only if it arrives with a value, has no maximum, and clears nothing.
 
 ## Valued conditions
 Carry a number that scales their effect: **clumsy, doomed, drained, dying,
