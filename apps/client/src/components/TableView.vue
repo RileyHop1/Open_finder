@@ -22,6 +22,7 @@ import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
+import ConditionsPanel from './sheet/ConditionsPanel.vue';
 import InventoryPanel from './sheet/InventoryPanel.vue';
 import StrikesPanel from './sheet/StrikesPanel.vue';
 
@@ -55,6 +56,13 @@ const dcPayload = computed(() =>
 
 /** Rolls are made by the server (it resolves the statistic and rolls the die); the result arrives in chat. */
 function roll(type: string, payload: Record<string, unknown>): void {
+  if (selectedId.value !== undefined) {
+    void documents.send(type, { actorId: selectedId.value, ...payload });
+  }
+}
+
+/** Condition changes are server logic (merging a second source, clearing what a condition supersedes), so they are sent and shown when the broadcast returns. */
+function sendCondition(type: string, payload: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
     void documents.send(type, { actorId: selectedId.value, ...payload });
   }
@@ -205,6 +213,20 @@ async function handleCreate(): Promise<void> {
                 roll('actor.rollStrike', { itemId, attackNumber, ...dcPayload })
             "
             @damage="(itemId, critical) => roll('actor.rollDamage', { itemId, critical })"
+          />
+          <ConditionsPanel
+            v-if="selected.kind === 'character'"
+            :actor="selected"
+            :editable="canEdit"
+            @add="
+              (slug, value) =>
+                sendCondition('actor.addCondition', {
+                  slug,
+                  ...(value === undefined ? {} : { value }),
+                })
+            "
+            @set="(slug, value) => sendCondition('actor.setCondition', { slug, value })"
+            @remove="(slug) => sendCondition('actor.removeCondition', { slug })"
           />
           <InventoryPanel
             v-if="selected.kind === 'character'"

@@ -154,6 +154,16 @@ client server in production.
   tracker (milestone 5). Every roll is made by the server; the card appears in
   chat. AC and the class DC have no roll button, since others roll against
   them. **No unarmed strike** yet (the empty state says so). **Built.**
+- **Conditions** (`components/sheet/ConditionsPanel.vue`) -- each condition named in
+  words with its value ("Frightened 2"), so nothing relies on colour or an icon
+  alone. An owner or the GM can add one (the ordinary way: a second source of a
+  valued condition keeps the higher value, never the sum), set a valued condition
+  to an exact value (the manual override; 0 removes it), or remove it. Names to
+  pick from are the imported condition definitions; with none imported yet it
+  falls back to typing a name, as the server accepts any well-formed one until
+  definitions exist (`docs/conditions.md`). Not optimistic: the merge and the
+  clearing of superseded conditions are server logic, so the change appears when
+  the broadcast returns, and the sheet's numbers move with it. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
