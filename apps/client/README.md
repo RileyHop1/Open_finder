@@ -97,12 +97,18 @@ client server in production.
   stale. No screen uses it yet. **Built.**
 - **The table** (`components/TableView.vue`) -- what a seated player sees,
   shown by the lobby while this device holds a seat (the seat list folds into a
-  "Seats" disclosure, still there for a GM adding seats). Three landmarks, each
-  with a skip link: the **party bar** (members in party order), the **character pane** (the
+  "Seats" disclosure, still there for a GM adding seats). **Map-first** since
+  milestone 4: four landmarks, each with a skip link. The **party bar** is on top;
+  the **map** fills the middle (an empty state until a scene is showing); the
+  **character pane** is a drawer that slides over the map's left edge (the
   characters this seat can see, a "new character" form that opens the character
-  when it arrives, and the sheet itself, below), and the **chat**. Chat
-  sits beside the sheet from 900px and stacks below that, so it works at an
-  iPad's 1024px; there is no phone layout (CLAUDE.md, Targets and budgets).
+  when it arrives, and the sheet itself); and the **chat** is on the right. The
+  drawer opens from the "Characters" button, a party card, or its skip link, and
+  Escape or "Close" shuts it and returns focus to what opened it. It overlays
+  the map rather than pushing it, so the map never reflows while someone reads
+  their sheet. Chat sits beside the map from 900px and stacks below that, so it
+  works at an iPad's 1024px; there is no phone layout (CLAUDE.md, Targets and
+  budgets).
   **Built.**
 - **The character sheet, read-only** (`components/sheet/CharacterSheet.vue`) --
   header (name, level, lineage, HP against the derived maximum, conditions),

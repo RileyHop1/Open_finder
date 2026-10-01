@@ -3,7 +3,7 @@ import type { Actor, Party, Seat } from '@hearthtable/core';
 import { newCharacterData } from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as assetsApi from '../api/assets.js';
 import * as compendiumApi from '../api/compendium.js';
@@ -83,9 +83,15 @@ beforeEach(() => {
   } as never);
 });
 
+// Tables are attached to the document so focus can be asserted; clear them between tests.
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
 async function mountTable() {
   const pinia = createPinia();
   const wrapper = mount(TableView, {
+    attachTo: document.body,
     props: { worldId: WORLD, seatName: 'Valeros' },
     global: { plugins: [pinia], stubs: { ChatLog: { template: '<p>chat</p>' } } },
   });
@@ -95,9 +101,10 @@ async function mountTable() {
 }
 
 describe('layout', () => {
-  it('has a party bar, a character pane, and a chat pane, each a named landmark', async () => {
+  it('has a party bar, a map, a character pane, and a chat pane, each a named landmark', async () => {
     const wrapper = await mountTable();
     expect(wrapper.find('nav[aria-label="Party"]').exists()).toBe(true);
+    expect(wrapper.find('section[aria-label="Map"]').exists()).toBe(true);
     expect(wrapper.find('section[aria-labelledby="sheet-heading"]').exists()).toBe(true);
     expect(wrapper.find('#chat-pane').text()).toContain('chat');
   });
@@ -105,7 +112,7 @@ describe('layout', () => {
   it('offers a skip link to each region, and each target exists and can take focus', async () => {
     const wrapper = await mountTable();
     const hrefs = wrapper.findAll('.skip-links a').map((a) => a.attributes('href'));
-    expect(hrefs).toEqual(['#party-bar', '#sheet-pane', '#chat-pane']);
+    expect(hrefs).toEqual(['#party-bar', '#map-pane', '#sheet-pane', '#chat-pane']);
     for (const href of hrefs) {
       const target = wrapper.find(href ?? '');
       expect(target.exists()).toBe(true);
@@ -123,6 +130,77 @@ describe('layout', () => {
     expect(wrapper.find('.playing-as').text()).toContain('Valeros');
     await wrapper.find('.playing-as button').trigger('click');
     expect(releaseSeat).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('map and character drawer', () => {
+  const drawerOf = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
+    wrapper.get('#sheet-pane').element as HTMLElement;
+  const isShown = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
+    drawerOf(wrapper).style.display !== 'none';
+
+  it('puts the map first, with a plain empty state until a scene is showing', async () => {
+    const wrapper = await mountTable();
+    expect(wrapper.get('[data-testid="map-pane"]').text()).toContain(
+      'No scene is showing yet',
+    );
+  });
+
+  it('starts with the drawer closed, and out of the tab order', async () => {
+    const wrapper = await mountTable();
+    expect(isShown(wrapper)).toBe(false);
+    const opener = wrapper.get('.map-tools button');
+    expect(opener.attributes('aria-expanded')).toBe('false');
+    expect(opener.attributes('aria-controls')).toBe('sheet-pane');
+  });
+
+  it('opens from the Characters button and closes from its Close button', async () => {
+    const wrapper = await mountTable();
+    await wrapper.get('.map-tools button').trigger('click');
+    expect(isShown(wrapper)).toBe(true);
+    expect(wrapper.get('.map-tools button').attributes('aria-expanded')).toBe('true');
+
+    await wrapper.get('.drawer-close').trigger('click');
+    expect(isShown(wrapper)).toBe(false);
+    expect(wrapper.get('.map-tools button').attributes('aria-expanded')).toBe('false');
+  });
+
+  it('opens on that character’s sheet when a party card is pressed', async () => {
+    const a = makeActor('Anna');
+    vi.mocked(documentsApi.listActors).mockResolvedValue([a]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue(makeParty([a.id]));
+    const wrapper = await mountTable();
+
+    await wrapper.get('.party-members button').trigger('click');
+    expect(isShown(wrapper)).toBe(true);
+    expect(wrapper.get('.sheet h3').text()).toBe('Anna');
+  });
+
+  it('closes on Escape and puts focus back on what opened it', async () => {
+    const wrapper = await mountTable();
+    const opener = wrapper.get('.map-tools button').element as HTMLButtonElement;
+    opener.focus();
+    await wrapper.get('.map-tools button').trigger('click');
+    expect(document.activeElement).toBe(drawerOf(wrapper));
+
+    await wrapper.get('#sheet-pane').trigger('keydown', { key: 'Escape' });
+    expect(isShown(wrapper)).toBe(false);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('opens from the skip link, and keeps what was open when it closes', async () => {
+    const a = makeActor('Anna');
+    vi.mocked(documentsApi.listActors).mockResolvedValue([a]);
+    const wrapper = await mountTable();
+
+    const skip = wrapper.findAll('.skip-links a').find((l) => l.text().includes('sheet'));
+    await skip?.trigger('click');
+    expect(isShown(wrapper)).toBe(true);
+
+    await wrapper.get('.roster button').trigger('click');
+    await wrapper.get('.drawer-close').trigger('click');
+    await wrapper.get('.map-tools button').trigger('click');
+    expect(wrapper.get('.sheet h3').text()).toBe('Anna');
   });
 });
 
