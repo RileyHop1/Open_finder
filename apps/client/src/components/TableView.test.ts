@@ -337,6 +337,32 @@ describe('editing a character', () => {
     });
   });
 
+  it('sends the condition operations with the chosen slug and value', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
+      {
+        packId: 'conditions',
+        slug: 'frightened',
+        name: 'Frightened',
+        kind: 'condition',
+        traits: [],
+      },
+    ]);
+    const hero = makeActor('Anna');
+    const wrapper = await openHero(hero);
+
+    await wrapper.find('#condition-pick').setValue('frightened');
+    await wrapper.find('#condition-value').setValue('2');
+    await wrapper.find('form.add-condition').trigger('submit');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.addCondition',
+      payload: { actorId: hero.id, slug: 'frightened', value: 2 },
+    });
+  });
+
   it('offers editing to the GM on a character they do not own', async () => {
     mySeat = seat({ isGM: true });
     const wrapper = await openHero({
