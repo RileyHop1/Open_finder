@@ -150,5 +150,6 @@ HP all sit under it.
 - **Strike rolls** use the prepared strike's `attackInputs` / `damageInputs`,
   the same arguments the server will pass.
 
-The other fifteen level 1 class fixtures still call the builders directly and
-move in a follow-up.
+All sixteen level 1 class fixtures go through it, and so do the three scaling
+files. Mutating `prepareCharacter` (for example, forcing Perception to
+untrained) fails the golden set across every class, which is the point.

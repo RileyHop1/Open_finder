@@ -1,14 +1,7 @@
-import type { ArmorEntry, Attribute, WeaponEntry } from '../index.js';
-import {
-  attributeModifier,
-  buildArmorClass,
-  buildClassDc,
-  buildPerception,
-  buildSave,
-  buildSkill,
-  buildStrikeAttack,
-} from '../index.js';
+import type { ArmorEntry, WeaponEntry } from '../index.js';
+import { prepareCharacter } from '../index.js';
 import { describeGolden } from './describeGolden.js';
+import { goldenCharacter, goldenStatistics } from './goldenCharacter.js';
 
 /**
  * A level 1 Swashbuckler, built by hand -- never a published stat block
@@ -25,15 +18,6 @@ import { describeGolden } from './describeGolden.js';
 const LEVEL = 1;
 
 const ABILITY_SCORES = { str: 10, dex: 18, con: 14, int: 10, wis: 12, cha: 14 } as const;
-
-const ATTRIBUTE_MODIFIERS: Record<Attribute, number> = {
-  str: attributeModifier(ABILITY_SCORES.str),
-  dex: attributeModifier(ABILITY_SCORES.dex),
-  con: attributeModifier(ABILITY_SCORES.con),
-  int: attributeModifier(ABILITY_SCORES.int),
-  wis: attributeModifier(ABILITY_SCORES.wis),
-  cha: attributeModifier(ABILITY_SCORES.cha),
-};
 
 const IMPORTED_AT = '2026-09-29T00:00:00.000Z';
 const PROVENANCE = {
@@ -81,65 +65,30 @@ const WEAPON: WeaponEntry = {
   hands: 1,
 };
 
+// A finesse rapier's attack uses Dexterity, which is also this build's key ability.
 function buildStatistics() {
-  return {
-    ac: buildArmorClass({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      armor: ARMOR,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    fortitude: buildSave({
-      save: 'fortitude',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    reflex: buildSave({
-      save: 'reflex',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    will: buildSave({
-      save: 'will',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    perception: buildPerception({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    classDc: buildClassDc({
-      keyAttribute: 'dex',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    'skill:acrobatics': buildSkill({
-      skill: 'acrobatics',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    'skill:arcana': buildSkill({
-      skill: 'arcana',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'untrained',
-      level: LEVEL,
-    }),
-    // A finesse rapier's attack uses Dexterity, which is also this build's key ability.
-    'strike:rapier': buildStrikeAttack({
-      weapon: WEAPON,
-      attackAttribute: 'dex',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-      attackNumber: 1,
-    }),
-  };
+  return goldenStatistics(
+    prepareCharacter(
+      goldenCharacter({
+        level: LEVEL,
+        scores: ABILITY_SCORES,
+        keyAttribute: 'dex',
+        ranks: {
+          perception: 'expert',
+          fortitude: 'trained',
+          reflex: 'expert',
+          will: 'expert',
+          classDc: 'trained',
+          armor: 'trained',
+          weapon: 'trained',
+        },
+        armor: ARMOR,
+        weapon: WEAPON,
+        skills: { acrobatics: 'trained' },
+      }),
+    ),
+    'rapier',
+  );
 }
 
 describeGolden(
