@@ -278,3 +278,36 @@ ruling from silently drifting.
   rule. Unit tests only; no golden character takes damage.
 - **Override:** the GM sets current and temporary hit points directly in the
   sheet's edit mode, bypassing all of this.
+
+### Which condition groups are mutually exclusive
+- **Rules text:** a creature has one detection state toward you (observed,
+  hidden, undetected, unnoticed) and one attitude (helpful, friendly,
+  indifferent, unfriendly, hostile). Other conditions stack freely: a character
+  can be clumsy and enfeebled, or blinded and deafened, at once.
+- **The ambiguity:** none in the rules. The question was what the upstream data
+  means. Every condition carries a `group` there, and the first real import
+  showed five of them: two exclusive (detection, attitudes) and three that are
+  only how a sheet lists conditions (abilities, senses, death).
+- **Our reading:** `group` on a condition definition means *mutually
+  exclusive*, and the importer keeps it only for `detection` and `attitudes`.
+  Adding a condition clears the rest of its group.
+- **Alternative reading:** import every upstream group as-is. Rejected: with
+  real data it made adding enfeebled silently delete clumsy, and adding deafened
+  delete blinded, on a number the player would trust. The merge and clearing
+  tests used an invented exclusive group, so they passed while the real data did
+  not.
+- **Why this is in code, not a table:** a new upstream group (a later book)
+  defaults to *not* exclusive, which loses nothing; making one exclusive is a
+  deliberate edit to `EXCLUSIVE_GROUPS` in `mapCondition.ts`.
+- **Also found, and left as is:** `overrides` is real data (blinded over
+  dazzled, stunned over slowed, and each attitude over the others). Upstream
+  treats an overridden condition as suspended while the overriding one is
+  present; we remove it, so it does not come back when the overriding one ends.
+  That is a simplification, not a verified reading; the GM can add it back by
+  hand. No condition in the import has a `maxValue`, so clamping a value to a
+  maximum never applies to imported data.
+- **Golden test:** `systems/pf2e/src/importer/mapCondition.test.ts`, "keeps a
+  group only when its members are mutually exclusive". The clearing behavior is
+  `conditionMerge.test.ts`.
+- **Override:** the GM sets or removes any condition directly
+  (`setCondition` / `removeCondition`).
