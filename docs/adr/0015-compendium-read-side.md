@@ -1,6 +1,6 @@
 # 0015. The compendium is loaded into memory at startup and served read-only
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-30
 - **Relates to:** ADR 0012 (the on-disk pack format; this is the consumer it
   deferred), ADR 0014 (actors carry embedded copies of entries), ADR 0009
@@ -39,7 +39,7 @@ each.
    ranked first.
 4. **No request parameter ever becomes a filesystem path.** Lookup is a map key.
 5. **The realtime layer receives the same index** when an operation needs to copy
-   an entry (`actor.addItem`, a later PR).
+   an entry (`actor.addItem`).
 
 ## Consequences
 - **Searches and lookups are memory reads.** No disk or SQLite on a keystroke.

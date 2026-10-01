@@ -13,7 +13,7 @@ system's own data lives in the opaque `system` payload. Rationale in
 | `kind` | `'character' \| 'npc' \| 'hazard'` | One document type for all three, per CLAUDE.md |
 | `name` | non-empty string | |
 | `portrait` | non-empty string, optional | A content-addressed asset (`<hash>.<ext>`). Absent means the client shows a placeholder; no default image is stored |
-| `system` | object | Opaque to core. `systems/pf2e` validates it (`characterDataSchema`, a later PR); the server re-validates after every mutation |
+| `system` | object | Opaque to core. `systems/pf2e` validates it (`characterDataSchema`); the server re-validates after every mutation |
 
 ## Permissions
 
@@ -62,7 +62,7 @@ a `system` that is missing, a string, or an array.
 
 `systems/pf2e`'s `characterDataSchema` (`content/character.ts`) is what a
 `character` actor stores in `system` (ADR 0014). It holds inputs only; every
-total is derived by `prepareCharacter` (a later PR) and never stored.
+total is derived by `prepareCharacter` and never stored.
 
 | Field | Notes |
 | --- | --- |
@@ -79,7 +79,7 @@ total is derived by `prepareCharacter` (a later PR) and never stored.
 
 A character cannot list two items with the same id, or one condition twice
 (two sources of a valued condition merge to the higher value before they get
-here; that logic is a later PR).
+here: `actor.addCondition`, `docs/conditions.md`).
 
 Tested in `systems/pf2e/src/content/character.test.ts`: defaults for a minimal
 character, explicit ranks including a Lore, embedded items and their defaults,

@@ -442,7 +442,7 @@ real session.
    elements
 3. **Character sheet:** attributes, proficiency, skills, strikes, conditions;
    `Party` document and the party bar (portraits, HP, conditions). Editable
-   enough to hand-build a character, because milestone 5 is not here yet
+   enough to hand-build a character, because milestone 7 (the wizard) is not here yet
 4. **Scenes:** map upload, grid, tokens, movement, scene `kind`
    (overworld / area / battle) and links between scenes
 5. **Combat tracker:** initiative, turns, three-action economy, MAP, condition
