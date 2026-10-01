@@ -198,3 +198,135 @@ describe('sheet budget (CLAUDE.md: opens in under 200ms)', () => {
     expect(elapsed).toBeLessThan(200);
   });
 });
+
+describe('CharacterSheet edit mode', () => {
+  async function editing(system: Record<string, unknown> = level3()) {
+    const wrapper = mount(CharacterSheet, {
+      props: { actor: makeActor(system), editable: true },
+    });
+    await wrapper.find('.edit-toggle').trigger('click');
+    return wrapper;
+  }
+
+  /** Types `value` into the input labelled `label` and commits it. */
+  async function enter(wrapper: ReturnType<typeof mount>, label: string, value: string) {
+    const labelEl = wrapper.findAll('label').find((l) => l.text() === label);
+    const input = wrapper.find(`#${CSS.escape(labelEl?.attributes('for') ?? 'missing')}`);
+    expect(input.exists(), `an input labelled "${label}"`).toBe(true);
+    await input.setValue(value);
+  }
+
+  it('offers no edit control unless the viewer may edit', () => {
+    const readOnly = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    expect(readOnly.find('.edit-toggle').exists()).toBe(false);
+    expect(readOnly.find('input, select').exists()).toBe(false);
+  });
+
+  it('toggles between reading and editing, naming the state in words', async () => {
+    const wrapper = mount(CharacterSheet, {
+      props: { actor: makeActor(level3()), editable: true },
+    });
+    const toggle = wrapper.find('.edit-toggle');
+    expect(toggle.text()).toBe('Edit character');
+    expect(toggle.attributes('aria-pressed')).toBe('false');
+
+    await toggle.trigger('click');
+    expect(toggle.text()).toBe('Done editing');
+    expect(toggle.attributes('aria-pressed')).toBe('true');
+    expect(wrapper.find('input').exists()).toBe(true);
+
+    await toggle.trigger('click');
+    expect(wrapper.find('input').exists()).toBe(false);
+  });
+
+  it('emits a dotted-path change for an attribute, level, and HP', async () => {
+    const wrapper = await editing();
+    await enter(wrapper, 'Strength', '5');
+    await enter(wrapper, 'Level', '4');
+    await enter(wrapper, 'Current Hit Points', '12');
+    expect(wrapper.emitted('change')).toEqual([
+      [{ 'system.attributes.str': 5 }],
+      [{ 'system.level': 4 }],
+      [{ 'system.hp.current': 12 }],
+    ]);
+  });
+
+  it('clamps a number to its bounds, and puts the old value back for non-numbers', async () => {
+    const wrapper = await editing();
+    await enter(wrapper, 'Level', '99');
+    expect(wrapper.emitted('change')).toEqual([[{ 'system.level': 20 }]]);
+
+    await enter(wrapper, 'Strength', '');
+    expect(wrapper.emitted('change')).toHaveLength(1);
+    const strength = wrapper.findAll('label').find((l) => l.text() === 'Strength');
+    const input = wrapper.find(`#${CSS.escape(strength?.attributes('for') ?? '')}`);
+    expect((input.element as HTMLInputElement).value).toBe('4');
+  });
+
+  it('does not emit when the value did not change', async () => {
+    const wrapper = await editing();
+    await enter(wrapper, 'Strength', '4');
+    expect(wrapper.emitted('change')).toBeUndefined();
+  });
+
+  it('emits a rank change from a select, labelled with what it ranks', async () => {
+    const wrapper = await editing();
+    const select = wrapper.find('select[aria-label="Reflex rank"]');
+    await select.setValue('expert');
+    expect(wrapper.emitted('change')).toEqual([[{ 'system.ranks.reflex': 'expert' }]]);
+
+    await wrapper.find('select[aria-label="Martial weapons rank"]').setValue('trained');
+    await wrapper.find('select[aria-label="Athletics rank"]').setValue('master');
+    await wrapper.find('select[aria-label="Heavy armor rank"]').setValue('expert');
+    expect(wrapper.emitted('change')?.slice(1)).toEqual([
+      [{ 'system.ranks.weapons.martial': 'trained' }],
+      [{ 'system.ranks.skills.athletics': 'master' }],
+      [{ 'system.ranks.armor.heavy': 'expert' }],
+    ]);
+  });
+
+  it('sets, changes, and removes ancestry/class names; a blank name removes the reference', async () => {
+    const wrapper = await editing();
+    await enter(wrapper, 'Class', 'Invented Warrior');
+    await enter(wrapper, 'Ancestry', '');
+    await enter(wrapper, 'Heritage', 'Invented Heritage');
+    expect(wrapper.emitted('change')).toEqual([
+      [{ 'system.class': { name: 'Invented Warrior' } }],
+      [{ 'system.ancestry': null }],
+      [{ 'system.heritage': { name: 'Invented Heritage' } }],
+    ]);
+  });
+
+  it('renames, but never to an empty name', async () => {
+    const wrapper = await editing();
+    await enter(wrapper, 'Name', 'Valeria the Bold');
+    await enter(wrapper, 'Name', '   ');
+    expect(wrapper.emitted('change')).toEqual([[{ name: 'Valeria the Bold' }]]);
+  });
+
+  it('adds a Lore skill as trained, with a clean slug', async () => {
+    const wrapper = await editing();
+    await wrapper.find('#new-lore').setValue('  Wine & Spirits! ');
+    await wrapper.find('form.add-lore').trigger('submit');
+    expect(wrapper.emitted('change')).toEqual([
+      [{ 'system.ranks.skills.wine-spirits-lore': 'trained' }],
+    ]);
+    expect((wrapper.find('#new-lore').element as HTMLInputElement).value).toBe('');
+
+    await wrapper.find('#new-lore').setValue('Academia Lore');
+    await wrapper.find('form.add-lore').trigger('submit');
+    expect(wrapper.emitted('change')?.[1]).toEqual([
+      { 'system.ranks.skills.academia-lore': 'trained' },
+    ]);
+
+    await wrapper.find('#new-lore').setValue('!!!');
+    await wrapper.find('form.add-lore').trigger('submit');
+    expect(wrapper.emitted('change')).toHaveLength(2);
+  });
+
+  it('lets the key attribute be chosen', async () => {
+    const wrapper = await editing();
+    await wrapper.find('.key-attribute select').setValue('dex');
+    expect(wrapper.emitted('change')).toEqual([[{ 'system.keyAttribute': 'dex' }]]);
+  });
+});

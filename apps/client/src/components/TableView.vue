@@ -15,6 +15,7 @@
  * device holds a seat; the lobby owns the realtime connection, this only reads
  * the stores it feeds.
  */
+import { resolvePermission } from '@hearthtable/core';
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { useDocumentsStore } from '../stores/documents.js';
@@ -31,6 +32,22 @@ const selectedId = ref<string>();
 const selected = computed(() =>
   selectedId.value === undefined ? undefined : documents.actorById(selectedId.value),
 );
+
+/** Only an owner (the GM always is) may edit; the server enforces it too. */
+const canEdit = computed(() => {
+  const seat = lobby.mySeat;
+  return (
+    seat !== undefined &&
+    selected.value !== undefined &&
+    resolvePermission(seat, selected.value) === 'owner'
+  );
+});
+
+function saveChanges(changes: Record<string, unknown>): void {
+  if (selectedId.value !== undefined) {
+    void documents.updateActor(selectedId.value, changes);
+  }
+}
 
 const newName = ref('');
 /** Set while a create is in flight, so the new character is opened when it arrives. */
@@ -144,7 +161,7 @@ async function handleCreate(): Promise<void> {
         </form>
 
         <section v-if="selected" class="sheet" aria-label="Character sheet">
-          <CharacterSheet :actor="selected" />
+          <CharacterSheet :actor="selected" :editable="canEdit" @change="saveChanges" />
         </section>
       </section>
 
