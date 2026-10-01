@@ -23,6 +23,7 @@ import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
 import ConditionsPanel from './sheet/ConditionsPanel.vue';
+import HitPointsPanel from './sheet/HitPointsPanel.vue';
 import InventoryPanel from './sheet/InventoryPanel.vue';
 import StrikesPanel from './sheet/StrikesPanel.vue';
 
@@ -197,6 +198,12 @@ async function handleCreate(): Promise<void> {
             <label for="roll-dc">DC to roll against (optional)</label>
             <input id="roll-dc" v-model.number="dc" type="number" min="0" max="99" />
           </p>
+          <HitPointsPanel
+            v-if="selected.kind === 'character'"
+            :actor="selected"
+            :editable="canEdit"
+            @change="saveChanges"
+          />
           <CharacterSheet
             :actor="selected"
             :editable="canEdit"

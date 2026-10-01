@@ -164,6 +164,15 @@ client server in production.
   definitions exist (`docs/conditions.md`). Not optimistic: the merge and the
   clearing of superseded conditions are server logic, so the change appears when
   the broadcast returns, and the sheet's numbers move with it. **Built.**
+- **Hit points** (`components/sheet/HitPointsPanel.vue`) -- current over derived
+  maximum, temporary points, and "at 0 hit points" in words. An owner or the GM
+  types an amount and presses Damage, Heal, or Temp HP; the arithmetic is
+  `applyDamage` / `applyHealing` / `grantTemporaryHitPoints` in `systems/pf2e`
+  (temporary points soak damage first, healing stops at the maximum, temporary
+  points keep the larger amount rather than adding). The result goes out as one
+  optimistic `actor.update` of only the fields that changed. Setting a value
+  directly is the GM override, in the sheet's edit mode. Going unconscious or
+  dying at 0 is the combat tracker's (milestone 5). **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet

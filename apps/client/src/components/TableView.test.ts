@@ -363,6 +363,32 @@ describe('editing a character', () => {
     });
   });
 
+  it('applies damage as one optimistic actor.update of the hit point fields', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockReturnValue(new Promise(() => undefined));
+    const base = makeActor('Anna');
+    const hero = {
+      ...base,
+      system: {
+        ...(base.system as object),
+        ancestryHp: 8,
+        classHp: 10,
+        hp: { current: 12, temp: 0 },
+      },
+    };
+    const wrapper = await openHero(hero);
+
+    await wrapper.find('#hp-amount').setValue('5');
+    await wrapper.find('.hp-controls').trigger('submit');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.update',
+      payload: { actorId: hero.id, changes: { 'system.hp.current': 7 } },
+    });
+    expect(wrapper.find('.hp-read').text()).toBe('7 / 18');
+  });
+
   it('offers editing to the GM on a character they do not own', async () => {
     mySeat = seat({ isGM: true });
     const wrapper = await openHero({
