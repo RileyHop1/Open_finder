@@ -18,10 +18,21 @@ system's own data lives in the opaque `system` payload. Rationale in
 ## Permissions
 
 Stored on the envelope, resolved by `resolvePermission` ([operations.md](operations.md)).
-Planned defaults (enforced by later server PRs, not by this schema): a player
-character is `observer` for everyone with the creator seat as `owner`; the GM
-always resolves to `owner`. `none` keeps an actor (a hidden NPC) from being
-sent to a seat at all.
+Enforced by the server (`apps/server/src/actors.ts`, `writeGuard.ts`):
+
+- **Any seat may create** an actor with `actor.create` and becomes its `owner`.
+  Everyone else is `observer`, so the party can see each other's sheets. The GM
+  can change either later.
+- **Changing or deleting needs `owner`**, and the GM always resolves to `owner`.
+  A document a seat cannot read is reported as not found, not as forbidden.
+- **`none` keeps an actor** (a hidden NPC) from being sent to a seat at all
+  ([operations.md](operations.md), "Who receives what").
+- A new `character` starts blank: level 1, every attribute modifier 0, every
+  rank untrained, 0 HP (`newCharacterData`). Blank on purpose, since any starting
+  number would be an arbitrary choice. NPCs and hazards start with an empty
+  `system` until their schemas exist.
+- Deleting an actor does not yet remove it from a party; `party.*` operations (a
+  later PR) do that.
 
 ## Example
 

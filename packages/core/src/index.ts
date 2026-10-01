@@ -51,6 +51,8 @@ export { partySchema, type Party } from './party.js';
 export { seatSchema, type Seat } from './seat.js';
 
 export {
+  actorCreateOperationSchema,
+  actorDeleteOperationSchema,
   appliedOperationSchema,
   broadcastSchema,
   chatSendMessageOperationSchema,

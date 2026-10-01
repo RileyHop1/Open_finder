@@ -208,6 +208,7 @@ export {
   characterItemEntrySchema,
   characterItemSchema,
   characterRanksSchema,
+  newCharacterData,
   contentRefSchema,
   itemSourceSchema,
   type AppliedCondition,

@@ -9,6 +9,7 @@
 
 import { z } from 'zod';
 
+import { actorKindSchema } from './actor.js';
 import { baseDocumentSchema } from './document.js';
 import { idSchema, timestampSchema } from './record.js';
 import { seatSchema } from './seat.js';
@@ -101,6 +102,26 @@ export const chatSendRollOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Create an actor. The creating seat becomes its `owner` and everyone else at
+ * the table can see it (`observer`); the GM can change either afterwards. The
+ * payload carries only a kind and a name: the server builds the system data
+ * itself (blank, ready to hand-build) and never trusts one from a client.
+ */
+export const actorCreateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.create'),
+  payload: z.object({
+    kind: actorKindSchema,
+    name: z.string().trim().min(1).max(100),
+  }),
+});
+
+/** Delete an actor. Only its owners (and the GM, who always owns) may. */
+export const actorDeleteOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.delete'),
+  payload: z.object({ actorId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -112,6 +133,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   seatReleaseOperationSchema,
   chatSendMessageOperationSchema,
   chatSendRollOperationSchema,
+  actorCreateOperationSchema,
+  actorDeleteOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
@@ -145,6 +168,13 @@ export const broadcastSchema = z.object({
   sequence: z.number().int().positive(),
   operation: appliedOperationSchema,
   documents: z.array(baseDocumentSchema.loose()),
+  /**
+   * Documents this operation deleted, as bare envelopes (not loose: the
+   * type-specific body is stripped on purpose, so a deletion never re-sends
+   * what was removed). Carries the permissions so each viewer is told only
+   * about deletions of documents they could read.
+   */
+  deleted: z.array(baseDocumentSchema).default([]),
   seats: z.array(seatSchema),
 });
 

@@ -4,8 +4,8 @@ The client-to-server vocabulary and the server's broadcast envelope, from
 `@hearthtable/core`'s `operation.ts`. Architectural background is ADR 0005;
 this page documents the concrete shapes that actually exist right now.
 
-**The vocabulary grows per slice.** Only the four operations milestone 1's
-lobby and chat need are defined. A later milestone adds more when it needs
+**The vocabulary grows per slice.** Milestone 1 defined the four lobby and chat
+operations; milestone 3 adds `actor.*` as the character sheet needs them. A later milestone adds more when it needs
 them — this page grows with the code, not ahead of it.
 
 ## Two envelopes, not one
@@ -25,7 +25,7 @@ value. ADR 0005's server-authoritative model means identity comes from the
 connection, never from the payload; a client that could self-report its own
 `seatId` could claim to be someone it isn't.
 
-## The four operations
+## The operations
 
 | Type | Payload | Notes |
 | --- | --- | --- |
@@ -33,6 +33,8 @@ connection, never from the payload; a client that could self-report its own
 | `seat.release` | `{}` | No target — releasing is self-referential, the server already knows which seat this connection holds |
 | `chat.sendMessage` | `{ text }` | Plain chat |
 | `chat.sendRoll` | `{ expression }` | The **raw text** the player typed (`"1d20+7"`), never a computed result — see below |
+| `actor.create` | `{ kind, name }` | `kind` is `character`, `npc`, or `hazard`. The server builds the system data (a blank level 1 sheet for a character); a `system` in the payload is dropped, not honored. The sender becomes `owner`, everyone else `observer`. Needs a claimed seat |
+| `actor.delete` | `{ actorId }` | Owner or GM only. A document the sender cannot read is reported as *not found*, never as forbidden, so a rejection does not confirm a hidden actor exists |
 
 ### The `pin` on `seat.claim`
 
@@ -57,10 +59,16 @@ per CLAUDE.md's ChatMessage rule.
 { sequence, operation, documents, seats }
 ```
 
-`documents` and `seats` are what changed — never a diff format. This is the
+`documents`, `deleted`, and `seats` are what changed — never a diff format. This is the
 simplest shape that satisfies ADR 0005; a diff format is exactly the kind of
 complexity CLAUDE.md's Development order section says not to build ahead of a
 real need.
+
+`deleted` lists documents the operation removed, as **bare envelopes** — id,
+type, permissions, timestamps, and nothing of the body (it is not parsed loose,
+so the type-specific fields are stripped), so a deletion never re-sends what was
+removed. It carries the permissions so each viewer is told only about deletions
+of documents they could read. It defaults to `[]`.
 
 `seats` is its own array, separate from `documents`, because a `Seat` isn't
 one — it doesn't extend `baseDocumentSchema` (see
@@ -120,7 +128,7 @@ without its details, which needs a per-type redaction step that does not exist
 yet, and sending it whole would leak everything.
 
 - **Live broadcasts.** Each connected socket receives its own filtered copy.
-  Documents it cannot read are dropped, and if any were dropped the operation's
+  Documents (and deletions) it cannot read are dropped, and if any were dropped the operation's
   `payload` is replaced by `{}` too (a payload such as an `actor.update` can
   describe the document the viewer must not see), unless the viewer is the GM.
   The `sequence` and the operation's `id` and `type` are always kept, so a
