@@ -105,6 +105,34 @@ mechanism every operation handler will use to decide what a seat may do.
   pair — every caller resolves within one connection's single active world —
   but the function does not trust that it won't happen.
 
+## Who receives what (milestone 3)
+
+Everything the server sends is filtered by who is asking
+(`apps/server/src/visibility.ts`). This is **spoiler protection for the normal
+UI, not access control**: ADR 0007 trusts the table, and `Seat.pin` and
+`claimedByDeviceToken` are still not redacted.
+
+`canReadDocument(seat, document)` (`packages/core`) is the rule. A document is
+sent only to a viewer who resolves to `observer` or `owner`. A viewer with no
+seat yet (the lobby) resolves to the document's `default`. `limited` is
+**withheld entirely** for now: it is meant to show that a document exists
+without its details, which needs a per-type redaction step that does not exist
+yet, and sending it whole would leak everything.
+
+- **Live broadcasts.** Each connected socket receives its own filtered copy.
+  Documents it cannot read are dropped, and if any were dropped the operation's
+  `payload` is replaced by `{}` too (a payload such as an `actor.update` can
+  describe the document the viewer must not see), unless the viewer is the GM.
+  The `sequence` and the operation's `id` and `type` are always kept, so a
+  client never sees a gap in the sequence.
+- **Sync replay.** The log does not record which documents an operation
+  touched, so the rule is by type: `seat.*` and `chat.*` keep their payload,
+  anything else has its payload withheld from everyone but the GM.
+- **`GET /api/worlds/:id/documents`.** The caller is identified by an
+  `x-device-token` header, the same token the socket handshake carries. A
+  request with no header, or a token no seat holds, is judged as a viewer with
+  no seat. Clients must send the header on every documents request.
+
 ## Testing
 
 See `packages/core/src/operation.test.ts` and `permission.test.ts`. Notably:
@@ -117,3 +145,5 @@ proving `.loose()` actually behaves as documented above and not just in
 theory; and a malformed seat in `broadcastSchema.seats` is rejected, proving
 that array is fully validated rather than accidentally inheriting `documents`'
 loose treatment.
+
+Also covered: `apps/server/src/visibility.test.ts` (live broadcast, sync replay, and stored-row filtering for a GM, a player, and a viewer with no seat), the documents route in `app.test.ts` (a hidden document, a per-seat grant, the GM), and a sync test in `realtime.test.ts`. There is no real-socket test of a hidden document yet, because no operation creates one until `actor.create` (B.2); the per-socket emit is covered by `broadcastFor`'s unit tests and the existing multi-client socket tests.

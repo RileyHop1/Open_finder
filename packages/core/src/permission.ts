@@ -30,3 +30,32 @@ export function resolvePermission(seat: Seat, document: BaseDocument): Permissio
   }
   return document.permissions.seats[seat.id] ?? document.permissions.default;
 }
+
+/**
+ * The level a viewer who may not have claimed a seat resolves to. A
+ * connection that has not claimed a seat yet (the lobby) is not the GM and has
+ * no per-seat override, so it gets exactly the document's `default`.
+ */
+export function resolveViewerPermission(
+  seat: Seat | undefined,
+  document: BaseDocument,
+): PermissionLevel {
+  return seat === undefined
+    ? document.permissions.default
+    : resolvePermission(seat, document);
+}
+
+/**
+ * Whether `seat` may be *sent* `document` at all: `observer` or `owner`.
+ *
+ * `limited` (and `none`) are not sent. `limited` is meant to show a document's
+ * existence without its details, which needs a per-type redaction step that
+ * does not exist yet; withholding the whole document is the safe choice until
+ * it does, because sending it would leak everything. This is spoiler
+ * protection for the normal UI, not access control against a determined
+ * player (ADR 0007: the table is trusted).
+ */
+export function canReadDocument(seat: Seat | undefined, document: BaseDocument): boolean {
+  const level = resolveViewerPermission(seat, document);
+  return level === 'observer' || level === 'owner';
+}
