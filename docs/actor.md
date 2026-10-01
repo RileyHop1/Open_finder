@@ -29,8 +29,9 @@ Enforced by the server (`apps/server/src/actors.ts`, `writeGuard.ts`):
   ([operations.md](operations.md), "Who receives what").
 - A new `character` starts blank: level 1, every attribute modifier 0, every
   rank untrained, 0 HP (`newCharacterData`). Blank on purpose, since any starting
-  number would be an arbitrary choice. NPCs and hazards start with an empty
-  `system` until their schemas exist.
+  number would be an arbitrary choice. A hand-made `npc` or `hazard` starts with
+  an empty `system`; an NPC made from a compendium creature has a real payload
+  ([`npcDataSchema`](#the-pf2e-payload-for-an-npc-npcdataschema)).
 - Deleting an actor also takes it out of the party ([party.md](party.md)), and the
   same broadcast carries the changed party.
 
@@ -160,3 +161,31 @@ re-validates the sheet, and stores it.
 `system.conditions` is likewise changed only by `actor.addCondition`,
 `actor.setCondition`, and `actor.removeCondition`, never by `actor.update`; see
 [conditions.md](conditions.md).
+
+## The PF2e payload for an NPC: `npcDataSchema`
+
+An NPC made from a Monster Core creature (`newNpcFromCreature`,
+`systems/pf2e/src/content/npc.ts`, [ADR 0017](adr/0017-scenes-and-tokens.md)). A
+character stores the inputs its numbers are built from; a creature's numbers are
+already finished, so an NPC stores **a copy of the creature** and only what
+changes in play.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `creature` | a `creature` entry | An **embedded copy**, as ADR 0014 does for items: a reviewed re-import can never silently change a monster mid-campaign, and the world does not depend on the git-ignored compendium folder. `creature.hp` is the maximum |
+| `source` | `{ packId, slug }`, optional | Where the copy came from. Absent for a hand-made creature |
+| `hp` | `{ current, temp }` | `current` starts at the creature's `hp`; `temp` at 0. Not bounded by the schema, like a character's: the damage and healing rules clamp it |
+| `conditions` | `{ slug, value? }[]` | Same shape and one-per-slug rule as a character's |
+
+The GM can edit the copy (a tougher goblin is `system.creature.hp`), which is the
+override path. Players are not meant to receive an NPC's sheet: the server will
+create these `none` for players (milestone 4, the server PR that adds
+`actor.createFromCreature`). The server builds the payload from its own
+compendium, never from client content, and an unknown field a client adds is
+dropped on parse.
+
+Max HP, AC, saves, and strikes are read straight off `creature`, and with
+conditions applied by `prepareNpc` (the next PR); nothing derived is stored.
+
+Tests: `systems/pf2e/src/content/npc.test.ts` (full HP on creation, the embedded
+copy is independent, conditions unique, bad HP rejected, unknown fields dropped).

@@ -129,6 +129,8 @@ export {
   type CreatureStrikeDamage,
 } from './content/creature.js';
 
+export { newNpcFromCreature, npcDataSchema, type NpcData } from './content/npc.js';
+
 export { conditionEntrySchema, type ConditionEntry } from './content/condition.js';
 
 export {
