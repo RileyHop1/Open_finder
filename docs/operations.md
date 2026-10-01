@@ -42,6 +42,8 @@ connection, never from the payload; a client that could self-report its own
 | `actor.setCondition` | `{ actorId, slug, value? }` | The manual override: sets the value exactly, so it can go down, and `value: 0` removes the condition. Same clamping and clearing |
 | `actor.removeCondition` | `{ actorId, slug }` | Removing one the character does not have is not an error |
 | `actor.rollCheck` | `{ actorId, statistic, dc? }` | Rolls Perception, a save (`fortitude`, `reflex`, `will`), or `skill:<slug>` for a character and posts a `check` chat message ([chatMessage.md](chatMessage.md)). `dc` 0 to 99 adds a degree of success. Owner or GM only; anything else (`ac`, `classDc`, an unknown skill) is refused |
+| `actor.rollStrike` | `{ actorId, itemId, attackNumber, dc? }` | Rolls the 1st, 2nd, or 3rd attack of a turn (sets the Multiple Attack Penalty) with an **equipped weapon**, and posts a `strikeAttack` chat message. Owner or GM only. An unequipped or non-weapon item is refused |
+| `actor.rollDamage` | `{ actorId, itemId, critical }` | Rolls that weapon's damage, doubled with `deadly`/`fatal` applied when `critical`, and posts a `strikeDamage` message. The roller decides whether it was a critical; nothing links it to an attack roll yet |
 | `party.addMember` | `{ actorId }` | **GM only.** Appends to the party, creating it on first use. A character or NPC; a hazard is refused. Adding a current member changes nothing |
 | `party.removeMember` | `{ actorId }` | **GM only.** Not being a member is not an error |
 | `party.reorder` | `{ memberIds }` | **GM only.** Must list exactly the current members, each once; anything else is rejected so a stale client cannot add or drop someone by reordering |

@@ -59,6 +59,7 @@ import {
 } from './conditions.js';
 import { emptyCompendium } from './compendium.js';
 import { addItem, removeItem, updateItem } from './items.js';
+import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
 import { addPartyMember, removePartyMember, reorderParty } from './party.js';
 import { OperationRejected } from './rejection.js';
 import { broadcastFor, operationsFor } from './visibility.js';
@@ -361,6 +362,16 @@ function dispatch(
     case 'actor.rollCheck': {
       const seat = requireSeat(store, socket);
       const message = rollActorCheck(store, seat, cryptoRandomSource, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [message] };
+    }
+    case 'actor.rollStrike': {
+      const seat = requireSeat(store, socket);
+      const message = rollActorStrike(store, seat, cryptoRandomSource, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [message] };
+    }
+    case 'actor.rollDamage': {
+      const seat = requireSeat(store, socket);
+      const message = rollActorDamage(store, seat, cryptoRandomSource, operation.payload);
       return { seatId: seat.id, seats: [], documents: [message] };
     }
     case 'party.addMember': {

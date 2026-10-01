@@ -238,3 +238,39 @@ describe('chatCheckMessageSchema', () => {
     expect(chatMessageSchema.safeParse({ ...base, label: '' }).success).toBe(false);
   });
 });
+
+describe('strike chat messages', () => {
+  const base = {
+    id: crypto.randomUUID(),
+    worldId: crypto.randomUUID(),
+    type: 'chatMessage' as const,
+    schemaVersion: 1,
+    permissions: { default: 'observer' as const, seats: {} },
+    createdAt: '2026-09-30T00:00:00.000Z',
+    updatedAt: '2026-09-30T00:00:00.000Z',
+    seatId: crypto.randomUUID(),
+    actorId: crypto.randomUUID(),
+    actorName: 'Hero',
+    itemId: crypto.randomUUID(),
+    weaponName: 'Invented Sword',
+    breakdown: { total: 7, modifiers: [] },
+    roll: evaluateExpression('1d20+7'),
+  };
+
+  it('round-trips an attack and a damage message through the union', () => {
+    const attack = { ...base, kind: 'strikeAttack' as const, attackNumber: 2 as const };
+    const damage = { ...base, kind: 'strikeDamage' as const, critical: true };
+    expect(chatMessageSchema.parse(attack)).toEqual(attack);
+    expect(chatMessageSchema.parse(damage)).toEqual(damage);
+  });
+
+  it('rejects an attack number outside 1 to 3 and a damage message with no critical flag', () => {
+    expect(
+      chatMessageSchema.safeParse({ ...base, kind: 'strikeAttack', attackNumber: 4 })
+        .success,
+    ).toBe(false);
+    expect(chatMessageSchema.safeParse({ ...base, kind: 'strikeDamage' }).success).toBe(
+      false,
+    );
+  });
+});

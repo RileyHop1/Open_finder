@@ -150,11 +150,50 @@ export const chatCheckMessageSchema = chatMessageBaseSchema.extend({
 
 export type ChatCheckMessage = z.infer<typeof chatCheckMessageSchema>;
 
+const chatStrikeBaseSchema = chatMessageBaseSchema.extend({
+  actorId: idSchema,
+  actorName: z.string().min(1),
+  /** The carried weapon's item id on the character, and its name as a snapshot. */
+  itemId: idSchema,
+  weaponName: z.string().min(1),
+});
+
+/**
+ * A strike's attack roll. `breakdown` is the attack bonus used, already
+ * including the Multiple Attack Penalty for `attackNumber`, so the penalty
+ * shows up as a modifier line like any other.
+ */
+export const chatStrikeAttackMessageSchema = chatStrikeBaseSchema.extend({
+  kind: z.literal('strikeAttack'),
+  attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  dc: z.number().int().optional(),
+  breakdown: statisticSchema,
+  roll: rollResultSchema,
+});
+
+export type ChatStrikeAttackMessage = z.infer<typeof chatStrikeAttackMessageSchema>;
+
+/**
+ * A strike's damage roll. `roll.damage` holds the total per damage type;
+ * `breakdown` is the flat damage modifier added to the weapon's dice, with
+ * each source named.
+ */
+export const chatStrikeDamageMessageSchema = chatStrikeBaseSchema.extend({
+  kind: z.literal('strikeDamage'),
+  critical: z.boolean(),
+  breakdown: statisticSchema,
+  roll: rollResultSchema,
+});
+
+export type ChatStrikeDamageMessage = z.infer<typeof chatStrikeDamageMessageSchema>;
+
 /** Every shape a `ChatMessage` document can take. */
 export const chatMessageSchema = z.discriminatedUnion('kind', [
   chatTextMessageSchema,
   chatRollMessageSchema,
   chatCheckMessageSchema,
+  chatStrikeAttackMessageSchema,
+  chatStrikeDamageMessageSchema,
 ]);
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
