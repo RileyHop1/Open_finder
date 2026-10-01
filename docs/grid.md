@@ -17,6 +17,27 @@ Gridless scenes (freeform measurement, no snapping) are the natural third
 implementation and are useful for area maps where exact positioning does not
 matter. Cheap once the interface exists.
 
+### The interface, and where each piece lives
+`GridStrategy` and `GridlessGrid` are in `@hearthtable/core` (`packages/core/src/grid/`);
+`SquareGrid`, whose diagonal rule is a game rule, is in `systems/pf2e` (milestone 4,
+A.4). Positions are scene pixels and distances are feet; a scene's `grid.size`
+pixels is `grid.distance` feet ([scene.md](scene.md)). A strategy answers four
+questions:
+
+| Method | Answers |
+| --- | --- |
+| `snap(center, size)` | The nearest legal centre for a token `size` squares across. An odd side centres on a cell, an even one on a grid intersection. Idempotent |
+| `cellsUnder(footprint)` | The cells a token covers. Empty for a gridless scene |
+| `pathDistance(path)` | Feet along a route of centre points. Path-dependent, per *Diagonals* below |
+| `distanceBetween(a, b)` | Feet between two footprints, to each one's nearest occupied square |
+
+**Gridless distance** is the straight line scaled by pixels per foot, with no
+diagonal rule (there is no grid to count diagonals on). Between two footprints it
+is the gap between the rectangles spanned by the **centres of the squares each
+would occupy**, so two one-square tokens are measured centre to centre, and a
+Large token is measured from the square nearest the other, which is what the
+square grid does. Tokens that share or overlap a square are 0 feet apart.
+
 ## Diagonals
 PF2e does not use Euclidean distance. **The first diagonal costs 5 feet, the
 second costs 10, alternating thereafter** — the 1-2-1 pattern **(confirm against
