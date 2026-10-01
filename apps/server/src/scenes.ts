@@ -6,21 +6,25 @@
  * they are tested without a socket and `realtime.ts` only dispatches.
  *
  * A new scene is hidden from players (`none`). Making one readable is moving the
- * party there, which is a later operation, so nothing here can leak a scene the
- * GM is still building.
+ * party there (`activateScene`), so nothing else here can leak a scene the GM is
+ * still building.
  */
 
-import type { BaseDocument, Party, Scene, Seat } from '@hearthtable/core';
+import type { BaseDocument, Party, Scene, Seat, Token } from '@hearthtable/core';
 import {
+  actorSchema,
   baseDocumentSchema,
   sceneSchema,
+  tokenSchema,
   type sceneChangesSchema,
 } from '@hearthtable/core';
 import type { z } from 'zod';
 
 import { ASSET_NAME_PATTERN } from './assets.js';
-import { clearPartyScene } from './party.js';
+import type { CompendiumIndex } from './compendium.js';
+import { clearPartyScene, setPartyScene } from './party.js';
 import { OperationRejected } from './rejection.js';
+import { gridFor, placeToken, tokenPermissions, tokenSizeForActor } from './tokens.js';
 import type { WorldStore } from './worldStore.js';
 
 type SceneChanges = z.infer<typeof sceneChangesSchema>;
@@ -222,4 +226,135 @@ export function removeSceneLink(
   };
   store.putDocument(updated);
   return updated;
+}
+
+/** `scene` with its visibility to players set, stored only if that changed. Returns it if it did. */
+function setSceneVisible(
+  store: WorldStore,
+  scene: Scene,
+  visible: boolean,
+): Scene | undefined {
+  const wanted = visible ? 'observer' : 'none';
+  if (scene.permissions.default === wanted) {
+    return undefined;
+  }
+  const updated: Scene = {
+    ...scene,
+    permissions: { ...scene.permissions, default: wanted },
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+  return updated;
+}
+
+/**
+ * Where `count` new party tokens go: a row centred on `center`, one grid cell
+ * apart, snapped to the scene's grid and kept on the scene.
+ */
+function rowPositions(
+  scene: Scene,
+  center: { x: number; y: number },
+  count: number,
+  size: number,
+): { x: number; y: number }[] {
+  const grid = gridFor(scene);
+  return Array.from({ length: count }, (_, index) => {
+    const snapped = grid.snap(
+      { x: center.x + (index - (count - 1) / 2) * scene.grid.size, y: center.y },
+      size,
+    );
+    return {
+      x: Math.min(Math.max(snapped.x, 0), scene.width),
+      y: Math.min(Math.max(snapped.y, 0), scene.height),
+    };
+  });
+}
+
+/**
+ * Moves the party to a scene (ADR 0017, decision 4), in one transaction:
+ *
+ * - the party's `sceneId` is set (the party is created if there is none yet);
+ * - the new scene becomes readable to players, and the scene the party left is
+ *   hidden again;
+ * - every token on either scene has its visibility re-derived (`tokens.ts`): the
+ *   new scene's visible tokens are revealed, the old scene's are hidden;
+ * - every party member without a token on the new scene gets one, in a row at
+ *   `at` (an exit's position) or the scene's centre.
+ *
+ * Players who held the old scene and its tokens are told to drop them by the
+ * deletion rule in `broadcastFor`. Re-activating the party's current scene is
+ * allowed and just places any member who is missing.
+ */
+export function activateScene(
+  store: WorldStore,
+  compendium: CompendiumIndex,
+  seat: Seat,
+  payload: { sceneId: string; at?: { x: number; y: number } | undefined },
+): BaseDocument[] {
+  requireGM(seat);
+  const scene = loadScene(store, payload.sceneId);
+  const at = payload.at ?? { x: scene.width / 2, y: scene.height / 2 };
+  if (at.x > scene.width || at.y > scene.height) {
+    throw new OperationRejected(
+      `the arrival point must be on the scene (0 to ${scene.width} across, 0 to ${scene.height} down)`,
+    );
+  }
+
+  const { party, previousSceneId } = setPartyScene(store, scene.id);
+  const changed: BaseDocument[] = [party];
+
+  const revealed = setSceneVisible(store, scene, true);
+  if (revealed !== undefined) {
+    changed.push(revealed);
+  }
+  if (previousSceneId !== undefined && previousSceneId !== scene.id) {
+    const previous = sceneSchema.safeParse(store.getDocument(previousSceneId));
+    const hidden = previous.success
+      ? setSceneVisible(store, previous.data, false)
+      : undefined;
+    if (hidden !== undefined) {
+      changed.push(hidden);
+    }
+  }
+
+  // Re-derive every affected token's visibility, and note who is already here.
+  const onNewScene = new Set<string>();
+  for (const raw of store.listDocuments('token')) {
+    const token = tokenSchema.safeParse(raw);
+    if (!token.success) {
+      continue;
+    }
+    if (token.data.sceneId === scene.id) {
+      onNewScene.add(token.data.actorId);
+    } else if (token.data.sceneId !== previousSceneId) {
+      continue;
+    }
+    const wanted = tokenPermissions(
+      token.data.sceneId === scene.id && !token.data.hidden,
+    );
+    if (token.data.permissions.default !== wanted.default) {
+      const updated: Token = {
+        ...token.data,
+        permissions: wanted,
+        updatedAt: new Date().toISOString(),
+      };
+      store.putDocument(updated);
+      changed.push(updated);
+    }
+  }
+
+  // Place each party member who has no token here yet.
+  const arriving = party.memberIds.flatMap((memberId) => {
+    const actor = actorSchema.safeParse(store.getDocument(memberId));
+    return actor.success && !onNewScene.has(memberId) ? [actor.data] : [];
+  });
+  arriving.forEach((actor, index) => {
+    const size = tokenSizeForActor(actor, compendium);
+    const position = rowPositions(scene, at, arriving.length, size)[index];
+    if (position !== undefined) {
+      changed.push(placeToken(store, { scene, actor, size, ...position }));
+    }
+  });
+
+  return changed;
 }

@@ -370,6 +370,26 @@ export const sceneRemoveLinkOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Move the party to a scene: every player's view follows, the scene and its
+ * visible tokens are revealed, and the scene the party left is hidden again.
+ * GM only. `at` is where newly placed party tokens go (an exit's position, so
+ * the party arrives at the door it used); absent means the scene's centre. The
+ * server checks that it lies on the scene.
+ */
+export const sceneActivateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('scene.activate'),
+  payload: z.object({
+    sceneId: idSchema,
+    at: z
+      .object({
+        x: z.number().min(0).max(MAX_SCENE_PIXELS),
+        y: z.number().min(0).max(MAX_SCENE_PIXELS),
+      })
+      .optional(),
+  }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -401,6 +421,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   sceneDeleteOperationSchema,
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,
+  sceneActivateOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

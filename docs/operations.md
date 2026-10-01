@@ -50,6 +50,7 @@ connection, never from the payload; a client that could self-report its own
 | `scene.create` | `{ name, kind }` | **GM only.** `kind` is `overworld`, `area`, or `battle`. The server builds the rest: a blank 2000px scene with the default 100px / 5 ft square grid and no map. It is created **hidden from players** (`none`) and stays so until the party is moved there ([scene.md](scene.md)) |
 | `scene.update` | `{ sceneId, changes }` | **GM only.** `changes` is any of `name`, `kind`, `width`, `height`, `background`, and a partial `grid`; at least one, no other keys. The grid merges field by field, so changing the cell size keeps the offset. `background` is an uploaded image name (`<64 hex>.<png|jpg|webp|gif>`) or `null` to clear it; the file's existence is not checked. Links have their own operations |
 | `scene.delete` | `{ sceneId }` | **GM only.** Also deletes the scene's tokens, clears the party's scene if it was there, and removes other scenes' exits into it. All ride in the same broadcast |
+| `scene.activate` | `{ sceneId, at? }` | **GM only.** Moves the party to a scene, in one transaction: sets the party's `sceneId` (creating the party if there is none), makes the scene readable to players and the scene the party left unreadable again, re-derives the visibility of every token on both, and gives each party member who has no token on the new scene one, in a row at `at` (an exit's position, on the scene) or the scene's centre. Token size comes from the creature (NPC) or the ancestry (character), else one square. Players who held the old scene and its tokens are told to drop them. Allowed on the party's current scene, where it just places anyone missing |
 | `scene.addLink` | `{ sceneId, label, x, y, targetSceneId }` | **GM only.** Adds an exit: a labelled point (scene pixels) that leads to another scene. The server issues the link's id. The target must be a scene that exists and is not this one, and the point must lie on this scene (0 to its `width`, 0 to its `height`). Two exits to the same place are allowed |
 | `scene.removeLink` | `{ sceneId, linkId }` | **GM only.** Removing an exit that is already gone is not an error and changes nothing |
 | `actor.delete` | `{ actorId }` | Owner or GM only. A document the sender cannot read is reported as *not found*, never as forbidden, so a rejection does not confirm a hidden actor exists. If the actor was in the party it is removed from it, and the changed party rides in the same broadcast |
@@ -186,9 +187,10 @@ yet, and sending it whole would leak everything.
   recording each document's stored state ahead of its first write in the
   operation (`previousDocuments.ts`), at the store boundary, so a handler cannot
   forget to say that it changed who may see something ([ADR
-  0017](adr/0017-scenes-and-tokens.md), decision 3). No operation changes a
-  document's permissions yet, so this is exercised by unit tests until
-  `scene.activate` and `token.update` (milestone 4) land.
+  0017](adr/0017-scenes-and-tokens.md), decision 3). `scene.activate` is the
+  first operation to use it: moving the party takes the old scene and its
+  tokens away from players who held them. A socket test in `realtime.test.ts`
+  pins that, and fails if the recording is unplugged.
 - **Sync replay.** The log does not record which documents an operation
   touched, so the rule is by type: `seat.*` and `chat.*` keep their payload,
   anything else has its payload withheld from everyone but the GM.

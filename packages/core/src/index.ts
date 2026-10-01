@@ -98,6 +98,7 @@ export {
   partyReorderOperationSchema,
   sceneCreateOperationSchema,
   sceneDeleteOperationSchema,
+  sceneActivateOperationSchema,
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,
   sceneUpdateOperationSchema,

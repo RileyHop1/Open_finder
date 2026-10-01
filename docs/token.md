@@ -27,8 +27,17 @@ grid strategy turns it into the squares covered.
 The server derives them, and a client never sets them. A token is readable by
 players only when its scene is the party's current scene and `hidden` is false;
 the GM always reads everything. Anything that changes either fact recomputes the
-affected tokens in the same transaction. The operations land in the milestone's
-server PRs, and this page grows with them.
+affected tokens in the same transaction (`tokenPermissions` in
+`apps/server/src/tokens.ts` is the one place that decides it).
+
+**Who makes tokens.** So far only `scene.activate` ([operations.md](operations.md)),
+which places a token for each party member who has none on the scene the party is
+moving to: a row of tokens at the arrival point or the scene's centre, one cell
+apart and snapped to the scene's grid. Its `size` comes from the actor: a
+creature's size for an NPC, the ancestry's size for a character whose ancestry is
+a compendium entry, one square otherwise. The GM can change it by hand (a
+Gargantuan creature can be larger than 4x4). Placing, hiding, and moving tokens
+directly are the next server PRs.
 
 ## Example
 ```ts

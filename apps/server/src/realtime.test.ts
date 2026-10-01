@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { BaseDocument, Broadcast, ChatRollMessage, Seat } from '@hearthtable/core';
-import { chatCheckMessageSchema, sceneSchema } from '@hearthtable/core';
+import { chatCheckMessageSchema, sceneSchema, tokenSchema } from '@hearthtable/core';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -1138,6 +1138,132 @@ describe('scene.addLink and scene.removeLink', () => {
     expect(await emitOperation(gm, op('scene.addLink', link(5000)))).toMatchObject({
       ok: false,
     });
+    expect(store.listOperationsSince(0)).toHaveLength(before);
+  });
+});
+
+describe('scene.activate', () => {
+  function nextBroadcast(socket: ClientSocket): Promise<Broadcast> {
+    return new Promise((resolve) => {
+      socket.once('broadcast', resolve);
+    });
+  }
+
+  const op = (type: string, payload: unknown) => ({
+    id: crypto.randomUUID(),
+    type,
+    payload,
+  });
+
+  /** Sends `operation` from `from` and returns what the GM and the player each heard. */
+  async function send(
+    from: ClientSocket,
+    both: { gm: ClientSocket; player: ClientSocket },
+    operation: ReturnType<typeof op>,
+  ) {
+    const heard = [both.gm, both.player].map(nextBroadcast);
+    expect(await emitOperation(from, operation)).toEqual({ ok: true });
+    const [forGm, forPlayer] = await Promise.all(heard);
+    if (forGm === undefined || forPlayer === undefined) {
+      throw new Error('expected both broadcasts');
+    }
+    return { forGm, forPlayer };
+  }
+
+  it('moves the party between scenes, taking the old scene and its tokens away from a player who held them', async () => {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    store.putSeat(makeSeat({ name: 'Player', claimedByDeviceToken: 'player' }));
+    const table = { gm: await connect('gm'), player: await connect('player') };
+
+    // The player makes a character, the GM puts it in the party and makes two scenes.
+    const created = await send(
+      table.player,
+      table,
+      op('actor.create', { kind: 'character', name: 'Hero' }),
+    );
+    const hero = created.forGm.documents[0];
+    if (hero === undefined) {
+      throw new Error('expected a created actor');
+    }
+    await send(table.gm, table, op('party.addMember', { actorId: hero.id }));
+    const sceneIds: string[] = [];
+    for (const name of ['Crypt', 'Garden']) {
+      const made = await send(
+        table.gm,
+        table,
+        op('scene.create', { name, kind: 'area' }),
+      );
+      sceneIds.push(made.forGm.documents[0]?.id ?? '');
+    }
+    const [crypt, garden] = sceneIds as [string, string];
+
+    // A hidden monster the GM has placed in the garden, before anyone arrives.
+    const now = new Date().toISOString();
+    const lurker = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: store.world.id,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'none', seats: {} },
+      createdAt: now,
+      updatedAt: now,
+      sceneId: garden,
+      actorId: crypto.randomUUID(),
+      x: 300,
+      y: 300,
+      size: 2,
+      hidden: true,
+    });
+    store.putDocument(lurker);
+
+    // Into the crypt: the player is given the scene, the party, and their own token.
+    const enter = await send(table.gm, table, op('scene.activate', { sceneId: crypt }));
+    const heardTypes = enter.forPlayer.documents.map((d) => d.type).sort();
+    expect(heardTypes).toEqual(['party', 'scene', 'token']);
+    const cryptToken = enter.forPlayer.documents.find((d) => d.type === 'token');
+    expect(cryptToken).toMatchObject({ sceneId: crypt, actorId: hero.id });
+    expect(enter.forPlayer.documents.find((d) => d.type === 'scene')?.id).toBe(crypt);
+    expect(enter.forPlayer.deleted).toEqual([]);
+
+    // On to the garden: the crypt and its token are taken away, the garden and a new token arrive,
+    // and the hidden monster is never mentioned to the player.
+    const leave = await send(table.gm, table, op('scene.activate', { sceneId: garden }));
+    expect(leave.forPlayer.deleted.map((d) => d.id).sort()).toEqual(
+      [crypt, cryptToken?.id ?? ''].sort(),
+    );
+    expect(leave.forPlayer.deleted.every((d) => !('sceneId' in d))).toBe(true);
+    const arrived = leave.forPlayer.documents;
+    expect(arrived.map((d) => d.type).sort()).toEqual(['party', 'scene', 'token']);
+    expect(arrived.find((d) => d.type === 'scene')?.id).toBe(garden);
+    expect(arrived.find((d) => d.type === 'token')).toMatchObject({
+      sceneId: garden,
+      actorId: hero.id,
+    });
+    const everythingThePlayerHeard = JSON.stringify(leave.forPlayer);
+    expect(everythingThePlayerHeard).not.toContain(lurker.id);
+
+    // The GM was never told to drop anything.
+    expect(leave.forGm.deleted).toEqual([]);
+    expect(store.getDocument(lurker.id)).toMatchObject({ hidden: true });
+  });
+
+  it('refuses a player, logging nothing', async () => {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    store.putSeat(makeSeat({ name: 'Player', claimedByDeviceToken: 'player' }));
+    const table = { gm: await connect('gm'), player: await connect('player') };
+    const made = await send(
+      table.gm,
+      table,
+      op('scene.create', { name: 'Crypt', kind: 'area' }),
+    );
+    const before = store.listOperationsSince(0).length;
+
+    expect(
+      await emitOperation(
+        table.player,
+        op('scene.activate', { sceneId: made.forGm.documents[0]?.id }),
+      ),
+    ).toEqual({ ok: false, error: 'only the GM can change scenes' });
     expect(store.listOperationsSince(0)).toHaveLength(before);
   });
 });
