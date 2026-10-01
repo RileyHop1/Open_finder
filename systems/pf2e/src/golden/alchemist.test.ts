@@ -1,14 +1,7 @@
-import type { ArmorEntry, Attribute, WeaponEntry } from '../index.js';
-import {
-  attributeModifier,
-  buildArmorClass,
-  buildClassDc,
-  buildPerception,
-  buildSave,
-  buildSkill,
-  buildStrikeAttack,
-} from '../index.js';
+import type { ArmorEntry, WeaponEntry } from '../index.js';
+import { prepareCharacter } from '../index.js';
 import { describeGolden } from './describeGolden.js';
+import { goldenCharacter, goldenStatistics } from './goldenCharacter.js';
 
 /**
  * A level 1 Alchemist, built by hand -- never a published stat block (ADR
@@ -24,15 +17,6 @@ import { describeGolden } from './describeGolden.js';
 const LEVEL = 1;
 
 const ABILITY_SCORES = { str: 10, dex: 16, con: 14, int: 18, wis: 10, cha: 10 } as const;
-
-const ATTRIBUTE_MODIFIERS: Record<Attribute, number> = {
-  str: attributeModifier(ABILITY_SCORES.str),
-  dex: attributeModifier(ABILITY_SCORES.dex),
-  con: attributeModifier(ABILITY_SCORES.con),
-  int: attributeModifier(ABILITY_SCORES.int),
-  wis: attributeModifier(ABILITY_SCORES.wis),
-  cha: attributeModifier(ABILITY_SCORES.cha),
-};
 
 const IMPORTED_AT = '2026-09-29T00:00:00.000Z';
 const PROVENANCE = {
@@ -80,65 +64,30 @@ const WEAPON: WeaponEntry = {
   hands: 1,
 };
 
+// A finesse dagger's attack uses Dexterity, since it beats this build's Strength.
 function buildStatistics() {
-  return {
-    ac: buildArmorClass({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      armor: ARMOR,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    fortitude: buildSave({
-      save: 'fortitude',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    reflex: buildSave({
-      save: 'reflex',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    will: buildSave({
-      save: 'will',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    perception: buildPerception({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    classDc: buildClassDc({
-      keyAttribute: 'int',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    'skill:crafting': buildSkill({
-      skill: 'crafting',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    'skill:diplomacy': buildSkill({
-      skill: 'diplomacy',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'untrained',
-      level: LEVEL,
-    }),
-    // A finesse dagger's attack uses Dexterity, since it beats this build's Strength.
-    'strike:dagger': buildStrikeAttack({
-      weapon: WEAPON,
-      attackAttribute: 'dex',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-      attackNumber: 1,
-    }),
-  };
+  return goldenStatistics(
+    prepareCharacter(
+      goldenCharacter({
+        level: LEVEL,
+        scores: ABILITY_SCORES,
+        keyAttribute: 'int',
+        ranks: {
+          perception: 'trained',
+          fortitude: 'expert',
+          reflex: 'expert',
+          will: 'trained',
+          classDc: 'trained',
+          armor: 'trained',
+          weapon: 'trained',
+        },
+        armor: ARMOR,
+        weapon: WEAPON,
+        skills: { crafting: 'trained' },
+      }),
+    ),
+    'dagger',
+  );
 }
 
 describeGolden(

@@ -1,14 +1,7 @@
-import type { ArmorEntry, Attribute, WeaponEntry } from '../index.js';
-import {
-  attributeModifier,
-  buildArmorClass,
-  buildClassDc,
-  buildPerception,
-  buildSave,
-  buildSkill,
-  buildStrikeAttack,
-} from '../index.js';
+import type { ArmorEntry, WeaponEntry } from '../index.js';
+import { prepareCharacter } from '../index.js';
 import { describeGolden } from './describeGolden.js';
+import { goldenCharacter, goldenStatistics } from './goldenCharacter.js';
 
 /**
  * A level 1 Champion, built by hand -- never a published stat block (ADR
@@ -22,15 +15,6 @@ import { describeGolden } from './describeGolden.js';
 const LEVEL = 1;
 
 const ABILITY_SCORES = { str: 18, dex: 12, con: 14, int: 10, wis: 12, cha: 14 } as const;
-
-const ATTRIBUTE_MODIFIERS: Record<Attribute, number> = {
-  str: attributeModifier(ABILITY_SCORES.str),
-  dex: attributeModifier(ABILITY_SCORES.dex),
-  con: attributeModifier(ABILITY_SCORES.con),
-  int: attributeModifier(ABILITY_SCORES.int),
-  wis: attributeModifier(ABILITY_SCORES.wis),
-  cha: attributeModifier(ABILITY_SCORES.cha),
-};
 
 const IMPORTED_AT = '2026-09-29T00:00:00.000Z';
 const PROVENANCE = {
@@ -79,63 +63,28 @@ const WEAPON: WeaponEntry = {
 };
 
 function buildStatistics() {
-  return {
-    ac: buildArmorClass({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      armor: ARMOR,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    fortitude: buildSave({
-      save: 'fortitude',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    reflex: buildSave({
-      save: 'reflex',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    will: buildSave({
-      save: 'will',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    perception: buildPerception({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    classDc: buildClassDc({
-      keyAttribute: 'str',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    'skill:religion': buildSkill({
-      skill: 'religion',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    'skill:arcana': buildSkill({
-      skill: 'arcana',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'untrained',
-      level: LEVEL,
-    }),
-    'strike:longsword': buildStrikeAttack({
-      weapon: WEAPON,
-      attackAttribute: 'str',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-      attackNumber: 1,
-    }),
-  };
+  return goldenStatistics(
+    prepareCharacter(
+      goldenCharacter({
+        level: LEVEL,
+        scores: ABILITY_SCORES,
+        keyAttribute: 'str',
+        ranks: {
+          perception: 'trained',
+          fortitude: 'expert',
+          reflex: 'trained',
+          will: 'expert',
+          classDc: 'trained',
+          armor: 'trained',
+          weapon: 'trained',
+        },
+        armor: ARMOR,
+        weapon: WEAPON,
+        skills: { religion: 'trained' },
+      }),
+    ),
+    'longsword',
+  );
 }
 
 describeGolden(
