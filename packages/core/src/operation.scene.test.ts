@@ -109,3 +109,50 @@ describe('scene.delete', () => {
     expect(op('scene.delete', {}).success).toBe(false);
   });
 });
+
+describe('scene.addLink', () => {
+  const sceneId = crypto.randomUUID();
+  const link = (overrides: Record<string, unknown> = {}) => ({
+    sceneId,
+    label: 'To the cellar',
+    x: 400,
+    y: 250,
+    targetSceneId: crypto.randomUUID(),
+    ...overrides,
+  });
+
+  it('accepts an exit and trims its label', () => {
+    expect(op('scene.addLink', link()).success).toBe(true);
+    const parsed = op('scene.addLink', link({ label: '  Down  ' }));
+    expect(parsed.success && parsed.data.payload).toMatchObject({ label: 'Down' });
+  });
+
+  it('accepts a point on the scene edge', () => {
+    expect(op('scene.addLink', link({ x: 0, y: 0 })).success).toBe(true);
+    expect(op('scene.addLink', link({ x: 32_000, y: 32_000 })).success).toBe(true);
+  });
+
+  it('rejects a blank or overlong label, a point off the largest scene, and a malformed id', () => {
+    expect(op('scene.addLink', link({ label: '   ' })).success).toBe(false);
+    expect(op('scene.addLink', link({ label: 'x'.repeat(101) })).success).toBe(false);
+    expect(op('scene.addLink', link({ x: -1 })).success).toBe(false);
+    expect(op('scene.addLink', link({ y: 32_001 })).success).toBe(false);
+    expect(op('scene.addLink', link({ x: Number.NaN })).success).toBe(false);
+    expect(op('scene.addLink', link({ sceneId: 'nope' })).success).toBe(false);
+    expect(op('scene.addLink', link({ targetSceneId: 'nope' })).success).toBe(false);
+  });
+
+  it('does not let a client choose the link id', () => {
+    const parsed = op('scene.addLink', link({ id: crypto.randomUUID() }));
+    expect(parsed.success && parsed.data.payload).not.toHaveProperty('id');
+  });
+});
+
+describe('scene.removeLink', () => {
+  it('accepts a scene and link id and rejects a malformed or missing one', () => {
+    const ids = { sceneId: crypto.randomUUID(), linkId: crypto.randomUUID() };
+    expect(op('scene.removeLink', ids).success).toBe(true);
+    expect(op('scene.removeLink', { ...ids, linkId: 'nope' }).success).toBe(false);
+    expect(op('scene.removeLink', { sceneId: ids.sceneId }).success).toBe(false);
+  });
+});

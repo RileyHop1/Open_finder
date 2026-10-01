@@ -348,6 +348,28 @@ export const sceneDeleteOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Add an exit to a scene: a labelled point that leads to another scene. GM
+ * only. The server issues the link's id; whether the target is a real, different
+ * scene and whether the point lies on this scene are its checks, not the schema's.
+ */
+export const sceneAddLinkOperationSchema = clientOperationSchema.extend({
+  type: z.literal('scene.addLink'),
+  payload: z.object({
+    sceneId: idSchema,
+    label: z.string().trim().min(1).max(100),
+    x: z.number().min(0).max(MAX_SCENE_PIXELS),
+    y: z.number().min(0).max(MAX_SCENE_PIXELS),
+    targetSceneId: idSchema,
+  }),
+});
+
+/** Remove an exit from a scene. GM only; not an error if it was already gone. */
+export const sceneRemoveLinkOperationSchema = clientOperationSchema.extend({
+  type: z.literal('scene.removeLink'),
+  payload: z.object({ sceneId: idSchema, linkId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -377,6 +399,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   sceneCreateOperationSchema,
   sceneUpdateOperationSchema,
   sceneDeleteOperationSchema,
+  sceneAddLinkOperationSchema,
+  sceneRemoveLinkOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

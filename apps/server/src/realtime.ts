@@ -61,7 +61,13 @@ import { emptyCompendium } from './compendium.js';
 import { addItem, removeItem, updateItem } from './items.js';
 import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
 import { addPartyMember, removePartyMember, reorderParty } from './party.js';
-import { createScene, deleteScene, updateScene } from './scenes.js';
+import {
+  addSceneLink,
+  createScene,
+  deleteScene,
+  removeSceneLink,
+  updateScene,
+} from './scenes.js';
 import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
 import { broadcastFor, operationsFor } from './visibility.js';
@@ -409,6 +415,20 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const { deleted, changed } = deleteScene(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: changed, deleted };
+    }
+    case 'scene.addLink': {
+      const seat = requireSeat(store, socket);
+      const scene = addSceneLink(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [scene] };
+    }
+    case 'scene.removeLink': {
+      const seat = requireSeat(store, socket);
+      const scene = removeSceneLink(store, seat, operation.payload);
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: scene === undefined ? [] : [scene],
+      };
     }
     default:
       return assertNever(operation);

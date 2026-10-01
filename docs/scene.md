@@ -53,10 +53,10 @@ A new scene is `none` for players: a scene the GM is still building is
 invisible. Moving the party to a scene makes it readable, and the server
 derives that, never the client (ADR 0017). The GM always owns every scene.
 
-Three operations exist so far, all **GM only** and listed in
+Five operations exist so far, all **GM only** and listed in
 [operations.md](operations.md): `scene.create` (a blank, hidden scene),
 `scene.update` (name, kind, size, background, and a partial grid merged field by
-field) and `scene.delete`. Deleting a scene also removes its tokens, clears
+field), `scene.delete`, and `scene.addLink` / `scene.removeLink` for exits. Deleting a scene also removes its tokens, clears
 [the party's `sceneId`](party.md) if the party was there, and removes every other
 scene's exit into it, all in one broadcast. Players never hear of a hidden scene
 being created, changed, or deleted; the broadcast reaches them with nothing in it.
@@ -67,7 +67,12 @@ Things worth knowing:
   map, not an error.
 - Making a scene smaller does not move tokens or exits already placed beyond its
   new edge; moving a token clamps it to the scene (a later PR).
-- Exits (`links`) are added and removed by their own operations (the next PR).
+- An exit (`links`) is added with `scene.addLink` and removed with
+  `scene.removeLink`; there is no edit, so moving or renaming one is remove and
+  add. The target must be another existing scene and the point must be on this
+  scene. An exit to a hidden scene is visible to a player who can see the scene it
+  is on, and shows only its label and the target's id, never the target's name
+  or contents. Using an exit to move the party is `scene.activate` (a later PR).
 
 ## Example
 ```ts
