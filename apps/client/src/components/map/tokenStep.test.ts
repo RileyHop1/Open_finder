@@ -2,7 +2,7 @@ import { sceneGridSchema } from '@hearthtable/core';
 import { describe, expect, it } from 'vitest';
 
 import { gridForScene } from './mapGrid.js';
-import { ARROW_DIRECTIONS, stepToken } from './tokenStep.js';
+import { ARROW_DIRECTIONS, dragTarget, stepToken } from './tokenStep.js';
 
 const scene = { width: 1000, height: 600 };
 const square = gridForScene({ grid: sceneGridSchema.parse({}) });
@@ -74,5 +74,61 @@ describe('ARROW_DIRECTIONS', () => {
       ArrowUp: 'up',
       ArrowDown: 'down',
     });
+  });
+});
+
+describe('dragTarget', () => {
+  const from = { x: 250, y: 250 };
+  const drag = (pointer: { x: number; y: number }, grab = { x: 0, y: 0 }, size = 1) => ({
+    pointer,
+    grab,
+    from,
+    size,
+  });
+
+  it('snaps to the cell under the pointer and measures the move', () => {
+    expect(dragTarget(square, scene, drag({ x: 462, y: 238 }))).toEqual({
+      to: { x: 450, y: 250 },
+      feet: 10,
+    });
+  });
+
+  it('does not count a wobble inside the starting cell as a move', () => {
+    expect(dragTarget(square, scene, drag({ x: 280, y: 215 }))).toEqual({
+      to: { x: 250, y: 250 },
+      feet: 0,
+    });
+  });
+
+  it('keeps the grab point: holding a token by its edge does not move it', () => {
+    // Grabbed 40 px right of centre; the pointer is 40 px right of the cell centre.
+    expect(
+      dragTarget(square, scene, drag({ x: 290, y: 250 }, { x: 40, y: 0 })).to,
+    ).toEqual({
+      x: 250,
+      y: 250,
+    });
+  });
+
+  it('counts diagonals the PF2e way', () => {
+    // Two diagonal squares are 5 + 10 = 15 ft.
+    expect(dragTarget(square, scene, drag({ x: 450, y: 450 })).feet).toBe(15);
+  });
+
+  it('keeps the token on the scene, as the server will', () => {
+    expect(dragTarget(square, scene, drag({ x: -500, y: -500 })).to).toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(dragTarget(square, scene, drag({ x: 9000, y: 9000 })).to).toEqual({
+      x: scene.width,
+      y: scene.height,
+    });
+  });
+
+  it('is freeform on a gridless scene', () => {
+    const step = dragTarget(gridless, scene, drag({ x: 462, y: 238 }));
+    expect(step.to).toEqual({ x: 462, y: 238 });
+    expect(step.feet).toBeGreaterThan(10);
   });
 });

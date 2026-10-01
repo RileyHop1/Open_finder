@@ -31,6 +31,12 @@
  * at once and rolled back if the server refuses; Escape lets go, and with
  * nothing movable selected the arrows pan the map as before. Each move is
  * announced in words for screen readers.
+ *
+ * **Dragging**: grabbing a token this seat may move picks it up. It follows the
+ * pointer cell by cell (snapped, as the server will snap it), with the distance
+ * moved in feet beside it; the others see a throttled live preview, and letting
+ * go sends the one real move (`token.move`). Escape while holding puts it back.
+ * Grabbing a token this seat may not move only selects it.
  */
 import type { Application } from 'pixi.js';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -39,13 +45,21 @@ import { assetUrl } from '../../api/assets.js';
 import { useDocumentsStore } from '../../stores/documents.js';
 import { useLobbyStore } from '../../stores/lobby.js';
 import { useScenesStore } from '../../stores/scenes.js';
-import { type Camera, fitCamera, screenToScene, type Size } from './camera.js';
+import {
+  type Camera,
+  fitCamera,
+  type Point,
+  sceneToScreen,
+  screenToScene,
+  type Size,
+} from './camera.js';
 import MapCanvas from './MapCanvas.vue';
 import { gridForScene } from './mapGrid.js';
 import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
+import { createThrottle } from './throttle.js';
 import { canMoveToken, describeToken, tokenAt, tokenViews } from './tokenModel.js';
-import { ARROW_DIRECTIONS, type Direction, stepToken } from './tokenStep.js';
+import { ARROW_DIRECTIONS, type Direction, dragTarget, stepToken } from './tokenStep.js';
 import TokenList from './TokenList.vue';
 
 /** A portrait is a small picture in a circle: this is more than enough, and keeps a big upload from costing GPU memory. */
@@ -74,6 +88,31 @@ let fitted = true;
 let drawnSceneId: string | undefined;
 const surface = ref<HTMLElement | null>(null);
 const dragging = ref(false);
+
+/** How often a drag preview goes to the others while the pointer moves (about 20 a second; ADR 0005). */
+const DRAG_PREVIEW_INTERVAL_MS = 50;
+
+/** The token this seat is holding, if any. */
+interface HeldToken {
+  readonly pointerId: number;
+  readonly tokenId: string;
+  readonly label: string;
+  readonly size: number;
+  /** Where in the token the pointer took hold, in scene pixels from its centre. */
+  readonly grab: Point;
+  /** The cell centre it started in: the start of the measured distance. */
+  readonly from: Point;
+  /** Where it would land if let go now. */
+  to: Point;
+  feet: number;
+}
+let held: HeldToken | undefined;
+/** Distance moved so far, drawn beside the held token. */
+const readout = ref<{ x: number; y: number; feet: number }>();
+const sendPreview = createThrottle(
+  (tokenId: string, x: number, y: number) => scenes.sendDrag(tokenId, x, y),
+  DRAG_PREVIEW_INTERVAL_MS,
+);
 
 /** What changes the picture: not the links, name, or kind. */
 const drawKey = computed(() => {
@@ -231,8 +270,29 @@ function onPointerDown(event: PointerEvent): void {
     screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
   );
   if (hit !== undefined) {
-    // A click on a token selects it; it does not start panning the map.
+    // A token is selected, not panned. If this seat may move it, it is also picked up.
     selectedId.value = hit.id;
+    const scene = scenes.shownScene;
+    if (hit.movable && scene !== undefined && held === undefined) {
+      const pointer = screenToScene(
+        camera ?? { x: 0, y: 0, zoom: 1 },
+        viewportSize(),
+        point,
+      );
+      const from = gridForScene(scene).snap(hit, hit.size);
+      held = {
+        pointerId: event.pointerId,
+        tokenId: hit.id,
+        label: hit.label,
+        size: hit.size,
+        grab: { x: pointer.x - hit.x, y: pointer.y - hit.y },
+        from,
+        to: from,
+        feet: 0,
+      };
+      surface.value?.setPointerCapture(event.pointerId);
+      dragging.value = true;
+    }
     return;
   }
   surface.value?.setPointerCapture(event.pointerId);
@@ -240,7 +300,62 @@ function onPointerDown(event: PointerEvent): void {
   dragging.value = true;
 }
 
+function onPointerMove(event: PointerEvent): void {
+  const point = sample(event);
+  const current = held;
+  if (current === undefined) {
+    input.pointerMove(point);
+    return;
+  }
+  const scene = scenes.shownScene;
+  if (event.pointerId !== current.pointerId || scene === undefined) {
+    return;
+  }
+  const pointer = screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point);
+  const { to, feet } = dragTarget(gridForScene(scene), scene, {
+    pointer,
+    grab: current.grab,
+    from: current.from,
+    size: current.size,
+  });
+  current.to = to;
+  current.feet = feet;
+  scenes.setLocalDrag(current.tokenId, to.x, to.y);
+  sendPreview(current.tokenId, to.x, to.y);
+  const place = sceneToScreen(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), to);
+  readout.value = { x: place.x, y: place.y, feet };
+}
+
+/** Puts the held token down: sends the move if it went anywhere, and lets go either way. */
+async function dropToken(send: boolean): Promise<void> {
+  const current = held;
+  held = undefined;
+  readout.value = undefined;
+  sendPreview.cancel();
+  if (current === undefined) {
+    return;
+  }
+  const moved = current.to.x !== current.from.x || current.to.y !== current.from.y;
+  if (!send || !moved) {
+    scenes.clearLocalDrag(current.tokenId);
+    return;
+  }
+  // The move is pending before the drag is released, so the token never flickers back.
+  const accepted = scenes.moveToken(current.tokenId, current.to.x, current.to.y);
+  scenes.clearLocalDrag(current.tokenId);
+  announcement.value = (await accepted)
+    ? `${current.label} moved ${current.feet} ft.`
+    : '';
+}
+
 function onPointerUp(event: PointerEvent): void {
+  if (held !== undefined) {
+    if (event.pointerId === held.pointerId) {
+      void dropToken(event.type === 'pointerup');
+      dragging.value = false;
+    }
+    return;
+  }
   input.pointerUp(sample(event));
   dragging.value = input.dragging;
 }
@@ -265,6 +380,14 @@ function onKeyDown(event: KeyboardEvent): void {
   if (direction !== undefined && selectedView.value?.movable === true) {
     event.preventDefault();
     void moveSelected(direction);
+    return;
+  }
+  if (event.key === 'Escape' && held !== undefined) {
+    // Put the held token back where it was picked up.
+    void dropToken(false);
+    dragging.value = false;
+    announcement.value = 'Move cancelled.';
+    event.preventDefault();
     return;
   }
   if (event.key === 'Escape' && selectedId.value !== undefined) {
@@ -345,7 +468,14 @@ watch(drawKey, (key, previous) => {
   }
 });
 
-onBeforeUnmount(release);
+onBeforeUnmount(() => {
+  if (held !== undefined) {
+    scenes.clearLocalDrag(held.tokenId);
+    held = undefined;
+  }
+  sendPreview.cancel();
+  release();
+});
 </script>
 
 <template>
@@ -359,13 +489,20 @@ onBeforeUnmount(release);
       role="group"
       aria-label="Map. Arrow keys move the view, plus and minus zoom, zero shows the whole map."
       @pointerdown="onPointerDown"
-      @pointermove="input.pointerMove(sample($event))"
+      @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
       @wheel.prevent="onWheel"
       @keydown="onKeyDown"
     >
       <MapCanvas @ready="onReady" />
+      <output
+        v-if="readout"
+        class="move-readout"
+        :style="{ left: `${readout.x}px`, top: `${readout.y}px` }"
+      >
+        {{ readout.feet }} ft
+      </output>
       <div class="map-zoom" role="group" aria-label="Zoom" @pointerdown.stop>
         <button
           type="button"
@@ -423,6 +560,19 @@ onBeforeUnmount(release);
 
 .map-surface.is-dragging {
   cursor: grabbing;
+}
+
+.move-readout {
+  position: absolute;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: bold;
+  /* Above the held token, centred on it, and never in the way of the pointer. */
+  transform: translate(-50%, calc(-100% - 2.5rem));
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .map-zoom {

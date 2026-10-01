@@ -290,6 +290,47 @@ describe('drag previews from other seats', () => {
   });
 });
 
+describe('this seat’s own drag', () => {
+  it('shows the token where the pointer holds it, above a pending move, until let go', async () => {
+    const { store, onBog } = await table();
+    vi.mocked(emitOperation).mockReturnValue(new Promise(() => undefined));
+    void store.moveToken(onBog.id, 400, 500);
+    expect(store.shownTokens[0]).toMatchObject({ x: 400, y: 500 });
+
+    store.setLocalDrag(onBog.id, 600, 610);
+    expect(store.shownTokens[0]).toMatchObject({ x: 600, y: 610 });
+    store.setLocalDrag(onBog.id, 650, 660);
+    expect(store.shownTokens[0]).toMatchObject({ x: 650, y: 660 });
+
+    store.clearLocalDrag(onBog.id);
+    expect(store.shownTokens[0]).toMatchObject({ x: 400, y: 500 });
+  });
+
+  it('hands over to the move with no flicker, and snaps back if it is refused', async () => {
+    const { store, onBog } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'no' });
+    store.setLocalDrag(onBog.id, 300, 300);
+    const done = store.moveToken(onBog.id, 300, 300);
+    store.clearLocalDrag(onBog.id);
+    expect(store.shownTokens[0]).toMatchObject({ x: 300, y: 300 });
+
+    await done;
+    expect(store.shownTokens[0]).toMatchObject({ x: 150, y: 250 });
+  });
+
+  it('is not disturbed by another seat’s preview of the same token', async () => {
+    const { store, onBog } = await table();
+    store.setLocalDrag(onBog.id, 600, 610);
+    handlers.get('token.drag')?.({ tokenId: onBog.id, x: 1, y: 2 } as never);
+    expect(store.shownTokens[0]).toMatchObject({ x: 600, y: 610 });
+  });
+
+  it('clearing a token that is not held does nothing', async () => {
+    const { store } = await table();
+    expect(() => store.clearLocalDrag(crypto.randomUUID())).not.toThrow();
+  });
+});
+
 describe('send', () => {
   it('records a refusal, and clears it on the next try', async () => {
     const { store } = await table();
