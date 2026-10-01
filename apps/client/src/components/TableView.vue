@@ -21,6 +21,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
+import PartyBar from './PartyBar.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
 import ConditionsPanel from './sheet/ConditionsPanel.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
@@ -144,18 +145,12 @@ async function handleCreate(): Promise<void> {
     </p>
 
     <nav id="party-bar" class="party-bar" aria-label="Party" tabindex="-1">
-      <ul v-if="documents.members.length > 0" class="party-members">
-        <li v-for="member in documents.members" :key="member.id">
-          <button
-            type="button"
-            :aria-pressed="member.id === selectedId"
-            @click="selectedId = member.id"
-          >
-            {{ member.name }}
-          </button>
-        </li>
-      </ul>
-      <p v-else class="empty">No party yet. The GM adds characters to it.</p>
+      <PartyBar
+        :members="documents.members"
+        :selected-id="selectedId"
+        :world-id="worldId"
+        @select="(id) => (selectedId = id)"
+      />
     </nav>
 
     <div class="table-body">
@@ -303,7 +298,6 @@ async function handleCreate(): Promise<void> {
   padding: var(--space-2) var(--space-3);
 }
 
-.party-members,
 .roster {
   display: flex;
   flex-wrap: wrap;
@@ -313,7 +307,6 @@ async function handleCreate(): Promise<void> {
   padding: 0;
 }
 
-.party-members button,
 .roster button {
   min-height: var(--touch-target-min);
 }

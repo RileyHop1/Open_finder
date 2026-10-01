@@ -98,8 +98,7 @@ client server in production.
 - **The table** (`components/TableView.vue`) -- what a seated player sees,
   shown by the lobby while this device holds a seat (the seat list folds into a
   "Seats" disclosure, still there for a GM adding seats). Three landmarks, each
-  with a skip link: the **party bar** (members in party order; the full bar with
-  portraits, HP and conditions is a later PR), the **character pane** (the
+  with a skip link: the **party bar** (members in party order), the **character pane** (the
   characters this seat can see, a "new character" form that opens the character
   when it arrives, and the sheet itself in a later PR), and the **chat**. Chat
   sits beside the sheet from 900px and stacks below that, so it works at an
@@ -173,6 +172,16 @@ client server in production.
   optimistic `actor.update` of only the fields that changed. Setting a value
   directly is the GM override, in the sheet's edit mode. Going unconscious or
   dying at 0 is the combat tracker's (milestone 5). **Built.**
+- **The party bar** (`components/PartyBar.vue`) -- one card per party member in
+  party order: a portrait (the uploaded image when there is one, otherwise their
+  initial in a circle; decorative, since the name is printed beside it), the
+  name, hit points as a bar *and* as numbers ("12 / 20 (+5 temp) · at 0"), and
+  condition badges that are their name and value, three at most with the rest
+  folded into "+N more". The whole card is one button, so click, tap, Enter, and
+  Space open that member's sheet, and it is at least 44px tall. Numbers come from
+  `prepareCharacter`, so the bar and the sheet cannot disagree. An NPC member
+  shows by name alone. Adding, removing, and reordering members is the GM's
+  menu, in the next change. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
