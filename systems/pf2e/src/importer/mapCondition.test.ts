@@ -62,6 +62,23 @@ describe('mapCondition -- success', () => {
     });
   });
 
+  it('keeps a group only when its members are mutually exclusive', () => {
+    const groupOf = (group: string) => {
+      const result = mapCondition(
+        makeEntry({ value: { isValued: false }, group }),
+        PROVENANCE,
+        IMPORTED_AT,
+      );
+      return result.ok ? result.entry : undefined;
+    };
+    expect(groupOf('detection')).toMatchObject({ group: 'detection' });
+    expect(groupOf('attitudes')).toMatchObject({ group: 'attitudes' });
+    // Display groupings: a character can hold several members at once.
+    for (const display of ['abilities', 'senses', 'death', 'something-new']) {
+      expect(groupOf(display)).not.toHaveProperty('group');
+    }
+  });
+
   it('maps a well-formed binary condition with no max, group, or overrides', () => {
     const result = mapCondition(
       makeEntry({ value: { isValued: false } }),
