@@ -6,7 +6,16 @@
  * caller as having no seat and returns only what everyone can see.
  */
 
-import { type Actor, actorSchema, type Party, partySchema } from '@hearthtable/core';
+import {
+  type Actor,
+  actorSchema,
+  type Party,
+  partySchema,
+  type Scene,
+  sceneSchema,
+  type Token,
+  tokenSchema,
+} from '@hearthtable/core';
 import { z } from 'zod';
 
 import { getDeviceToken } from '../realtime/deviceToken.js';
@@ -37,4 +46,14 @@ export function listActors(worldId: string): Promise<Actor[]> {
 export async function getParty(worldId: string): Promise<Party | undefined> {
   const [party] = await fetchDocuments(worldId, 'party', partySchema);
   return party;
+}
+
+/** Every scene in `worldId` this seat can read: a player gets only the party's scene. */
+export function listScenes(worldId: string): Promise<Scene[]> {
+  return fetchDocuments(worldId, 'scene', sceneSchema);
+}
+
+/** Every token in `worldId` this seat can read: a player gets none that are hidden or off the party's scene. */
+export function listTokens(worldId: string): Promise<Token[]> {
+  return fetchDocuments(worldId, 'token', tokenSchema);
 }

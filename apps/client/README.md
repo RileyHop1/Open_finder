@@ -95,6 +95,15 @@ client server in production.
   operations whose result is server logic (items, conditions, rolls) go through
   `send`. A reconnect reloads, so a broadcast missed offline cannot leave it
   stale. No screen uses it yet. **Built.**
+- **Scenes and tokens** (`stores/scenes.ts`, `api/documents.ts`) -- the store the
+  map will read: every scene and token this seat may see, which scene is
+  *shown* (the party's, from `party.sceneId`, unless the GM is previewing
+  another one locally), and that scene's tokens. Same shape as the documents
+  store: server-confirmed documents plus pending `token.move`s laid on top, so a
+  move shows at once and a refusal snaps the token back. Another seat's drag
+  arrives as a `token.drag` preview (`connection.onTokenDrag`, never an
+  operation) and stands in for the settled position until the real move lands or
+  the preview goes quiet for 2 seconds. No screen uses it yet. **Built.**
 - **The table** (`components/TableView.vue`) -- what a seated player sees,
   shown by the lobby while this device holds a seat (the seat list folds into a
   "Seats" disclosure, still there for a GM adding seats). **Map-first** since

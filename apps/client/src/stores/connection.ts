@@ -12,7 +12,7 @@
  * to touch, not a place that grows a special case per feature.
  */
 
-import type { Broadcast, OperationAck } from '@hearthtable/core';
+import type { Broadcast, OperationAck, TokenDrag } from '@hearthtable/core';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
@@ -25,6 +25,7 @@ export const useConnectionStore = defineStore('connection', () => {
   const error = ref<string>();
   const lastBroadcast = ref<Broadcast>();
   let socket: AppSocket | undefined;
+  const dragListeners = new Set<(drag: TokenDrag) => void>();
 
   /** Opens the connection. Safe to call again -- any previous connection is torn down first. */
   function connect(): void {
@@ -47,6 +48,11 @@ export const useConnectionStore = defineStore('connection', () => {
     });
     next.on('broadcast', (broadcast) => {
       lastBroadcast.value = broadcast;
+    });
+    next.on('token.drag', (drag) => {
+      for (const listener of dragListeners) {
+        listener(drag);
+      }
     });
 
     next.connect();
@@ -71,5 +77,25 @@ export const useConnectionStore = defineStore('connection', () => {
     return emitOperation(socket, { id, type, payload });
   }
 
-  return { status, error, lastBroadcast, connect, disconnect, sendOperation };
+  /** Calls `listener` for every drag preview another seat sends (never an operation, never stored). Returns how to stop listening. */
+  function onTokenDrag(listener: (drag: TokenDrag) => void): () => void {
+    dragListeners.add(listener);
+    return () => dragListeners.delete(listener);
+  }
+
+  /** Tells the others where a token is mid-drag. Fire and forget: a dropped preview costs one frame, and the settled `token.move` corrects it. */
+  function sendTokenDrag(drag: TokenDrag): void {
+    socket?.emit('token.drag', drag);
+  }
+
+  return {
+    status,
+    error,
+    lastBroadcast,
+    connect,
+    disconnect,
+    sendOperation,
+    onTokenDrag,
+    sendTokenDrag,
+  };
 });
