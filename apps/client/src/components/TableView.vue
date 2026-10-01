@@ -18,6 +18,7 @@
 import { resolvePermission } from '@hearthtable/core';
 import { computed, onMounted, ref, watch } from 'vue';
 
+import { uploadAsset } from '../api/assets.js';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
@@ -25,6 +26,7 @@ import PartyBar from './PartyBar.vue';
 import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
 import ConditionsPanel from './sheet/ConditionsPanel.vue';
+import PortraitPicker from './sheet/PortraitPicker.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
 import InventoryPanel from './sheet/InventoryPanel.vue';
 import StrikesPanel from './sheet/StrikesPanel.vue';
@@ -74,6 +76,27 @@ function sendCondition(type: string, payload: Record<string, unknown>): void {
 /** Party changes are the GM's and are server logic (the party is created on first use), so they are sent and shown when the broadcast returns. */
 function sendParty(type: string, payload: Record<string, unknown>): void {
   void documents.send(type, payload);
+}
+
+const uploading = ref(false);
+const uploadError = ref<string>();
+
+/** Uploads the picked image, then points the actor's portrait at it. A failure at either step is shown beside the picker. */
+async function setPortrait(file: File): Promise<void> {
+  const actorId = selectedId.value;
+  if (actorId === undefined) {
+    return;
+  }
+  uploading.value = true;
+  uploadError.value = undefined;
+  try {
+    const stored = await uploadAsset(props.worldId, file);
+    await documents.updateActor(actorId, { portrait: stored.name });
+  } catch (caught) {
+    uploadError.value = caught instanceof Error ? caught.message : 'upload failed';
+  } finally {
+    uploading.value = false;
+  }
 }
 
 function saveChanges(changes: Record<string, unknown>): void {
@@ -207,6 +230,16 @@ async function handleCreate(): Promise<void> {
             <label for="roll-dc">DC to roll against (optional)</label>
             <input id="roll-dc" v-model.number="dc" type="number" min="0" max="99" />
           </p>
+          <PortraitPicker
+            :name="selected.name"
+            :portrait="selected.portrait"
+            :world-id="worldId"
+            :editable="canEdit"
+            :busy="uploading"
+            :error="uploadError"
+            @upload="setPortrait"
+            @clear="saveChanges({ portrait: null })"
+          />
           <HitPointsPanel
             v-if="selected.kind === 'character'"
             :actor="selected"

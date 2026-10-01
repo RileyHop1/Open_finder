@@ -5,6 +5,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import * as assetsApi from '../api/assets.js';
 import * as compendiumApi from '../api/compendium.js';
 import * as documentsApi from '../api/documents.js';
 import { createSocket, emitOperation } from '../realtime/socket.js';
@@ -15,6 +16,7 @@ import TableView from './TableView.vue';
 // The lobby store (releasing a seat) and the chat panel are other components'
 // concerns; this test is about the layout and the character roster.
 vi.mock('../stores/lobby.js', () => ({ useLobbyStore: vi.fn() }));
+vi.mock('../api/assets.js');
 vi.mock('../api/compendium.js');
 vi.mock('../api/documents.js');
 vi.mock('../realtime/socket.js');
@@ -410,6 +412,53 @@ describe('editing a character', () => {
       mySeat = seat();
       const wrapper = await openHero(makeActor('Anna'));
       expect(wrapper.find('.party-manager').exists()).toBe(false);
+    });
+  });
+
+  describe('portrait', () => {
+    const png = () => new File([new Uint8Array([1])], 'p.png', { type: 'image/png' });
+    async function choose(wrapper: Awaited<ReturnType<typeof openHero>>) {
+      const input = wrapper.find('#portrait-file');
+      Object.defineProperty(input.element, 'files', {
+        value: [png()],
+        configurable: true,
+      });
+      await input.trigger('change');
+      await flushPromises();
+    }
+
+    it('uploads the picked image, then points the actor at the stored name', async () => {
+      mySeat = seat({ isGM: true });
+      const name = `${'a'.repeat(64)}.png`;
+      vi.mocked(assetsApi.uploadAsset).mockResolvedValue({ name, url: '/x' });
+      vi.mocked(assetsApi.isAcceptedImage).mockReturnValue(true);
+      vi.mocked(emitOperation).mockReturnValue(new Promise(() => undefined));
+      const hero = makeActor('Anna');
+      const wrapper = await openHero(hero);
+
+      await choose(wrapper);
+
+      expect(assetsApi.uploadAsset).toHaveBeenCalledWith(WORLD, expect.any(File));
+      expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+        type: 'actor.update',
+        payload: { actorId: hero.id, changes: { portrait: name } },
+      });
+    });
+
+    it('shows the server’s reason and changes nothing when the upload is refused', async () => {
+      mySeat = seat({ isGM: true });
+      vi.mocked(assetsApi.isAcceptedImage).mockReturnValue(true);
+      vi.mocked(assetsApi.uploadAsset).mockRejectedValue(
+        new Error('the file is not a valid image of that type'),
+      );
+      const wrapper = await openHero(makeActor('Anna'));
+
+      await choose(wrapper);
+
+      expect(wrapper.find('.portrait-picker [role="alert"]').text()).toBe(
+        'the file is not a valid image of that type',
+      );
+      expect(emitOperation).not.toHaveBeenCalled();
     });
   });
 

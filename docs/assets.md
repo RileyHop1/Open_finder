@@ -37,6 +37,9 @@ operation, and this can be revisited then.
 
 ## Referencing an asset
 
+The client (`apps/client/src/api/assets.ts`) posts a chosen `File` as the raw body
+with its own type; the portrait picker uses it.
+
 A document stores the **name** (`<hash>.<ext>`), never a URL: the URL depends on
 the world id and where the server is reached from. An actor's `portrait` field
 (`actor.md`) holds the name, and the client builds
