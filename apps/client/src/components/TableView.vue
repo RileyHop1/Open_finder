@@ -12,6 +12,10 @@
  *   party card; Escape or "Close" shuts it and puts focus back where it was,
  * - the **chat** panel on the right.
  *
+ * The GM also has a **Scenes** drawer, from the right edge of the map (the scene
+ * manager: make, edit, preview, move the party to, and delete scenes), and a
+ * banner above the map while they are previewing a scene the players are not on.
+ *
  * The drawer overlays the map at every width rather than pushing it, so the
  * map never reflows while someone reads their sheet. The chat sits beside the
  * map from 900px and stacks below that. Tablets are supported and phones are
@@ -20,7 +24,7 @@
  * the stores it feeds.
  */
 import { resolvePermission } from '@hearthtable/core';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
 import { uploadAsset } from '../api/assets.js';
 import { useDocumentsStore } from '../stores/documents.js';
@@ -29,6 +33,8 @@ import { useScenesStore } from '../stores/scenes.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import MapView from './map/MapView.vue';
+import SceneManager from './scenes/SceneManager.vue';
+import { useDrawer } from './useDrawer.js';
 import PartyBar from './PartyBar.vue';
 import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
@@ -123,29 +129,22 @@ function sendItem(type: string, payload: Record<string, unknown>): void {
 /** Bumped when an import finishes, so panels that listed content (the item picker, the condition picker) look again. */
 const contentVersion = ref(0);
 
-/** Whether the character drawer is open, and where focus goes back to when it closes. */
-const drawerOpen = ref(false);
-const drawer = ref<HTMLElement | null>(null);
-let drawerOpener: HTMLElement | null = null;
+/** The character drawer (open state, focus in and back out) and the GM's scene drawer. */
+const {
+  open: drawerOpen,
+  show: openDrawer,
+  hide: closeDrawer,
+} = useDrawer(useTemplateRef<HTMLElement>('drawer'));
+const {
+  open: sceneDrawerOpen,
+  show: openSceneDrawer,
+  hide: closeSceneDrawer,
+} = useDrawer(useTemplateRef<HTMLElement>('sceneDrawer'));
 
-async function openDrawer(): Promise<void> {
-  if (!drawerOpen.value) {
-    const active = drawer.value?.ownerDocument.activeElement;
-    drawerOpener = active instanceof HTMLElement ? active : null;
-    drawerOpen.value = true;
-  }
-  await nextTick();
-  drawer.value?.focus();
-}
-
-function closeDrawer(): void {
-  if (!drawerOpen.value) {
-    return;
-  }
-  drawerOpen.value = false;
-  drawerOpener?.focus();
-  drawerOpener = null;
-}
+/** The scene the party is on, for the preview banner. */
+const partyScene = computed(() =>
+  scenes.scenes.find((scene) => scene.id === scenes.partySceneId),
+);
 
 /** A party card was pressed: show that character's sheet. */
 function openSheetOf(actorId: string): void {
@@ -246,6 +245,24 @@ async function handleCreate(): Promise<void> {
           >
             Characters
           </button>
+          <button
+            v-if="lobby.mySeat?.isGM"
+            type="button"
+            aria-controls="scene-pane"
+            :aria-expanded="sceneDrawerOpen"
+            @click="sceneDrawerOpen ? closeSceneDrawer() : openSceneDrawer()"
+          >
+            Scenes
+          </button>
+        </p>
+
+        <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
+          You are previewing <strong>{{ scenes.shownScene?.name }}</strong
+          >. The players are on <strong>{{ partyScene?.name ?? 'no scene' }}</strong
+          >.
+          <button type="button" @click="scenes.previewScene(undefined)">
+            Back to the players' scene
+          </button>
         </p>
 
         <section
@@ -257,6 +274,27 @@ async function handleCreate(): Promise<void> {
         >
           <MapView :world-id="worldId" @open-actor="openSheetOf" />
         </section>
+
+        <Transition name="drawer">
+          <section
+            v-if="lobby.mySeat?.isGM"
+            v-show="sceneDrawerOpen"
+            id="scene-pane"
+            ref="sceneDrawer"
+            class="sheet-pane scene-pane"
+            aria-labelledby="scene-heading"
+            tabindex="-1"
+            @keydown.esc.stop="closeSceneDrawer"
+          >
+            <header class="drawer-header">
+              <h2 id="scene-heading">Scenes</h2>
+              <button type="button" class="drawer-close" @click="closeSceneDrawer">
+                Close
+              </button>
+            </header>
+            <SceneManager :world-id="worldId" />
+          </section>
+        </Transition>
 
         <Transition name="drawer">
           <section
@@ -529,6 +567,28 @@ button[aria-pressed='true'] {
   border-radius: 4px;
   background: var(--color-surface);
   box-shadow: 4px 0 16px rgb(0 0 0 / 0.25);
+}
+
+/* The scene drawer comes in from the right, so both can be open without covering each other entirely. */
+.scene-pane {
+  right: 0;
+  left: auto;
+  box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
+}
+
+.preview-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+}
+
+.preview-banner button {
+  min-height: var(--touch-target-min);
 }
 
 .drawer-header {
