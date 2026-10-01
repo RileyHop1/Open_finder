@@ -61,4 +61,23 @@ describe('actor.rollStrike and actor.rollDamage', () => {
     );
     expect(op('actor.rollDamage', { actorId, itemId }).success).toBe(false);
   });
+
+  it('names a monster’s strike by key, and wants exactly one of key and item', () => {
+    const strikeKey = 'strike:vine';
+    expect(op('actor.rollStrike', { actorId, strikeKey, attackNumber: 2 }).success).toBe(
+      true,
+    );
+    expect(op('actor.rollDamage', { actorId, strikeKey, critical: true }).success).toBe(
+      true,
+    );
+    expect(
+      op('actor.rollStrike', { actorId, itemId, strikeKey, attackNumber: 1 }).success,
+    ).toBe(false);
+    expect(
+      op('actor.rollDamage', { actorId, itemId, strikeKey, critical: false }).success,
+    ).toBe(false);
+    expect(
+      op('actor.rollStrike', { actorId, strikeKey: '', attackNumber: 1 }).success,
+    ).toBe(false);
+  });
 });

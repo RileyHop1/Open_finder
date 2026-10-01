@@ -153,8 +153,13 @@ export type ChatCheckMessage = z.infer<typeof chatCheckMessageSchema>;
 const chatStrikeBaseSchema = chatMessageBaseSchema.extend({
   actorId: idSchema,
   actorName: z.string().min(1),
-  /** The carried weapon's item id on the character, and its name as a snapshot. */
-  itemId: idSchema,
+  /**
+   * What struck, and its name as a snapshot: a character's carried weapon by
+   * item id, or a monster's strike by its key (`strike:<name>`), which has no
+   * item. Exactly one is set.
+   */
+  itemId: idSchema.optional(),
+  strikeKey: z.string().min(1).max(100).optional(),
   weaponName: z.string().min(1),
 });
 
