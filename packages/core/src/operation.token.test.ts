@@ -81,6 +81,32 @@ describe('token.update', () => {
   });
 });
 
+describe('token.move', () => {
+  const tokenId = crypto.randomUUID();
+
+  it('accepts a token and a point, including the scene edge', () => {
+    expect(op('token.move', { tokenId, x: 350, y: 450 }).success).toBe(true);
+    expect(op('token.move', { tokenId, x: 0, y: 32_000 }).success).toBe(true);
+    expect(op('token.move', { tokenId, x: 12.5, y: 7.25 }).success).toBe(true);
+  });
+
+  it('rejects a malformed id, a missing coordinate, and a point off the largest scene', () => {
+    expect(op('token.move', { tokenId: 'nope', x: 1, y: 1 }).success).toBe(false);
+    expect(op('token.move', { tokenId, x: 1 }).success).toBe(false);
+    expect(op('token.move', { tokenId, x: -1, y: 1 }).success).toBe(false);
+    expect(op('token.move', { tokenId, x: 1, y: 32_001 }).success).toBe(false);
+    expect(op('token.move', { tokenId, x: Number.NaN, y: 1 }).success).toBe(false);
+    expect(op('token.move', { tokenId, x: Number.POSITIVE_INFINITY, y: 1 }).success).toBe(
+      false,
+    );
+  });
+
+  it('keeps only the move, so a client cannot change anything else with it', () => {
+    const parsed = op('token.move', { tokenId, x: 1, y: 1, hidden: false, size: 12 });
+    expect(parsed.success && parsed.data.payload).toEqual({ tokenId, x: 1, y: 1 });
+  });
+});
+
 describe('token.delete', () => {
   it('accepts a token id and rejects a malformed or missing one', () => {
     expect(op('token.delete', { tokenId: crypto.randomUUID() }).success).toBe(true);

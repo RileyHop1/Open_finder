@@ -1458,6 +1458,80 @@ describe('token.create, token.update, token.delete', () => {
     expect(store.getDocument(heroToken.id)).toBeUndefined();
   });
 
+  it('lets a player move their own token, and shows the settled position to the whole table', async () => {
+    const { table, heroToken } = await inTheCrypt();
+
+    const moved = await send(
+      table.player,
+      table,
+      op('token.move', { tokenId: heroToken.id, x: 710, y: 820 }),
+    );
+
+    // Snapped to the grid by the server, and the same for everyone.
+    for (const heard of [moved.forGm, moved.forPlayer]) {
+      expect(heard.documents).toHaveLength(1);
+      expect(heard.documents[0]).toMatchObject({ id: heroToken.id, x: 750, y: 850 });
+      expect(heard.deleted).toEqual([]);
+    }
+    expect(moved.forGm.operation.payload).toEqual({
+      tokenId: heroToken.id,
+      x: 710,
+      y: 820,
+    });
+  });
+
+  it('lets the GM move any token, and the player sees it move', async () => {
+    const { table, sceneId, heroToken } = await inTheCrypt();
+    const moved = await send(
+      table.gm,
+      table,
+      op('token.move', { tokenId: heroToken.id, x: 1250, y: 1350 }),
+    );
+    expect(moved.forPlayer.documents[0]).toMatchObject({
+      id: heroToken.id,
+      x: 1250,
+      y: 1350,
+    });
+
+    // A monster the GM placed in plain sight is the GM's to move, not the player's.
+    const guardActor = await newNpc(table, 'Guard');
+    const guard = await send(
+      table.gm,
+      table,
+      op('token.create', { sceneId, actorId: guardActor, at: { x: 450, y: 450 } }),
+    );
+    const guardToken = guard.forGm.documents[0];
+    const attempt = await emitOperation(
+      table.player,
+      op('token.move', { tokenId: guardToken?.id, x: 550, y: 550 }),
+    );
+    expect(attempt).toEqual({
+      ok: false,
+      error: 'you do not have permission to move this token',
+    });
+    expect(store.getDocument(guardToken?.id ?? '')).toMatchObject({ x: 450, y: 450 });
+  });
+
+  it('does not let a player move, or learn of, a hidden token', async () => {
+    const { table, sceneId, heroId } = await inTheCrypt();
+    // A hidden token for the player's own character: they own the actor but cannot see the token.
+    const hiddenToken = await send(
+      table.gm,
+      table,
+      op('token.create', { sceneId, actorId: heroId, hidden: true }),
+    );
+    const hiddenId = hiddenToken.forGm.documents[0]?.id ?? '';
+    expect(hiddenToken.forPlayer.documents).toEqual([]);
+
+    const before = store.listOperationsSince(0).length;
+    const refused = await emitOperation(
+      table.player,
+      op('token.move', { tokenId: hiddenId, x: 150, y: 150 }),
+    );
+    expect(refused).toEqual({ ok: false, error: `no token found with id ${hiddenId}` });
+    expect(store.listOperationsSince(0)).toHaveLength(before);
+  });
+
   it('refuses a player for every token operation, logging none', async () => {
     const { table, sceneId, heroId, heroToken } = await inTheCrypt();
     const before = store.listOperationsSince(0).length;

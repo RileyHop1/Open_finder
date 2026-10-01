@@ -102,6 +102,7 @@ export {
   tokenChangesSchema,
   tokenCreateOperationSchema,
   tokenDeleteOperationSchema,
+  tokenMoveOperationSchema,
   tokenUpdateOperationSchema,
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,
