@@ -147,6 +147,52 @@ export const actorUpdateOperationSchema = clientOperationSchema.extend({
   }),
 });
 
+/** The most of one item a stack may hold. A sanity bound, not a rule. */
+export const MAX_ITEM_QUANTITY = 9999;
+
+/**
+ * Add a compendium entry to a character as a new item. The payload names the
+ * entry (`packId` and `slug`) and nothing else: the server looks it up in its
+ * own compendium and copies it, so a client can never supply item stats. See
+ * ADR 0014.
+ */
+export const actorAddItemOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.addItem'),
+  payload: z.object({
+    actorId: idSchema,
+    packId: z.string().min(1).max(100),
+    slug: z.string().min(1).max(200),
+  }),
+});
+
+/**
+ * Change an item's `equipped` flag or `quantity`. Those are the only two
+ * fields a client may change on an embedded item; the item's content is the
+ * server's copy of the compendium entry and stays as it was.
+ */
+export const actorUpdateItemOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.updateItem'),
+  payload: z
+    .object({
+      actorId: idSchema,
+      itemId: idSchema,
+      equipped: z.boolean().optional(),
+      quantity: z.number().int().min(1).max(MAX_ITEM_QUANTITY).optional(),
+    })
+    .refine(
+      (payload) => payload.equipped !== undefined || payload.quantity !== undefined,
+      {
+        message: 'name at least one of equipped or quantity',
+      },
+    ),
+});
+
+/** Remove an item from a character. */
+export const actorRemoveItemOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.removeItem'),
+  payload: z.object({ actorId: idSchema, itemId: idSchema }),
+});
+
 /**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
@@ -162,6 +208,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
   actorUpdateOperationSchema,
+  actorAddItemOperationSchema,
+  actorUpdateItemOperationSchema,
+  actorRemoveItemOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

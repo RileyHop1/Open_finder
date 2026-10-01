@@ -50,6 +50,9 @@ import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
 import { createActor, deleteActor, updateActor } from './actors.js';
+import type { CompendiumIndex } from './compendium.js';
+import { emptyCompendium } from './compendium.js';
+import { addItem, removeItem, updateItem } from './items.js';
 import { OperationRejected } from './rejection.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
@@ -76,6 +79,8 @@ type AppServer = SocketIOServer<
 
 export interface AttachRealtimeOptions {
   readonly activeWorld: ActiveWorldManager;
+  /** Where `actor.addItem` copies entries from (ADR 0015). Absent means an empty compendium. */
+  readonly compendium?: CompendiumIndex;
 }
 
 export { OperationRejected };
@@ -259,6 +264,7 @@ interface DispatchResult {
 
 function dispatch(
   store: WorldStore,
+  compendium: CompendiumIndex,
   deviceToken: string,
   socket: AppSocket,
   operation: AnyClientOperation,
@@ -305,6 +311,21 @@ function dispatch(
       const actor = updateActor(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [actor] };
     }
+    case 'actor.addItem': {
+      const seat = requireSeat(store, socket);
+      const actor = addItem(store, seat, compendium, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.updateItem': {
+      const seat = requireSeat(store, socket);
+      const actor = updateItem(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.removeItem': {
+      const seat = requireSeat(store, socket);
+      const actor = removeItem(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
     case 'actor.delete': {
       const seat = requireSeat(store, socket);
       const tombstone = deleteActor(store, seat, operation.payload);
@@ -335,6 +356,7 @@ function emitBroadcast(io: AppServer, store: WorldStore, broadcast: Broadcast): 
 function handleOperation(
   io: AppServer,
   activeWorld: ActiveWorldManager,
+  compendium: CompendiumIndex,
   socket: AppSocket,
   rawPayload: unknown,
   ack: (response: OperationAck) => void,
@@ -355,7 +377,7 @@ function handleOperation(
 
   try {
     const { appliedOperation, seats, documents, deleted } = store.transaction(() => {
-      const result = dispatch(store, deviceToken, socket, parsed.data);
+      const result = dispatch(store, compendium, deviceToken, socket, parsed.data);
       const newOperation: NewOperation = {
         id: parsed.data.id,
         worldId: store.world.id,
@@ -410,6 +432,7 @@ export function attachRealtime(
   options: AttachRealtimeOptions,
 ): AppServer {
   const { activeWorld } = options;
+  const compendium = options.compendium ?? emptyCompendium();
   const io: AppServer = new SocketIOServer(httpServer);
 
   io.use((socket, next) => {
@@ -432,7 +455,7 @@ export function attachRealtime(
     socket.data.seatId = seat?.id;
 
     socket.on('operation', (rawPayload, ack) => {
-      handleOperation(io, activeWorld, socket, rawPayload, ack);
+      handleOperation(io, activeWorld, compendium, socket, rawPayload, ack);
     });
 
     socket.on('sync', (rawPayload, ack) => {

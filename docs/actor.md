@@ -140,3 +140,19 @@ the exact arguments the server passes to `rollStrikeAttack` /
   we do not have. A character with no equipped weapon has no strikes.
 
 Tested in `systems/pf2e/src/rules/prepareStrikes.test.ts`.
+
+### Items on a character
+
+`system.items` is changed only by `actor.addItem`, `actor.updateItem`, and
+`actor.removeItem` ([operations.md](operations.md)), never by `actor.update`.
+`addItem` takes a `packId` and `slug` and the **server** copies the entry
+from its compendium, so a client can never send an item's damage or rule
+elements ([ADR 0014](adr/0014-actor-document-shape.md)). The copy is stored
+whole: a later re-import does not change a character that already has it. A
+character can carry weapons, armor, gear, feats, class features, spells, and
+actions; a condition or creature entry is refused. Only characters have items.
+
+`updateItem` can change `equipped` and `quantity` and nothing else. Equipping a
+suit of armor takes off any other; see [rulings.md](rulings.md). All three
+operations go through one server path (`editCharacter`) that checks ownership,
+re-validates the sheet, and stores it.
