@@ -86,11 +86,12 @@ one way. It returns:
   `classDc`, and `skill:<slug>` for all sixteen named skills plus any Lore in
   `ranks.skills`. Each is a `Statistic` with its full modifier breakdown.
 - `hp`: stored `current` and `temp`, plus `max` as a `Statistic`.
+- `strikes`: one per equipped weapon (below).
 - `inertItems`: items carrying automation we could not map, for the sheet to
   flag "automation not applied" (ADR 0004).
 - `rollOptions`: what rule elements activated.
 
-Strikes are prepared by a separate function (next PR).
+Strikes come from `prepareStrikes` (below) and ride along as `strikes`.
 
 **Active items.** Feats, class features, actions, and spells always contribute
 rule elements. Weapons, armor, and gear only while `equipped`.
@@ -105,3 +106,26 @@ importer's coverage report.
 
 Tested in `systems/pf2e/src/rules/prepareCharacter.test.ts`, including a
 character built to match the golden Fighter's values.
+
+### Strikes: `prepareStrikes`
+
+One `PreparedStrike` per **equipped** weapon, keyed `strike:<weapon slug>`
+(`-2`, `-3` for further copies). Each has `attacks` (a `Statistic` for the 1st,
+2nd, and 3rd attack of a turn, so the Multiple Attack Penalty is visible),
+`damageModifiers` (a `Statistic` for the flat part of damage), `damage`
+(components for a hit and a critical hit), and `attackInputs` / `damageInputs`,
+the exact arguments the server passes to `rollStrikeAttack` /
+`rollStrikeDamage`, so the sheet and a roll cannot disagree.
+
+- **To hit:** Strength for melee, Dexterity for a weapon with a `range`, and the
+  better of the two for a melee `finesse` weapon. Proficiency is the character's
+  rank for the weapon's category.
+- **Damage:** full Strength for melee and `thrown` weapons, half (rounded down)
+  for `propulsive`, a negative Strength modifier in full, and nothing for other
+  ranged weapons. Enfeebled and `strike-damage` rule elements are added;
+  `strike-damage` dice become extra components.
+- **Not modeled yet:** potency and striking runes (both 0, a visible gap), and an
+  unarmed Strike, which every character has but which needs a compendium entry
+  we do not have. A character with no equipped weapon has no strikes.
+
+Tested in `systems/pf2e/src/rules/prepareStrikes.test.ts`.

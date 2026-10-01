@@ -181,3 +181,26 @@ ruling from silently drifting.
   case. Pinned by unit tests only until the golden set is routed through
   `prepareCharacter` (A.7).
 - **Override:** the GM equips or unequips the item, or adds a manual modifier.
+
+### Which attribute a strike uses, with only a weapon's `range` to go on
+- **Rules text:** Player Core's weapon traits. Finesse: Dexterity may replace
+  Strength on melee attack rolls, with damage still using Strength. Thrown: the
+  weapon can be thrown as a ranged attack and adds Strength to damage like a
+  melee weapon. Propulsive: half Strength (if positive) to damage, or full if
+  negative. Checked against Archives of Nethys, 2026-09-30.
+- **The ambiguity:** a compendium weapon records one `range`, not whether it is
+  also a melee weapon. A dagger is melee and thrown; a javelin is thrown only.
+  Whether Dexterity or Strength applies depends on how it is used this turn.
+- **Our reading:** a weapon with a `range` is a ranged strike (Dexterity to hit);
+  one without is melee. Finesse picks the higher of the two modifiers
+  automatically rather than asking. Propulsive rounds half Strength down.
+- **Alternative reading:** emit a separate melee and thrown strike for weapons
+  that are both, or ask the player which attribute to use.
+- **Why:** the smallest rule that is right for the common cases (swords, bows,
+  finesse weapons) without a choice prompt. The choice is also redundant for
+  finesse, since the better modifier is always the player's pick.
+- **Golden test:** `prepareStrikes.test.ts` pins melee, finesse (both
+  directions), ranged, thrown, and propulsive (positive and negative Strength).
+  Unit tests only until the golden set is routed through `prepareCharacter` (A.7).
+- **Override:** add a manual attack modifier, or equip the weapon as another entry.
+  A melee-and-thrown weapon used the other way is the known gap.

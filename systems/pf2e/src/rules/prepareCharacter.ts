@@ -4,7 +4,7 @@
  * golden tests all call, so a number is computed exactly one way (ADR 0008).
  * It only composes what already exists: `applyRuleElements` for item
  * automation, `conditionModifiers` for conditions, and the per-statistic
- * builders. Strikes are prepared separately (the next PR).
+ * builders. Strikes come from `prepareStrikes`.
  *
  * **Which items are active.** Feats, class features, actions, and spells
  * always are. Weapons, armor, and gear count only while `equipped`, so a
@@ -30,6 +30,8 @@ import type { ConditionTarget } from './conditionModifiers.js';
 import { conditionModifiers } from './conditionModifiers.js';
 import { buildArmorClass, buildSave, SAVE_TYPES } from './defenses.js';
 import { buildMaxHitPoints } from './hitPoints.js';
+import type { PreparedStrike } from './prepareStrikes.js';
+import { prepareStrikes } from './prepareStrikes.js';
 import { buildClassDc, buildPerception, buildSkill, SKILLS } from './skills.js';
 
 /** Item kinds that grant nothing until equipped. Everything else is always active. */
@@ -50,6 +52,8 @@ export interface PreparedCharacter {
     readonly temp: number;
     readonly max: Statistic;
   };
+  /** One per equipped weapon; see `prepareStrikes`. */
+  readonly strikes: readonly PreparedStrike[];
   readonly inertItems: readonly InertItem[];
   /** The roll options rule elements activated, for predicates evaluated later (strikes). */
   readonly rollOptions: ReadonlySet<string>;
@@ -160,6 +164,7 @@ export function prepareCharacter(data: CharacterData): PreparedCharacter {
         ],
       }),
     },
+    strikes: prepareStrikes(data, applied),
     inertItems: findInertItems(data.items),
     rollOptions: applied.rollOptions,
   };
