@@ -11,6 +11,7 @@ interface StubSocket {
   on: ReturnType<typeof vi.fn>;
   connect: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
+  emit: ReturnType<typeof vi.fn>;
   handlers: Map<string, (...args: never[]) => void>;
 }
 
@@ -23,6 +24,7 @@ function makeStubSocket(): StubSocket {
     }),
     connect: vi.fn(),
     disconnect: vi.fn(),
+    emit: vi.fn(),
   };
 }
 
@@ -126,5 +128,37 @@ describe('sendOperation', () => {
 
     expect(emitOperation).not.toHaveBeenCalled();
     expect(result).toEqual({ ok: false, error: 'not connected' });
+  });
+});
+
+describe('token drag previews', () => {
+  const drag = { tokenId: crypto.randomUUID(), x: 120, y: 340 };
+
+  it('hands every incoming preview to each listener, until it stops listening', () => {
+    const store = useConnectionStore();
+    store.connect();
+    const first = vi.fn();
+    const second = vi.fn();
+    const stopFirst = store.onTokenDrag(first);
+    store.onTokenDrag(second);
+
+    stubSocket.handlers.get('token.drag')?.(drag as never);
+    stopFirst();
+    stubSocket.handlers.get('token.drag')?.(drag as never);
+
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledWith(drag);
+  });
+
+  it('sends one as a plain event, not an operation, and does nothing with no socket', () => {
+    const store = useConnectionStore();
+    store.sendTokenDrag(drag);
+    expect(emitOperation).not.toHaveBeenCalled();
+
+    store.connect();
+    store.sendTokenDrag(drag);
+    expect(stubSocket.emit).toHaveBeenCalledWith('token.drag', drag);
+    expect(emitOperation).not.toHaveBeenCalled();
   });
 });
