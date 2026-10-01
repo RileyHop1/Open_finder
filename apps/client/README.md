@@ -235,8 +235,14 @@ client server in production.
   so it still lines up with the grid. The grid is one cached cell texture
   repeated by a `TilingSprite`, never redrawn lines (ADR 0017). The camera is
   pure maths (`camera.ts`: fit, pan, zoom about a point, limits) so it is unit
-  tested; only `sceneView.ts` needs a real WebGL context. Pan and zoom input,
-  tokens, and movement are the next PRs of milestone 4. **Built (fit only).**
+  tested; only `sceneView.ts` needs a real WebGL context. **Moving around**
+  (`mapInput.ts`, plain logic with the DOM left to `MapView`): drag to pan, wheel
+  or pinch to zoom about the pointer, and the keyboard does all of it (arrows pan,
+  Shift for further, `+` and `-` zoom, `0` shows the whole map); three buttons
+  (zoom in, zoom out, Fit) cover tablets and mouse-only use. The camera keeps
+  where the user put it across a redraw of the same scene and a resize, and only
+  follows the box while it is still the whole-map view. Tokens and their
+  movement are the next PRs of milestone 4. **Built.**
 - **The action bar** (strikes, spells, and actions as hotbar icons). Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
