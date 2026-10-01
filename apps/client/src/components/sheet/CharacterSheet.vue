@@ -26,8 +26,11 @@ import NumberField from './NumberField.vue';
 import RankSelect from './RankSelect.vue';
 import TextField from './TextField.vue';
 
-const props = defineProps<{ actor: Actor; editable?: boolean }>();
-const emit = defineEmits<{ change: [changes: Record<string, unknown>] }>();
+const props = defineProps<{ actor: Actor; editable?: boolean; rollable?: boolean }>();
+const emit = defineEmits<{
+  change: [changes: Record<string, unknown>];
+  roll: [statistic: string];
+}>();
 
 const ATTRIBUTE_NAMES: Readonly<Record<string, string>> = {
   str: 'Strength',
@@ -264,6 +267,9 @@ const lineage = computed(() =>
               <th scope="col">Statistic</th>
               <th scope="col">Rank</th>
               <th scope="col">Total</th>
+              <th v-if="rollable" scope="col">
+                <span class="visually-hidden">Roll</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -282,6 +288,16 @@ const lineage = computed(() =>
               </td>
               <td class="total">
                 {{ row.bonus ? signed(total(row.key)) : total(row.key) }}
+              </td>
+              <td v-if="rollable" class="roll">
+                <button
+                  v-if="row.bonus"
+                  type="button"
+                  :aria-label="`Roll ${row.label}`"
+                  @click="emit('roll', row.key)"
+                >
+                  Roll
+                </button>
               </td>
             </tr>
           </tbody>
@@ -342,6 +358,9 @@ const lineage = computed(() =>
               <th scope="col">Skill</th>
               <th scope="col">Rank</th>
               <th scope="col">Bonus</th>
+              <th v-if="rollable" scope="col">
+                <span class="visually-hidden">Roll</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -359,6 +378,15 @@ const lineage = computed(() =>
                 <template v-else>{{ titleCase(skill.rank) }}</template>
               </td>
               <td class="total">{{ signed(total(skill.key)) }}</td>
+              <td v-if="rollable" class="roll">
+                <button
+                  type="button"
+                  :aria-label="`Roll ${skill.label}`"
+                  @click="emit('roll', skill.key)"
+                >
+                  Roll
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -373,6 +401,19 @@ const lineage = computed(() =>
 </template>
 
 <style scoped>
+.roll button {
+  min-height: var(--touch-target-min);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .character-sheet {
   display: flex;
   flex-direction: column;
