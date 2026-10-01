@@ -32,7 +32,7 @@ import type { WeaponEntry } from '../content/weapon.js';
  * Reads a trait like `deadly-d8` or `fatal-d10` and returns the die size it
  * names, or `undefined` if the weapon has no trait with that prefix.
  */
-function traitDieFaces(
+export function traitDieFaces(
   traits: readonly string[],
   prefix: 'deadly' | 'fatal',
 ): number | undefined {
@@ -47,7 +47,11 @@ function traitDieFaces(
 }
 
 /** `"NdF+M"` / `"NdF-M"` / `"NdF"` -- never a `+0` or `-0` term nobody asked for. */
-function diceExpression(diceNumber: number, dieFaces: number, modifier: number): string {
+export function diceExpression(
+  diceNumber: number,
+  dieFaces: number,
+  modifier: number,
+): string {
   const dice = `${diceNumber}d${dieFaces}`;
   if (modifier === 0) {
     return dice;

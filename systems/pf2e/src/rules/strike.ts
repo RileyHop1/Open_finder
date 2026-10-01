@@ -41,6 +41,31 @@ function multipleAttackPenalty(attackNumber: 1 | 2 | 3, agile: boolean): number 
   return attackNumber === 2 ? -step : -step * 2;
 }
 
+/**
+ * The Multiple Attack Penalty as a modifier line, or none on the first attack
+ * rather than a visible `0` (the convention for a line that does not apply).
+ * Shared by PC strikes here and creature strikes in `prepareNpc`, so the two
+ * can never disagree about it.
+ */
+export function multipleAttackPenaltyModifiers(
+  attackNumber: 1 | 2 | 3,
+  agile: boolean,
+): Modifier[] {
+  const value = multipleAttackPenalty(attackNumber, agile);
+  return value === 0
+    ? []
+    : [
+        {
+          slug: 'multiple-attack-penalty',
+          label: 'Multiple Attack Penalty',
+          type: 'untyped',
+          value,
+          source: 'Multiple Attack Penalty',
+          enabled: true,
+        },
+      ];
+}
+
 export interface BuildStrikeAttackOptions {
   readonly weapon: WeaponEntry;
   /**
@@ -72,11 +97,6 @@ export interface BuildStrikeAttackOptions {
  * base-10 line).
  */
 export function buildStrikeAttack(options: BuildStrikeAttackOptions): Statistic {
-  const map = multipleAttackPenalty(
-    options.attackNumber,
-    options.weapon.traits.includes('agile'),
-  );
-
   const modifiers: Modifier[] = [
     {
       slug: options.attackAttribute,
@@ -87,18 +107,10 @@ export function buildStrikeAttack(options: BuildStrikeAttackOptions): Statistic 
       enabled: true,
     },
     proficiencyModifier(options.proficiencyRank, options.level),
-    ...(map === 0
-      ? []
-      : [
-          {
-            slug: 'multiple-attack-penalty',
-            label: 'Multiple Attack Penalty',
-            type: 'untyped' as const,
-            value: map,
-            source: 'Multiple Attack Penalty',
-            enabled: true,
-          },
-        ]),
+    ...multipleAttackPenaltyModifiers(
+      options.attackNumber,
+      options.weapon.traits.includes('agile'),
+    ),
     ...(options.extraModifiers ?? []),
   ];
 

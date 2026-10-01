@@ -185,7 +185,41 @@ compendium, never from client content, and an unknown field a client adds is
 dropped on parse.
 
 Max HP, AC, saves, and strikes are read straight off `creature`, and with
-conditions applied by `prepareNpc` (the next PR); nothing derived is stored.
+conditions applied by `prepareNpc` (below); nothing derived is stored.
+
+### Deriving an NPC: `prepareNpc`
+
+`prepareNpc(data)` (`systems/pf2e/src/rules/prepareNpc.ts`) is the NPC twin of
+`prepareCharacter`, with the same statistic keys: `ac`, `fortitude`, `reflex`,
+`will`, `perception`, `skill:<slug>` for each printed skill, and
+`strike:<name as a slug>` (a repeat is `-2`). There is no `classDc`.
+
+A creature's numbers are already finished, so each statistic is **one "printed
+value" line** (labelled "Stat block", sourced to the creature) with the creature's
+own rule elements and its conditions stacked on top through `resolveStatistic`.
+Frightened 2 on a monster lowers its AC and attack by 2 with the line shown, and
+clumsy and frightened do not stack (the worse status penalty applies, the other is
+shown suppressed), exactly as for a character.
+
+- **Strikes** get the 1st, 2nd, and 3rd attack (Multiple Attack Penalty, halved
+  for `agile`, from the same helper a character's strikes use) and normal and
+  critical damage lists. Each printed damage component is kept; a condition's flat
+  adjustment (enfeebled) goes on the first. `deadly-dN` adds a critical-only die,
+  and `fatal-dN` makes a critical hit's first component the larger die plus one,
+  as for a PC's weapon.
+- **A strike's attribute is inferred** from its traits, because the entry does not
+  say: ranged and thrown strikes are Dexterity to hit, a `finesse` strike is
+  Dexterity when that is the creature's better attribute, anything else is
+  Strength. Enfeebled's damage penalty applies to the Strength-damage strikes
+  (melee and thrown). See `docs/rulings.md`.
+- **Max HP** is the printed `hp`, lowered by drained (level x value).
+- **`inertCount`** is how many of the creature's rule elements could not be
+  mapped, so the sheet can flag them for the GM to apply by hand (ADR 0004).
+- Not modeled, as for characters: slowed, stunned, quickened, the dying chain, and
+  resistances and weaknesses (damage application is milestone 5).
+
+Tests: `systems/pf2e/src/rules/prepareNpc.test.ts`, hand-computed on an invented
+monster.
 
 Tests: `systems/pf2e/src/content/npc.test.ts` (full HP on creation, the embedded
 copy is independent, conditions unique, bad HP rejected, unknown fields dropped).

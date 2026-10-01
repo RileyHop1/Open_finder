@@ -340,3 +340,27 @@ ruling from silently drifting.
   square"). The shared contract is `packages/core/src/grid/contract.ts`.
 - **Override:** none yet; distance is shown, never applied. When reach and area
   automation arrive (milestone 5), the GM confirms targets (`docs/grid.md`).
+
+### A monster's strike attribute is inferred from its traits
+- **Rules text:** clumsy lowers Dexterity-based checks and DCs, and enfeebled
+  lowers Strength-based ones, including Strength damage (Player Core, Conditions,
+  checked on Archives of Nethys 2026-09-30). A PC's weapon says which attribute it
+  uses; a creature's strike is a finished attack bonus and damage line.
+- **The ambiguity:** a creature's strike entry does not record the attribute, so
+  whether clumsy or enfeebled lowers it is not stated anywhere in the data.
+- **Our reading:** ranged and thrown strikes (a `range-increment-*`, `ranged`,
+  or `thrown` trait) count as Dexterity to hit; a `finesse` strike counts as
+  Dexterity when the creature's Dexterity is higher than its Strength; everything
+  else is Strength. Enfeebled's damage penalty applies to melee and thrown
+  strikes, not to other ranged ones.
+- **Alternative reading:** treat every monster strike as unaffected by attribute
+  conditions (the printed bonus is final), or give each strike an explicit
+  attribute at import time.
+- **Why:** most monster strikes are plain melee, and the inference matches how a
+  PC's weapon is treated, so a clumsy goblin archer and a clumsy goblin with a
+  dagger come out the way the table expects. The importer does not carry the
+  attribute, and guessing silently is worse than a stated rule.
+- **Golden test:** `systems/pf2e/src/rules/prepareNpc.test.ts` ("strike
+  attributes and traits").
+- **Override:** the GM can set or remove any condition directly, or edit the
+  creature's copy (`system.creature`) to change the printed numbers.

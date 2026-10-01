@@ -238,6 +238,12 @@ export {
 export { prepareStrikes, type PreparedStrike } from './rules/prepareStrikes.js';
 
 export {
+  prepareNpc,
+  type PreparedNpc,
+  type PreparedNpcStrike,
+} from './rules/prepareNpc.js';
+
+export {
   addCondition,
   removeCondition,
   setCondition,
