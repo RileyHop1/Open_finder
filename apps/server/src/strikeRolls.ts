@@ -9,6 +9,8 @@
  * the sheet shows and what gets rolled are the same numbers
  * (`prepareStrikes.ts`). The weapon is named by its item id; one that is not
  * carried, not a weapon, or not equipped has no prepared strike and is refused.
+ * A monster has no items, so its strike is named by the key `prepareNpc` gives
+ * it (`strike:<name>`) and rolls the same way from the creature's own numbers.
  */
 
 import type {
@@ -16,12 +18,17 @@ import type {
   ChatStrikeAttackMessage,
   ChatStrikeDamageMessage,
   Seat,
+  Statistic,
 } from '@hearthtable/core';
 import { actorSchema } from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
+import { evaluateDamage } from '@hearthtable/dice/pure';
+import type { EvaluateDamageResult } from '@hearthtable/dice/pure';
 import {
   characterDataSchema,
+  npcDataSchema,
   prepareCharacter,
+  prepareNpc,
   rollCheck,
   rollStrikeDamage,
 } from '@hearthtable/pf2e';
@@ -31,34 +38,94 @@ import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
 
-/** The actor and prepared strike for `itemId`, or a rejection saying why there is none. */
-function strikeFor(
-  store: WorldStore,
-  seat: Seat,
-  actorId: string,
-  itemId: string,
-): { actor: Actor; strike: PreparedStrike } {
-  const { raw } = loadOwnedDocument(store, seat, actorId, 'actor', 'actor');
-  const actor = actorSchema.parse(raw);
-  if (actor.kind !== 'character') {
-    throw new OperationRejected(`a ${actor.kind} does not have a character sheet`);
-  }
+/**
+ * A strike ready to roll, whichever kind of actor it came from: what the chat
+ * message names it by, its three attacks, its flat damage modifier, and how to
+ * roll its damage.
+ */
+interface ResolvedStrike {
+  readonly name: string;
+  readonly id: { itemId: string } | { strikeKey: string };
+  readonly attacks: readonly [Statistic, Statistic, Statistic];
+  readonly damageModifiers: Statistic;
+  readonly rollDamage: (critical: boolean, rng: RandomSource) => EvaluateDamageResult;
+}
+
+type StrikeTarget = { itemId?: string | undefined; strikeKey?: string | undefined };
+
+function characterStrike(actor: Actor, itemId: string): ResolvedStrike {
   const data = characterDataSchema.parse(actor.system);
   if (!data.items.some((item) => item.id === itemId)) {
     throw new OperationRejected(`no item found with id ${itemId}`);
   }
-  const strike = prepareCharacter(data).strikes.find((s) => s.itemId === itemId);
+  const strike: PreparedStrike | undefined = prepareCharacter(data).strikes.find(
+    (s) => s.itemId === itemId,
+  );
   if (strike === undefined) {
     throw new OperationRejected('only an equipped weapon can make a strike');
   }
-  return { actor, strike };
+  return {
+    name: strike.name,
+    id: { itemId },
+    attacks: strike.attacks,
+    damageModifiers: strike.damageModifiers,
+    rollDamage: (critical, rng) =>
+      rollStrikeDamage({ ...strike.damageInputs, critical, rng }),
+  };
+}
+
+function monsterStrike(actor: Actor, strikeKey: string): ResolvedStrike {
+  const data = npcDataSchema.safeParse(actor.system);
+  if (!data.success) {
+    throw new OperationRejected(`${actor.name} has no creature stats to roll`);
+  }
+  const strike = prepareNpc(data.data).strikes.find((s) => s.key === strikeKey);
+  if (strike === undefined) {
+    throw new OperationRejected(`${actor.name} has no strike ${strikeKey}`);
+  }
+  return {
+    name: strike.name,
+    id: { strikeKey },
+    attacks: strike.attacks,
+    damageModifiers: strike.damageModifiers,
+    // `damage.critical` already carries fatal; the dice layer doubles the total.
+    rollDamage: (critical, rng) =>
+      evaluateDamage(critical ? strike.damage.critical : strike.damage.normal, critical, {
+        rng,
+      }),
+  };
+}
+
+/** The actor and resolved strike named by `target`, or a rejection saying why there is none. */
+function strikeFor(
+  store: WorldStore,
+  seat: Seat,
+  actorId: string,
+  target: StrikeTarget,
+): { actor: Actor; strike: ResolvedStrike } {
+  const { raw } = loadOwnedDocument(store, seat, actorId, 'actor', 'actor');
+  const actor = actorSchema.parse(raw);
+  if (actor.kind === 'character' && target.itemId !== undefined) {
+    return { actor, strike: characterStrike(actor, target.itemId) };
+  }
+  if (actor.kind === 'npc' && target.strikeKey !== undefined) {
+    return { actor, strike: monsterStrike(actor, target.strikeKey) };
+  }
+  if (actor.kind !== 'character' && actor.kind !== 'npc') {
+    throw new OperationRejected(`a ${actor.kind} does not have a character sheet`);
+  }
+  throw new OperationRejected(
+    actor.kind === 'character'
+      ? 'a character strikes with a weapon: give itemId'
+      : 'a monster strikes with one of its strikes: give strikeKey',
+  );
 }
 
 function messageBase(
   store: WorldStore,
   seat: Seat,
   actor: Actor,
-  strike: PreparedStrike,
+  strike: ResolvedStrike,
 ) {
   const now = new Date().toISOString();
   return {
@@ -72,7 +139,7 @@ function messageBase(
     seatId: seat.id,
     actorId: actor.id,
     actorName: actor.name,
-    itemId: strike.itemId,
+    ...strike.id,
     weaponName: strike.name,
   };
 }
@@ -82,14 +149,13 @@ export function rollActorStrike(
   store: WorldStore,
   seat: Seat,
   rng: RandomSource,
-  payload: {
+  payload: StrikeTarget & {
     actorId: string;
-    itemId: string;
     attackNumber: 1 | 2 | 3;
     dc?: number | undefined;
   },
 ): ChatStrikeAttackMessage {
-  const { actor, strike } = strikeFor(store, seat, payload.actorId, payload.itemId);
+  const { actor, strike } = strikeFor(store, seat, payload.actorId, payload);
   const breakdown = strike.attacks[payload.attackNumber - 1];
   if (breakdown === undefined) {
     throw new OperationRejected('attackNumber must be 1, 2, or 3');
@@ -116,14 +182,10 @@ export function rollActorDamage(
   store: WorldStore,
   seat: Seat,
   rng: RandomSource,
-  payload: { actorId: string; itemId: string; critical: boolean },
+  payload: StrikeTarget & { actorId: string; critical: boolean },
 ): ChatStrikeDamageMessage {
-  const { actor, strike } = strikeFor(store, seat, payload.actorId, payload.itemId);
-  const rolled = rollStrikeDamage({
-    ...strike.damageInputs,
-    critical: payload.critical,
-    rng,
-  });
+  const { actor, strike } = strikeFor(store, seat, payload.actorId, payload);
+  const rolled = strike.rollDamage(payload.critical, rng);
   if (!rolled.ok) {
     // The expressions are generated from validated data, not typed by a user.
     throw new Error(

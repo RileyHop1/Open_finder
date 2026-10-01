@@ -99,7 +99,8 @@ in place arrives with the roll buttons in the UI, not as a server operation.
 
 Strikes get two kinds, because an attack and a damage roll are rolled separately
 and carry different facts. Both share `actorId`, `actorName`, `itemId` (the
-carried weapon) and `weaponName` (a snapshot), plus a `breakdown` `Statistic`
+carried weapon) or `strikeKey` (a monster's strike, which has no item; exactly one
+is set) and `weaponName` (a snapshot), plus a `breakdown` `Statistic`
 and the `roll`.
 
 | Kind | Extra fields | `breakdown` is | `roll` |
@@ -113,8 +114,14 @@ bonus rolled is the bonus the sheet shows. The attack is rolled with `rollCheck`
 over that statistic rather than `rollStrikeAttack`, because the DC is optional
 here and `rollStrikeAttack` requires one; both produce the same expression.
 **The server does not count a turn's attacks** (the combat tracker is milestone 5),
-so the roller states which attack this is; a wrong number is a wrong penalty,
+so the roller states which attack this is (a monster's strike is built the same way from `prepareNpc`, and its `critical` damage already carries `fatal`); a wrong number is a wrong penalty,
 visible in the breakdown and fixed by rolling again.
+
+**Monster rolls are public.** A check or strike rolled for a monster posts to the
+whole table like any other chat message, so its `breakdown` shows the printed
+bonus. The monster's sheet stays hidden (the actor is `none` for players); only
+the roll is not. A secret GM roll is a later feature (the Definition of Done's
+override path is the GM re-rolling or adjusting the number).
 
 ## Why `seatId` is required here but optional on `AppliedOperation`
 

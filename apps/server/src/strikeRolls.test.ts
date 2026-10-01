@@ -159,7 +159,7 @@ describe('rollActorStrike', () => {
     expect(() => roll(makeSeat(), actorId, itemId)).toThrow(/do not have permission/);
 
     const npc = createActor(store, owner, { kind: 'npc', name: 'Innkeeper' });
-    expect(() => roll(owner, npc.id, itemId)).toThrow(/does not have a character sheet/);
+    expect(() => roll(owner, npc.id, itemId)).toThrow(/give strikeKey/);
     expect(store.listDocuments('chatMessage')).toEqual([]);
   });
 });

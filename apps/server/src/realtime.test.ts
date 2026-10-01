@@ -59,6 +59,15 @@ const BOG_STRANGLER = creatureEntrySchema.parse({
   hp: 45,
   speeds: { land: 25 },
   attributes: { str: 4, dex: 1, con: 3, int: -2, wis: 1, cha: -1 },
+  skills: { athletics: 11 },
+  strikes: [
+    {
+      name: 'Vine',
+      attackBonus: 11,
+      traits: [],
+      damage: [{ diceNumber: 1, dieFaces: 8, bonus: 4, damageType: 'bludgeoning' }],
+    },
+  ],
 });
 
 /** A small compendium: a rope for `actor.addItem`, and a monster for `actor.createFromCreature`. */
@@ -1701,6 +1710,67 @@ describe('actor.createFromCreature', () => {
     expect(hurt.forGm.documents[0]).toMatchObject({ system: { hp: { current: 12 } } });
     expect(hurt.forPlayer.documents).toEqual([]);
     expect(hurt.forPlayer.deleted).toEqual([]);
+  });
+
+  it('lets the GM roll its strike and a skill, posting to the table without exposing the sheet', async () => {
+    const t = await table();
+    const made = await t.send(t.gm, op('actor.createFromCreature', strangler));
+    const actorId = made.forGm.documents[0]?.id ?? '';
+
+    const attack = await t.send(
+      t.gm,
+      op('actor.rollStrike', { actorId, strikeKey: 'strike:vine', attackNumber: 1 }),
+    );
+    const damage = await t.send(
+      t.gm,
+      op('actor.rollDamage', { actorId, strikeKey: 'strike:vine', critical: true }),
+    );
+    const check = await t.send(
+      t.gm,
+      op('actor.rollCheck', { actorId, statistic: 'skill:athletics' }),
+    );
+
+    for (const [heard, kind] of [
+      [attack, 'strikeAttack'],
+      [damage, 'strikeDamage'],
+      [check, 'check'],
+    ] as const) {
+      expect(heard.forGm.documents[0]).toMatchObject({ kind, actorId });
+      // The roll is public, like any chat message; the monster behind it is not.
+      expect(heard.forPlayer.documents).toHaveLength(1);
+      expect(heard.forPlayer.documents[0]).toMatchObject({ kind, actorId });
+      expect(JSON.stringify(heard.forPlayer)).not.toContain('savingThrows');
+    }
+    expect(attack.forPlayer.documents[0]).toMatchObject({ strikeKey: 'strike:vine' });
+  });
+
+  it('refuses a player rolling for a monster, and one strike named two ways', async () => {
+    const t = await table();
+    const made = await t.send(t.gm, op('actor.createFromCreature', strangler));
+    const actorId = made.forGm.documents[0]?.id ?? '';
+
+    expect(
+      (
+        await emitOperation(
+          t.player,
+          op('actor.rollStrike', { actorId, strikeKey: 'strike:vine', attackNumber: 1 }),
+        )
+      ).ok,
+    ).toBe(false);
+    expect(
+      (
+        await emitOperation(
+          t.gm,
+          op('actor.rollStrike', {
+            actorId,
+            strikeKey: 'strike:vine',
+            itemId: crypto.randomUUID(),
+            attackNumber: 1,
+          }),
+        )
+      ).ok,
+    ).toBe(false);
+    expect(store.listDocuments('chatMessage')).toEqual([]);
   });
 });
 

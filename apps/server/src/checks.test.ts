@@ -139,7 +139,7 @@ describe('rollActorCheck', () => {
     expect(store.listDocuments('chatMessage')).toEqual([]);
   });
 
-  it('lets the GM roll for anyone, and refuses another player or an NPC', () => {
+  it('lets the GM roll for anyone, and refuses another player or an NPC with no creature', () => {
     const { actorId } = athlete();
     const asGm = rollActorCheck(store, makeSeat({ isGM: true }), fixed(10), {
       actorId,
@@ -157,6 +157,6 @@ describe('rollActorCheck', () => {
         actorId: npc.id,
         statistic: 'perception',
       }),
-    ).toThrow(/does not have a character sheet/);
+    ).toThrow(/has no creature stats to roll/);
   });
 });

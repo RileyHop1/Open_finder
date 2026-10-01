@@ -274,7 +274,25 @@ export const actorRollCheckOperationSchema = clientOperationSchema.extend({
 });
 
 /**
- * Roll a strike's attack for an equipped weapon. `attackNumber` is the 1st,
+ * Names the strike to roll: a character's equipped weapon by `itemId`, or a
+ * monster's strike by `strikeKey` (`strike:<name>`, as `prepareNpc` keys it).
+ * Exactly one must be given.
+ */
+const strikeTargetShape = {
+  itemId: idSchema.optional(),
+  strikeKey: z.string().min(1).max(100).optional(),
+};
+
+const hasOneStrikeTarget = (p: {
+  itemId?: string | undefined;
+  strikeKey?: string | undefined;
+}) => (p.itemId === undefined) !== (p.strikeKey === undefined);
+
+const STRIKE_TARGET_MESSAGE = 'give exactly one of itemId and strikeKey';
+
+/**
+ * Roll a strike's attack for an equipped weapon (`itemId`) or a monster's
+ * strike (`strikeKey`). `attackNumber` is the 1st,
  * 2nd, or 3rd attack this turn, which sets the Multiple Attack Penalty (the
  * server does not track turns until the combat tracker, milestone 5, so the
  * roller says which attack this is). `dc` adds a degree of success. Owner or
@@ -282,18 +300,22 @@ export const actorRollCheckOperationSchema = clientOperationSchema.extend({
  */
 export const actorRollStrikeOperationSchema = clientOperationSchema.extend({
   type: z.literal('actor.rollStrike'),
-  payload: z.object({
-    actorId: idSchema,
-    itemId: idSchema,
-    attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-    dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
-  }),
+  payload: z
+    .object({
+      actorId: idSchema,
+      ...strikeTargetShape,
+      attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+      dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
+    })
+    .refine(hasOneStrikeTarget, { message: STRIKE_TARGET_MESSAGE }),
 });
 
-/** Roll a strike's damage, normal or critical, for an equipped weapon. Owner or GM only. */
+/** Roll a strike's damage, normal or critical, for an equipped weapon or a monster's strike. Owner or GM only. */
 export const actorRollDamageOperationSchema = clientOperationSchema.extend({
   type: z.literal('actor.rollDamage'),
-  payload: z.object({ actorId: idSchema, itemId: idSchema, critical: z.boolean() }),
+  payload: z
+    .object({ actorId: idSchema, ...strikeTargetShape, critical: z.boolean() })
+    .refine(hasOneStrikeTarget, { message: STRIKE_TARGET_MESSAGE }),
 });
 
 /** Add an actor to the party (created on first use). GM only. */

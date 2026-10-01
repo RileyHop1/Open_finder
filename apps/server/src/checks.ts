@@ -10,10 +10,16 @@
  * Multiple Attack Penalty step and a damage roll).
  */
 
-import type { Actor, ChatCheckMessage, Seat } from '@hearthtable/core';
+import type { Actor, ChatCheckMessage, Seat, Statistic } from '@hearthtable/core';
 import { actorSchema } from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
-import { characterDataSchema, prepareCharacter, rollCheck } from '@hearthtable/pf2e';
+import {
+  characterDataSchema,
+  npcDataSchema,
+  prepareCharacter,
+  prepareNpc,
+  rollCheck,
+} from '@hearthtable/pf2e';
 
 import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
@@ -32,8 +38,23 @@ function labelFor(statistic: string): string {
     .join(' ');
 }
 
+/** The actor's prepared statistics: a character from its sheet, a monster from its creature. Anything else is rejected. */
+function preparedStatistics(actor: Actor): Readonly<Record<string, Statistic>> {
+  if (actor.kind === 'character') {
+    return prepareCharacter(characterDataSchema.parse(actor.system)).statistics;
+  }
+  if (actor.kind === 'npc') {
+    const data = npcDataSchema.safeParse(actor.system);
+    if (!data.success) {
+      throw new OperationRejected(`${actor.name} has no creature stats to roll`);
+    }
+    return prepareNpc(data.data).statistics;
+  }
+  throw new OperationRejected(`a ${actor.kind} does not have a character sheet`);
+}
+
 /**
- * Rolls `payload.statistic` for character `payload.actorId` on behalf of
+ * Rolls `payload.statistic` for character or monster `payload.actorId` on behalf of
  * `seat` (who must own it) and stores the result as a `check` chat message,
  * visible to the whole table. An unknown or unrollable statistic, or an actor
  * with no character sheet, is rejected before anything is rolled or stored.
@@ -46,17 +67,9 @@ export function rollActorCheck(
 ): ChatCheckMessage {
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
   const actor: Actor = actorSchema.parse(raw);
-  if (actor.kind !== 'character') {
-    throw new OperationRejected(`a ${actor.kind} does not have a character sheet`);
-  }
-
   const isRollable =
     ROLLABLE.has(payload.statistic) || payload.statistic.startsWith('skill:');
-  const statistic = isRollable
-    ? prepareCharacter(characterDataSchema.parse(actor.system)).statistics[
-        payload.statistic
-      ]
-    : undefined;
+  const statistic = isRollable ? preparedStatistics(actor)[payload.statistic] : undefined;
   if (statistic === undefined) {
     throw new OperationRejected(`${payload.statistic} cannot be rolled as a check`);
   }
