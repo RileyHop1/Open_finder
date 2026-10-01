@@ -23,7 +23,7 @@ Enforced by the server (`apps/server/src/actors.ts`, `writeGuard.ts`):
 - **Any seat may create** an actor with `actor.create` and becomes its `owner`.
   Everyone else is `observer`, so the party can see each other's sheets. The GM
   can change either later.
-- **Changing or deleting needs `owner`**, and the GM always resolves to `owner`.
+- **Changing or deleting needs `owner`** (`actor.update` and `actor.delete`), and the GM always resolves to `owner`.
   A document a seat cannot read is reported as not found, not as forbidden.
 - **`none` keeps an actor** (a hidden NPC) from being sent to a seat at all
   ([operations.md](operations.md), "Who receives what").

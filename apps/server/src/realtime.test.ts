@@ -510,6 +510,11 @@ describe('actor.create and actor.delete', () => {
     };
   }
 
+  /** Every connected socket, so a test can wait for a broadcast to reach all of them before moving on (they arrive in no fixed order across connections). */
+  function allSockets(table: Awaited<ReturnType<typeof seatedTable>>): ClientSocket[] {
+    return [table.gm, table.owner, table.other];
+  }
+
   it('creates an actor owned by the sender and broadcasts it to everyone', async () => {
     const { ownerSeat, gm, owner, other } = await seatedTable();
     const heard = [gm, owner, other].map(nextBroadcast);
@@ -542,10 +547,12 @@ describe('actor.create and actor.delete', () => {
   });
 
   it('refuses a delete from a player who does not own the actor, then allows the owner', async () => {
-    const { owner, other } = await seatedTable();
-    const created = nextBroadcast(owner);
+    const table = await seatedTable();
+    const { owner, other } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
     await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
-    const actorId = (await created).documents[0]?.id ?? '';
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
 
     const refused = await emitOperation(other, op('actor.delete', { actorId }));
     expect(refused.ok).toBe(false);
@@ -561,11 +568,72 @@ describe('actor.create and actor.delete', () => {
     expect(broadcast.deleted.map((d) => d.id)).toEqual([actorId]);
   });
 
+  it('applies an owner’s update and broadcasts the updated actor to the table', async () => {
+    const table = await seatedTable();
+    const { owner, other, gm } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+
+    const heard = [other, gm].map(nextBroadcast);
+    const ack = await emitOperation(
+      owner,
+      op('actor.update', { actorId, changes: { name: 'Valeria', 'system.level': 2 } }),
+    );
+    expect(ack).toEqual({ ok: true });
+
+    for (const broadcast of await Promise.all(heard)) {
+      expect(broadcast.documents[0]).toMatchObject({
+        id: actorId,
+        name: 'Valeria',
+        system: { level: 2 },
+      });
+    }
+  });
+
+  it('refuses an update from a non-owner and from an invalid change, logging neither', async () => {
+    const table = await seatedTable();
+    const { owner, other } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+    const sequenceBefore = store.listOperationsSince(0).length;
+
+    const refused = await emitOperation(
+      other,
+      op('actor.update', { actorId, changes: { name: 'Hijack' } }),
+    );
+    expect(refused.ok).toBe(false);
+
+    const invalid = await emitOperation(
+      owner,
+      op('actor.update', { actorId, changes: { 'system.level': 99 } }),
+    );
+    expect(invalid.ok).toBe(false);
+    expect(invalid.error).toContain('system.level');
+
+    const forbidden = await emitOperation(
+      owner,
+      op('actor.update', { actorId, changes: { 'permissions.default': 'owner' } }),
+    );
+    expect(forbidden.ok).toBe(false);
+
+    expect(store.listOperationsSince(0)).toHaveLength(sequenceBefore);
+    expect(store.getDocument(actorId)).toMatchObject({
+      name: 'Hero',
+      system: { level: 1 },
+    });
+  });
+
   it('lets the GM delete a hidden actor without telling players it existed', async () => {
-    const { owner, gm } = await seatedTable();
-    const created = nextBroadcast(owner);
+    const table = await seatedTable();
+    const { owner, gm } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
     await emitOperation(owner, op('actor.create', { kind: 'npc', name: 'Secret' }));
-    const actor = (await created).documents[0];
+    const actor = (await Promise.all(created))[0]?.documents[0];
     if (actor === undefined) {
       throw new Error('expected a created actor');
     }

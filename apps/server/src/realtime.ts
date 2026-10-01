@@ -49,7 +49,7 @@ import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
-import { createActor, deleteActor } from './actors.js';
+import { createActor, deleteActor, updateActor } from './actors.js';
 import { OperationRejected } from './rejection.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
@@ -298,6 +298,11 @@ function dispatch(
     case 'actor.create': {
       const seat = requireSeat(store, socket);
       const actor = createActor(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.update': {
+      const seat = requireSeat(store, socket);
+      const actor = updateActor(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [actor] };
     }
     case 'actor.delete': {

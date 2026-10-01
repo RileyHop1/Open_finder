@@ -121,6 +121,32 @@ export const actorDeleteOperationSchema = clientOperationSchema.extend({
   payload: z.object({ actorId: idSchema }),
 });
 
+/** The most field changes one `actor.update` may carry. */
+export const MAX_ACTOR_CHANGES = 50;
+
+/**
+ * Change fields of an actor. `changes` maps a dotted path to its new value,
+ * for example `{ "system.attributes.str": 4, "name": "Valeria" }`. Paths, not
+ * a whole document, so two players editing different fields never overwrite
+ * each other (ADR 0005: last write wins *per field*). A `null` value removes
+ * the field. The server decides which paths are editable and re-validates the
+ * whole actor afterwards; this schema only bounds the shape.
+ */
+export const actorUpdateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.update'),
+  payload: z.object({
+    actorId: idSchema,
+    changes: z
+      .record(z.string().min(1), z.unknown())
+      .refine((changes) => Object.keys(changes).length > 0, {
+        message: 'changes must name at least one field',
+      })
+      .refine((changes) => Object.keys(changes).length <= MAX_ACTOR_CHANGES, {
+        message: `changes may name at most ${String(MAX_ACTOR_CHANGES)} fields`,
+      }),
+  }),
+});
+
 /**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
@@ -135,6 +161,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   chatSendRollOperationSchema,
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
+  actorUpdateOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

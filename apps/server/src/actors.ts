@@ -1,5 +1,5 @@
 /**
- * Actor operations: creating and deleting. Pure with respect to the
+ * Actor operations: creating, updating, and deleting. Pure with respect to the
  * connection -- they take the already-resolved `Seat` and a `WorldStore` and
  * return what changed -- so they can be tested without a socket, and
  * `realtime.ts` only has to dispatch to them.
@@ -8,13 +8,17 @@
  * - **Any seat may create** an actor, and becomes its `owner`. Everyone at the
  *   table can see it (`observer`), so a party can see each other's sheets. The
  *   GM can change either afterwards.
- * - **Only an owner may delete** one, and the GM always owns (`writeGuard.ts`).
+ * - **Only an owner may update or delete** one, and the GM always owns
+ *   (`writeGuard.ts`).
  */
 
 import type { Actor, BaseDocument, Seat } from '@hearthtable/core';
 import { actorSchema, baseDocumentSchema } from '@hearthtable/core';
-import { newCharacterData } from '@hearthtable/pf2e';
+import { characterDataSchema, newCharacterData } from '@hearthtable/pf2e';
+import type { ZodError } from 'zod';
 
+import { applyChanges, parsePath } from './patch.js';
+import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
 
@@ -43,6 +47,79 @@ export function createActor(
   });
   store.putDocument(actor);
   return actor;
+}
+
+/**
+ * Whether a client may change the field at `path`. Only the actor's `name`,
+ * `portrait`, and the inside of `system` -- and not `system.items` or
+ * `system.conditions`, which have their own operations because adding an item
+ * or a second source of a condition needs logic a plain overwrite does not
+ * have. Everything else (id, kind, permissions, timestamps) is the server's.
+ */
+function isEditablePath(path: readonly string[]): boolean {
+  const [head, second] = path;
+  if (head === 'name' || head === 'portrait') {
+    return path.length === 1;
+  }
+  return head === 'system' && second !== undefined && !NON_PATCHABLE.has(second);
+}
+
+const NON_PATCHABLE: ReadonlySet<string> = new Set(['items', 'conditions']);
+
+/**
+ * Applies `payload.changes` to actor `payload.actorId` if `seat` owns it, then
+ * re-validates the *whole* actor -- and, for a character, its `system` against
+ * `characterDataSchema` -- before storing anything. A change that would leave
+ * the actor invalid is rejected with the first problem found, and nothing is
+ * written, so a client can never persist a malformed sheet.
+ *
+ * Changes are per field and last write wins (ADR 0005). The stored system is
+ * the *parsed* result, so defaults are filled in and unknown fields are
+ * dropped rather than kept.
+ */
+export function updateActor(
+  store: WorldStore,
+  seat: Seat,
+  payload: { actorId: string; changes: Readonly<Record<string, unknown>> },
+): Actor {
+  const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
+
+  for (const path of Object.keys(payload.changes)) {
+    if (!isEditablePath(parsePath(path))) {
+      throw new OperationRejected(`${path} cannot be changed with actor.update`);
+    }
+  }
+
+  const draft = structuredClone(raw) as Record<string, unknown>;
+  applyChanges(draft, payload.changes);
+  draft['updatedAt'] = new Date().toISOString();
+
+  const parsed = actorSchema.safeParse(draft);
+  if (!parsed.success) {
+    throw new OperationRejected(describeIssue(parsed.error));
+  }
+  let actor = parsed.data;
+
+  if (actor.kind === 'character') {
+    const system = characterDataSchema.safeParse(actor.system);
+    if (!system.success) {
+      throw new OperationRejected(describeIssue(system.error, 'system'));
+    }
+    actor = { ...actor, system: system.data };
+  }
+
+  store.putDocument(actor);
+  return actor;
+}
+
+/** The first problem in `error` as a one-line message a person can act on. */
+function describeIssue(error: ZodError, prefix?: string): string {
+  const issue = error.issues[0];
+  if (issue === undefined) {
+    return 'invalid change';
+  }
+  const path = [...(prefix === undefined ? [] : [prefix]), ...issue.path.map(String)];
+  return `invalid change: ${path.join('.')}: ${issue.message}`;
 }
 
 /**
