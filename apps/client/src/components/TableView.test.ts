@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { Actor, Party } from '@hearthtable/core';
+import type { Actor, Party, Seat } from '@hearthtable/core';
 import { newCharacterData } from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
@@ -51,13 +51,20 @@ function makeParty(memberIds: string[]): Party {
 }
 
 const releaseSeat = vi.fn();
+let mySeat: Seat | undefined;
 let handlers: Map<string, (...args: never[]) => void>;
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(documentsApi.listActors).mockResolvedValue([]);
   vi.mocked(documentsApi.getParty).mockResolvedValue(undefined);
-  vi.mocked(useLobbyStore).mockReturnValue({ releaseSeat } as never);
+  vi.mocked(useLobbyStore).mockReturnValue({
+    releaseSeat,
+    get mySeat() {
+      return mySeat;
+    },
+  } as never);
+  mySeat = undefined;
   handlers = new Map();
   vi.mocked(createSocket).mockReturnValue({
     on: vi.fn((event: string, handler: (...args: never[]) => void) => {
@@ -217,5 +224,70 @@ describe('character roster', () => {
     await flushPromises();
 
     expect(wrapper.find('.sheet').exists()).toBe(false);
+  });
+});
+
+describe('editing a character', () => {
+  const seat = (overrides: Partial<Seat> = {}): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: WORLD,
+    schemaVersion: 1,
+    name: 'Valeros',
+    isGM: false,
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...overrides,
+  });
+
+  async function openHero(hero: Actor) {
+    vi.mocked(documentsApi.listActors).mockResolvedValue([hero]);
+    const wrapper = await mountTable();
+    await wrapper.find('.roster button').trigger('click');
+    return wrapper;
+  }
+
+  it('offers editing to the owner, shows the edit at once, and sends one actor.update', async () => {
+    mySeat = seat();
+    const hero = {
+      ...makeActor('Anna'),
+      permissions: {
+        default: 'observer' as const,
+        seats: { [mySeat.id]: 'owner' as const },
+      },
+    };
+    vi.mocked(emitOperation).mockReturnValue(new Promise(() => undefined));
+    const wrapper = await openHero(hero);
+
+    await wrapper.find('.edit-toggle').trigger('click');
+    const label = wrapper.findAll('label').find((l) => l.text() === 'Strength');
+    await wrapper.find(`#${CSS.escape(label?.attributes('for') ?? '')}`).setValue('3');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.update',
+      payload: { actorId: hero.id, changes: { 'system.attributes.str': 3 } },
+    });
+    // Optimistic: the Athletics total already reflects Str +3 (untrained: no rank bonus).
+    await wrapper.find('.edit-toggle').trigger('click');
+    const athletics = wrapper
+      .findAll('tbody tr')
+      .find((r) => r.find('th').text() === 'Athletics');
+    expect(athletics?.find('.total').text()).toBe('+3');
+  });
+
+  it('offers editing to the GM on a character they do not own', async () => {
+    mySeat = seat({ isGM: true });
+    const wrapper = await openHero({
+      ...makeActor('Anna'),
+      permissions: { default: 'observer', seats: {} },
+    });
+    expect(wrapper.find('.edit-toggle').exists()).toBe(true);
+  });
+
+  it('offers no editing to a seat that only observes the character', async () => {
+    mySeat = seat();
+    const wrapper = await openHero(makeActor('Anna'));
+    expect(wrapper.find('.sheet').exists()).toBe(true);
+    expect(wrapper.find('.edit-toggle').exists()).toBe(false);
   });
 });

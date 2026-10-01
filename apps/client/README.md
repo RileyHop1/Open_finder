@@ -111,8 +111,17 @@ client server in production.
   its rank written out. Every number is `prepareCharacter` run in the browser,
   the same function the server rolls with, so the sheet and a roll cannot
   disagree. The test asserts hand-computed totals, and a timing test holds a
-  level 20 character with 80 items to the 200ms sheet budget. Editing is the
-  next change. **Built.**
+  level 20 character with 80 items to the 200ms sheet budget. **Edit mode**
+  (owner or GM; the server enforces it too) turns the stored values into labelled
+  inputs in place -- name, level, ancestry/heritage/background/class, key
+  attribute, hit points, the six attributes, every rank (save, Perception, class
+  DC, weapon and armor categories, each skill) and a way to add Lore skills --
+  and the totals recompute as you type. Each field saves when committed (Enter or
+  leaving it, never per keystroke), as one optimistic `actor.update` of dotted
+  paths. Inputs are native, labelled controls, so it is keyboard-operable with no
+  extra work. Direct entry of HP and every rank is the GM's override path.
+  **Built.** "Fill ranks from class" needs a class entry from the compendium, so
+  it arrives with the compendium picker.
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
