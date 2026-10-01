@@ -154,6 +154,18 @@ describe('documents', () => {
     expect(store.getDocument(doc.id)).toEqual(doc);
   });
 
+  it('deletes a document and reports whether one existed', () => {
+    const doc = makeDocument(store.world.id);
+    const other = makeDocument(store.world.id);
+    store.putDocument(doc);
+    store.putDocument(other);
+
+    expect(store.deleteDocument(doc.id)).toBe(true);
+    expect(store.getDocument(doc.id)).toBeUndefined();
+    expect(store.getDocument(other.id)).toEqual(other);
+    expect(store.deleteDocument(doc.id)).toBe(false);
+  });
+
   it('returns undefined for an id that was never written', () => {
     expect(store.getDocument(crypto.randomUUID())).toBeUndefined();
   });

@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { BaseDocument, ChatRollMessage, Seat } from '@hearthtable/core';
+import type { BaseDocument, Broadcast, ChatRollMessage, Seat } from '@hearthtable/core';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -479,6 +479,110 @@ describe('active world changes', () => {
     activeWorld.set(worldsRoot, other.world.id);
 
     await expect(disconnected).resolves.toBeUndefined();
+  });
+});
+
+describe('actor.create and actor.delete', () => {
+  function nextBroadcast(socket: ClientSocket): Promise<Broadcast> {
+    return new Promise((resolve) => {
+      socket.once('broadcast', resolve);
+    });
+  }
+
+  const op = (type: string, payload: unknown) => ({
+    id: crypto.randomUUID(),
+    type,
+    payload,
+  });
+
+  /** Two seated players and a GM, each on their own connection. */
+  async function seatedTable() {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    const ownerSeat = makeSeat({ name: 'Owner', claimedByDeviceToken: 'owner' });
+    const otherSeat = makeSeat({ name: 'Other', claimedByDeviceToken: 'other' });
+    store.putSeat(ownerSeat);
+    store.putSeat(otherSeat);
+    return {
+      ownerSeat,
+      gm: await connect('gm'),
+      owner: await connect('owner'),
+      other: await connect('other'),
+    };
+  }
+
+  it('creates an actor owned by the sender and broadcasts it to everyone', async () => {
+    const { ownerSeat, gm, owner, other } = await seatedTable();
+    const heard = [gm, owner, other].map(nextBroadcast);
+
+    const ack = await emitOperation(
+      owner,
+      op('actor.create', { kind: 'character', name: 'Invented Hero' }),
+    );
+    expect(ack).toEqual({ ok: true });
+
+    for (const broadcast of await Promise.all(heard)) {
+      expect(broadcast.documents).toHaveLength(1);
+      expect(broadcast.documents[0]).toMatchObject({
+        type: 'actor',
+        name: 'Invented Hero',
+        permissions: { default: 'observer', seats: { [ownerSeat.id]: 'owner' } },
+      });
+    }
+  });
+
+  it('rejects a create from a connection that has not claimed a seat', async () => {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    const stranger = await connect('nobody');
+    const ack = await emitOperation(
+      stranger,
+      op('actor.create', { kind: 'character', name: 'Hero' }),
+    );
+    expect(ack).toEqual({ ok: false, error: 'this connection has not claimed a seat' });
+    expect(store.listDocuments('actor')).toEqual([]);
+  });
+
+  it('refuses a delete from a player who does not own the actor, then allows the owner', async () => {
+    const { owner, other } = await seatedTable();
+    const created = nextBroadcast(owner);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await created).documents[0]?.id ?? '';
+
+    const refused = await emitOperation(other, op('actor.delete', { actorId }));
+    expect(refused.ok).toBe(false);
+    expect(store.getDocument(actorId)).toBeDefined();
+
+    const heard = nextBroadcast(other);
+    expect(await emitOperation(owner, op('actor.delete', { actorId }))).toEqual({
+      ok: true,
+    });
+    const broadcast = await heard;
+    expect(store.getDocument(actorId)).toBeUndefined();
+    expect(broadcast.documents).toEqual([]);
+    expect(broadcast.deleted.map((d) => d.id)).toEqual([actorId]);
+  });
+
+  it('lets the GM delete a hidden actor without telling players it existed', async () => {
+    const { owner, gm } = await seatedTable();
+    const created = nextBroadcast(owner);
+    await emitOperation(owner, op('actor.create', { kind: 'npc', name: 'Secret' }));
+    const actor = (await created).documents[0];
+    if (actor === undefined) {
+      throw new Error('expected a created actor');
+    }
+    store.putDocument({ ...actor, permissions: { default: 'none', seats: {} } });
+
+    const playerHeard = nextBroadcast(owner);
+    const gmHeard = nextBroadcast(gm);
+    expect(await emitOperation(gm, op('actor.delete', { actorId: actor.id }))).toEqual({
+      ok: true,
+    });
+
+    const forPlayer = await playerHeard;
+    expect(forPlayer.deleted).toEqual([]);
+    expect(forPlayer.operation.payload).toEqual({});
+    // The player still gets the broadcast, so their sequence has no gap.
+    expect(forPlayer.sequence).toBeGreaterThan(0);
+    expect((await gmHeard).deleted.map((d) => d.id)).toEqual([actor.id]);
   });
 });
 

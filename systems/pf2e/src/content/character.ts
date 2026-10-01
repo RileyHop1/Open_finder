@@ -159,3 +159,20 @@ export const characterDataSchema = z
   );
 
 export type CharacterData = z.infer<typeof characterDataSchema>;
+
+/**
+ * A blank level 1 character, ready to hand-build: every attribute modifier 0,
+ * every rank untrained, no items, no conditions, 0 HP. What `actor.create`
+ * stores for a new character (the server builds it, never a client). Blank on
+ * purpose: any starting number here would be an arbitrary game choice, and
+ * milestone 7's wizard fills these same fields in properly.
+ */
+export function newCharacterData(): CharacterData {
+  return characterDataSchema.parse({
+    level: 1,
+    attributes: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
+    keyAttribute: 'str',
+    ranks: {},
+    hp: { current: 0 },
+  });
+}

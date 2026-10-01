@@ -49,11 +49,13 @@ function makeOperation(type: string, payload: unknown): AppliedOperation {
 function makeBroadcast(
   documents: BaseDocument[],
   payload: unknown = { secret: 1 },
+  deleted: BaseDocument[] = [],
 ): Broadcast {
   return {
     sequence: 7,
     operation: makeOperation('actor.update', payload),
     documents,
+    deleted,
     seats: [],
   };
 }
@@ -107,6 +109,29 @@ describe('broadcastFor', () => {
   it('leaves a broadcast with no documents alone, even for a viewer with no seat', () => {
     const broadcast = makeBroadcast([]);
     expect(broadcastFor(undefined, broadcast)).toBe(broadcast);
+  });
+});
+
+describe('broadcastFor -- deletions', () => {
+  it('tells a viewer about the deletion of a document they could read', () => {
+    const gone = makeDocument('observer');
+    const broadcast = makeBroadcast([], { actorId: gone.id }, [gone]);
+    const result = broadcastFor(player, broadcast);
+    expect(result.deleted.map((d) => d.id)).toEqual([gone.id]);
+    expect(result.operation.payload).toEqual({ actorId: gone.id });
+  });
+
+  it('hides the deletion of a document the viewer could not read, and withholds the payload', () => {
+    const gone = makeDocument('none');
+    const result = broadcastFor(player, makeBroadcast([], { actorId: gone.id }, [gone]));
+    expect(result.deleted).toEqual([]);
+    expect(result.operation.payload).toEqual({});
+  });
+
+  it('tells the GM about every deletion', () => {
+    const gone = makeDocument('none');
+    const result = broadcastFor(gm, makeBroadcast([], { actorId: gone.id }, [gone]));
+    expect(result.deleted.map((d) => d.id)).toEqual([gone.id]);
   });
 });
 

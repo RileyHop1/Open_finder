@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GearEntry, WeaponEntry } from '../index.js';
-import { characterDataSchema } from './character.js';
+import { characterDataSchema, newCharacterData } from './character.js';
 
 const IMPORTED_AT = '2026-09-30T00:00:00.000Z';
 const PROVENANCE = {
@@ -169,5 +169,22 @@ describe('characterDataSchema', () => {
       characterDataSchema.safeParse({ ...minimal(), ranks: { perception: 'supreme' } })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('newCharacterData', () => {
+  it('is a valid blank level 1 character', () => {
+    const blank = newCharacterData();
+    expect(characterDataSchema.safeParse(blank).success).toBe(true);
+    expect(blank.level).toBe(1);
+    expect(Object.values(blank.attributes)).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(blank.ranks.perception).toBe('untrained');
+    expect(blank.items).toEqual([]);
+    expect(blank.conditions).toEqual([]);
+    expect(blank.hp).toEqual({ current: 0, temp: 0 });
+  });
+
+  it('returns a fresh object each time', () => {
+    expect(newCharacterData()).not.toBe(newCharacterData());
   });
 });

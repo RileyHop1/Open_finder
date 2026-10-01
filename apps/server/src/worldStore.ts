@@ -64,6 +64,8 @@ export interface WorldStore {
   transaction<T>(fn: () => T): T;
   /** Inserts a new document, or updates it in place if `document.id` already exists. */
   putDocument(document: BaseDocument): void;
+  /** Deletes the document with this id. Returns whether one existed. */
+  deleteDocument(id: string): boolean;
   /** Returns the raw parsed JSON body, or undefined if no document has this id. Not validated -- see module doc. */
   getDocument(id: string): unknown;
   /** All documents in this world, optionally filtered by type, oldest-created first. Same not-validated caveat as `getDocument`. */
@@ -178,6 +180,13 @@ function buildStore(db: DatabaseSync, world: World): WorldStore {
         document.createdAt,
         document.updatedAt,
       );
+    },
+
+    deleteDocument(id: string): boolean {
+      const result = db
+        .prepare('DELETE FROM documents WHERE id = ? AND world_id = ?')
+        .run(id, world.id);
+      return Number(result.changes) > 0;
     },
 
     getDocument(id: string): unknown {

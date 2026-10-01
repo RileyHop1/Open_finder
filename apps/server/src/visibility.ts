@@ -5,7 +5,7 @@
  * access control against a determined player -- ADR 0007 deliberately trusts
  * the table, and `Seat.pin` / `claimedByDeviceToken` are not redacted either.
  *
- * A document is sent when `canReadDocument` says so (`packages/core`).
+ * A document (or a deletion's tombstone) is sent when `canReadDocument` says so (`packages/core`).
  * Operations carry their payload, and a payload can describe a document the
  * viewer cannot see (a future `actor.update` on a hidden NPC), so a payload is
  * withheld, replaced by `{}`, whenever it could reveal one.
@@ -38,10 +38,19 @@ export function broadcastFor(seat: Seat | undefined, broadcast: Broadcast): Broa
   const documents = broadcast.documents.filter((document) =>
     canReadDocument(seat, document),
   );
-  if (documents.length === broadcast.documents.length) {
+  const deleted = broadcast.deleted.filter((document) => canReadDocument(seat, document));
+  if (
+    documents.length === broadcast.documents.length &&
+    deleted.length === broadcast.deleted.length
+  ) {
     return broadcast;
   }
-  return { ...broadcast, documents, operation: withoutPayload(broadcast.operation) };
+  return {
+    ...broadcast,
+    documents,
+    deleted,
+    operation: withoutPayload(broadcast.operation),
+  };
 }
 
 /**

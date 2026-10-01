@@ -49,6 +49,8 @@ import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
+import { createActor, deleteActor } from './actors.js';
+import { OperationRejected } from './rejection.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
@@ -76,15 +78,7 @@ export interface AttachRealtimeOptions {
   readonly activeWorld: ActiveWorldManager;
 }
 
-/**
- * Thrown by a dispatch handler to reject an operation cleanly: caught by the
- * `operation` handler below, which rolls back the transaction (via the
- * throw propagating out of `store.transaction`) and acks the sender with
- * the message, without broadcasting anything. Never thrown for a genuine
- * bug -- that's an unhandled error, which acks a generic message instead of
- * leaking internals to the client.
- */
-export class OperationRejected extends Error {}
+export { OperationRejected };
 
 const syncRequestSchema = z.object({ lastSequence: z.number().int().nonnegative() });
 
@@ -241,6 +235,15 @@ function handleChatSendRoll(
   return message;
 }
 
+/** The seat this connection holds, or a rejection: creating or changing a document is attributed to someone. */
+function requireSeat(store: WorldStore, socket: AppSocket): Seat {
+  const seat = seatOf(store, socket);
+  if (seat === undefined) {
+    throw new OperationRejected('this connection has not claimed a seat');
+  }
+  return seat;
+}
+
 function assertNever(value: never): never {
   throw new OperationRejected(`unhandled operation type: ${JSON.stringify(value)}`);
 }
@@ -250,6 +253,8 @@ interface DispatchResult {
   readonly seatId: string | undefined;
   readonly seats: Seat[];
   readonly documents: BaseDocument[];
+  /** Bare envelopes of documents this operation deleted; absent means none. */
+  readonly deleted?: BaseDocument[];
 }
 
 function dispatch(
@@ -289,6 +294,16 @@ function dispatch(
       }
       const message = handleChatSendRoll(store, seatId, operation.payload);
       return { seatId, seats: [], documents: [message] };
+    }
+    case 'actor.create': {
+      const seat = requireSeat(store, socket);
+      const actor = createActor(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.delete': {
+      const seat = requireSeat(store, socket);
+      const tombstone = deleteActor(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [], deleted: [tombstone] };
     }
     default:
       return assertNever(operation);
@@ -334,7 +349,7 @@ function handleOperation(
   const deviceToken = requireDeviceToken(socket);
 
   try {
-    const { appliedOperation, seats, documents } = store.transaction(() => {
+    const { appliedOperation, seats, documents, deleted } = store.transaction(() => {
       const result = dispatch(store, deviceToken, socket, parsed.data);
       const newOperation: NewOperation = {
         id: parsed.data.id,
@@ -351,6 +366,7 @@ function handleOperation(
       sequence: appliedOperation.sequence,
       operation: appliedOperation,
       documents,
+      deleted: deleted ?? [],
       seats,
     };
     emitBroadcast(io, store, broadcast);
