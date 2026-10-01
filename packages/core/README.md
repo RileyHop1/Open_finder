@@ -22,9 +22,19 @@ permission model, and the operation shapes the server validates against.
 - **`Actor` and `Party`** (`actor.ts`, `party.ts`) — a system-agnostic
   actor whose `system` payload `systems/pf2e` validates, and the ordered
   adventuring group. See `docs/actor.md` and `docs/party.md`. **Built.**
-- **Other document schemas** — `Item`, `JournalEntry`, `Scene`, `Combat`,
+- **`Scene` and `Token`** (`scene.ts`, `token.ts`) — a map, its grid, and
+  exits to other scenes, and one actor's marker on a scene. `party.ts` also
+  gains `sceneId`, where the party is. See `docs/scene.md`, `docs/token.md`,
+  and ADR 0017. **Built** — the operations on them land through milestone 4
+- **`GridStrategy`** (`grid/`) — the interface every distance, snap, and
+  footprint question goes through, `GridlessGrid` (freeform scenes), and the
+  shared contract suite every strategy's tests run
+  (`@hearthtable/core/grid-contract`, kept off the main entry because it
+  imports Vitest). The PF2e `SquareGrid` lives in `systems/pf2e`. See
+  `docs/grid.md`. **Built**
+- **Other document schemas** — `Item`, `JournalEntry`, `Combat`,
   `Calendar`, `RollTable`, each extending the document envelope. Not yet —
-  these land through milestones 4–9 as each type's own feature needs it
+  these land through milestones 5–9 as each type's own feature needs it
 - **Operations** (`operation.ts`) — the client-to-server vocabulary: the
   `ClientOperation`/`AppliedOperation` envelopes, the broadcast shape, and
   the seat and chat operations milestone 1 needs, and milestone 3's actor,

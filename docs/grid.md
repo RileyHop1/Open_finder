@@ -84,4 +84,15 @@ the kind of automation that is wrong just often enough to be infuriating.
   corners, and the case where one ally cannot reach.
 - Difficult terrain accumulates across a multi-square move.
 - Every test runs against the `GridStrategy` interface, not `SquareGrid`
-  directly, so a hex implementation inherits the suite.
+  directly, so a hex implementation inherits the suite. The shared suite is
+  `describeGridStrategy` (`packages/core/src/grid/contract.ts`, imported as
+  `@hearthtable/core/grid-contract`): no distance for fewer than two points, a
+  path measures the same reversed, snapping is idempotent and moves a point by at
+  most a cell, a footprint covers no cells or exactly size x size, a footprint is
+  0 feet from itself and measures symmetrically, neighbouring one-square tokens
+  are one cell of feet apart, and a Large token is measured from its nearest
+  edge. It runs at two scales (100px = 5ft, 70px = 10ft) so a strategy that
+  assumes one fails.
+- The suite does **not** assert that a waypoint never shortens a path. On the
+  PF2e square grid it can (two orthogonal steps are 10 ft; a two-square diagonal
+  is 15 ft), so that property is not universal.

@@ -74,6 +74,9 @@ export {
 
 export { MAX_TOKEN_SIZE, tokenSchema, type Token } from './token.js';
 
+export type { Cell, Footprint, GridStrategy, Point } from './grid/gridStrategy.js';
+export { GridlessGrid } from './grid/gridless.js';
+
 export { seatSchema, type Seat } from './seat.js';
 
 export {
