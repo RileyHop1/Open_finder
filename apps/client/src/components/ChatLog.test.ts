@@ -137,6 +137,45 @@ describe('ChatLog', () => {
     expect(wrapper.text()).toContain('Rolling for initiative.');
   });
 
+  it('renders a sheet check as a card naming the character, the roller, and the result', async () => {
+    const seat = makeSeat({ name: 'Riley' });
+    const now = new Date().toISOString();
+    const message = {
+      id: crypto.randomUUID(),
+      worldId: crypto.randomUUID(),
+      type: 'chatMessage',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: now,
+      updatedAt: now,
+      seatId: seat.id,
+      kind: 'check',
+      actorId: crypto.randomUUID(),
+      actorName: 'Valeria',
+      statistic: 'perception',
+      label: 'Perception',
+      breakdown: { total: 5, modifiers: [] },
+      roll: {
+        expression: '1d20+5',
+        total: 15,
+        natural: 10,
+        terms: [
+          { kind: 'die', faces: 20, result: 10, kept: true, value: 10 },
+          { kind: 'constant', value: 5 },
+        ],
+      },
+    } as unknown as ChatMessage;
+    vi.mocked(chatApi.listChatMessages).mockResolvedValue([message]);
+    vi.mocked(useLobbyStore).mockReturnValue({ seats: [seat] } as never);
+
+    const wrapper = mountChatLog();
+    await flushPromises();
+
+    const card = wrapper.find('.roll-card');
+    expect(card.find('.title').text()).toBe('Valeria: Perception — rolled by Riley');
+    expect(card.find('.result').text()).toBe('Total 15');
+  });
+
   it('renders a roll message with a details breakdown showing the total and each term', async () => {
     const seat = makeSeat({ name: 'Riley' });
     const roll = makeRollMessage(seat.id);
