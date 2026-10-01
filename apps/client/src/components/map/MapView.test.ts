@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import type { Scene } from '@hearthtable/core';
-import { sceneSchema } from '@hearthtable/core';
+import type { Actor, Scene, Token } from '@hearthtable/core';
+import { sceneSchema, tokenSchema } from '@hearthtable/core';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, reactive } from 'vue';
@@ -11,8 +11,17 @@ import * as sceneViewModule from './sceneView.js';
 
 const NOW = '2026-10-01T00:00:00.000Z';
 
-const state = reactive<{ shownScene: Scene | undefined }>({ shownScene: undefined });
+const state = reactive<{ shownScene: Scene | undefined; shownTokens: Token[] }>({
+  shownScene: undefined,
+  shownTokens: [],
+});
+const docs = reactive<{ actors: Actor[] }>({ actors: [] });
 vi.mock('../../stores/scenes.js', () => ({ useScenesStore: () => state }));
+vi.mock('../../stores/documents.js', () => ({
+  useDocumentsStore: () => ({
+    actorById: (id: string) => docs.actors.find((actor) => actor.id === id),
+  }),
+}));
 vi.mock('./mapImage.js');
 vi.mock('./sceneView.js');
 vi.mock('pixi.js', () => ({}));
@@ -40,7 +49,12 @@ const CanvasStub = defineComponent({
 });
 
 const app = { screen: { width: 1048, height: 548 }, renderer: { on: vi.fn() } };
-const view = { update: vi.fn(), setCamera: vi.fn(), destroy: vi.fn() };
+const view = {
+  update: vi.fn(),
+  setCamera: vi.fn(),
+  setTokens: vi.fn(),
+  destroy: vi.fn(),
+};
 
 const mounted: { unmount: () => void }[] = [];
 
@@ -56,6 +70,7 @@ function mountView() {
 // Every view watches the same shared state, so one left behind would answer the next test's changes.
 afterEach(() => {
   state.shownScene = undefined;
+  state.shownTokens = [];
   for (const wrapper of mounted.splice(0)) {
     wrapper.unmount();
   }
@@ -69,6 +84,8 @@ async function ready(wrapper: ReturnType<typeof mountView>) {
 beforeEach(() => {
   vi.resetAllMocks();
   state.shownScene = undefined;
+  state.shownTokens = [];
+  docs.actors = [];
   vi.mocked(sceneViewModule.createSceneView).mockReturnValue(view);
   vi.mocked(sceneViewModule.maxTextureSize).mockReturnValue(8192);
   vi.mocked(mapImage.loadMapBitmap).mockResolvedValue({
@@ -327,5 +344,142 @@ describe('moving around', () => {
     onResize();
     expect(camera().x).toBe(1400);
     expect(wrapper.exists()).toBe(true);
+  });
+});
+
+describe('tokens', () => {
+  const makeActor = (name: string, portrait?: string): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: crypto.randomUUID(),
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    system: {},
+    ...(portrait === undefined ? {} : { portrait }),
+  });
+
+  const makeToken = (
+    sceneId: string,
+    actorId: string,
+    overrides: Record<string, unknown> = {},
+  ) =>
+    tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: crypto.randomUUID(),
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId,
+      actorId,
+      x: 250,
+      y: 350,
+      ...overrides,
+    });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  const lastViews = () =>
+    view.setTokens.mock.lastCall?.[0] as { label: string; diameter: number }[];
+
+  it('draws the shown scene’s tokens, sized by the grid and named for their actor', async () => {
+    const hero = makeActor('Valeros');
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    state.shownTokens = [makeToken(scene.id, hero.id, { size: 2 })];
+    const wrapper = mountView();
+    await ready(wrapper);
+
+    expect(lastViews()).toEqual([
+      expect.objectContaining({ label: 'Valeros', diameter: 200, x: 250, y: 350 }),
+    ]);
+    expect(view.setTokens.mock.lastCall?.[2]).toBe(100);
+  });
+
+  it('redraws just the tokens when one changes, not the map', async () => {
+    const hero = makeActor('Valeros');
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    const token = makeToken(scene.id, hero.id);
+    state.shownTokens = [token];
+    const wrapper = mountView();
+    await ready(wrapper);
+    view.update.mockClear();
+
+    state.shownTokens = [{ ...token, x: 400, y: 450 }];
+    await flushPromises();
+    expect(lastViews()).toEqual([expect.objectContaining({ x: 400, y: 450 })]);
+    expect(view.update).not.toHaveBeenCalled();
+  });
+
+  it('lists them for the keyboard and opens the actor’s sheet on activation', async () => {
+    const hero = makeActor('Valeros');
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    state.shownTokens = [
+      makeToken(scene.id, hero.id),
+      makeToken(scene.id, crypto.randomUUID(), { hidden: true }),
+    ];
+    const wrapper = mountView();
+    await ready(wrapper);
+
+    const list = wrapper.get('[aria-label="Tokens on the map"]');
+    expect(list.findAll('li').map((li) => li.text())).toEqual([
+      'Valeros',
+      'Unknown (hidden)',
+    ]);
+    // Only the token whose actor this seat can see is a button.
+    expect(list.findAll('button')).toHaveLength(1);
+    await list.get('button').trigger('click');
+    expect(wrapper.emitted('openActor')).toEqual([[hero.id]]);
+  });
+
+  it('fetches a portrait once, small, then redraws the tokens with it', async () => {
+    const hero = makeActor('Valeros', `${'d'.repeat(64)}.png`);
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    state.shownTokens = [makeToken(scene.id, hero.id)];
+    const bitmap = { close: vi.fn() } as unknown as ImageBitmap;
+    vi.mocked(mapImage.loadMapBitmap).mockResolvedValue(bitmap);
+    const wrapper = mountView();
+    await ready(wrapper);
+
+    expect(mapImage.loadMapBitmap).toHaveBeenCalledTimes(1);
+    expect(mapImage.loadMapBitmap).toHaveBeenCalledWith(
+      `/api/worlds/world-1/assets/${'d'.repeat(64)}.png`,
+      256,
+    );
+    const portraits = view.setTokens.mock.lastCall?.[1] as Map<string, ImageBitmap>;
+    expect(portraits.get(`${'d'.repeat(64)}.png`)).toBe(bitmap);
+
+    state.shownTokens = [{ ...state.shownTokens[0]!, x: 300 }];
+    await flushPromises();
+    expect(mapImage.loadMapBitmap).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the initials when a portrait cannot be fetched', async () => {
+    const hero = makeActor('Valeros', `${'e'.repeat(64)}.png`);
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    state.shownTokens = [makeToken(scene.id, hero.id)];
+    vi.mocked(mapImage.loadMapBitmap).mockRejectedValue(new Error('gone'));
+    const wrapper = mountView();
+    await ready(wrapper);
+
+    expect(lastViews()).toHaveLength(1);
+    expect((view.setTokens.mock.lastCall?.[1] as Map<string, unknown>).size).toBe(0);
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
   });
 });

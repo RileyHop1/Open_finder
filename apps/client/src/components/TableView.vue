@@ -255,7 +255,7 @@ async function handleCreate(): Promise<void> {
           tabindex="-1"
           data-testid="map-pane"
         >
-          <MapView :world-id="worldId" />
+          <MapView :world-id="worldId" @open-actor="openSheetOf" />
         </section>
 
         <Transition name="drawer">
