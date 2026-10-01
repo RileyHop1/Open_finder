@@ -153,7 +153,25 @@ describe('CampaignLobby', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('You');
-    expect(wrapper.find('button').text()).toBe('Release');
+    expect(wrapper.find('.seat-row button').text()).toBe('Release');
+  });
+
+  it('shows the table only while this device holds a seat', async () => {
+    vi.mocked(seatsApi.listSeats).mockResolvedValue([makeSeat()]);
+    const unseated = mountLobby();
+    await flushPromises();
+    expect(unseated.find('.table').exists()).toBe(false);
+    expect(unseated.find('details.seat-manager').attributes('open')).toBeDefined();
+
+    vi.mocked(seatsApi.listSeats).mockResolvedValue([
+      makeSeat({ name: 'Valeros', claimedByDeviceToken: MY_DEVICE_TOKEN }),
+    ]);
+    const seated = mountLobby();
+    await flushPromises();
+    expect(seated.find('.table').exists()).toBe(true);
+    expect(seated.text()).toContain('Playing as Valeros');
+    // The seat list stays reachable, folded away.
+    expect(seated.find('details.seat-manager').attributes('open')).toBeUndefined();
   });
 
   it("shows Claimed with no button for someone else's seat", async () => {
