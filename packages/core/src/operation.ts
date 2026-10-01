@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { actorKindSchema } from './actor.js';
 import { baseDocumentSchema } from './document.js';
 import { idSchema, timestampSchema } from './record.js';
+import { MAX_SCENE_PIXELS, sceneGridChangesSchema, sceneKindSchema } from './scene.js';
 import { seatSchema } from './seat.js';
 
 /**
@@ -301,6 +302,51 @@ export const partyReorderOperationSchema = clientOperationSchema.extend({
   payload: z.object({ memberIds: z.array(idSchema) }),
 });
 
+/** Create a scene. GM only. The server builds the rest (a blank 2000px scene with the default grid, hidden from players); a client cannot supply it. */
+export const sceneCreateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('scene.create'),
+  payload: z.object({
+    name: z.string().trim().min(1).max(100),
+    kind: sceneKindSchema,
+  }),
+});
+
+const sceneSizeSchema = z.number().int().min(100).max(MAX_SCENE_PIXELS);
+
+/**
+ * The fields `scene.update` may change, each optional, so two edits to
+ * different fields never overwrite each other (ADR 0005: last write wins per
+ * field). `background` is an asset name from an upload, or `null` to clear it;
+ * `grid` is a partial grid, merged field by field. Unknown keys are refused and
+ * so is an empty change. Links are not here: they have their own operations.
+ */
+export const sceneChangesSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    kind: sceneKindSchema,
+    width: sceneSizeSchema,
+    height: sceneSizeSchema,
+    background: z.string().min(1).max(100).nullable(),
+    grid: sceneGridChangesSchema,
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, {
+    message: 'a scene change must set at least one field',
+  });
+
+/** Change a scene's name, kind, size, background, or grid. GM only. */
+export const sceneUpdateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('scene.update'),
+  payload: z.object({ sceneId: idSchema, changes: sceneChangesSchema }),
+});
+
+/** Delete a scene, with its tokens, and clear it from the party and from other scenes' links. GM only. */
+export const sceneDeleteOperationSchema = clientOperationSchema.extend({
+  type: z.literal('scene.delete'),
+  payload: z.object({ sceneId: idSchema }),
+});
+
 /**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
@@ -328,6 +374,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   partyRemoveMemberOperationSchema,
   partyReorderOperationSchema,
   actorRemoveConditionOperationSchema,
+  sceneCreateOperationSchema,
+  sceneUpdateOperationSchema,
+  sceneDeleteOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

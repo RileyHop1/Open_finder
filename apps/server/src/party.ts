@@ -101,6 +101,23 @@ export function removeFromParty(store: WorldStore, actorId: string): Party | und
   );
 }
 
+/**
+ * Clears the party's scene if it is `sceneId`, returning the changed party, or
+ * `undefined` if the party was not there. Called when a scene is deleted, so the
+ * party never points at a scene that no longer exists. Not GM-checked: the caller
+ * already is.
+ */
+export function clearPartyScene(store: WorldStore, sceneId: string): Party | undefined {
+  const party = findParty(store);
+  if (party?.sceneId !== sceneId) {
+    return undefined;
+  }
+  const updated: Party = { ...party, updatedAt: new Date().toISOString() };
+  delete updated.sceneId;
+  store.putDocument(updated);
+  return updated;
+}
+
 /** Sets the party order. `memberIds` must be exactly the current members, each once. */
 export function reorderParty(
   store: WorldStore,

@@ -47,6 +47,9 @@ connection, never from the payload; a client that could self-report its own
 | `party.addMember` | `{ actorId }` | **GM only.** Appends to the party, creating it on first use. A character or NPC; a hazard is refused. Adding a current member changes nothing |
 | `party.removeMember` | `{ actorId }` | **GM only.** Not being a member is not an error |
 | `party.reorder` | `{ memberIds }` | **GM only.** Must list exactly the current members, each once; anything else is rejected so a stale client cannot add or drop someone by reordering |
+| `scene.create` | `{ name, kind }` | **GM only.** `kind` is `overworld`, `area`, or `battle`. The server builds the rest: a blank 2000px scene with the default 100px / 5 ft square grid and no map. It is created **hidden from players** (`none`) and stays so until the party is moved there ([scene.md](scene.md)) |
+| `scene.update` | `{ sceneId, changes }` | **GM only.** `changes` is any of `name`, `kind`, `width`, `height`, `background`, and a partial `grid`; at least one, no other keys. The grid merges field by field, so changing the cell size keeps the offset. `background` is an uploaded image name (`<64 hex>.<png|jpg|webp|gif>`) or `null` to clear it; the file's existence is not checked. Links have their own operations |
+| `scene.delete` | `{ sceneId }` | **GM only.** Also deletes the scene's tokens, clears the party's scene if it was there, and removes other scenes' exits into it. All ride in the same broadcast |
 | `actor.delete` | `{ actorId }` | Owner or GM only. A document the sender cannot read is reported as *not found*, never as forbidden, so a rejection does not confirm a hidden actor exists. If the actor was in the party it is removed from it, and the changed party rides in the same broadcast |
 
 ### The `pin` on `seat.claim`

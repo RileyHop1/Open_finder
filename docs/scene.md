@@ -7,8 +7,8 @@ lives on the party ([party.md](party.md)). Rationale in
 [ADR 0017](adr/0017-scenes-and-tokens.md); how distance is measured is
 [grid.md](grid.md).
 
-Milestone 4 adds the schema (this page), then the server operations and the
-client canvas. Sections below say which parts exist so far.
+Milestone 4 adds the schema, then the server operations and the client canvas.
+Sections below say which parts exist so far.
 
 ## Fields (beyond the envelope)
 
@@ -48,11 +48,26 @@ image is stretched to `width` x `height`, nothing on the map moves when it does.
 A scene with no background still has a size, so tokens have bounds before any map
 is uploaded.
 
-## Permissions
+## Permissions and operations
 A new scene is `none` for players: a scene the GM is still building is
 invisible. Moving the party to a scene makes it readable, and the server
-derives that, never the client (ADR 0017). Operations that create and change
-scenes arrive in the milestone's server PRs; this page grows with them.
+derives that, never the client (ADR 0017). The GM always owns every scene.
+
+Three operations exist so far, all **GM only** and listed in
+[operations.md](operations.md): `scene.create` (a blank, hidden scene),
+`scene.update` (name, kind, size, background, and a partial grid merged field by
+field) and `scene.delete`. Deleting a scene also removes its tokens, clears
+[the party's `sceneId`](party.md) if the party was there, and removes every other
+scene's exit into it, all in one broadcast. Players never hear of a hidden scene
+being created, changed, or deleted; the broadcast reaches them with nothing in it.
+
+Things worth knowing:
+- A background is checked to be a well-formed uploaded image name, not that the
+  file exists. The server does not track assets, and a missing file is a blank
+  map, not an error.
+- Making a scene smaller does not move tokens or exits already placed beyond its
+  new edge; moving a token clamps it to the scene (a later PR).
+- Exits (`links`) are added and removed by their own operations (the next PR).
 
 ## Example
 ```ts
