@@ -103,7 +103,7 @@ simplest shape that satisfies ADR 0005; a diff format is exactly the kind of
 complexity CLAUDE.md's Development order section says not to build ahead of a
 real need.
 
-`deleted` lists documents the operation removed, as **bare envelopes** — id,
+`deleted` lists documents the operation removed (or, for a viewer, left unreadable: see "Taking access away" below), as **bare envelopes** — id,
 type, permissions, timestamps, and nothing of the body (it is not parsed loose,
 so the type-specific fields are stripped), so a deletion never re-sends what was
 removed. It carries the permissions so each viewer is told only about deletions
@@ -172,6 +172,18 @@ yet, and sending it whole would leak everything.
   describe the document the viewer must not see), unless the viewer is the GM.
   The `sequence` and the operation's `id` and `type` are always kept, so a
   client never sees a gap in the sequence.
+- **Taking access away.** A document that an operation leaves unreadable to a
+  viewer who *could* read it before is sent to that viewer as a **deletion**, so
+  their client drops the copy they hold (hiding a token, moving the party out of
+  a scene). The tombstone is the document's envelope as they last saw it, with no
+  body. A viewer who could not read it before hears nothing: editing a hidden
+  document never announces that it exists. The server learns "before" by
+  recording each document's stored state ahead of its first write in the
+  operation (`previousDocuments.ts`), at the store boundary, so a handler cannot
+  forget to say that it changed who may see something ([ADR
+  0017](adr/0017-scenes-and-tokens.md), decision 3). No operation changes a
+  document's permissions yet, so this is exercised by unit tests until
+  `scene.activate` and `token.update` (milestone 4) land.
 - **Sync replay.** The log does not record which documents an operation
   touched, so the rule is by type: `seat.*` and `chat.*` keep their payload,
   anything else has its payload withheld from everyone but the GM.

@@ -176,3 +176,125 @@ describe('readableDocuments', () => {
     expect(readableDocuments(gm, [{ nonsense: true }, 'text', null])).toEqual([]);
   });
 });
+
+describe('broadcastFor -- taking access away', () => {
+  /** The document as it was before, and as the operation leaves it: same id, new permissions. */
+  function changed(
+    before: BaseDocument['permissions'],
+    after: BaseDocument['permissions'],
+  ): { before: BaseDocument; after: BaseDocument } {
+    const original = makeDocument('none');
+    return {
+      before: { ...original, permissions: before },
+      after: { ...original, permissions: after },
+    };
+  }
+
+  const previousOf = (...documents: BaseDocument[]) =>
+    new Map(documents.map((document) => [document.id, document]));
+
+  it('tells a viewer who held a document to drop it once it becomes unreadable', () => {
+    const { before, after } = changed(
+      { default: 'observer', seats: {} },
+      { default: 'none', seats: {} },
+    );
+    const result = broadcastFor(player, makeBroadcast([after]), previousOf(before));
+    expect(result.documents).toEqual([]);
+    // The tombstone is the envelope as the viewer last saw it, and nothing of the body.
+    expect(result.deleted).toEqual([before]);
+    expect(result.operation.payload).toEqual({});
+  });
+
+  it('says nothing to a viewer who never could read it, so editing a hidden document does not announce it', () => {
+    const { before, after } = changed(
+      { default: 'none', seats: {} },
+      { default: 'none', seats: {} },
+    );
+    const result = broadcastFor(player, makeBroadcast([after]), previousOf(before));
+    expect(result.documents).toEqual([]);
+    expect(result.deleted).toEqual([]);
+  });
+
+  it('says nothing about a document the operation created and the viewer cannot read', () => {
+    const created = makeDocument('none');
+    const result = broadcastFor(player, makeBroadcast([created]), new Map());
+    expect(result.documents).toEqual([]);
+    expect(result.deleted).toEqual([]);
+  });
+
+  it('says nothing when there is no record of the previous state', () => {
+    const { after } = changed(
+      { default: 'observer', seats: {} },
+      { default: 'none', seats: {} },
+    );
+    expect(broadcastFor(player, makeBroadcast([after])).deleted).toEqual([]);
+  });
+
+  it('revokes only the seat whose access went away', () => {
+    const { before, after } = changed(
+      { default: 'none', seats: { [player.id]: 'observer' } },
+      { default: 'none', seats: {} },
+    );
+    const broadcast = makeBroadcast([after]);
+    const previous = previousOf(before);
+    expect(broadcastFor(player, broadcast, previous).deleted).toEqual([before]);
+    // Another seat never held it, so it hears nothing.
+    expect(broadcastFor(makeSeat(), broadcast, previous).deleted).toEqual([]);
+  });
+
+  it('revokes for a viewer with no seat, judged by the default', () => {
+    const { before, after } = changed(
+      { default: 'observer', seats: {} },
+      { default: 'none', seats: {} },
+    );
+    expect(
+      broadcastFor(undefined, makeBroadcast([after]), previousOf(before)).deleted,
+    ).toEqual([before]);
+  });
+
+  it('shows the GM the document as it is, with nothing revoked', () => {
+    const { before, after } = changed(
+      { default: 'observer', seats: {} },
+      { default: 'none', seats: {} },
+    );
+    const broadcast = makeBroadcast([after]);
+    expect(broadcastFor(gm, broadcast, previousOf(before))).toBe(broadcast);
+  });
+
+  it('sends a document that becomes readable as the document itself, with no deletion', () => {
+    const { before, after } = changed(
+      { default: 'none', seats: {} },
+      { default: 'observer', seats: {} },
+    );
+    const broadcast = makeBroadcast([after]);
+    expect(broadcastFor(player, broadcast, previousOf(before))).toBe(broadcast);
+  });
+
+  it('does not repeat a document that the operation also deleted', () => {
+    const { before, after } = changed(
+      { default: 'observer', seats: {} },
+      { default: 'none', seats: {} },
+    );
+    const result = broadcastFor(
+      player,
+      makeBroadcast([after], {}, [before]),
+      previousOf(before),
+    );
+    expect(result.deleted.map((d) => d.id)).toEqual([before.id]);
+  });
+
+  it('keeps the readable documents and revokes the unreadable one in the same broadcast', () => {
+    const { before, after } = changed(
+      { default: 'observer', seats: {} },
+      { default: 'none', seats: {} },
+    );
+    const stays = makeDocument('observer');
+    const result = broadcastFor(
+      player,
+      makeBroadcast([stays, after]),
+      previousOf(before),
+    );
+    expect(result.documents.map((d) => d.id)).toEqual([stays.id]);
+    expect(result.deleted.map((d) => d.id)).toEqual([before.id]);
+  });
+});
