@@ -12,12 +12,13 @@
  *   (`writeGuard.ts`).
  */
 
-import type { Actor, BaseDocument, Seat } from '@hearthtable/core';
+import type { Actor, BaseDocument, Party, Seat } from '@hearthtable/core';
 import { actorSchema, baseDocumentSchema } from '@hearthtable/core';
 import type { CharacterData } from '@hearthtable/pf2e';
 import { characterDataSchema, newCharacterData } from '@hearthtable/pf2e';
 import type { ZodError } from 'zod';
 
+import { removeFromParty } from './party.js';
 import { applyChanges, parsePath } from './patch.js';
 import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
@@ -158,18 +159,18 @@ function describeIssue(error: ZodError, prefix?: string): string {
 }
 
 /**
- * Deletes actor `actorId` if `seat` owns it, and returns its bare envelope as
- * the tombstone to broadcast (never the body, so a deletion does not re-send
- * what was removed). Does nothing else yet: a party that lists this actor
- * still does, until `party.*` operations exist (B.7) and clean it up.
+ * Deletes actor `actorId` if `seat` owns it. Returns its bare envelope as the
+ * tombstone to broadcast (never the body, so a deletion does not re-send what
+ * was removed), and the party if the actor was a member and so had to be
+ * taken out of it.
  */
 export function deleteActor(
   store: WorldStore,
   seat: Seat,
   payload: { actorId: string },
-): BaseDocument {
+): { tombstone: BaseDocument; party: Party | undefined } {
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
   const tombstone = baseDocumentSchema.parse(raw);
   store.deleteDocument(payload.actorId);
-  return tombstone;
+  return { tombstone, party: removeFromParty(store, payload.actorId) };
 }

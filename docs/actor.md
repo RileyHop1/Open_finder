@@ -31,8 +31,8 @@ Enforced by the server (`apps/server/src/actors.ts`, `writeGuard.ts`):
   rank untrained, 0 HP (`newCharacterData`). Blank on purpose, since any starting
   number would be an arbitrary choice. NPCs and hazards start with an empty
   `system` until their schemas exist.
-- Deleting an actor does not yet remove it from a party; `party.*` operations (a
-  later PR) do that.
+- Deleting an actor also takes it out of the party ([party.md](party.md)), and the
+  same broadcast carries the changed party.
 
 ## Example
 

@@ -58,6 +58,7 @@ import {
 } from './conditions.js';
 import { emptyCompendium } from './compendium.js';
 import { addItem, removeItem, updateItem } from './items.js';
+import { addPartyMember, removePartyMember, reorderParty } from './party.js';
 import { OperationRejected } from './rejection.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
@@ -348,8 +349,32 @@ function dispatch(
     }
     case 'actor.delete': {
       const seat = requireSeat(store, socket);
-      const tombstone = deleteActor(store, seat, operation.payload);
-      return { seatId: seat.id, seats: [], documents: [], deleted: [tombstone] };
+      const { tombstone, party } = deleteActor(store, seat, operation.payload);
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: party === undefined ? [] : [party],
+        deleted: [tombstone],
+      };
+    }
+    case 'party.addMember': {
+      const seat = requireSeat(store, socket);
+      const party = addPartyMember(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [party] };
+    }
+    case 'party.removeMember': {
+      const seat = requireSeat(store, socket);
+      const party = removePartyMember(store, seat, operation.payload);
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: party === undefined ? [] : [party],
+      };
+    }
+    case 'party.reorder': {
+      const seat = requireSeat(store, socket);
+      const party = reorderParty(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [party] };
     }
     default:
       return assertNever(operation);

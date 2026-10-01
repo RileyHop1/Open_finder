@@ -721,6 +721,37 @@ describe('actor.create and actor.delete', () => {
     ).toEqual([]);
   });
 
+  it('lets only the GM manage the party, and drops a deleted member from it', async () => {
+    const table = await seatedTable();
+    const { owner, gm } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+
+    const refused = await emitOperation(owner, op('party.addMember', { actorId }));
+    expect(refused).toEqual({ ok: false, error: 'only the GM can change the party' });
+    expect(store.listDocuments('party')).toEqual([]);
+
+    const added = everyone.map(nextBroadcast);
+    expect(await emitOperation(gm, op('party.addMember', { actorId }))).toEqual({
+      ok: true,
+    });
+    for (const broadcast of await Promise.all(added)) {
+      expect(broadcast.documents[0]).toMatchObject({
+        type: 'party',
+        memberIds: [actorId],
+      });
+    }
+
+    const deleted = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.delete', { actorId }));
+    for (const broadcast of await Promise.all(deleted)) {
+      expect(broadcast.deleted.map((d) => d.id)).toEqual([actorId]);
+      expect(broadcast.documents[0]).toMatchObject({ type: 'party', memberIds: [] });
+    }
+  });
+
   it('lets the GM delete a hidden actor without telling players it existed', async () => {
     const table = await seatedTable();
     const { owner, gm } = table;

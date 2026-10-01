@@ -18,6 +18,16 @@ Shared inventory is deliberately not modeled yet; it lands with the first
 feature that needs it. Whether an id actually refers to an existing actor is
 the server's check when membership changes, not the schema's.
 
+## Operations
+
+One party per world, created the first time `party.addMember` runs; its
+permissions are `observer` for everyone and owned by no player, so only the GM
+(who always owns) changes it. `party.addMember`, `party.removeMember`, and
+`party.reorder` are in [operations.md](operations.md). The server checks that an
+added id is a character or NPC actor that exists, and that a reorder lists
+exactly the current members. Deleting a member's actor removes it from the party
+in the same transaction.
+
 ## Testing
 
 `packages/core/src/party.test.ts`: a default level of 1, an empty party, member
