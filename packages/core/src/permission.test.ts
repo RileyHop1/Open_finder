@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { BaseDocument } from './document.js';
-import { resolvePermission } from './permission.js';
+import {
+  canReadDocument,
+  resolvePermission,
+  resolveViewerPermission,
+} from './permission.js';
 import type { Seat } from './seat.js';
 
 function makeSeat(overrides: Partial<Seat> = {}): Seat {
@@ -71,5 +75,64 @@ describe('resolvePermission', () => {
       permissions: { default: 'none', seats: { [otherSeatId]: 'owner' } },
     });
     expect(resolvePermission(seat, document)).toBe('none');
+  });
+});
+
+describe('resolveViewerPermission', () => {
+  it('gives a viewer with no seat the document default', () => {
+    const document = makeDocument(crypto.randomUUID(), {
+      permissions: { default: 'observer', seats: {} },
+    });
+    expect(resolveViewerPermission(undefined, document)).toBe('observer');
+  });
+
+  it('defers to resolvePermission when there is a seat', () => {
+    const seat = makeSeat({ isGM: true });
+    const document = makeDocument(seat.worldId, {
+      permissions: { default: 'none', seats: {} },
+    });
+    expect(resolveViewerPermission(seat, document)).toBe('owner');
+  });
+});
+
+describe('canReadDocument', () => {
+  const worldId = crypto.randomUUID();
+  const player = makeSeat({ worldId });
+  const withDefault = (level: BaseDocument['permissions']['default']) =>
+    makeDocument(worldId, { permissions: { default: level, seats: {} } });
+
+  it.each([
+    ['none', false],
+    ['limited', false],
+    ['observer', true],
+    ['owner', true],
+  ] as const)('a player with a %s default can read: %s', (level, expected) => {
+    expect(canReadDocument(player, withDefault(level))).toBe(expected);
+  });
+
+  it('lets a per-seat override raise or lower access', () => {
+    const raised = makeDocument(worldId, {
+      permissions: { default: 'none', seats: { [player.id]: 'observer' } },
+    });
+    const lowered = makeDocument(worldId, {
+      permissions: { default: 'observer', seats: { [player.id]: 'none' } },
+    });
+    expect(canReadDocument(player, raised)).toBe(true);
+    expect(canReadDocument(player, lowered)).toBe(false);
+  });
+
+  it('always lets the GM read, whatever the document stores', () => {
+    const gm = makeSeat({ worldId, isGM: true });
+    expect(canReadDocument(gm, withDefault('none'))).toBe(true);
+  });
+
+  it('judges a viewer with no seat by the document default', () => {
+    expect(canReadDocument(undefined, withDefault('observer'))).toBe(true);
+    expect(canReadDocument(undefined, withDefault('none'))).toBe(false);
+  });
+
+  it("never lets a seat read another world's document", () => {
+    const gm = makeSeat({ isGM: true });
+    expect(canReadDocument(gm, withDefault('owner'))).toBe(false);
   });
 });

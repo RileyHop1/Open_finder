@@ -481,3 +481,29 @@ describe('active world changes', () => {
     await expect(disconnected).resolves.toBeUndefined();
   });
 });
+
+describe('sync -- who is asking', () => {
+  it("withholds a non-public operation's payload from a player but not from the GM", async () => {
+    const gmSeat = makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm-token' });
+    const playerSeat = makeSeat({ claimedByDeviceToken: 'player-token' });
+    store.putSeat(gmSeat);
+    store.putSeat(playerSeat);
+    store.appendOperation({
+      id: crypto.randomUUID(),
+      worldId: store.world.id,
+      type: 'actor.update',
+      payload: { secret: 1 },
+      appliedAt: new Date().toISOString(),
+    });
+
+    const player = await connect('player-token');
+    const gm = await connect('gm-token');
+    const forPlayer = await emitSync(player, 0);
+    const forGm = await emitSync(gm, 0);
+
+    expect(forPlayer.operations.map((o) => o.payload)).toEqual([{}]);
+    expect(forGm.operations.map((o) => o.payload)).toEqual([{ secret: 1 }]);
+    // The operation is still there for the player, so their sequence has no gap.
+    expect(forPlayer.operations.map((o) => o.type)).toEqual(['actor.update']);
+  });
+});

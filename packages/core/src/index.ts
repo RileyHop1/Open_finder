@@ -102,7 +102,11 @@ export {
   type RuleElement,
 } from './ruleElement.js';
 
-export { resolvePermission } from './permission.js';
+export {
+  canReadDocument,
+  resolvePermission,
+  resolveViewerPermission,
+} from './permission.js';
 
 export {
   LICENSES,

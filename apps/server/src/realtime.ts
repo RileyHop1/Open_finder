@@ -49,6 +49,7 @@ import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
+import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
 export type { ClientToServerEvents, OperationAck, ServerToClientEvents, SyncAck };
@@ -294,6 +295,23 @@ function dispatch(
   }
 }
 
+/** The seat this connection currently holds, if any. */
+function seatOf(store: WorldStore, socket: AppSocket): Seat | undefined {
+  const { seatId } = socket.data;
+  return seatId === undefined ? undefined : store.getSeat(seatId);
+}
+
+/**
+ * Sends `broadcast` to every connected socket, each getting only what its
+ * seat may see (`visibility.ts`). Every socket still receives a broadcast for
+ * every operation, so sequence numbers stay gapless for all of them.
+ */
+function emitBroadcast(io: AppServer, store: WorldStore, broadcast: Broadcast): void {
+  for (const socket of io.sockets.sockets.values()) {
+    socket.emit('broadcast', broadcastFor(seatOf(store, socket), broadcast));
+  }
+}
+
 function handleOperation(
   io: AppServer,
   activeWorld: ActiveWorldManager,
@@ -335,7 +353,7 @@ function handleOperation(
       documents,
       seats,
     };
-    io.emit('broadcast', broadcast);
+    emitBroadcast(io, store, broadcast);
     ack({ ok: true });
   } catch (error) {
     const message = error instanceof OperationRejected ? error.message : 'internal error';
@@ -345,6 +363,7 @@ function handleOperation(
 
 function handleSync(
   activeWorld: ActiveWorldManager,
+  socket: AppSocket,
   rawPayload: unknown,
   ack: (response: SyncAck) => void,
 ): void {
@@ -354,7 +373,10 @@ function handleSync(
     ack({ operations: [] });
     return;
   }
-  ack({ operations: store.listOperationsSince(parsed.data.lastSequence) });
+  const seat = seatOf(store, socket);
+  ack({
+    operations: operationsFor(seat, store.listOperationsSince(parsed.data.lastSequence)),
+  });
 }
 
 /**
@@ -393,7 +415,7 @@ export function attachRealtime(
     });
 
     socket.on('sync', (rawPayload, ack) => {
-      handleSync(activeWorld, rawPayload, ack);
+      handleSync(activeWorld, socket, rawPayload, ack);
     });
   });
 

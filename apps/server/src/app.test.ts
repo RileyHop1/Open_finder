@@ -461,6 +461,69 @@ describe('GET /api/worlds/:id/documents', () => {
   });
 });
 
+describe('GET /api/worlds/:id/documents -- who is asking', () => {
+  /** Puts a seat holding `deviceToken` into `worldId`, bypassing HTTP, the same way `putTestDocument` does. */
+  function putClaimedSeat(worldId: string, deviceToken: string, isGM: boolean): string {
+    const now = new Date().toISOString();
+    const seatId = crypto.randomUUID();
+    const store = openWorld(worldsRoot, worldId);
+    store.putSeat({
+      id: seatId,
+      worldId,
+      schemaVersion: 1,
+      name: isGM ? 'GM' : 'Valeros',
+      isGM,
+      claimedByDeviceToken: deviceToken,
+      createdAt: now,
+      updatedAt: now,
+    });
+    store.close();
+    return seatId;
+  }
+
+  const idsFor = async (worldId: string, deviceToken?: string) => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/worlds/${worldId}/documents`,
+      ...(deviceToken === undefined
+        ? {}
+        : { headers: { 'x-device-token': deviceToken } }),
+    });
+    expect(response.statusCode).toBe(200);
+    return jsonAs<BaseDocument[]>(response).map((doc) => doc.id);
+  };
+
+  it('withholds a hidden document from a caller with no token and from a player', async () => {
+    const worldId = await createTestWorld();
+    putClaimedSeat(worldId, 'player-token', false);
+    putTestDocument(worldId, { permissions: { default: 'none', seats: {} } });
+    const shown = putTestDocument(worldId);
+
+    expect(await idsFor(worldId)).toEqual([shown.id]);
+    expect(await idsFor(worldId, 'player-token')).toEqual([shown.id]);
+    expect(await idsFor(worldId, 'a-token-no-seat-holds')).toEqual([shown.id]);
+  });
+
+  it('shows the GM every document', async () => {
+    const worldId = await createTestWorld();
+    putClaimedSeat(worldId, 'gm-token', true);
+    const hidden = putTestDocument(worldId, {
+      permissions: { default: 'none', seats: {} },
+    });
+    expect(await idsFor(worldId, 'gm-token')).toEqual([hidden.id]);
+  });
+
+  it('shows a player a hidden document their own seat has been granted', async () => {
+    const worldId = await createTestWorld();
+    const seatId = putClaimedSeat(worldId, 'player-token', false);
+    const granted = putTestDocument(worldId, {
+      permissions: { default: 'none', seats: { [seatId]: 'owner' } },
+    });
+    expect(await idsFor(worldId, 'player-token')).toEqual([granted.id]);
+    expect(await idsFor(worldId)).toEqual([]);
+  });
+});
+
 describe('GET /api/worlds/:id/export', () => {
   it('returns 404 for a world that does not exist', async () => {
     const response = await app.inject({

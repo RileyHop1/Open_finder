@@ -20,6 +20,7 @@ import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
 import { resolveWorldPaths } from './paths.js';
+import { readableDocuments } from './visibility.js';
 import { withWorldStore } from './worldAccess.js';
 import { exportWorldArchive, importWorldArchive } from './worldArchive.js';
 import { createWorld, listWorlds } from './worldStore.js';
@@ -181,6 +182,12 @@ export function createApp(options: AppOptions): FastifyInstance {
     }
   });
 
+  // Filtered to what the caller's seat may read (`visibility.ts`). The caller is
+  // identified by an `x-device-token` header -- the same token the socket
+  // handshake carries -- and a request with none is judged as a viewer with no
+  // seat, who gets each document's default level. This is spoiler protection,
+  // not access control (ADR 0007).
+  //
   // Generic on purpose, the same way WorldStore.listDocuments itself is: this
   // route doesn't know Actor from ChatMessage, so it returns raw stored JSON
   // rather than validating against any one concrete schema. A caller that
@@ -191,9 +198,14 @@ export function createApp(options: AppOptions): FastifyInstance {
     const { id } = request.params as { id: string };
     const { type } = request.query as { type?: string };
     try {
-      const documents = withWorldStore(activeWorld, options.worldsRoot, id, (store) =>
-        store.listDocuments(type),
-      );
+      const deviceToken = request.headers['x-device-token'];
+      const documents = withWorldStore(activeWorld, options.worldsRoot, id, (store) => {
+        const seat =
+          typeof deviceToken === 'string' && deviceToken.length > 0
+            ? store.getSeatByDeviceToken(deviceToken)
+            : undefined;
+        return readableDocuments(seat, store.listDocuments(type));
+      });
       await reply.send(documents);
     } catch {
       await reply.status(404).send({ error: `no world found with id ${id}` });
