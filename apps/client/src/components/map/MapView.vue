@@ -24,18 +24,28 @@
  * (`TokenList.vue`), so the two cannot disagree. Portraits are fetched lazily,
  * small, and a token shows its initials until its picture arrives (or if it
  * never does).
+ *
+ * **Selecting and moving** (`tokenStep.ts`): click a token, or press its button
+ * in the list, to select it. If this seat may move it (the GM any, a player the
+ * tokens of actors they own), the arrow keys then move it one grid square, shown
+ * at once and rolled back if the server refuses; Escape lets go, and with
+ * nothing movable selected the arrows pan the map as before. Each move is
+ * announced in words for screen readers.
  */
 import type { Application } from 'pixi.js';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import { assetUrl } from '../../api/assets.js';
 import { useDocumentsStore } from '../../stores/documents.js';
+import { useLobbyStore } from '../../stores/lobby.js';
 import { useScenesStore } from '../../stores/scenes.js';
-import { type Camera, fitCamera, type Size } from './camera.js';
+import { type Camera, fitCamera, screenToScene, type Size } from './camera.js';
 import MapCanvas from './MapCanvas.vue';
+import { gridForScene } from './mapGrid.js';
 import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
-import { tokenViews } from './tokenModel.js';
+import { canMoveToken, describeToken, tokenAt, tokenViews } from './tokenModel.js';
+import { ARROW_DIRECTIONS, type Direction, stepToken } from './tokenStep.js';
 import TokenList from './TokenList.vue';
 
 /** A portrait is a small picture in a circle: this is more than enough, and keeps a big upload from costing GPU memory. */
@@ -48,6 +58,10 @@ const emit = defineEmits<{ openActor: [actorId: string] }>();
 
 const scenes = useScenesStore();
 const documents = useDocumentsStore();
+const lobby = useLobbyStore();
+const selectedId = ref<string>();
+/** What was last done to a token, in words, for a screen reader's live region. */
+const announcement = ref('');
 const imageError = ref(false);
 
 let app: Application | undefined;
@@ -71,13 +85,60 @@ const drawKey = computed(() => {
 
 /** What to draw and list for each token on the shown scene. */
 const views = computed(() =>
-  tokenViews(scenes.shownTokens, scenes.shownScene?.grid.size ?? 100, (actorId) => {
-    const actor = documents.actorById(actorId);
-    return actor === undefined
-      ? undefined
-      : { name: actor.name, portrait: actor.portrait };
-  }),
+  tokenViews(
+    scenes.shownTokens,
+    scenes.shownScene?.grid.size ?? 100,
+    (actorId) => {
+      const actor = documents.actorById(actorId);
+      return actor === undefined
+        ? undefined
+        : { name: actor.name, portrait: actor.portrait };
+    },
+    {
+      selectedId: selectedId.value,
+      canMove: (actorId) => canMoveToken(lobby.mySeat, documents.actorById(actorId)),
+    },
+  ),
 );
+
+const selectedView = computed(() => views.value.find((view) => view.selected));
+
+// A token that goes away (deleted, hidden, the scene changed) cannot stay selected.
+watch(views, (current) => {
+  if (
+    selectedId.value !== undefined &&
+    !current.some((view) => view.id === selectedId.value)
+  ) {
+    selectedId.value = undefined;
+  }
+});
+
+/** One grid square in `direction` for the selected token, shown at once and announced. */
+async function moveSelected(direction: Direction): Promise<void> {
+  const token = selectedView.value;
+  const scene = scenes.shownScene;
+  if (token === undefined || scene === undefined) {
+    return;
+  }
+  const step = stepToken(gridForScene(scene), scene, token, direction);
+  if (step === undefined) {
+    announcement.value = `${token.label} is at the edge of the map.`;
+    return;
+  }
+  const accepted = await scenes.moveToken(token.id, step.to.x, step.to.y);
+  announcement.value = accepted ? `${token.label} moved ${step.feet} ft.` : '';
+}
+
+/** Selects a token from the list, then hands focus to the map so the arrow keys act on it. */
+function selectFromList(tokenId: string): void {
+  selectedId.value = tokenId;
+  const token = views.value.find((view) => view.id === tokenId);
+  announcement.value =
+    token === undefined
+      ? ''
+      : `${describeToken(token)} selected${token.movable ? '. The arrow keys move it' : ''}.`;
+  surface.value?.focus();
+}
 
 /** Decoded portraits by asset name, and the ones being fetched, so each is fetched once. */
 const portraits = new Map<string, ImageBitmap>();
@@ -163,9 +224,19 @@ function onPointerDown(event: PointerEvent): void {
   if (event.button !== 0 && event.button !== 1) {
     return;
   }
-  surface.value?.setPointerCapture(event.pointerId);
   surface.value?.focus();
-  input.pointerDown(sample(event));
+  const point = sample(event);
+  const hit = tokenAt(
+    views.value,
+    screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
+  );
+  if (hit !== undefined) {
+    // A click on a token selects it; it does not start panning the map.
+    selectedId.value = hit.id;
+    return;
+  }
+  surface.value?.setPointerCapture(event.pointerId);
+  input.pointerDown(point);
   dragging.value = true;
 }
 
@@ -187,12 +258,22 @@ function onWheel(event: WheelEvent): void {
 
 function onKeyDown(event: KeyboardEvent): void {
   // Ctrl, Cmd and Alt belong to the browser (Ctrl + zooms the page).
-  if (
-    !event.ctrlKey &&
-    !event.metaKey &&
-    !event.altKey &&
-    input.keyDown(event.key, event.shiftKey)
-  ) {
+  if (event.ctrlKey || event.metaKey || event.altKey) {
+    return;
+  }
+  const direction = ARROW_DIRECTIONS[event.key];
+  if (direction !== undefined && selectedView.value?.movable === true) {
+    event.preventDefault();
+    void moveSelected(direction);
+    return;
+  }
+  if (event.key === 'Escape' && selectedId.value !== undefined) {
+    selectedId.value = undefined;
+    announcement.value = 'Selection cleared.';
+    event.preventDefault();
+    return;
+  }
+  if (input.keyDown(event.key, event.shiftKey)) {
     event.preventDefault();
   }
 }
@@ -309,7 +390,13 @@ onBeforeUnmount(release);
       No scene is showing yet. When the GM moves the party to a scene, its map appears
       here.
     </p>
-    <TokenList :views="views" @open="(actorId) => emit('openActor', actorId)" />
+    <TokenList
+      :views="views"
+      @select="selectFromList"
+      @open="(actorId) => emit('openActor', actorId)"
+    />
+    <p class="visually-hidden" role="status">{{ announcement }}</p>
+    <p v-if="scenes.error" class="map-note map-error" role="alert">{{ scenes.error }}</p>
     <p v-if="imageError" class="map-note" role="status">
       The map picture could not be loaded, so a blank map is shown.
     </p>
@@ -359,6 +446,27 @@ onBeforeUnmount(release);
   padding: var(--space-4);
   color: var(--color-text-muted);
   text-align: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.map-error {
+  top: var(--space-2);
+  right: auto;
+  bottom: auto;
+  left: var(--space-2);
+  background: var(--color-danger);
+  color: var(--color-accent-contrast);
 }
 
 .map-note {

@@ -248,9 +248,18 @@ client server in production.
   grid cell) and used twice, to draw it (a ring, the portrait cut to a circle or
   the initials, a name beneath, faded and labelled "(hidden)" for the GM's hidden
   ones) and to fill a list for the keyboard. The list is invisible until a button
-  in it has focus, then a panel over the map's corner; Enter opens the actor's
-  sheet. A move changes only a token's position, and portraits are fetched small
-  and lazily. Moving tokens is the next PR of milestone 4. **Built.**
+  in it has focus, then a panel over the map's corner, with a button to select
+  each token and one to open its sheet. A move changes only a token's position,
+  and portraits are fetched small and lazily. **Selecting and moving by keyboard**
+  (`tokenStep.ts`): click a token or press its list button to select it (a thicker
+  gold ring with a second ring outside it); if this seat may move it (the GM any,
+  a player the tokens of actors they own, `canMoveToken`) the arrow keys move it
+  one grid square, snapped as the server will snap it (`mapGrid.ts` picks the same
+  grid the server does), shown at once and rolled back if the server refuses.
+  Escape lets go; with nothing movable selected the arrows pan. Each move is
+  announced in words ("Valeros moved 5 ft."), and a step off the map is refused
+  rather than clamped. Dragging a token, with a live preview for the others, is
+  the next PR of milestone 4. **Built.**
 - **The action bar** (strikes, spells, and actions as hotbar icons). Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the

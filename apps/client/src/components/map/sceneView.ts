@@ -146,11 +146,21 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
         }),
       );
     }
+    // The selected token has a thicker, warmer ring and a second ring outside it: a shape
+    // change as well as a colour one.
     node.addChild(
-      new pixi.Graphics()
-        .circle(0, 0, radius)
-        .stroke({ width: Math.max(3, radius * 0.06), color: 0xece7dc }),
+      new pixi.Graphics().circle(0, 0, radius).stroke({
+        width: Math.max(view.selected ? 6 : 3, radius * (view.selected ? 0.1 : 0.06)),
+        color: view.selected ? 0xffc857 : 0xece7dc,
+      }),
     );
+    if (view.selected) {
+      node.addChild(
+        new pixi.Graphics()
+          .circle(0, 0, radius + Math.max(8, radius * 0.12))
+          .stroke({ width: 3, color: 0xffc857, alpha: 0.8 }),
+      );
+    }
 
     const name = new pixi.Text({
       text: view.hidden ? `${view.label} (hidden)` : view.label,
@@ -186,6 +196,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
           view.label,
           view.initials,
           view.hidden,
+          view.selected,
           cell,
           view.portrait,
           bitmap !== undefined,

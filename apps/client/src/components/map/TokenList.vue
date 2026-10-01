@@ -2,29 +2,43 @@
 /**
  * The tokens on the map, as a list a keyboard and a screen reader can use: the
  * canvas is a picture, so this is how a person without a pointer reaches a
- * token (Tab to it, Enter to open its sheet). It reads the same `TokenView`s
+ * token. Each row has a button to select it (then the arrow keys move it, if
+ * this seat may) and, where there is a sheet to open, a second to open it. It reads the same `TokenView`s
  * the canvas draws, so the two cannot disagree.
  *
  * It stays out of the way until it is wanted: visually hidden while nothing in
  * it has focus, and shown as a small panel over the map's corner while one of
  * its buttons does, so a sighted keyboard user sees where they are. A token
- * whose actor this seat cannot open (a monster, for a player) is listed by name
- * only, since there is nothing to open.
+ * whose actor this seat cannot open (a monster, for a player) has no sheet
+ * button, since there is nothing to open.
  */
 import { describeToken, type TokenView } from './tokenModel.js';
 
 defineProps<{ views: readonly TokenView[] }>();
-const emit = defineEmits<{ open: [actorId: string] }>();
+const emit = defineEmits<{ select: [tokenId: string]; open: [actorId: string] }>();
 </script>
 
 <template>
   <section v-if="views.length > 0" class="token-list" aria-label="Tokens on the map">
     <ul>
       <li v-for="view in views" :key="view.id">
-        <button v-if="view.openable" type="button" @click="emit('open', view.actorId)">
+        <button
+          type="button"
+          :aria-pressed="view.selected"
+          :title="view.movable ? 'Select, then the arrow keys move it' : 'Select'"
+          @click="emit('select', view.id)"
+        >
           {{ describeToken(view) }}
         </button>
-        <span v-else>{{ describeToken(view) }}</span>
+        <button
+          v-if="view.openable"
+          type="button"
+          class="sheet"
+          :aria-label="`Open the sheet of ${describeToken(view)}`"
+          @click="emit('open', view.actorId)"
+        >
+          Sheet
+        </button>
       </li>
     </ul>
   </section>
@@ -68,19 +82,25 @@ ul {
 }
 
 li {
-  flex: 0 1 10rem;
-  min-width: 8rem;
-}
-
-li > span {
-  display: block;
-  padding: var(--space-2);
+  display: flex;
+  flex: 0 1 14rem;
+  gap: var(--space-1);
+  min-width: 10rem;
 }
 
 button {
   min-height: var(--touch-target-min);
-  width: 100%;
+  flex: 1;
   text-align: left;
   cursor: pointer;
+}
+
+button.sheet {
+  flex: 0 0 auto;
+}
+
+button[aria-pressed='true'] {
+  font-weight: bold;
+  outline: 2px solid var(--color-accent);
 }
 </style>

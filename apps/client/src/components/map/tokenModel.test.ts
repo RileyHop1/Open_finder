@@ -1,8 +1,15 @@
-import type { Token } from '@hearthtable/core';
+import type { Actor, Seat, Token } from '@hearthtable/core';
 import { tokenSchema } from '@hearthtable/core';
 import { describe, expect, it } from 'vitest';
 
-import { describeToken, initialsOf, tokenViews, UNKNOWN_LABEL } from './tokenModel.js';
+import {
+  canMoveToken,
+  describeToken,
+  initialsOf,
+  tokenAt,
+  tokenViews,
+  UNKNOWN_LABEL,
+} from './tokenModel.js';
 
 const NOW = '2026-10-01T00:00:00.000Z';
 
@@ -79,5 +86,86 @@ describe('describeToken', () => {
   it('says "hidden" in words', () => {
     expect(describeToken({ label: 'Goblin', hidden: true })).toBe('Goblin (hidden)');
     expect(describeToken({ label: 'Goblin', hidden: false })).toBe('Goblin');
+  });
+});
+
+describe('tokenViews selection and movement', () => {
+  const hero = { name: 'Valeros' };
+
+  it('marks the selected token and what this seat may move', () => {
+    const [mine, theirs] = [makeToken({ name: 'Mine' }), makeToken({ name: 'Theirs' })];
+    const views = tokenViews([mine, theirs], 100, () => hero, {
+      selectedId: theirs.id,
+      canMove: (actorId) => actorId === mine.actorId,
+    });
+    expect(views.map((v) => [v.label, v.selected, v.movable])).toEqual([
+      ['Mine', false, true],
+      ['Theirs', true, false],
+    ]);
+  });
+
+  it('moves and selects nothing by default, and carries the size in squares', () => {
+    const [view] = tokenViews([makeToken({ size: 3 })], 100, () => hero);
+    expect(view).toMatchObject({ selected: false, movable: false, size: 3 });
+  });
+});
+
+describe('canMoveToken', () => {
+  const world = crypto.randomUUID();
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  const actor = (seats: Record<string, 'owner' | 'observer'> = {}): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name: 'A',
+    system: {},
+  });
+
+  it('lets the GM move anything, even a token whose actor they cannot see', () => {
+    expect(canMoveToken(seat(true), undefined)).toBe(true);
+  });
+
+  it('lets a player move only tokens of actors they own', () => {
+    const me = seat(false);
+    expect(canMoveToken(me, actor({ [me.id]: 'owner' }))).toBe(true);
+    expect(canMoveToken(me, actor())).toBe(false);
+    expect(canMoveToken(me, undefined)).toBe(false);
+  });
+
+  it('refuses someone with no seat', () => {
+    expect(canMoveToken(undefined, actor())).toBe(false);
+  });
+});
+
+describe('tokenAt', () => {
+  const [a, b] = [makeToken({ x: 200, y: 200 }), makeToken({ x: 230, y: 200 })];
+  const views = tokenViews([a, b], 100, () => ({ name: 'X' }));
+
+  it('finds the token whose circle holds the point', () => {
+    expect(tokenAt(views, { x: 150, y: 200 })?.id).toBe(a.id);
+    expect(tokenAt(views, { x: 280, y: 200 })?.id).toBe(b.id);
+  });
+
+  it('prefers the one drawn on top where they overlap', () => {
+    expect(tokenAt(views, { x: 215, y: 200 })?.id).toBe(b.id);
+  });
+
+  it('finds nothing on empty ground, and counts the rim as inside', () => {
+    expect(tokenAt(views, { x: 600, y: 600 })).toBeUndefined();
+    expect(tokenAt(views, { x: 150, y: 200 })).toBeDefined();
+    expect(tokenAt(views, { x: 149, y: 200 })).toBeUndefined();
   });
 });

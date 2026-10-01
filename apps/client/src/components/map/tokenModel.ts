@@ -6,7 +6,8 @@
  * list cannot disagree about what is on the map.
  */
 
-import type { Token } from '@hearthtable/core';
+import type { Actor, Seat, Token } from '@hearthtable/core';
+import { resolvePermission } from '@hearthtable/core';
 
 /** The slice of an actor a token needs. A seat that cannot see the actor (a monster's sheet is the GM's) has none, and the token still shows. */
 export interface TokenActor {
@@ -25,6 +26,8 @@ export interface TokenView {
   /** The centre, in scene pixels. */
   readonly x: number;
   readonly y: number;
+  /** Footprint side in grid squares, which the grid needs to snap it. */
+  readonly size: number;
   /** Footprint side in scene pixels: the token's squares times the grid's cell. */
   readonly diameter: number;
   /** Faded and labelled "hidden" for the GM; the server never sends a hidden token to anyone else. */
@@ -33,6 +36,18 @@ export interface TokenView {
   readonly portrait: string | undefined;
   /** Whether this seat can open the actor's sheet. */
   readonly openable: boolean;
+  /** Whether this seat may move it: the GM any, a player the tokens of actors they own. The server enforces it too. */
+  readonly movable: boolean;
+  /** The token the keyboard and the next move act on. */
+  readonly selected: boolean;
+}
+
+/** Whether `seat` may move a token of `actor` (ADR 0017: owners and the GM; the actor is undefined when this seat cannot see it). */
+export function canMoveToken(seat: Seat | undefined, actor: Actor | undefined): boolean {
+  if (seat === undefined) {
+    return false;
+  }
+  return seat.isGM || (actor !== undefined && resolvePermission(seat, actor) === 'owner');
 }
 
 /** `Goblin Warrior` -> `GW`; `Valeros` -> `V`; blank -> `?`. */
@@ -47,10 +62,17 @@ export function initialsOf(name: string): string {
 /** The word shown for a token that has neither a label of its own nor an actor this seat can see. */
 export const UNKNOWN_LABEL = 'Unknown';
 
+export interface TokenViewOptions {
+  readonly selectedId?: string | undefined;
+  /** Whether this seat may move a token of this actor. Defaults to no. */
+  readonly canMove?: ((actorId: string) => boolean) | undefined;
+}
+
 export function tokenViews(
   tokens: readonly Token[],
   gridSize: number,
   actorOf: (actorId: string) => TokenActor | undefined,
+  options: TokenViewOptions = {},
 ): TokenView[] {
   return tokens.map((token) => {
     const actor = actorOf(token.actorId);
@@ -62,10 +84,13 @@ export function tokenViews(
       initials: initialsOf(label),
       x: token.x,
       y: token.y,
+      size: token.size,
       diameter: token.size * gridSize,
       hidden: token.hidden,
       portrait: actor?.portrait,
       openable: actor !== undefined,
+      movable: options.canMove?.(token.actorId) ?? false,
+      selected: token.id === options.selectedId,
     };
   });
 }
@@ -73,4 +98,21 @@ export function tokenViews(
 /** The words a list or a screen reader gets for a token: its label, and "hidden" when that is true (never colour or fading alone). */
 export function describeToken(view: Pick<TokenView, 'label' | 'hidden'>): string {
   return view.hidden ? `${view.label} (hidden)` : view.label;
+}
+
+/** The topmost token whose circle contains `point` (scene pixels): later tokens draw over earlier ones, so the last match wins. */
+export function tokenAt(
+  views: readonly TokenView[],
+  point: { readonly x: number; readonly y: number },
+): TokenView | undefined {
+  for (let index = views.length - 1; index >= 0; index -= 1) {
+    const view = views[index];
+    if (
+      view !== undefined &&
+      Math.hypot(point.x - view.x, point.y - view.y) <= view.diameter / 2
+    ) {
+      return view;
+    }
+  }
+  return undefined;
 }
