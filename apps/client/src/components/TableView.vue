@@ -22,6 +22,7 @@ import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
+import InventoryPanel from './sheet/InventoryPanel.vue';
 
 const props = defineProps<{ worldId: string; seatName: string }>();
 
@@ -46,6 +47,13 @@ const canEdit = computed(() => {
 function saveChanges(changes: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
     void documents.updateActor(selectedId.value, changes);
+  }
+}
+
+/** Item changes are server logic (the server copies from the compendium), so they are sent and shown when the broadcast returns. */
+function sendItem(type: string, payload: Record<string, unknown>): void {
+  if (selectedId.value !== undefined) {
+    void documents.send(type, { actorId: selectedId.value, ...payload });
   }
 }
 
@@ -162,6 +170,19 @@ async function handleCreate(): Promise<void> {
 
         <section v-if="selected" class="sheet" aria-label="Character sheet">
           <CharacterSheet :actor="selected" :editable="canEdit" @change="saveChanges" />
+          <InventoryPanel
+            v-if="selected.kind === 'character'"
+            :actor="selected"
+            :editable="canEdit"
+            @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
+            @equip="
+              (itemId, equipped) => sendItem('actor.updateItem', { itemId, equipped })
+            "
+            @quantity="
+              (itemId, quantity) => sendItem('actor.updateItem', { itemId, quantity })
+            "
+            @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
+          />
         </section>
       </section>
 
