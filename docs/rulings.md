@@ -252,3 +252,29 @@ ruling from silently drifting.
   equipped." Unit tests only; no golden character holds two suits.
 - **Override:** the GM can change any item directly. A deliberate "wearing two"
   state (a specific magic item's effect) is not modeled.
+
+### Temporary hit points
+- **Rules text:** temporary hit points are a buffer that damage reduces before
+  it reduces real hit points. They do not stack with temporary hit points from
+  another source, and healing raises hit points only up to the maximum. **(confirm)**
+  The Archives of Nethys glossary page for temporary hit points could not be
+  reached on 2026-09-30 (its search is script-driven and the guessed rule IDs
+  were other pages), so this is from the remaster rules as the maintainers
+  understand them and has not been checked against the page.
+- **The ambiguity:** none we know of in the core rules. What the app does is a
+  choice: when a source grants temporary hit points to someone who has some, we
+  keep the larger amount.
+- **Our reading:** damage comes out of temporary hit points first and spills
+  over to current hit points, which stop at 0; healing never exceeds the maximum
+  and leaves temporary hit points alone; gaining temporary hit points keeps the
+  larger of what you have and what you gain. Temporary hit points have no
+  duration yet (that needs the calendar and the combat tracker).
+- **Alternative reading:** add the amounts together, or let the player choose
+  which to keep when two sources overlap. The latter is how the rule is
+  sometimes played at a table.
+- **Why:** the larger-amount reading is the usual one and cannot inflate a
+  buffer by repeating a source.
+- **Golden test:** `systems/pf2e/src/rules/hitPointChanges.test.ts` pins each
+  rule. Unit tests only; no golden character takes damage.
+- **Override:** the GM sets current and temporary hit points directly in the
+  sheet's edit mode, bypassing all of this.
