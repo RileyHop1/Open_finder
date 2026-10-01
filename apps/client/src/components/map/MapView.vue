@@ -18,21 +18,36 @@
  * map), with three buttons for people on a tablet or with only a mouse. The
  * camera stays where the user put it across a redraw of the same scene and a
  * resize, and only follows the box while it is still the whole-map view.
+ *
+ * **Tokens** (`tokenModel.ts`): the shown scene's tokens are worked out once as
+ * `TokenView`s and used twice, to draw the canvas and to fill the keyboard list
+ * (`TokenList.vue`), so the two cannot disagree. Portraits are fetched lazily,
+ * small, and a token shows its initials until its picture arrives (or if it
+ * never does).
  */
 import type { Application } from 'pixi.js';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import { assetUrl } from '../../api/assets.js';
+import { useDocumentsStore } from '../../stores/documents.js';
 import { useScenesStore } from '../../stores/scenes.js';
 import { type Camera, fitCamera, type Size } from './camera.js';
 import MapCanvas from './MapCanvas.vue';
 import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
+import { tokenViews } from './tokenModel.js';
+import TokenList from './TokenList.vue';
+
+/** A portrait is a small picture in a circle: this is more than enough, and keeps a big upload from costing GPU memory. */
+const PORTRAIT_TEXTURE_SIZE = 256;
 import { createSceneView, maxTextureSize, type SceneView } from './sceneView.js';
 
 const props = defineProps<{ worldId: string }>();
 
+const emit = defineEmits<{ openActor: [actorId: string] }>();
+
 const scenes = useScenesStore();
+const documents = useDocumentsStore();
 const imageError = ref(false);
 
 let app: Application | undefined;
@@ -53,6 +68,54 @@ const drawKey = computed(() => {
     ? undefined
     : JSON.stringify([scene.id, scene.background, scene.width, scene.height, scene.grid]);
 });
+
+/** What to draw and list for each token on the shown scene. */
+const views = computed(() =>
+  tokenViews(scenes.shownTokens, scenes.shownScene?.grid.size ?? 100, (actorId) => {
+    const actor = documents.actorById(actorId);
+    return actor === undefined
+      ? undefined
+      : { name: actor.name, portrait: actor.portrait };
+  }),
+);
+
+/** Decoded portraits by asset name, and the ones being fetched, so each is fetched once. */
+const portraits = new Map<string, ImageBitmap>();
+const fetchingPortraits = new Set<string>();
+
+function drawTokens(): void {
+  view?.setTokens(views.value, portraits, scenes.shownScene?.grid.size ?? 100);
+}
+
+function loadPortraits(): void {
+  const current = app;
+  if (current === undefined) {
+    return;
+  }
+  for (const { portrait } of views.value) {
+    if (
+      portrait === undefined ||
+      portraits.has(portrait) ||
+      fetchingPortraits.has(portrait)
+    ) {
+      continue;
+    }
+    fetchingPortraits.add(portrait);
+    void loadMapBitmap(assetUrl(props.worldId, portrait), PORTRAIT_TEXTURE_SIZE)
+      .then((bitmap) => {
+        if (app !== current) {
+          bitmap.close();
+          return;
+        }
+        portraits.set(portrait, bitmap);
+        drawTokens();
+      })
+      .catch(() => {
+        // No picture: the token keeps its initials.
+      })
+      .finally(() => fetchingPortraits.delete(portrait));
+  }
+}
 
 function viewportSize(): Size {
   return app === undefined
@@ -159,6 +222,8 @@ async function redraw(): Promise<void> {
   view.update(scene, background);
   refit(scene.id !== drawnSceneId);
   drawnSceneId = scene.id;
+  drawTokens();
+  loadPortraits();
 }
 
 async function onReady(created: Application): Promise<void> {
@@ -174,10 +239,21 @@ function release(): void {
   view?.destroy();
   view = undefined;
   app = undefined;
+  for (const bitmap of portraits.values()) {
+    bitmap.close();
+  }
+  portraits.clear();
+  fetchingPortraits.clear();
   camera = undefined;
   fitted = true;
   drawnSceneId = undefined;
 }
+
+// Tokens and the actors behind them change often (a drag preview, a rename): redraw only the tokens.
+watch([views, () => scenes.shownScene?.grid.size], () => {
+  drawTokens();
+  loadPortraits();
+});
 
 watch(drawKey, (key, previous) => {
   if (key === undefined) {
@@ -233,6 +309,7 @@ onBeforeUnmount(release);
       No scene is showing yet. When the GM moves the party to a scene, its map appears
       here.
     </p>
+    <TokenList :views="views" @open="(actorId) => emit('openActor', actorId)" />
     <p v-if="imageError" class="map-note" role="status">
       The map picture could not be loaded, so a blank map is shown.
     </p>

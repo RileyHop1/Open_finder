@@ -241,8 +241,16 @@ client server in production.
   Shift for further, `+` and `-` zoom, `0` shows the whole map); three buttons
   (zoom in, zoom out, Fit) cover tablets and mouse-only use. The camera keeps
   where the user put it across a redraw of the same scene and a resize, and only
-  follows the box while it is still the whole-map view. Tokens and their
-  movement are the next PRs of milestone 4. **Built.**
+  follows the box while it is still the whole-map view. **Tokens**
+  (`tokenModel.ts`, `sceneView.ts`, `TokenList.vue`): each token on the shown scene
+  is worked out once as a `TokenView` (its own label, else the actor's name, else
+  "Unknown" for a monster a player cannot open; initials; footprint = squares x the
+  grid cell) and used twice, to draw it (a ring, the portrait cut to a circle or
+  the initials, a name beneath, faded and labelled "(hidden)" for the GM's hidden
+  ones) and to fill a list for the keyboard. The list is invisible until a button
+  in it has focus, then a panel over the map's corner; Enter opens the actor's
+  sheet. A move changes only a token's position, and portraits are fetched small
+  and lazily. Moving tokens is the next PR of milestone 4. **Built.**
 - **The action bar** (strikes, spells, and actions as hotbar icons). Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
