@@ -21,9 +21,15 @@ import {
   PatchError,
 } from '@hearthtable/core';
 import type { CharacterData } from '@hearthtable/pf2e';
-import { characterDataSchema, newCharacterData } from '@hearthtable/pf2e';
+import {
+  characterDataSchema,
+  newCharacterData,
+  newNpcFromCreature,
+  npcDataSchema,
+} from '@hearthtable/pf2e';
 import type { ZodError } from 'zod';
 
+import type { CompendiumIndex } from './compendium.js';
 import { removeFromParty } from './party.js';
 import { OperationRejected } from './rejection.js';
 import { deleteTokensOf } from './tokens.js';
@@ -52,6 +58,57 @@ export function createActor(
     kind: payload.kind,
     name: payload.name,
     system: payload.kind === 'character' ? newCharacterData() : {},
+  });
+  store.putDocument(actor);
+  return actor;
+}
+
+/**
+ * Makes an NPC from compendium creature `packId/slug` (GM only). The server
+ * copies the entry from its own compendium and builds the payload
+ * (`newNpcFromCreature`: full hit points, no conditions), so a client never
+ * supplies a monster's stats and a re-import cannot change this one later
+ * (ADR 0014).
+ *
+ * **Players never get its sheet.** It is created `none` for everyone but the GM,
+ * who always owns, so its hit points and stat block are not sent to a player at
+ * all. What the table sees of a monster is its token, which the GM places
+ * (`token.create`) and which carries only a position, a size, and a label.
+ * Showing a player a monster's stats, if the GM wants to, is a permission change
+ * that does not exist yet.
+ */
+export function createActorFromCreature(
+  store: WorldStore,
+  seat: Seat,
+  compendium: CompendiumIndex,
+  payload: { packId: string; slug: string },
+): Actor {
+  if (!seat.isGM) {
+    throw new OperationRejected('only the GM can add a monster');
+  }
+  const found = compendium.get(payload.packId, payload.slug);
+  if (found === undefined) {
+    throw new OperationRejected(
+      `no compendium entry ${payload.packId}/${payload.slug}` +
+        (compendium.status().available ? '' : ' (no content has been imported)'),
+    );
+  }
+  if (found.kind !== 'creature') {
+    throw new OperationRejected(`${found.name} is not a creature`);
+  }
+
+  const now = new Date().toISOString();
+  const actor = actorSchema.parse({
+    id: crypto.randomUUID(),
+    worldId: store.world.id,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'none', seats: {} },
+    createdAt: now,
+    updatedAt: now,
+    kind: 'npc',
+    name: found.name,
+    system: newNpcFromCreature(found, { packId: payload.packId, slug: payload.slug }),
   });
   store.putDocument(actor);
   return actor;
@@ -91,6 +148,11 @@ export function updateActor(
   payload: { actorId: string; changes: Readonly<Record<string, unknown>> },
 ): Actor {
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
+  const storedSystem = (raw as { system?: unknown }).system;
+  const wasMadeFromCreature =
+    typeof storedSystem === 'object' &&
+    storedSystem !== null &&
+    'creature' in storedSystem;
 
   const draft = structuredClone(raw) as Record<string, unknown>;
   try {
@@ -114,6 +176,15 @@ export function updateActor(
 
   if (actor.kind === 'character') {
     const system = characterDataSchema.safeParse(actor.system);
+    if (!system.success) {
+      throw new OperationRejected(describeIssue(system.error, 'system'));
+    }
+    actor = { ...actor, system: system.data };
+  } else if (actor.kind === 'npc' && wasMadeFromCreature) {
+    // An NPC made from a creature has a payload to protect. It is judged by what it was
+    // *before* this change, so a hand-made NPC (an empty system) is not held to it, and a
+    // change cannot dodge the check by deleting the creature.
+    const system = npcDataSchema.safeParse(actor.system);
     if (!system.success) {
       throw new OperationRejected(describeIssue(system.error, 'system'));
     }

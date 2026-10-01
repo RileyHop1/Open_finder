@@ -168,6 +168,21 @@ export const actorAddItemOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Make an NPC from a compendium creature (a Monster Core stat block). GM only.
+ * Like `actor.addItem` it names the entry (`packId` and `slug`) and nothing
+ * else: the server copies it from its own compendium, so a client can never
+ * supply a monster's stats. The new actor is hidden from players (`none`), so
+ * they never receive its sheet or hit points; its token is what the table sees.
+ */
+export const actorCreateFromCreatureOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.createFromCreature'),
+  payload: z.object({
+    packId: z.string().min(1).max(100),
+    slug: z.string().min(1).max(200),
+  }),
+});
+
+/**
  * Change an item's `equipped` flag or `quantity`. Those are the only two
  * fields a client may change on an embedded item; the item's content is the
  * server's copy of the compendium entry and stays as it was.
@@ -472,6 +487,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
   actorUpdateOperationSchema,
+  actorCreateFromCreatureOperationSchema,
   actorAddItemOperationSchema,
   actorUpdateItemOperationSchema,
   actorRemoveItemOperationSchema,
