@@ -185,9 +185,12 @@ export {
   type PackManifest,
 } from './compendium.js';
 
+export { tokenDragSchema } from './realtime.js';
+
 export type {
   ClientToServerEvents,
   OperationAck,
   ServerToClientEvents,
   SyncAck,
+  TokenDrag,
 } from './realtime.js';

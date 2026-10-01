@@ -102,6 +102,32 @@ and `-` (so `system.ranks.skills.academia-lore` works); `__proto__`,
 - **Stored as parsed.** Defaults are filled in and fields the schema does not
   know are dropped.
 
+## Not an operation: the live drag preview
+
+While someone drags a token, the others watch it move. That is the `token.drag`
+**socket event**, not an operation, and it is deliberately outside the pipeline
+above ([ADR 0005](adr/0005-concurrency.md), decision 6;
+[ADR 0017](adr/0017-scenes-and-tokens.md), decision 5): it is never stored, never
+sequenced, never replayed on reconnect, and has no acknowledgement. A dropped one
+costs one frame of someone else's drag, because the settled `token.move` above is
+what actually changes the token.
+
+| Direction | Event | Payload |
+| --- | --- | --- |
+| client to server | `token.drag` | `{ tokenId, x, y }`, the token's centre in scene pixels, **raw** (not snapped, so the drag stays smooth) |
+| server to client | `token.drag` | The same `{ tokenId, x, y }`, with `x` and `y` kept on the token's scene |
+
+- **Who may send one is exactly who may move the token** (`loadMovableToken`,
+  shared with `token.move`): the GM any token, a player only a token they can see
+  whose actor they own.
+- **Who receives one is whoever can read the token**, and never the connection
+  that sent it. A hidden token's drag, or one on a scene the party is not in,
+  reaches no player.
+- **Rate-limited to 30 a second per connection**, leading edge, so the first
+  preview of a drag always goes. The excess is dropped, not queued.
+- A refused, malformed, or rate-limited preview is dropped without a word, since
+  there is nothing to answer.
+
 ## The broadcast envelope
 
 ```ts

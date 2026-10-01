@@ -251,6 +251,34 @@ export function deleteToken(
 }
 
 /**
+ * The token `tokenId` and its scene, if `seat` may move it; otherwise throws.
+ * The one rule for moving a token, shared by `token.move` and the live drag
+ * preview so the two can never disagree about who may drag what: the GM may move
+ * any token; a player only a token they can see whose actor they own. A token
+ * the seat cannot see is reported as not found, the same as a missing one, so a
+ * rejection never confirms that a hidden token exists.
+ */
+export function loadMovableToken(
+  store: WorldStore,
+  seat: Seat,
+  tokenId: string,
+): { token: Token; scene: Scene } {
+  const token = loadToken(store, tokenId);
+  if (!canReadDocument(seat, token)) {
+    throw new OperationRejected(`no token found with id ${tokenId}`);
+  }
+  const actor = actorSchema.safeParse(store.getDocument(token.actorId));
+  if (!actor.success || resolvePermission(seat, actor.data) !== 'owner') {
+    throw new OperationRejected('you do not have permission to move this token');
+  }
+  const scene = sceneSchema.safeParse(store.getDocument(token.sceneId));
+  if (!scene.success) {
+    throw new OperationRejected(`no scene found with id ${token.sceneId}`);
+  }
+  return { token, scene: scene.data };
+}
+
+/**
  * Moves a token to the point nearest `payload`'s that the scene's grid allows,
  * kept on the scene. This is the settled move after a drag (ADR 0005); the live
  * preview never reaches here.
@@ -271,20 +299,8 @@ export function moveToken(
   seat: Seat,
   payload: { tokenId: string; x: number; y: number },
 ): Token | undefined {
-  const token = loadToken(store, payload.tokenId);
-  if (!canReadDocument(seat, token)) {
-    throw new OperationRejected(`no token found with id ${payload.tokenId}`);
-  }
-  const actor = actorSchema.safeParse(store.getDocument(token.actorId));
-  if (!actor.success || resolvePermission(seat, actor.data) !== 'owner') {
-    throw new OperationRejected('you do not have permission to move this token');
-  }
-  const scene = sceneSchema.safeParse(store.getDocument(token.sceneId));
-  if (!scene.success) {
-    throw new OperationRejected(`no scene found with id ${token.sceneId}`);
-  }
-
-  const landed = snapOnScene(scene.data, payload, token.size);
+  const { token, scene } = loadMovableToken(store, seat, payload.tokenId);
+  const landed = snapOnScene(scene, payload, token.size);
   if (landed.x === token.x && landed.y === token.y) {
     return undefined;
   }

@@ -43,7 +43,7 @@ import type {
   ServerToClientEvents,
   SyncAck,
 } from '@hearthtable/core';
-import { clientOperationUnionSchema } from '@hearthtable/core';
+import { canReadDocument, clientOperationUnionSchema } from '@hearthtable/core';
 import { cryptoRandomSource, evaluate, parse } from '@hearthtable/dice';
 import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
@@ -71,6 +71,7 @@ import {
 } from './scenes.js';
 import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
+import { createDragLimiter, previewTokenDrag } from './tokenDrag.js';
 import { createToken, deleteToken, moveToken, updateToken } from './tokens.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
@@ -547,6 +548,32 @@ function handleOperation(
   }
 }
 
+/**
+ * Relays `socket`'s drag preview to every *other* connection whose seat can read
+ * the token (`tokenDrag.ts`). Never stored or sequenced; anything not allowed is
+ * dropped silently.
+ */
+function relayTokenDrag(
+  io: AppServer,
+  activeWorld: ActiveWorldManager,
+  socket: AppSocket,
+  rawPayload: unknown,
+): void {
+  const store = activeWorld.get();
+  if (store === undefined) {
+    return;
+  }
+  const preview = previewTokenDrag(store, seatOf(store, socket), rawPayload);
+  if (preview === undefined) {
+    return;
+  }
+  for (const other of io.sockets.sockets.values()) {
+    if (other.id !== socket.id && canReadDocument(seatOf(store, other), preview.token)) {
+      other.emit('token.drag', preview.drag);
+    }
+  }
+}
+
 function handleSync(
   activeWorld: ActiveWorldManager,
   socket: AppSocket,
@@ -603,6 +630,13 @@ export function attachRealtime(
 
     socket.on('sync', (rawPayload, ack) => {
       handleSync(activeWorld, socket, rawPayload, ack);
+    });
+
+    const allowDrag = createDragLimiter();
+    socket.on('token.drag', (rawPayload) => {
+      if (allowDrag()) {
+        relayTokenDrag(io, activeWorld, socket, rawPayload);
+      }
     });
   });
 
