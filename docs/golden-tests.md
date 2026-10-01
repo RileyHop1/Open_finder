@@ -75,6 +75,23 @@ so there is exactly one implementation.
 - Every fixture uses invented names, matching the rest of Stack D's test
   fixtures (ADR 0013).
 
+### Where the golden creatures live
+Two invented monsters, the Bog Strangler (a Strength melee strike) and the
+Cinder Whelp (a finesse bite with a fire rider), in
+`systems/pf2e/src/golden/goldenCreatures.ts`, shared by two files:
+
+- `creatures.test.ts`: the schema accepts them, and their raw attack and damage
+  lines roll correctly through `@hearthtable/dice`.
+- `creaturesThroughPrepareNpc.test.ts` (milestone 4): the same monsters through
+  `prepareNpc`, the path the sheet and the server's rolls use. It pins their
+  printed numbers, the Multiple Attack Penalty on the tentacle and bite, and the
+  conditions: frightened 2 on every statistic and strike, clumsy 1 on the
+  Dexterity ones, frightened 2 and clumsy 1 not stacking, enfeebled on damage
+  (a Strength strike, but not a Dexterity one to hit), stupefied on a Lore skill,
+  and drained on maximum hit points. A creature's numbers are not built from
+  proficiency, so there is no per-class table to cover here; the cases are the
+  ones where a condition mapping or the strike-attribute rule could move a value.
+
 ## The strike-roll shape (decided in E.2)
 
 `GoldenStatisticExpectation` covers a pre-roll `Statistic` -- an attack
