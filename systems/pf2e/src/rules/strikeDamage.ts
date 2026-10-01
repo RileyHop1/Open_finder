@@ -23,8 +23,8 @@ import type {
   DamageComponent,
   EvaluateDamageResult,
   RandomSource,
-} from '@hearthtable/dice';
-import { evaluateDamage } from '@hearthtable/dice';
+} from '@hearthtable/dice/pure';
+import { evaluateDamage } from '@hearthtable/dice/pure';
 
 import type { WeaponEntry } from '../content/weapon.js';
 

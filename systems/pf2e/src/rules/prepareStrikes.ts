@@ -18,7 +18,7 @@
 
 import type { Modifier, Statistic } from '@hearthtable/core';
 import { resolveStatistic } from '@hearthtable/core';
-import type { DamageComponent } from '@hearthtable/dice';
+import type { DamageComponent } from '@hearthtable/dice/pure';
 
 import type { CharacterData } from '../content/character.js';
 import type { Attribute } from '../content/common.js';

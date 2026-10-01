@@ -105,6 +105,14 @@ client server in production.
   sits beside the sheet from 900px and stacks below that, so it works at an
   iPad's 1024px; there is no phone layout (CLAUDE.md, Targets and budgets).
   **Built.**
+- **The character sheet, read-only** (`components/sheet/CharacterSheet.vue`) --
+  header (name, level, lineage, HP against the derived maximum, conditions),
+  attributes, defenses (AC, saves, Perception, class DC) and every skill with
+  its rank written out. Every number is `prepareCharacter` run in the browser,
+  the same function the server rolls with, so the sheet and a roll cannot
+  disagree. The test asserts hand-computed totals, and a timing test holds a
+  level 20 character with 80 items to the 200ms sheet budget. Editing is the
+  next change. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
