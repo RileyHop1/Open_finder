@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
+  actorUpdateOperationSchema,
+  MAX_ACTOR_CHANGES,
   broadcastSchema,
   clientOperationUnionSchema,
 } from './operation.js';
@@ -114,5 +116,45 @@ describe('broadcastSchema -- deleted', () => {
     expect(parsed.deleted).toHaveLength(1);
     expect(parsed.deleted[0]).not.toHaveProperty('system');
     expect(parsed.deleted[0]).not.toHaveProperty('name');
+  });
+});
+
+describe('actor.update', () => {
+  const update = (changes: unknown) => ({
+    id: id(),
+    type: 'actor.update',
+    payload: { actorId: id(), changes },
+  });
+
+  it('accepts a map of paths to values, including null to remove a field', () => {
+    const result = clientOperationUnionSchema.safeParse(
+      update({ name: 'Valeria', 'system.attributes.str': 4, portrait: null }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an empty change set and a malformed actor id', () => {
+    expect(actorUpdateOperationSchema.safeParse(update({})).success).toBe(false);
+    expect(
+      actorUpdateOperationSchema.safeParse({
+        id: id(),
+        type: 'actor.update',
+        payload: { actorId: 'nope', changes: { name: 'x' } },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a change set over the limit', () => {
+    const many = Object.fromEntries(
+      Array.from({ length: MAX_ACTOR_CHANGES + 1 }, (_, n) => [
+        `system.f${String(n)}`,
+        n,
+      ]),
+    );
+    expect(actorUpdateOperationSchema.safeParse(update(many)).success).toBe(false);
+    const exactly = Object.fromEntries(
+      Array.from({ length: MAX_ACTOR_CHANGES }, (_, n) => [`system.f${String(n)}`, n]),
+    );
+    expect(actorUpdateOperationSchema.safeParse(update(exactly)).success).toBe(true);
   });
 });

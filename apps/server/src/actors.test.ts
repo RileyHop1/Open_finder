@@ -7,7 +7,7 @@ import { actorSchema, resolvePermission } from '@hearthtable/core';
 import { characterDataSchema } from '@hearthtable/pf2e';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createActor, deleteActor } from './actors.js';
+import { createActor, deleteActor, updateActor } from './actors.js';
 import { OperationRejected } from './rejection.js';
 import { createWorld, type WorldStore } from './worldStore.js';
 
@@ -73,6 +73,190 @@ describe('createActor', () => {
     const a = createActor(store, seat, { kind: 'character', name: 'A' });
     const b = createActor(store, seat, { kind: 'character', name: 'A' });
     expect(a.id).not.toBe(b.id);
+  });
+});
+
+describe('updateActor', () => {
+  function ownedCharacter() {
+    const owner = makeSeat();
+    const actor = createActor(store, owner, { kind: 'character', name: 'Hero' });
+    return { owner, actor };
+  }
+  const stored = (id: string) => actorSchema.parse(store.getDocument(id));
+
+  it('sets the name and nested system fields, and stores the result', () => {
+    const { owner, actor } = ownedCharacter();
+    const updated = updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { name: 'Valeria', 'system.attributes.str': 4, 'system.level': 3 },
+    });
+
+    expect(updated.name).toBe('Valeria');
+    const system = characterDataSchema.parse(stored(actor.id).system);
+    expect(system.attributes.str).toBe(4);
+    expect(system.level).toBe(3);
+    expect(system.attributes.dex).toBe(0);
+  });
+
+  it('bumps updatedAt and leaves the id, kind, and permissions alone', () => {
+    const { owner, actor } = ownedCharacter();
+    const updated = updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { name: 'Valeria' },
+    });
+    expect(updated.updatedAt >= actor.updatedAt).toBe(true);
+    expect(updated.id).toBe(actor.id);
+    expect(updated.kind).toBe('character');
+    expect(updated.permissions).toEqual(actor.permissions);
+  });
+
+  it('sets a skill rank including a Lore, and null removes it again', () => {
+    const { owner, actor } = ownedCharacter();
+    updateActor(store, owner, {
+      actorId: actor.id,
+      changes: {
+        'system.ranks.skills.athletics': 'trained',
+        'system.ranks.skills.academia-lore': 'expert',
+      },
+    });
+    expect(characterDataSchema.parse(stored(actor.id).system).ranks.skills).toEqual({
+      athletics: 'trained',
+      'academia-lore': 'expert',
+    });
+
+    updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { 'system.ranks.skills.athletics': null },
+    });
+    expect(characterDataSchema.parse(stored(actor.id).system).ranks.skills).toEqual({
+      'academia-lore': 'expert',
+    });
+  });
+
+  it('removes an optional field such as the portrait', () => {
+    const { owner, actor } = ownedCharacter();
+    updateActor(store, owner, { actorId: actor.id, changes: { portrait: 'abc123.png' } });
+    expect(stored(actor.id).portrait).toBe('abc123.png');
+    updateActor(store, owner, { actorId: actor.id, changes: { portrait: null } });
+    expect(stored(actor.id)).not.toHaveProperty('portrait');
+  });
+
+  it('rejects a value that would make the sheet invalid, naming the field, and stores nothing', () => {
+    const { owner, actor } = ownedCharacter();
+    for (const [changes, mention] of [
+      [{ 'system.level': 99 }, 'system.level'],
+      [{ 'system.ranks.perception': 'supreme' }, 'system.ranks.perception'],
+      [{ 'system.attributes.str': 'strong' }, 'system.attributes.str'],
+      [{ name: '' }, 'name'],
+      [{ name: null }, 'name'],
+    ] as const) {
+      expect(() => updateActor(store, owner, { actorId: actor.id, changes })).toThrow(
+        mention,
+      );
+    }
+    expect(stored(actor.id)).toEqual(actor);
+  });
+
+  it('applies a batch atomically: one bad change leaves the others unapplied', () => {
+    const { owner, actor } = ownedCharacter();
+    expect(() =>
+      updateActor(store, owner, {
+        actorId: actor.id,
+        changes: { name: 'Renamed', 'system.level': 99 },
+      }),
+    ).toThrow(OperationRejected);
+    expect(stored(actor.id).name).toBe('Hero');
+  });
+
+  it.each([
+    'id',
+    'type',
+    'kind',
+    'worldId',
+    'createdAt',
+    'updatedAt',
+    'schemaVersion',
+    'permissions',
+    'permissions.default',
+    'system',
+    'system.items',
+    'system.items.0',
+    'system.conditions',
+    'system.conditions.0.value',
+  ])('refuses to change %s with actor.update', (path) => {
+    const { owner, actor } = ownedCharacter();
+    expect(() =>
+      updateActor(store, owner, { actorId: actor.id, changes: { [path]: 'x' } }),
+    ).toThrow(/cannot be changed with actor.update/);
+    expect(stored(actor.id)).toEqual(actor);
+  });
+
+  it('refuses a malformed path', () => {
+    const { owner, actor } = ownedCharacter();
+    expect(() =>
+      updateActor(store, owner, { actorId: actor.id, changes: { 'system..level': 2 } }),
+    ).toThrow(/invalid field path/);
+    expect(() =>
+      updateActor(store, owner, { actorId: actor.id, changes: { '__proto__.x': 2 } }),
+    ).toThrow(/invalid field path/);
+  });
+
+  it('drops a field the character schema does not know instead of storing it', () => {
+    const { owner, actor } = ownedCharacter();
+    updateActor(store, owner, { actorId: actor.id, changes: { 'system.bogus': 1 } });
+    expect(stored(actor.id).system).not.toHaveProperty('bogus');
+  });
+
+  it('keeps each of two updates to different fields (last write wins per field)', () => {
+    const { owner, actor } = ownedCharacter();
+    updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { 'system.attributes.str': 2 },
+    });
+    updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { 'system.attributes.dex': 3 },
+    });
+    updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { 'system.attributes.str': 4 },
+    });
+    const { attributes } = characterDataSchema.parse(stored(actor.id).system);
+    expect(attributes.str).toBe(4);
+    expect(attributes.dex).toBe(3);
+  });
+
+  it('lets the GM update an actor they do not own', () => {
+    const { actor } = ownedCharacter();
+    updateActor(store, makeSeat({ isGM: true }), {
+      actorId: actor.id,
+      changes: { name: 'GM Edit' },
+    });
+    expect(stored(actor.id).name).toBe('GM Edit');
+  });
+
+  it('refuses another player who can see the actor, and treats a hidden one as not found', () => {
+    const { actor } = ownedCharacter();
+    const outsider = makeSeat();
+    expect(() =>
+      updateActor(store, outsider, { actorId: actor.id, changes: { name: 'Hijack' } }),
+    ).toThrow(/do not have permission/);
+
+    store.putDocument({ ...actor, permissions: { default: 'none', seats: {} } });
+    expect(() =>
+      updateActor(store, outsider, { actorId: actor.id, changes: { name: 'Hijack' } }),
+    ).toThrow(/no actor found/);
+    expect(stored(actor.id).name).toBe('Hero');
+  });
+
+  it('accepts any system field on an NPC, which has no schema yet', () => {
+    const owner = makeSeat();
+    const npc = createActor(store, owner, { kind: 'npc', name: 'Innkeeper' });
+    updateActor(store, owner, {
+      actorId: npc.id,
+      changes: { 'system.notes.mood': 'jolly' },
+    });
+    expect(stored(npc.id).system).toEqual({ notes: { mood: 'jolly' } });
   });
 });
 

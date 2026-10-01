@@ -53,6 +53,8 @@ export { seatSchema, type Seat } from './seat.js';
 export {
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
+  actorUpdateOperationSchema,
+  MAX_ACTOR_CHANGES,
   appliedOperationSchema,
   broadcastSchema,
   chatSendMessageOperationSchema,

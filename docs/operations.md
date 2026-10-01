@@ -34,6 +34,7 @@ connection, never from the payload; a client that could self-report its own
 | `chat.sendMessage` | `{ text }` | Plain chat |
 | `chat.sendRoll` | `{ expression }` | The **raw text** the player typed (`"1d20+7"`), never a computed result — see below |
 | `actor.create` | `{ kind, name }` | `kind` is `character`, `npc`, or `hazard`. The server builds the system data (a blank level 1 sheet for a character); a `system` in the payload is dropped, not honored. The sender becomes `owner`, everyone else `observer`. Needs a claimed seat |
+| `actor.update` | `{ actorId, changes }` | `changes` maps dotted paths to new values; see "`actor.update` paths" below. Owner or GM only. 1 to 50 paths |
 | `actor.delete` | `{ actorId }` | Owner or GM only. A document the sender cannot read is reported as *not found*, never as forbidden, so a rejection does not confirm a hidden actor exists |
 
 ### The `pin` on `seat.claim`
@@ -52,6 +53,32 @@ success, or anything else a client could have computed. The server parses and
 evaluates the expression with `@hearthtable/dice` and the resulting
 `ChatMessage` stores the structured `RollResult` — never a rendered string,
 per CLAUDE.md's ChatMessage rule.
+
+### `actor.update` paths
+
+```ts
+{ actorId, changes: { "name": "Valeria", "system.attributes.str": 4, "portrait": null } }
+```
+
+A map of dotted path to value, not a whole document, so two players editing
+different fields never overwrite each other (ADR 0005: last write wins *per
+field*). `null` removes the field. A path is segments of letters, digits, `_`
+and `-` (so `system.ranks.skills.academia-lore` works); `__proto__`,
+`constructor`, and `prototype` are refused.
+
+- **Editable:** `name`, `portrait`, and anything inside `system` **except**
+  `system.items` and `system.conditions`. Those have their own operations (adding
+  an item, or a second source of a condition, needs logic a plain overwrite does
+  not have). Everything else (`id`, `type`, `kind`, `permissions`, timestamps) is
+  the server's, and is refused.
+- **Arrays are never indexed into.** A path that runs through an array or a
+  number is refused.
+- **Validated whole.** After applying the changes the server re-validates the
+  entire actor and, for a character, `system` against `characterDataSchema`. If
+  anything is invalid the whole batch is rejected with the first problem
+  (`invalid change: system.level: ...`) and nothing is written or broadcast.
+- **Stored as parsed.** Defaults are filled in and fields the schema does not
+  know are dropped.
 
 ## The broadcast envelope
 
