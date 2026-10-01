@@ -75,16 +75,14 @@ describe('addPartyMember', () => {
   it('refuses a player, even for their own character', () => {
     const player = makeSeat();
     const mine = createActor(store, player, { kind: 'character', name: 'Mine' }).id;
-    expect(() => addPartyMember(store, player, { actorId: mine })).toThrow(
-      /only the GM/,
-    );
+    expect(() => addPartyMember(store, player, { actorId: mine })).toThrow(/only the GM/);
     expect(store.listDocuments('party')).toEqual([]);
   });
 
   it('refuses something that is not an actor, and a hazard', () => {
-    expect(() =>
-      addPartyMember(store, gm(), { actorId: crypto.randomUUID() }),
-    ).toThrow(/no actor found/);
+    expect(() => addPartyMember(store, gm(), { actorId: crypto.randomUUID() })).toThrow(
+      /no actor found/,
+    );
     expect(() =>
       addPartyMember(store, gm(), { actorId: hero('Spikes', 'hazard') }),
     ).toThrow(/hazard/);

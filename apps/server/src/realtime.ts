@@ -365,7 +365,11 @@ function dispatch(
     case 'party.removeMember': {
       const seat = requireSeat(store, socket);
       const party = removePartyMember(store, seat, operation.payload);
-      return { seatId: seat.id, seats: [], documents: party === undefined ? [] : [party] };
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: party === undefined ? [] : [party],
+      };
     }
     case 'party.reorder': {
       const seat = requireSeat(store, socket);
