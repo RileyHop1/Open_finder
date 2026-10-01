@@ -1,19 +1,10 @@
 import { sequenceRandomSource } from '@hearthtable/dice/testing';
 import { describe, expect, it } from 'vitest';
 
-import type { ArmorEntry, Attribute, WeaponEntry } from '../index.js';
-import {
-  attributeModifier,
-  buildArmorClass,
-  buildClassDc,
-  buildPerception,
-  buildSave,
-  buildSkill,
-  buildStrikeAttack,
-  rollStrikeAttack,
-  rollStrikeDamage,
-} from '../index.js';
+import type { ArmorEntry, GearEntry, WeaponEntry } from '../index.js';
+import { prepareCharacter, rollStrikeAttack, rollStrikeDamage } from '../index.js';
 import { describeGolden } from './describeGolden.js';
+import { equipped, goldenCharacter, goldenStatistics } from './goldenCharacter.js';
 
 /**
  * A level 1 Fighter, built by hand -- never a published stat block, per
@@ -25,19 +16,14 @@ import { describeGolden } from './describeGolden.js';
  * directly rather than derived through character creation -- which boosts
  * a character receives and from where is milestone 7's wizard, not
  * something this fixture models (see `attributes.ts`'s module doc).
+ *
+ * Since milestone 3 this fixture goes through `prepareCharacter`, the same
+ * path the sheet and the server use, rather than calling each builder by
+ * hand. Its expected values did not change in the move.
  */
 const LEVEL = 1;
 
-const ABILITY_SCORES = { str: 18, dex: 14, con: 14, int: 10, wis: 12, cha: 10 } as const;
-
-const ATTRIBUTE_MODIFIERS: Record<Attribute, number> = {
-  str: attributeModifier(ABILITY_SCORES.str),
-  dex: attributeModifier(ABILITY_SCORES.dex),
-  con: attributeModifier(ABILITY_SCORES.con),
-  int: attributeModifier(ABILITY_SCORES.int),
-  wis: attributeModifier(ABILITY_SCORES.wis),
-  cha: attributeModifier(ABILITY_SCORES.cha),
-};
+const SCORES = { str: 18, dex: 14, con: 14, int: 10, wis: 12, cha: 10 } as const;
 
 const IMPORTED_AT = '2026-09-29T00:00:00.000Z';
 const PROVENANCE = {
@@ -85,85 +71,60 @@ const WEAPON: WeaponEntry = {
   hands: 1,
 };
 
-function buildStatistics() {
+/** An invented effect granting a circumstance bonus to Athletics, through a rule element rather than a hand-passed modifier. */
+function terrainEffect(name: string, slug: string, value: number): GearEntry {
   return {
-    ac: buildArmorClass({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      armor: ARMOR,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    fortitude: buildSave({
-      save: 'fortitude',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    reflex: buildSave({
-      save: 'reflex',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    will: buildSave({
-      save: 'will',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    perception: buildPerception({
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-    }),
-    classDc: buildClassDc({
-      keyAttribute: 'str',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-    }),
-    'skill:athletics': buildSkill({
-      skill: 'athletics',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'trained',
-      level: LEVEL,
-      // Two circumstance bonuses of the same sign -- only the larger one
-      // should apply, exercising the harness's suppression assertion
-      // (ADR 0008's consequences section), not just its total.
-      extraModifiers: [
-        {
-          slug: 'terrain',
-          label: 'Favorable Terrain',
-          type: 'circumstance',
-          value: 2,
-          source: 'Invented Terrain Effect',
-          enabled: true,
-        },
-        {
-          slug: 'lesser-terrain',
-          label: 'Lesser Terrain Bonus',
-          type: 'circumstance',
-          value: 1,
-          source: 'Invented Lesser Terrain Effect',
-          enabled: true,
-        },
-      ],
-    }),
-    'skill:acrobatics': buildSkill({
-      skill: 'acrobatics',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'untrained',
-      level: LEVEL,
-    }),
-    'strike:longsword': buildStrikeAttack({
-      weapon: WEAPON,
-      attackAttribute: 'str',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
-      attackNumber: 1,
-    }),
+    id: crypto.randomUUID(),
+    schemaVersion: 1,
+    createdAt: IMPORTED_AT,
+    updatedAt: IMPORTED_AT,
+    packId: 'equipment',
+    slug: slug,
+    name,
+    kind: 'gear',
+    provenance: PROVENANCE,
+    traits: [],
+    description: '',
+    ruleElements: [
+      {
+        kind: 'flatModifier',
+        selector: 'skill:athletics',
+        slug,
+        label: name,
+        type: 'circumstance',
+        value,
+      },
+    ],
   };
+}
+
+function buildCharacter() {
+  return goldenCharacter({
+    level: LEVEL,
+    scores: SCORES,
+    keyAttribute: 'str',
+    ranks: {
+      perception: 'expert',
+      fortitude: 'expert',
+      reflex: 'expert',
+      will: 'trained',
+      classDc: 'trained',
+      armor: 'trained',
+      weapon: 'expert',
+    },
+    armor: ARMOR,
+    weapon: WEAPON,
+    skills: { athletics: 'trained' },
+    // Two circumstance bonuses of the same sign -- only the larger one
+    // should apply, exercising the harness's suppression assertion
+    // (ADR 0008's consequences section), not just its total.
+    extraItems: [
+      equipped(terrainEffect('Invented Terrain Effect', 'terrain', 2)),
+      equipped(terrainEffect('Invented Lesser Terrain Effect', 'lesser-terrain', 1)),
+    ],
+    ancestryHp: 8,
+    classHp: 10,
+  });
 }
 
 describeGolden(
@@ -202,19 +163,22 @@ describeGolden(
       'skill:acrobatics': { total: 2 },
       // 4 (str) + 5 (expert at level 1) = 9, no Multiple Attack Penalty on the first attack
       'strike:longsword': { total: 9 },
+      // 8 (ancestry) + (10 (class) + 2 (con)) * 1 (level) = 20
+      'hp:max': { total: 20 },
     },
   },
-  buildStatistics,
+  () => goldenStatistics(prepareCharacter(buildCharacter()), 'longsword'),
 );
 
 describe('Fighter (level 1) -- strike roll', () => {
+  const strike = prepareCharacter(buildCharacter()).strikes[0];
+  if (strike === undefined) {
+    throw new Error('the golden Fighter should have a strike');
+  }
+
   it('rolls the longsword attack against an invented target AC', () => {
     const result = rollStrikeAttack({
-      weapon: WEAPON,
-      attackAttribute: 'str',
-      attributeModifiers: ATTRIBUTE_MODIFIERS,
-      proficiencyRank: 'expert',
-      level: LEVEL,
+      ...strike.attackInputs,
       attackNumber: 1,
       dc: 20,
       rng: sequenceRandomSource([15]),
@@ -228,9 +192,7 @@ describe('Fighter (level 1) -- strike roll', () => {
 
   it('rolls the longsword damage on a hit, and doubles the total on a critical hit', () => {
     const hit = rollStrikeDamage({
-      weapon: WEAPON,
-      strikingDice: 0,
-      abilityModifier: ATTRIBUTE_MODIFIERS.str,
+      ...strike.damageInputs,
       critical: false,
       rng: sequenceRandomSource([5]),
     });
@@ -241,9 +203,7 @@ describe('Fighter (level 1) -- strike roll', () => {
     }
 
     const critical = rollStrikeDamage({
-      weapon: WEAPON,
-      strikingDice: 0,
-      abilityModifier: ATTRIBUTE_MODIFIERS.str,
+      ...strike.damageInputs,
       critical: true,
       rng: sequenceRandomSource([5]),
     });
