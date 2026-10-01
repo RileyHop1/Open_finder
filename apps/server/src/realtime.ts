@@ -62,6 +62,7 @@ import { addItem, removeItem, updateItem } from './items.js';
 import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
 import { addPartyMember, removePartyMember, reorderParty } from './party.js';
 import {
+  activateScene,
   addSceneLink,
   createScene,
   deleteScene,
@@ -415,6 +416,11 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const { deleted, changed } = deleteScene(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: changed, deleted };
+    }
+    case 'scene.activate': {
+      const seat = requireSeat(store, socket);
+      const changed = activateScene(store, compendium, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: changed };
     }
     case 'scene.addLink': {
       const seat = requireSeat(store, socket);

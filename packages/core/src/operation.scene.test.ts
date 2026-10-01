@@ -148,6 +148,34 @@ describe('scene.addLink', () => {
   });
 });
 
+describe('scene.activate', () => {
+  const sceneId = crypto.randomUUID();
+
+  it('accepts a scene on its own, or with an arrival point', () => {
+    expect(op('scene.activate', { sceneId }).success).toBe(true);
+    expect(op('scene.activate', { sceneId, at: { x: 350, y: 450 } }).success).toBe(true);
+    expect(op('scene.activate', { sceneId, at: { x: 0, y: 32_000 } }).success).toBe(true);
+  });
+
+  it('rejects a malformed scene id, a half arrival point, and one off the largest scene', () => {
+    expect(op('scene.activate', { sceneId: 'nope' }).success).toBe(false);
+    expect(op('scene.activate', {}).success).toBe(false);
+    expect(op('scene.activate', { sceneId, at: { x: 10 } }).success).toBe(false);
+    expect(op('scene.activate', { sceneId, at: { x: -1, y: 10 } }).success).toBe(false);
+    expect(op('scene.activate', { sceneId, at: { x: 10, y: 32_001 } }).success).toBe(
+      false,
+    );
+    expect(op('scene.activate', { sceneId, at: { x: Number.NaN, y: 1 } }).success).toBe(
+      false,
+    );
+  });
+
+  it('keeps nothing else a client adds, so it cannot choose who is placed or where they stand', () => {
+    const parsed = op('scene.activate', { sceneId, members: ['x'], permissions: {} });
+    expect(parsed.success && parsed.data.payload).toEqual({ sceneId });
+  });
+});
+
 describe('scene.removeLink', () => {
   it('accepts a scene and link id and rejects a malformed or missing one', () => {
     const ids = { sceneId: crypto.randomUUID(), linkId: crypto.randomUUID() };

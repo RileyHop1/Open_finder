@@ -102,6 +102,22 @@ export function removeFromParty(store: WorldStore, actorId: string): Party | und
 }
 
 /**
+ * Puts the party in scene `sceneId`, creating the party if need be, and returns
+ * it with the scene it was in before (`undefined` if none). Not GM-checked: the
+ * caller (`scene.activate`) already is.
+ */
+export function setPartyScene(
+  store: WorldStore,
+  sceneId: string,
+): { party: Party; previousSceneId: string | undefined } {
+  const party = findParty(store) ?? newParty(store);
+  const previousSceneId = party.sceneId;
+  const updated: Party = { ...party, sceneId, updatedAt: new Date().toISOString() };
+  store.putDocument(updated);
+  return { party: updated, previousSceneId };
+}
+
+/**
  * Clears the party's scene if it is `sceneId`, returning the changed party, or
  * `undefined` if the party was not there. Called when a scene is deleted, so the
  * party never points at a scene that no longer exists. Not GM-checked: the caller

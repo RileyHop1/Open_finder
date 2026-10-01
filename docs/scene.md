@@ -53,10 +53,14 @@ A new scene is `none` for players: a scene the GM is still building is
 invisible. Moving the party to a scene makes it readable, and the server
 derives that, never the client (ADR 0017). The GM always owns every scene.
 
-Five operations exist so far, all **GM only** and listed in
+Six operations exist so far, all **GM only** and listed in
 [operations.md](operations.md): `scene.create` (a blank, hidden scene),
 `scene.update` (name, kind, size, background, and a partial grid merged field by
-field), `scene.delete`, and `scene.addLink` / `scene.removeLink` for exits. Deleting a scene also removes its tokens, clears
+field), `scene.delete`, `scene.addLink` / `scene.removeLink` for exits, and
+`scene.activate`, which moves the party. Activating a scene makes it readable to
+players (`observer`) and hides the scene the party left again, so the scene a
+player can see is always the one the party is in. A scene the GM previews without
+activating it stays invisible. Deleting a scene also removes its tokens, clears
 [the party's `sceneId`](party.md) if the party was there, and removes every other
 scene's exit into it, all in one broadcast. Players never hear of a hidden scene
 being created, changed, or deleted; the broadcast reaches them with nothing in it.
@@ -72,7 +76,8 @@ Things worth knowing:
   add. The target must be another existing scene and the point must be on this
   scene. An exit to a hidden scene is visible to a player who can see the scene it
   is on, and shows only its label and the target's id, never the target's name
-  or contents. Using an exit to move the party is `scene.activate` (a later PR).
+  or contents. Using an exit to move the party is `scene.activate` with the exit's
+  position as `at`, so the party arrives at the door it used.
 
 ## Example
 ```ts
