@@ -50,6 +50,7 @@ import { z } from 'zod';
 
 import type { ActiveWorldManager } from './activeWorld.js';
 import { createActor, deleteActor, updateActor } from './actors.js';
+import { rollActorCheck } from './checks.js';
 import type { CompendiumIndex } from './compendium.js';
 import {
   addConditionToActor,
@@ -356,6 +357,11 @@ function dispatch(
         documents: party === undefined ? [] : [party],
         deleted: [tombstone],
       };
+    }
+    case 'actor.rollCheck': {
+      const seat = requireSeat(store, socket);
+      const message = rollActorCheck(store, seat, cryptoRandomSource, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [message] };
     }
     case 'party.addMember': {
       const seat = requireSeat(store, socket);

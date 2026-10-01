@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { BaseDocument, Broadcast, ChatRollMessage, Seat } from '@hearthtable/core';
+import { chatCheckMessageSchema } from '@hearthtable/core';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -719,6 +720,40 @@ describe('actor.create and actor.delete', () => {
     expect(
       await conditionsAfter('actor.removeCondition', { slug: 'frightened' }),
     ).toEqual([]);
+  });
+
+  it('rolls a check for the owner and shows the structured message to the whole table', async () => {
+    const table = await seatedTable();
+    const { owner, other } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+
+    const refused = await emitOperation(
+      other,
+      op('actor.rollCheck', { actorId, statistic: 'perception' }),
+    );
+    expect(refused.ok).toBe(false);
+
+    const heard = everyone.map(nextBroadcast);
+    const ack = await emitOperation(
+      owner,
+      op('actor.rollCheck', { actorId, statistic: 'perception', dc: 15 }),
+    );
+    expect(ack).toEqual({ ok: true });
+    for (const broadcast of await Promise.all(heard)) {
+      const [message] = broadcast.documents;
+      expect(message).toMatchObject({
+        type: 'chatMessage',
+        kind: 'check',
+        actorId,
+        label: 'Perception',
+        dc: 15,
+      });
+      const { roll, breakdown } = chatCheckMessageSchema.parse(message);
+      expect(roll.total).toBe((roll.natural ?? 0) + breakdown.total);
+    }
   });
 
   it('lets only the GM manage the party, and drops a deleted member from it', async () => {

@@ -6,7 +6,7 @@ shared envelope this extends (`id`, `worldId`, `type`, `schemaVersion`,
 roll" is the thin thread's proof of the whole pipeline: schema → SQLite →
 operation → sequence → broadcast.
 
-## Two variants under `kind`
+## Three variants under `kind`
 
 A plain text message and a dice roll are different enough shapes — a roll has
 no free text, a message has no `RollResult` — that one schema trying to cover
@@ -18,9 +18,10 @@ already fixes to the literal `'chatMessage'` (that's what makes it a
 | Field | Type | Notes |
 | --- | --- | --- |
 | `seatId` | UUID | The seat that sent this message. **Required, not optional** — a connection can't send a `chat.*` operation at all until it has claimed a seat (see [operations.md](operations.md)), so a ChatMessage with no sender isn't a state that can arise |
-| `kind` | `'text' \| 'roll'` | Discriminant |
+| `kind` | `'text' \| 'roll' \| 'check'` | Discriminant |
 | `text` | non-empty string | Only on `kind: 'text'` |
-| `roll` | `RollResult` | Only on `kind: 'roll'` — see below |
+| `roll` | `RollResult` | On `kind: 'roll'` and `kind: 'check'` — see below |
+| (check fields) | | Only on `kind: 'check'` — see "The `check` variant" |
 
 ## The `roll` variant stores structure, never a string
 
@@ -59,10 +60,39 @@ Composing `degree`/`natural`/`damage` onto a base `RollResult` isn't
 `{ expression, total, terms, seed? }`. `apps/server`'s `chat.sendRoll` handler
 (`realtime.ts`) calls `evaluate()` this way today; this milestone's operation
 has no DC in its payload (see [operations.md](operations.md)), so it never
-sets `degree`/`natural` — a future check-rolling caller that has a DC to
-compare against would call `degreeOfSuccess()` too and compose it onto its
-own `RollResult`, the same way a damage-rolling caller would use
+sets `degree`/`natural`. The check-rolling caller does have a DC to compare
+against: `rollCheck` in `systems/pf2e` composes `natural` and `degree` onto its
+`RollResult` (below), the same way a damage-rolling caller would use
 `evaluateDamage()` (which does return `damage` already populated).
+
+## The `check` variant
+
+A check rolled from a character sheet (`actor.rollCheck`, see
+[operations.md](operations.md)). It extends the envelope with the roll **and the
+statistic it was made with**:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `actorId` | UUID | Whose sheet |
+| `actorName` | string | Snapshot, so history reads right after a rename or deletion |
+| `statistic` | string | The sheet's key: `perception`, `fortitude`, `skill:athletics` |
+| `label` | string | Display name, e.g. `Athletics` |
+| `dc` | integer, optional | The DC rolled against, if the roller named one |
+| `breakdown` | `Statistic` | The resolved statistic: total and every modifier, applied or suppressed |
+| `roll` | `RollResult` | `1d20+total`; `natural` is always set, `degree` when there is a DC |
+
+Storing `breakdown` beside the roll is what lets the milestone 6 hover view be a
+*view* over the message: it shows exactly the modifiers that were rolled, not a
+fresh recomputation that could disagree if the sheet has changed since.
+
+The server builds it (`apps/server/src/checks.ts`): it runs `prepareCharacter`
+and rolls through `rollCheck`, so no number comes from the client. Only
+Perception, the saves, and skills are rollable this way; AC and the class DC are
+numbers others roll against, and strikes get their own operations.
+
+**GM override.** A wrong result is fixed the way the table already can: roll
+again, or post the number you meant with `chat.sendRoll`. Adjusting a sheet check
+in place arrives with the roll buttons in the UI, not as a server operation.
 
 ## Why `seatId` is required here but optional on `AppliedOperation`
 
