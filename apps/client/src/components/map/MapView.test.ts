@@ -185,3 +185,147 @@ describe('MapView', () => {
     expect(view.destroy).toHaveBeenCalledTimes(1);
   });
 });
+
+/** jsdom has no PointerEvent, so a mouse event stands in with the pointer's id added. */
+async function pointer(
+  target: { element: Element },
+  type: string,
+  init: { pointerId: number; button?: number; clientX: number; clientY: number },
+) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...init });
+  Object.defineProperty(event, 'pointerId', { value: init.pointerId });
+  target.element.dispatchEvent(event);
+  await flushPromises();
+}
+
+async function wheel(
+  target: { element: Element },
+  init: { deltaY: number; clientX: number; clientY: number },
+) {
+  target.element.dispatchEvent(
+    new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init }),
+  );
+  await flushPromises();
+}
+
+describe('moving around', () => {
+  /** The camera of the most recent `setCamera` call. */
+  const camera = () =>
+    view.setCamera.mock.lastCall?.[0] as { x: number; y: number; zoom: number };
+
+  async function shown(overrides: Record<string, unknown> = {}) {
+    state.shownScene = makeScene(overrides);
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, surface: wrapper.get('.map-surface') };
+  }
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  it('is a labelled, focusable group that says which keys do what', async () => {
+    const { surface } = await shown();
+    expect(surface.attributes('tabindex')).toBe('0');
+    expect(surface.attributes('aria-label')).toContain('Arrow keys');
+  });
+
+  it('pans with the arrows and fits with 0, stopping the page from scrolling', async () => {
+    const { surface } = await shown();
+    expect(camera()).toEqual({ x: 1000, y: 500, zoom: 0.5 });
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true });
+    surface.element.dispatchEvent(event);
+    // 100 screen pixels at half zoom: the map moves left by 200 scene pixels.
+    expect(camera()).toEqual({ x: 1200, y: 500, zoom: 0.5 });
+    expect(event.defaultPrevented).toBe(true);
+
+    await surface.trigger('keydown', { key: '0' });
+    expect(camera()).toEqual({ x: 1000, y: 500, zoom: 0.5 });
+  });
+
+  it('leaves Ctrl and other keys to the browser', async () => {
+    const { surface } = await shown();
+    view.setCamera.mockClear();
+    await surface.trigger('keydown', { key: '+', ctrlKey: true });
+    await surface.trigger('keydown', { key: 'a' });
+    expect(view.setCamera).not.toHaveBeenCalled();
+  });
+
+  it('zooms with the wheel, and with the buttons', async () => {
+    const { wrapper, surface } = await shown();
+    await wheel(surface, { deltaY: -100, clientX: 100, clientY: 100 });
+    expect(camera().zoom).toBeGreaterThan(0.5);
+
+    await surface.trigger('keydown', { key: '0' });
+    await wrapper.get('button[aria-label="Zoom in"]').trigger('click');
+    expect(camera().zoom).toBeCloseTo(0.625, 9);
+    await wrapper.get('button[aria-label="Zoom out"]').trigger('click');
+    expect(camera().zoom).toBeCloseTo(0.5, 9);
+    await wrapper.get('button[title="Show the whole map"]').trigger('click');
+    expect(camera()).toEqual({ x: 1000, y: 500, zoom: 0.5 });
+  });
+
+  it('pans by dragging, and lets go on release', async () => {
+    const { surface } = await shown();
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 0,
+      clientX: 300,
+      clientY: 200,
+    });
+    expect(surface.classes()).toContain('is-dragging');
+    await pointer(surface, 'pointermove', { pointerId: 1, clientX: 400, clientY: 160 });
+    expect(camera()).toEqual({ x: 800, y: 580, zoom: 0.5 });
+
+    await pointer(surface, 'pointerup', { pointerId: 1, clientX: 400, clientY: 160 });
+    expect(surface.classes()).not.toContain('is-dragging');
+    view.setCamera.mockClear();
+    await pointer(surface, 'pointermove', { pointerId: 1, clientX: 500, clientY: 160 });
+    expect(view.setCamera).not.toHaveBeenCalled();
+  });
+
+  it('ignores the right mouse button', async () => {
+    const { surface } = await shown();
+    view.setCamera.mockClear();
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 2,
+      clientX: 0,
+      clientY: 0,
+    });
+    await pointer(surface, 'pointermove', { pointerId: 1, clientX: 50, clientY: 50 });
+    expect(view.setCamera).not.toHaveBeenCalled();
+  });
+
+  it('keeps where the user looked when the same scene is redrawn, but refits for a new one', async () => {
+    const scene = makeScene();
+    state.shownScene = scene;
+    const wrapper = mountView();
+    await ready(wrapper);
+    await wrapper.get('.map-surface').trigger('keydown', { key: 'ArrowRight' });
+    expect(camera().x).toBe(1200);
+
+    state.shownScene = { ...scene, grid: { ...scene.grid, size: 50 } };
+    await flushPromises();
+    expect(camera().x).toBe(1200);
+
+    state.shownScene = makeScene();
+    await flushPromises();
+    expect(camera()).toEqual({ x: 1000, y: 500, zoom: 0.5 });
+  });
+
+  it('refits on resize while still the whole-map view, and keeps the view once moved', async () => {
+    const { wrapper, surface } = await shown();
+    const onResize = (app.renderer.on.mock.calls[0] as [string, () => void])[1];
+    app.screen = { width: 548, height: 348 };
+    onResize();
+    expect(camera()).toEqual({ x: 1000, y: 500, zoom: 0.25 });
+
+    await surface.trigger('keydown', { key: 'ArrowRight' });
+    app.screen = { width: 1048, height: 548 };
+    onResize();
+    expect(camera().x).toBe(1400);
+    expect(wrapper.exists()).toBe(true);
+  });
+});
