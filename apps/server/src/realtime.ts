@@ -61,6 +61,7 @@ import { emptyCompendium } from './compendium.js';
 import { addItem, removeItem, updateItem } from './items.js';
 import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
 import { addPartyMember, removePartyMember, reorderParty } from './party.js';
+import { createScene, deleteScene, updateScene } from './scenes.js';
 import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
 import { broadcastFor, operationsFor } from './visibility.js';
@@ -393,6 +394,21 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const party = reorderParty(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [party] };
+    }
+    case 'scene.create': {
+      const seat = requireSeat(store, socket);
+      const scene = createScene(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [scene] };
+    }
+    case 'scene.update': {
+      const seat = requireSeat(store, socket);
+      const scene = updateScene(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [scene] };
+    }
+    case 'scene.delete': {
+      const seat = requireSeat(store, socket);
+      const { deleted, changed } = deleteScene(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: changed, deleted };
     }
     default:
       return assertNever(operation);

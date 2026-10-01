@@ -876,6 +876,160 @@ describe('actor.create and actor.delete', () => {
   });
 });
 
+describe('scene.create, scene.update, and scene.delete', () => {
+  function nextBroadcast(socket: ClientSocket): Promise<Broadcast> {
+    return new Promise((resolve) => {
+      socket.once('broadcast', resolve);
+    });
+  }
+
+  const op = (type: string, payload: unknown) => ({
+    id: crypto.randomUUID(),
+    type,
+    payload,
+  });
+
+  /** A GM and a player, each on their own connection. */
+  async function table() {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    store.putSeat(makeSeat({ name: 'Player', claimedByDeviceToken: 'player' }));
+    return { gm: await connect('gm'), player: await connect('player') };
+  }
+
+  /** Creates a scene as the GM and returns it, once both sockets have heard the broadcast. */
+  async function createScene(t: Awaited<ReturnType<typeof table>>, name = 'The Crypt') {
+    const heard = [t.gm, t.player].map(nextBroadcast);
+    expect(
+      await emitOperation(t.gm, op('scene.create', { name, kind: 'battle' })),
+    ).toEqual({ ok: true });
+    const [forGm, forPlayer] = await Promise.all(heard);
+    const scene = forGm?.documents[0];
+    if (scene === undefined || forGm === undefined || forPlayer === undefined) {
+      throw new Error('expected a created scene');
+    }
+    return { scene, forGm, forPlayer };
+  }
+
+  it('creates a scene the GM sees and the player never hears of', async () => {
+    const t = await table();
+    const { scene, forGm, forPlayer } = await createScene(t);
+
+    expect(scene).toMatchObject({ type: 'scene', name: 'The Crypt', kind: 'battle' });
+    expect(forGm.operation.payload).toEqual({ name: 'The Crypt', kind: 'battle' });
+    // The player still gets the broadcast, so their sequence has no gap, but nothing in it.
+    expect(forPlayer.documents).toEqual([]);
+    expect(forPlayer.deleted).toEqual([]);
+    expect(forPlayer.operation.payload).toEqual({});
+    expect(forPlayer.sequence).toBe(forGm.sequence);
+  });
+
+  it('refuses a player, logging nothing', async () => {
+    const t = await table();
+    const before = store.listOperationsSince(0).length;
+    expect(
+      await emitOperation(t.player, op('scene.create', { name: 'Mine', kind: 'area' })),
+    ).toEqual({ ok: false, error: 'only the GM can change scenes' });
+    expect(store.listOperationsSince(0)).toHaveLength(before);
+    expect(store.listDocuments('scene')).toEqual([]);
+  });
+
+  it('updates a hidden scene for the GM only', async () => {
+    const t = await table();
+    const { scene } = await createScene(t);
+
+    const heard = [t.gm, t.player].map(nextBroadcast);
+    expect(
+      await emitOperation(
+        t.gm,
+        op('scene.update', {
+          sceneId: scene.id,
+          changes: { name: 'Renamed', grid: { size: 70 } },
+        }),
+      ),
+    ).toEqual({ ok: true });
+    const [forGm, forPlayer] = await Promise.all(heard);
+
+    expect(forGm?.documents[0]).toMatchObject({
+      id: scene.id,
+      name: 'Renamed',
+      grid: { size: 70, distance: 5 },
+    });
+    expect(forPlayer?.documents).toEqual([]);
+    expect(forPlayer?.deleted).toEqual([]);
+  });
+
+  it('rejects a player’s update and an update that breaks the schema', async () => {
+    const t = await table();
+    const { scene } = await createScene(t);
+    expect(
+      await emitOperation(
+        t.player,
+        op('scene.update', { sceneId: scene.id, changes: { name: 'Hijack' } }),
+      ),
+    ).toMatchObject({ ok: false });
+    expect(
+      await emitOperation(
+        t.gm,
+        op('scene.update', { sceneId: scene.id, changes: { background: 'map.png' } }),
+      ),
+    ).toEqual({ ok: false, error: 'background must be the name of an uploaded image' });
+    expect(
+      await emitOperation(t.gm, op('scene.update', { sceneId: scene.id, changes: {} })),
+    ).toEqual({ ok: false, error: 'invalid operation' });
+    expect((store.getDocument(scene.id) as { name: string }).name).toBe('The Crypt');
+  });
+
+  it('deletes a hidden scene without telling the player it existed', async () => {
+    const t = await table();
+    const { scene } = await createScene(t);
+
+    const heard = [t.gm, t.player].map(nextBroadcast);
+    expect(await emitOperation(t.gm, op('scene.delete', { sceneId: scene.id }))).toEqual({
+      ok: true,
+    });
+    const [forGm, forPlayer] = await Promise.all(heard);
+
+    expect(forGm?.deleted.map((d) => d.id)).toEqual([scene.id]);
+    expect(forPlayer?.deleted).toEqual([]);
+    expect(forPlayer?.documents).toEqual([]);
+    expect(store.getDocument(scene.id)).toBeUndefined();
+  });
+
+  it('tells a player a scene they could see is gone, along with the party leaving it', async () => {
+    const t = await table();
+    const { scene } = await createScene(t);
+    // Reveal the scene and put the party in it, as moving the party will later.
+    store.putDocument({ ...scene, permissions: { default: 'observer', seats: {} } });
+    const now = new Date().toISOString();
+    const party = {
+      id: crypto.randomUUID(),
+      worldId: store.world.id,
+      type: 'party' as const,
+      schemaVersion: 1,
+      permissions: { default: 'observer' as const, seats: {} },
+      createdAt: now,
+      updatedAt: now,
+      name: 'Party',
+      memberIds: [],
+      level: 1,
+      sceneId: scene.id,
+    };
+    store.putDocument(party);
+
+    const heard = [t.gm, t.player].map(nextBroadcast);
+    expect(await emitOperation(t.gm, op('scene.delete', { sceneId: scene.id }))).toEqual({
+      ok: true,
+    });
+    const [forGm, forPlayer] = await Promise.all(heard);
+
+    for (const broadcast of [forGm, forPlayer]) {
+      expect(broadcast?.deleted.map((d) => d.id)).toEqual([scene.id]);
+      expect(broadcast?.documents[0]).toMatchObject({ id: party.id });
+      expect(broadcast?.documents[0]).not.toHaveProperty('sceneId');
+    }
+  });
+});
+
 describe('sync -- who is asking', () => {
   it("withholds a non-public operation's payload from a player but not from the GM", async () => {
     const gmSeat = makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm-token' });

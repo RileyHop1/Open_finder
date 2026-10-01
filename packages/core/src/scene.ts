@@ -31,16 +31,40 @@ export type GridType = (typeof GRID_TYPES)[number];
 /** The largest a scene may be on a side, in scene pixels. */
 export const MAX_SCENE_PIXELS = 32_000;
 
-export const sceneGridSchema = z.object({
-  type: gridTypeSchema.default('square'),
+/** The grid's fields and their limits, without defaults, so a stored grid and a partial change share one set of rules. */
+const gridFields = {
+  type: gridTypeSchema,
   /** One cell's side, in scene pixels. */
-  size: z.number().int().min(10).max(1000).default(100),
+  size: z.number().int().min(10).max(1000),
   /** How far one cell is, in feet. PF2e's default is 5. */
-  distance: z.number().positive().max(1000).default(5),
+  distance: z.number().positive().max(1000),
   /** Shift of the grid lines from the scene's top-left, so the grid can be lined up with a map's printed one. */
-  offsetX: z.number().min(-1000).max(1000).default(0),
-  offsetY: z.number().min(-1000).max(1000).default(0),
+  offsetX: z.number().min(-1000).max(1000),
+  offsetY: z.number().min(-1000).max(1000),
+};
+
+export const sceneGridSchema = z.object({
+  type: gridFields.type.default('square'),
+  size: gridFields.size.default(100),
+  distance: gridFields.distance.default(5),
+  offsetX: gridFields.offsetX.default(0),
+  offsetY: gridFields.offsetY.default(0),
 });
+
+/**
+ * Some of the grid's fields, with **no** defaults filled in: what `scene.update`
+ * carries, so changing the cell size cannot quietly reset the offset. Unknown
+ * keys are refused, and so is an empty change.
+ */
+export const sceneGridChangesSchema = z
+  .object(gridFields)
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, {
+    message: 'a grid change must set at least one field',
+  });
+
+export type SceneGridChanges = z.infer<typeof sceneGridChangesSchema>;
 
 export type SceneGrid = z.infer<typeof sceneGridSchema>;
 
