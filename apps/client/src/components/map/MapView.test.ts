@@ -12,12 +12,26 @@ import * as sceneViewModule from './sceneView.js';
 const NOW = '2026-10-01T00:00:00.000Z';
 
 const moveToken = vi.fn<(id: string, x: number, y: number) => Promise<boolean>>();
+const setLocalDrag = vi.fn<(id: string, x: number, y: number) => void>();
+const clearLocalDrag = vi.fn<(id: string) => void>();
+const sendDrag = vi.fn<(id: string, x: number, y: number) => void>();
 const state = reactive<{
   shownScene: Scene | undefined;
   shownTokens: Token[];
   error: string | undefined;
   moveToken: typeof moveToken;
-}>({ shownScene: undefined, shownTokens: [], error: undefined, moveToken });
+  setLocalDrag: typeof setLocalDrag;
+  clearLocalDrag: typeof clearLocalDrag;
+  sendDrag: typeof sendDrag;
+}>({
+  shownScene: undefined,
+  shownTokens: [],
+  error: undefined,
+  moveToken,
+  setLocalDrag,
+  clearLocalDrag,
+  sendDrag,
+});
 const lobby = reactive<{ mySeat: Seat | undefined }>({ mySeat: undefined });
 vi.mock('../../stores/lobby.js', () => ({ useLobbyStore: () => lobby }));
 const docs = reactive<{ actors: Actor[] }>({ actors: [] });
@@ -693,5 +707,215 @@ describe('selecting and moving tokens', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('permission');
     // Nothing is announced as moved, and the earlier message is not left standing.
     expect(wrapper.get('.visually-hidden').text()).toBe('');
+  });
+});
+
+describe('dragging tokens', () => {
+  const world = crypto.randomUUID();
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  const GM = seat(true);
+  const player = seat(false);
+
+  const makeActor = (name: string, owner?: Seat): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: {
+      default: 'observer',
+      seats: owner === undefined ? {} : { [owner.id]: 'owner' },
+    },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    system: {},
+  });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Scene 2000 x 1000 fitted at 0.5, centre on screen (524, 274): scene (250, 250) is screen (149, 149). */
+  async function setup(who: Seat, owner?: Seat) {
+    lobby.mySeat = who;
+    const hero = makeActor('Valeros', owner);
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    const token = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: world,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: hero.id,
+      x: 250,
+      y: 250,
+    });
+    state.shownTokens = [token];
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, token, surface: wrapper.get('.map-surface') };
+  }
+
+  const grab = (surface: { element: Element }, x = 149, y = 149) =>
+    pointer(surface, 'pointerdown', { pointerId: 1, button: 0, clientX: x, clientY: y });
+  const drag = (surface: { element: Element }, x: number, y: number) =>
+    pointer(surface, 'pointermove', { pointerId: 1, clientX: x, clientY: y });
+  const drop = (surface: { element: Element }, x: number, y: number) =>
+    pointer(surface, 'pointerup', { pointerId: 1, clientX: x, clientY: y });
+
+  it('follows the pointer cell by cell, with the distance in feet beside it', async () => {
+    const { wrapper, token, surface } = await setup(GM);
+    await grab(surface);
+    // 100 screen px right is 200 scene px: two squares.
+    await drag(surface, 249, 149);
+
+    expect(setLocalDrag).toHaveBeenLastCalledWith(token.id, 450, 250);
+    expect(wrapper.get('output.move-readout').text()).toBe('10 ft');
+    expect(wrapper.get('.map-surface').classes()).toContain('is-dragging');
+  });
+
+  it('sends one move on release, hands over from the drag, and announces it', async () => {
+    const { wrapper, token, surface } = await setup(GM);
+    await grab(surface);
+    await drag(surface, 249, 149);
+    await drop(surface, 249, 149);
+    await flushPromises();
+
+    expect(moveToken).toHaveBeenCalledTimes(1);
+    expect(moveToken).toHaveBeenCalledWith(token.id, 450, 250);
+    // The move is pending before the drag is released, so there is no flicker.
+    expect(moveToken.mock.invocationCallOrder[0]).toBeLessThan(
+      clearLocalDrag.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(clearLocalDrag).toHaveBeenCalledWith(token.id);
+    expect(wrapper.find('output.move-readout').exists()).toBe(false);
+    expect(wrapper.get('.visually-hidden').text()).toBe('Valeros moved 10 ft.');
+    expect(wrapper.get('.map-surface').classes()).not.toContain('is-dragging');
+  });
+
+  it('sends nothing for a click or a wobble inside the starting cell', async () => {
+    const { surface } = await setup(GM);
+    await grab(surface);
+    await drag(surface, 160, 140);
+    await drop(surface, 160, 140);
+    await flushPromises();
+
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(clearLocalDrag).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the others a throttled preview, never one per pointer event', async () => {
+    const { surface, token } = await setup(GM);
+    await grab(surface);
+    for (let x = 160; x <= 400; x += 10) {
+      await drag(surface, x, 149);
+      vi.advanceTimersByTime(5);
+    }
+    // 25 pointer events over about 125 ms: the first goes at once, then one per 50 ms.
+    expect(sendDrag.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(sendDrag.mock.calls.length).toBeLessThanOrEqual(5);
+    expect(sendDrag.mock.calls[0]?.[0]).toBe(token.id);
+    expect(setLocalDrag.mock.calls.length).toBeGreaterThan(sendDrag.mock.calls.length);
+  });
+
+  it('drops a held preview on release, since the settled move replaces it', async () => {
+    const { surface } = await setup(GM);
+    await grab(surface);
+    await drag(surface, 249, 149);
+    await drag(surface, 349, 149);
+    sendDrag.mockClear();
+    await drop(surface, 349, 149);
+    vi.advanceTimersByTime(500);
+    expect(sendDrag).not.toHaveBeenCalled();
+  });
+
+  it('puts the token back on Escape, and on a cancelled pointer', async () => {
+    const { wrapper, surface } = await setup(GM);
+    await grab(surface);
+    await drag(surface, 249, 149);
+    await surface.trigger('keydown', { key: 'Escape' });
+    await flushPromises();
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(clearLocalDrag).toHaveBeenCalledTimes(1);
+    expect(wrapper.get('.visually-hidden').text()).toBe('Move cancelled.');
+    expect(wrapper.find('output.move-readout').exists()).toBe(false);
+
+    await grab(surface);
+    await drag(surface, 249, 149);
+    await pointer(surface, 'pointercancel', { pointerId: 1, clientX: 249, clientY: 149 });
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(clearLocalDrag).toHaveBeenCalledTimes(2);
+  });
+
+  it('lets a player drag a token they own', async () => {
+    const { surface, token } = await setup(player, player);
+    await grab(surface);
+    await drag(surface, 149, 249);
+    await drop(surface, 149, 249);
+    await flushPromises();
+    expect(moveToken).toHaveBeenCalledWith(token.id, 250, 450);
+  });
+
+  it('only selects a token a player does not own: no drag, no preview, no move', async () => {
+    const { wrapper, surface } = await setup(player);
+    await grab(surface);
+    expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('true');
+    await drag(surface, 249, 149);
+    await drop(surface, 249, 149);
+    await flushPromises();
+    expect(setLocalDrag).not.toHaveBeenCalled();
+    expect(sendDrag).not.toHaveBeenCalled();
+    expect(moveToken).not.toHaveBeenCalled();
+  });
+
+  it('does not pan the map while a token is held, and ignores another finger', async () => {
+    const { surface } = await setup(GM);
+    await grab(surface);
+    view.setCamera.mockClear();
+    await drag(surface, 249, 149);
+    await pointer(surface, 'pointermove', { pointerId: 2, clientX: 400, clientY: 300 });
+    expect(view.setCamera).not.toHaveBeenCalled();
+    expect(setLocalDrag).toHaveBeenCalledTimes(1);
+  });
+
+  it('still pans from empty ground', async () => {
+    const { surface } = await setup(GM);
+    view.setCamera.mockClear();
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 0,
+      clientX: 600,
+      clientY: 400,
+    });
+    await pointer(surface, 'pointermove', { pointerId: 1, clientX: 650, clientY: 400 });
+    expect(view.setCamera).toHaveBeenCalled();
+    expect(setLocalDrag).not.toHaveBeenCalled();
+  });
+
+  it('lets go of a held token if the map goes away mid-drag', async () => {
+    const { wrapper, token, surface } = await setup(GM);
+    await grab(surface);
+    await drag(surface, 249, 149);
+    wrapper.unmount();
+    expect(clearLocalDrag).toHaveBeenCalledWith(token.id);
   });
 });

@@ -258,8 +258,14 @@ client server in production.
   grid the server does), shown at once and rolled back if the server refuses.
   Escape lets go; with nothing movable selected the arrows pan. Each move is
   announced in words ("Valeros moved 5 ft."), and a step off the map is refused
-  rather than clamped. Dragging a token, with a live preview for the others, is
-  the next PR of milestone 4. **Built.**
+  rather than clamped. **Dragging:** grabbing a token this seat may move picks it
+  up; it follows the pointer cell by cell (`dragTarget`, snapped and kept on the
+  scene in the order the server uses), with the distance in feet beside it
+  (PF2e's diagonals, from the grid). The other seats see a live preview, sent as
+  the unlogged `token.drag` event at about 20 a second (`throttle.ts`: leading
+  plus the latest at the end), and releasing sends the one real `token.move`,
+  pending before the drag lets go so nothing flickers. Escape puts it back.
+  Grabbing a token this seat may not move only selects it. **Built.**
 - **The action bar** (strikes, spells, and actions as hotbar icons). Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the

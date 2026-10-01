@@ -18,6 +18,11 @@
  * the new position); a rejection just drops it, so the token snaps back to the
  * last confirmed position with nothing to undo by hand.
  *
+ * **This seat's own drag.** While the user holds a token, `setLocalDrag` puts
+ * it where the pointer is, above everything else, so it follows the hand even
+ * if an earlier move is still unconfirmed; `clearLocalDrag` lets go (after the
+ * move is sent, which takes over as a pending move).
+ *
  * **Drag previews.** Another seat's mid-drag position arrives as a `token.drag`
  * event, not an operation (ADR 0005, decision 6). It is shown instead of the
  * token's settled position, and goes away when the settled token arrives, or
@@ -52,6 +57,7 @@ export const useScenesStore = defineStore('scenes', () => {
   const confirmedTokens = ref<Token[]>([]);
   const pendingMoves = ref<PendingMove[]>([]);
   const drags = ref<Record<string, { x: number; y: number }>>({});
+  const localDrags = ref<Record<string, { x: number; y: number }>>({});
   const previewSceneId = ref<string>();
   const error = ref<string>();
   const dragTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -80,9 +86,13 @@ export const useScenesStore = defineStore('scenes', () => {
     () => shownSceneId.value !== undefined && shownSceneId.value !== partySceneId.value,
   );
 
-  /** Tokens as the UI should show them: confirmed, with this client's unconfirmed moves, or another seat's live drag, in place of the settled position. */
+  /** Tokens as the UI should show them: confirmed, with this client's own drag, else its unconfirmed moves, else another seat's live drag, in place of the settled position. */
   const tokens = computed(() =>
     confirmedTokens.value.map((token) => {
+      const held = localDrags.value[token.id];
+      if (held !== undefined) {
+        return { ...token, x: held.x, y: held.y };
+      }
       const moves = pendingMoves.value.filter((move) => move.tokenId === token.id);
       const last = moves[moves.length - 1];
       if (last !== undefined) {
@@ -249,6 +259,19 @@ export const useScenesStore = defineStore('scenes', () => {
     return ack.ok;
   }
 
+  /** Shows `tokenId` at `x`, `y` while this seat holds it. Nothing is sent: see `sendDrag`. */
+  function setLocalDrag(tokenId: string, x: number, y: number): void {
+    localDrags.value = { ...localDrags.value, [tokenId]: { x, y } };
+  }
+
+  /** Lets go of `tokenId`: it shows where it is confirmed or pending again. */
+  function clearLocalDrag(tokenId: string): void {
+    if (tokenId in localDrags.value) {
+      const { [tokenId]: _gone, ...rest } = localDrags.value;
+      localDrags.value = rest;
+    }
+  }
+
   /** Tells the others where `tokenId` is mid-drag. The caller throttles; this only sends. */
   function sendDrag(tokenId: string, x: number, y: number): void {
     connection.sendTokenDrag({ tokenId, x, y });
@@ -268,5 +291,7 @@ export const useScenesStore = defineStore('scenes', () => {
     moveToken,
     send,
     sendDrag,
+    setLocalDrag,
+    clearLocalDrag,
   };
 });

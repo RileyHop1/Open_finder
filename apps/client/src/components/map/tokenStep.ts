@@ -56,3 +56,32 @@ export function stepToken(
   }
   return { to, feet: grid.pathDistance([from, to]) };
 }
+
+/**
+ * Where a dragged token lands: the pointer's scene position less where the
+ * token was grabbed (so it does not jump to the pointer), snapped, then kept on
+ * the scene. That is the same order the server uses to place a move
+ * (`apps/server/src/tokens.ts`, `snapOnScene`), so the token the user is holding
+ * is where the server will put it. `feet` is measured from `from`, the cell the
+ * drag began in.
+ */
+export function dragTarget(
+  grid: GridStrategy,
+  scene: { readonly width: number; readonly height: number },
+  drag: {
+    readonly pointer: Point;
+    readonly grab: Point;
+    readonly from: Point;
+    readonly size: number;
+  },
+): Step {
+  const snapped = grid.snap(
+    { x: drag.pointer.x - drag.grab.x, y: drag.pointer.y - drag.grab.y },
+    drag.size,
+  );
+  const to = {
+    x: Math.min(Math.max(snapped.x, 0), scene.width),
+    y: Math.min(Math.max(snapped.y, 0), scene.height),
+  };
+  return { to, feet: grid.pathDistance([drag.from, to]) };
+}
