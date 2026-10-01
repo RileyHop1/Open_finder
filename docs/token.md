@@ -38,7 +38,12 @@ affected tokens in the same transaction (`tokenPermissions` in
   grid, optionally hidden. `token.update` hides or shows it, resizes it, or gives
   it a map label. `token.delete` takes it off the scene.
 - Deleting an actor deletes its tokens, on every scene.
-- Moving a token is a separate operation (a later PR).
+- `token.move` moves one. The GM may move any token; a player may move a token
+  they can see **and whose actor they own**, so a character's owner moves their own
+  token and nobody else's. The server snaps and clamps the point, so a client's
+  coordinates are a request. The live drag preview other players see while a token
+  is being dragged is a separate, unlogged channel (a later PR); only the settled
+  position is stored.
 
 A token's `size` comes from the actor: a creature's size for an NPC, the ancestry's
 size for a character whose ancestry is a compendium entry, one square otherwise.

@@ -435,6 +435,22 @@ export const tokenUpdateOperationSchema = clientOperationSchema.extend({
   payload: z.object({ tokenId: idSchema, changes: tokenChangesSchema }),
 });
 
+/**
+ * Move a token to a new centre: the **settled** position after a drag, the only
+ * durable move (ADR 0005, decision 6; the live drag preview is a separate,
+ * unlogged channel). The GM may move any token, a player only a token whose
+ * actor they own. The server snaps the point to the scene's grid and keeps it on
+ * the scene, so what a client sends is a request, not a final position.
+ */
+export const tokenMoveOperationSchema = clientOperationSchema.extend({
+  type: z.literal('token.move'),
+  payload: z.object({
+    tokenId: idSchema,
+    x: z.number().min(0).max(MAX_SCENE_PIXELS),
+    y: z.number().min(0).max(MAX_SCENE_PIXELS),
+  }),
+});
+
 /** Take a token off its scene. GM only; the actor is untouched. */
 export const tokenDeleteOperationSchema = clientOperationSchema.extend({
   type: z.literal('token.delete'),
@@ -477,6 +493,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   tokenCreateOperationSchema,
   tokenUpdateOperationSchema,
   tokenDeleteOperationSchema,
+  tokenMoveOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

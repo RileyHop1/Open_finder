@@ -16,6 +16,7 @@ import {
   createToken,
   deleteToken,
   deleteTokensOf,
+  moveToken,
   placeToken,
   updateToken,
 } from './tokens.js';
@@ -332,6 +333,166 @@ describe('updateToken', () => {
       }),
     ).toThrow('no token found');
     expect(stored(token.id).hidden).toBe(false);
+  });
+});
+
+describe('moveToken', () => {
+  /** A scene the party is in, a player who owns a character, and that character's token. */
+  function setup() {
+    const here = scene();
+    partyIn(here);
+    const owner = player();
+    const actor = createActor(store, owner, { kind: 'character', name: 'Hero' });
+    const token = placeToken(store, { scene: here, actor, size: 1, x: 350, y: 450 });
+    return { here, owner, actor, token };
+  }
+
+  it('moves the owner’s token to the nearest cell centre, and stores it', () => {
+    const { owner, token } = setup();
+    const moved = moveToken(store, owner, { tokenId: token.id, x: 710, y: 820 });
+    expect([moved?.x, moved?.y]).toEqual([750, 850]);
+    expect([stored(token.id).x, stored(token.id).y]).toEqual([750, 850]);
+  });
+
+  it('lets the GM move anyone’s token, an NPC’s included', () => {
+    const { here } = setup();
+    const goblin = npc('medium');
+    const goblinToken = placeToken(store, {
+      scene: here,
+      actor: goblin,
+      size: 1,
+      x: 50,
+      y: 50,
+    });
+    const moved = moveToken(store, gm(), { tokenId: goblinToken.id, x: 250, y: 250 });
+    expect([moved?.x, moved?.y]).toEqual([250, 250]);
+  });
+
+  it('refuses another player, who can see the token but does not own its actor', () => {
+    const { token } = setup();
+    expect(() =>
+      moveToken(store, player(), { tokenId: token.id, x: 750, y: 850 }),
+    ).toThrow('do not have permission');
+    expect([stored(token.id).x, stored(token.id).y]).toEqual([350, 450]);
+  });
+
+  it('refuses a player the NPC’s token they can see', () => {
+    const { here, owner } = setup();
+    const goblinToken = placeToken(store, {
+      scene: here,
+      actor: npc('medium'),
+      size: 1,
+      x: 50,
+      y: 50,
+    });
+    expect(() =>
+      moveToken(store, owner, { tokenId: goblinToken.id, x: 150, y: 50 }),
+    ).toThrow('do not have permission');
+  });
+
+  it('reports a token the player cannot see as not found, even when they own its actor', () => {
+    const { here, owner, actor } = setup();
+    const hiddenToken = placeToken(store, {
+      scene: here,
+      actor,
+      size: 1,
+      x: 50,
+      y: 50,
+      hidden: true,
+    });
+    expect(() =>
+      moveToken(store, owner, { tokenId: hiddenToken.id, x: 150, y: 50 }),
+    ).toThrow('no token found');
+    // A scene the party is not in: its tokens are invisible to players too.
+    const away = scene('Away');
+    const awayToken = placeToken(store, { scene: away, actor, size: 1, x: 50, y: 50 });
+    expect(() =>
+      moveToken(store, owner, { tokenId: awayToken.id, x: 150, y: 50 }),
+    ).toThrow('no token found');
+    // The GM can move both.
+    expect(
+      moveToken(store, gm(), { tokenId: hiddenToken.id, x: 150, y: 50 }),
+    ).toBeDefined();
+    expect(
+      moveToken(store, gm(), { tokenId: awayToken.id, x: 150, y: 50 }),
+    ).toBeDefined();
+  });
+
+  it('reports an unknown token, and an id that is not a token, as not found', () => {
+    const { owner, actor } = setup();
+    expect(() =>
+      moveToken(store, owner, { tokenId: crypto.randomUUID(), x: 1, y: 1 }),
+    ).toThrow('no token found');
+    expect(() => moveToken(store, owner, { tokenId: actor.id, x: 1, y: 1 })).toThrow(
+      'no token found',
+    );
+  });
+
+  it('keeps a token on the scene', () => {
+    const { owner, token } = setup();
+    const right = moveToken(store, owner, { tokenId: token.id, x: 2500, y: 10 });
+    expect([right?.x, right?.y]).toEqual([2000, 50]);
+    const left = moveToken(store, owner, { tokenId: token.id, x: 0, y: 2900 });
+    expect([left?.x, left?.y]).toEqual([50, 2000]);
+  });
+
+  it('centres a larger token on a grid intersection', () => {
+    const { here } = setup();
+    const ogre = npc('large');
+    const ogreToken = placeToken(store, {
+      scene: here,
+      actor: ogre,
+      size: 2,
+      x: 300,
+      y: 400,
+    });
+    const moved = moveToken(store, gm(), { tokenId: ogreToken.id, x: 710, y: 820 });
+    expect([moved?.x, moved?.y]).toEqual([700, 800]);
+  });
+
+  it('does not snap on a gridless scene', () => {
+    const open = scene('Open');
+    updateScene(store, gm(), { sceneId: open.id, changes: { grid: { type: 'none' } } });
+    const tokenHere = placeToken(store, {
+      scene: open,
+      actor: npc('medium'),
+      size: 1,
+      x: 5,
+      y: 5,
+    });
+    const moved = moveToken(store, gm(), { tokenId: tokenHere.id, x: 123.4, y: 567.8 });
+    expect([moved?.x, moved?.y]).toEqual([123.4, 567.8]);
+  });
+
+  it('writes nothing, and returns nothing, when the move lands where the token already is', () => {
+    const { owner, token } = setup();
+    const before = stored(token.id);
+    expect(
+      moveToken(store, owner, { tokenId: token.id, x: 340, y: 460 }),
+    ).toBeUndefined();
+    expect(stored(token.id)).toEqual(before);
+  });
+
+  it('is last write wins: the later move is where the token stays', () => {
+    const { owner, token } = setup();
+    moveToken(store, owner, { tokenId: token.id, x: 750, y: 850 });
+    moveToken(store, gm(), { tokenId: token.id, x: 1250, y: 1350 });
+    expect([stored(token.id).x, stored(token.id).y]).toEqual([1250, 1350]);
+  });
+
+  it('changes nothing but the position: not who can see it, how big it is, or its label', () => {
+    const { here, owner, actor } = setup();
+    const labelled = placeToken(store, { scene: here, actor, size: 1, x: 350, y: 450 });
+    updateToken(store, gm(), {
+      tokenId: labelled.id,
+      changes: { name: 'Hero (mounted)' },
+    });
+    const before = stored(labelled.id);
+    moveToken(store, owner, { tokenId: labelled.id, x: 750, y: 850 });
+    const after = stored(labelled.id);
+    expect({ ...after, x: before.x, y: before.y, updatedAt: before.updatedAt }).toEqual(
+      before,
+    );
   });
 });
 

@@ -24,8 +24,10 @@ import type {
 import {
   actorSchema,
   baseDocumentSchema,
+  canReadDocument,
   GridlessGrid,
   partySchema,
+  resolvePermission,
   sceneSchema,
   tokenSchema,
 } from '@hearthtable/core';
@@ -246,6 +248,49 @@ export function deleteToken(
   const token = loadToken(store, payload.tokenId);
   store.deleteDocument(token.id);
   return baseDocumentSchema.parse(token);
+}
+
+/**
+ * Moves a token to the point nearest `payload`'s that the scene's grid allows,
+ * kept on the scene. This is the settled move after a drag (ADR 0005); the live
+ * preview never reaches here.
+ *
+ * **Who may move it is decided by the token's actor, not the token.** The GM may
+ * move any token. A player may move one only if they can see it and own its
+ * actor, so a character's owner moves their own token and nobody else's. A token
+ * a player cannot see is reported as not found, the same message as a missing
+ * one, so a rejection never confirms that a hidden token exists.
+ *
+ * Movement is free for now: no speed limit, no turn check (those arrive with
+ * combat). Last write wins: two seats moving the same token leave it where the
+ * later one dropped it (ADR 0005, decision 5). A move that lands where the token
+ * already is writes nothing and returns `undefined`.
+ */
+export function moveToken(
+  store: WorldStore,
+  seat: Seat,
+  payload: { tokenId: string; x: number; y: number },
+): Token | undefined {
+  const token = loadToken(store, payload.tokenId);
+  if (!canReadDocument(seat, token)) {
+    throw new OperationRejected(`no token found with id ${payload.tokenId}`);
+  }
+  const actor = actorSchema.safeParse(store.getDocument(token.actorId));
+  if (!actor.success || resolvePermission(seat, actor.data) !== 'owner') {
+    throw new OperationRejected('you do not have permission to move this token');
+  }
+  const scene = sceneSchema.safeParse(store.getDocument(token.sceneId));
+  if (!scene.success) {
+    throw new OperationRejected(`no scene found with id ${token.sceneId}`);
+  }
+
+  const landed = snapOnScene(scene.data, payload, token.size);
+  if (landed.x === token.x && landed.y === token.y) {
+    return undefined;
+  }
+  const moved: Token = { ...token, ...landed, updatedAt: new Date().toISOString() };
+  store.putDocument(moved);
+  return moved;
 }
 
 /**

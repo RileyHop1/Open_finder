@@ -71,7 +71,7 @@ import {
 } from './scenes.js';
 import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
-import { createToken, deleteToken, updateToken } from './tokens.js';
+import { createToken, deleteToken, moveToken, updateToken } from './tokens.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
@@ -378,6 +378,15 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const token = updateToken(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [token] };
+    }
+    case 'token.move': {
+      const seat = requireSeat(store, socket);
+      const token = moveToken(store, seat, operation.payload);
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: token === undefined ? [] : [token],
+      };
     }
     case 'token.delete': {
       const seat = requireSeat(store, socket);
