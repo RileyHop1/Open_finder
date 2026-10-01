@@ -41,6 +41,19 @@ function mapOverrides(raw: unknown): readonly string[] {
   );
 }
 
+/**
+ * The upstream groups whose members are mutually exclusive: a creature has one
+ * detection state and one attitude toward you at a time. Every other upstream
+ * `system.group` (`abilities`, `senses`, `death`) is a *display* grouping,
+ * and a character can have several members at once (clumsy and enfeebled;
+ * blinded and deafened). Our `group` field means "mutually exclusive", and
+ * adding a condition clears the rest of its group, so a display grouping must
+ * not be mapped onto it. Found by reading the first real import (2026-09-30):
+ * 21 of 35 conditions carried a group, 5 distinct, and only two were exclusive.
+ * See `docs/rulings.md`, "Which condition groups are mutually exclusive".
+ */
+const EXCLUSIVE_GROUPS: ReadonlySet<string> = new Set(['detection', 'attitudes']);
+
 export function mapCondition(
   entry: UpstreamEntry,
   provenance: Provenance,
@@ -67,7 +80,7 @@ export function mapCondition(
       : undefined;
 
   const group =
-    typeof system.group === 'string' && system.group.length > 0
+    typeof system.group === 'string' && EXCLUSIVE_GROUPS.has(system.group)
       ? system.group
       : undefined;
   const overrides = mapOverrides(system.overrides);

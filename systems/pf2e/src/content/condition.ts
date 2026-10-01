@@ -33,11 +33,11 @@ export const conditionEntrySchema = compendiumEntrySchema
      */
     maxValue: z.number().int().positive().optional(),
     /**
-     * Conditions in the same mutually exclusive progression -- the
-     * detection ladder (`observed`/`hidden`/`undetected`/`unnoticed`) is
-     * the canonical example. Absent for a standalone condition.
-     * **(confirm)** the exact grouping taxonomy against real upstream data
-     * during the importer PR.
+     * Conditions in the same mutually exclusive progression: adding one
+     * clears the others. Only the detection states and the attitudes are
+     * (the importer maps no other upstream group onto this field -- the rest
+     * are display groupings, `docs/rulings.md`). Absent for a standalone
+     * condition.
      */
     group: z.string().min(1).optional(),
     /**
