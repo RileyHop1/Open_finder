@@ -501,6 +501,9 @@ converts another package manager's lockfile), so without `run` pnpm answers
 "No lockfile found" and never reaches this script.
 
 The run needs network access (it fetches the pinned upstream `packs/` with git)
+and takes a couple of minutes. It writes only to the git-ignored
+`systems/pf2e/.data/` folders. The server reads `.data/imported/` once at
+startup (ADR 0015), so **restart the server after an import** to see the content.
 and takes a minute or two. It writes only to the git-ignored
 `systems/pf2e/.data/` folders. **A GM does not need this command:** the table
 has an "Import game content" button that runs this same importer and reloads
