@@ -95,6 +95,16 @@ client server in production.
   operations whose result is server logic (items, conditions, rolls) go through
   `send`. A reconnect reloads, so a broadcast missed offline cannot leave it
   stale. No screen uses it yet. **Built.**
+- **The table** (`components/TableView.vue`) -- what a seated player sees,
+  shown by the lobby while this device holds a seat (the seat list folds into a
+  "Seats" disclosure, still there for a GM adding seats). Three landmarks, each
+  with a skip link: the **party bar** (members in party order; the full bar with
+  portraits, HP and conditions is a later PR), the **character pane** (the
+  characters this seat can see, a "new character" form that opens the character
+  when it arrives, and the sheet itself in a later PR), and the **chat**. Chat
+  sits beside the sheet from 900px and stacks below that, so it works at an
+  iPad's 1024px; there is no phone layout (CLAUDE.md, Targets and budgets).
+  **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet

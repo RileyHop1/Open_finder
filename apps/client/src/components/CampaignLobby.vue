@@ -16,7 +16,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { type ConnectionStatus, useConnectionStore } from '../stores/connection.js';
 import { useLobbyStore } from '../stores/lobby.js';
-import ChatLog from './ChatLog.vue';
+import TableView from './TableView.vue';
 
 const props = defineProps<{ worldId: string; worldName: string }>();
 
@@ -83,57 +83,61 @@ async function handleCreateSeat(): Promise<void> {
     <p role="status" class="connection-status">{{ statusText }}</p>
     <p v-if="store.error" role="alert" class="status status-error">{{ store.error }}</p>
 
-    <ul v-if="store.seats.length > 0" class="seat-list">
-      <li v-for="seat in store.seats" :key="seat.id" class="seat-row">
-        <span class="seat-name">{{ seat.name }}</span>
-        <span v-if="seat.isGM" class="gm-badge">GM</span>
+    <TableView v-if="store.mySeat" :world-id="worldId" :seat-name="store.mySeat.name" />
 
-        <template v-if="store.mySeat?.id === seat.id">
-          <span class="claimed-badge">You</span>
-          <button type="button" @click="store.releaseSeat()">Release</button>
-        </template>
-        <template v-else-if="seat.claimedByDeviceToken !== undefined">
-          <span class="claimed-badge">Claimed</span>
-        </template>
-        <form
-          v-else-if="pinPromptSeatId === seat.id"
-          class="pin-form"
-          @submit.prevent="confirmPinClaim"
-        >
-          <label :for="`pin-${seat.id}`">PIN</label>
-          <input
-            :id="`pin-${seat.id}`"
-            v-model="pinInput"
-            type="password"
-            autocomplete="off"
-          />
-          <button type="submit">Confirm</button>
-        </form>
-        <button v-else type="button" @click="startClaim(seat)">Claim</button>
-      </li>
-    </ul>
-    <p v-else>No seats yet. Add one below.</p>
+    <!-- Seated players mostly don't need the roster, but the GM adds seats here, so it stays one click away. -->
+    <details class="seat-manager" :open="store.mySeat === undefined">
+      <summary>Seats</summary>
+      <ul v-if="store.seats.length > 0" class="seat-list">
+        <li v-for="seat in store.seats" :key="seat.id" class="seat-row">
+          <span class="seat-name">{{ seat.name }}</span>
+          <span v-if="seat.isGM" class="gm-badge">GM</span>
 
-    <form class="create-seat" @submit.prevent="handleCreateSeat">
-      <label for="new-seat-name">Character name</label>
-      <input
-        id="new-seat-name"
-        v-model="newSeatName"
-        type="text"
-        name="name"
-        required
-        autocomplete="off"
-      />
-      <label class="checkbox-label">
-        <input v-model="newSeatIsGM" type="checkbox" />
-        GM seat
-      </label>
-      <label for="new-seat-pin">PIN (optional)</label>
-      <input id="new-seat-pin" v-model="newSeatPin" type="text" autocomplete="off" />
-      <button type="submit">Add seat</button>
-    </form>
+          <template v-if="store.mySeat?.id === seat.id">
+            <span class="claimed-badge">You</span>
+            <button type="button" @click="store.releaseSeat()">Release</button>
+          </template>
+          <template v-else-if="seat.claimedByDeviceToken !== undefined">
+            <span class="claimed-badge">Claimed</span>
+          </template>
+          <form
+            v-else-if="pinPromptSeatId === seat.id"
+            class="pin-form"
+            @submit.prevent="confirmPinClaim"
+          >
+            <label :for="`pin-${seat.id}`">PIN</label>
+            <input
+              :id="`pin-${seat.id}`"
+              v-model="pinInput"
+              type="password"
+              autocomplete="off"
+            />
+            <button type="submit">Confirm</button>
+          </form>
+          <button v-else type="button" @click="startClaim(seat)">Claim</button>
+        </li>
+      </ul>
+      <p v-else>No seats yet. Add one below.</p>
 
-    <ChatLog :world-id="worldId" />
+      <form class="create-seat" @submit.prevent="handleCreateSeat">
+        <label for="new-seat-name">Character name</label>
+        <input
+          id="new-seat-name"
+          v-model="newSeatName"
+          type="text"
+          name="name"
+          required
+          autocomplete="off"
+        />
+        <label class="checkbox-label">
+          <input v-model="newSeatIsGM" type="checkbox" />
+          GM seat
+        </label>
+        <label for="new-seat-pin">PIN (optional)</label>
+        <input id="new-seat-pin" v-model="newSeatPin" type="text" autocomplete="off" />
+        <button type="submit">Add seat</button>
+      </form>
+    </details>
   </section>
 </template>
 
@@ -151,6 +155,10 @@ async function handleCreateSeat(): Promise<void> {
 .status-error {
   background: var(--color-danger);
   color: var(--color-accent-contrast);
+}
+
+.seat-manager {
+  margin-top: var(--space-4);
 }
 
 .seat-list {
