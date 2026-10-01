@@ -40,13 +40,27 @@ square grid does. Tokens that share or overlap a square are 0 feet apart.
 
 ## Diagonals
 PF2e does not use Euclidean distance. **The first diagonal costs 5 feet, the
-second costs 10, alternating thereafter** — the 1-2-1 pattern **(confirm against
-Player Core's movement section)**.
+second costs 10, alternating thereafter** — the 1-2-1 pattern. Checked against
+Archives of Nethys, Player Core's Grid Movement, 2026-10-01: four diagonal squares
+cost 5, 10, 5, 10, for 30 feet. The count is tracked "across all your movement
+during your turn" and reset at the end of the turn.
 
 This means distance is **path-dependent**, not a function of the two endpoints
 alone. Two tokens the same number of squares apart can be different distances
 depending on the route counted. The implementation must count along a path, and
-the diagonal parity must be tracked per movement, not globally.
+the diagonal count must carry across the segments of one movement.
+
+`SquareGrid.pathDistance` counts the diagonals of the **whole path it is given**.
+The rule's real scope is a turn, so the combat tracker (milestone 5) is the one
+that knows when to reset the count; until it exists, "a path" is the unit. A
+consequence worth knowing: two orthogonal steps (10 feet) are cheaper than the
+two-square diagonal (15 feet), so a waypoint can shorten a path, which is why the
+shared grid contract does not assert a triangle inequality.
+
+Distance **between two footprints** (`distanceBetween`) uses the same alternating
+count on the squares separating their nearest edges, starting fresh. That is our
+reading for range and reach, which the grid page does not spell out: see
+`docs/rulings.md`, "Distance between tokens counts diagonals the same way".
 
 This is the detail most likely to be implemented as Chebyshev distance by
 accident and never noticed until someone measures a reach weapon.
@@ -60,7 +74,15 @@ accident and never noticed until someone measures a reach weapon.
 | Huge | 3×3 |
 | Gargantuan | 4×4 |
 
-Distance to a multi-square token is measured to its **nearest** occupied square.
+Checked against Archives of Nethys (Size, Space, and Reach), 2026-10-01: a Small
+or Medium creature is a 5-foot space (1 square), Large 10 feet, Huge 15 feet,
+Gargantuan "20 feet or more", and multiple Tiny creatures can share one square.
+Gargantuan is 4×4 as a **minimum**: a larger one needs its token size raised by
+hand (`token.size`, up to 12). `footprintForSize` in `systems/pf2e` is the mapping.
+
+Distance to a multi-square token is measured to its **nearest** occupied square
+**(confirm: the page we checked does not say how reach or range to a
+multi-square creature is counted; this is the usual table reading)**.
 Tiny creatures sharing a square is a real rule, not an edge case, and the token
 layer has to allow co-occupancy rather than assuming one token per square.
 
@@ -99,8 +121,10 @@ the kind of automation that is wrong just often enough to be infuriating.
 
 ## Testing
 - Diagonal counting: 1, 2, 3, 4 diagonal steps produce 5, 15, 20, 30 feet
-  **(confirm these totals)**; mixed orthogonal-and-diagonal paths.
-- Distance to Large, Huge, and Gargantuan tokens from several angles.
+  (verified 2026-10-01, see Diagonals); mixed orthogonal-and-diagonal paths, and
+  the count carrying across the segments of one path
+  (`systems/pf2e/src/rules/squareGrid.test.ts`).
+- Distance to Large, Huge, and Gargantuan tokens from several angles (same file).
 - Flanking detection: true positives on opposite sides, negatives on adjacent
   corners, and the case where one ally cannot reach.
 - Difficult terrain accumulates across a multi-square move.

@@ -156,6 +156,8 @@ export {
 
 export { proficiencyModifier } from './rules/proficiency.js';
 
+export { footprintForSize, SquareGrid } from './rules/squareGrid.js';
+
 export {
   buildClassDc,
   buildPerception,

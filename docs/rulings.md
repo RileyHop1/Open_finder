@@ -311,3 +311,32 @@ ruling from silently drifting.
   `conditionMerge.test.ts`.
 - **Override:** the GM sets or removes any condition directly
   (`setCondition` / `removeCondition`).
+
+### Distance between tokens counts diagonals the same way
+- **Rules text:** Player Core's Grid Movement counts the first diagonal square
+  of a turn as 5 feet, the second as 10, alternating, tracked across all the
+  movement of a turn. Its Size, Space, and Reach section gives each size's space
+  (Large 10 feet, Huge 15, Gargantuan 20 or more).
+- **The ambiguity:** those pages are about *movement* and *space*. They do not
+  say whether the alternating count also applies when measuring range or reach
+  to a target, nor how reach is counted to a creature that fills several squares.
+- **Our reading:** `SquareGrid.distanceBetween` counts the squares separating the
+  two tokens' nearest occupied squares, with the same 1-2-1 rule, starting
+  fresh. Two adjacent tokens are 5 feet apart, diagonals included, and two
+  tokens two squares apart diagonally are 15 feet.
+- **Alternative reading:** count every diagonal as 5 feet for range and reach
+  (the "uniform diagonals" variant, or the older habit of measuring distance
+  as the longer axis), which makes a knight's-move target 10 feet away instead
+  of 15.
+- **Why:** most tables measure range the way they measure movement, and one
+  rule is easier to explain on the map ("the ruler says 15"). Revisit if
+  milestone 5's reach and area checks show a case where it is wrong.
+- **Also decided:** Gargantuan is a 4x4 footprint as a **minimum**; the real
+  space is "20 feet or more", so a larger creature's token size is raised by
+  hand. A path's diagonal count is per path until the combat tracker can reset it
+  per turn (milestone 5).
+- **Golden test:** `systems/pf2e/src/rules/squareGrid.test.ts` ("counts the
+  alternating rule between two tokens", "measures a Large token to its nearest
+  square"). The shared contract is `packages/core/src/grid/contract.ts`.
+- **Override:** none yet; distance is shown, never applied. When reach and area
+  automation arrive (milestone 5), the GM confirms targets (`docs/grid.md`).
