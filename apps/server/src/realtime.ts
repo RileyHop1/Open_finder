@@ -62,6 +62,7 @@ import { addItem, removeItem, updateItem } from './items.js';
 import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
 import { addPartyMember, removePartyMember, reorderParty } from './party.js';
 import { OperationRejected } from './rejection.js';
+import { recordPreviousDocuments } from './previousDocuments.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
@@ -409,9 +410,14 @@ function seatOf(store: WorldStore, socket: AppSocket): Seat | undefined {
  * seat may see (`visibility.ts`). Every socket still receives a broadcast for
  * every operation, so sequence numbers stay gapless for all of them.
  */
-function emitBroadcast(io: AppServer, store: WorldStore, broadcast: Broadcast): void {
+function emitBroadcast(
+  io: AppServer,
+  store: WorldStore,
+  broadcast: Broadcast,
+  previous: ReadonlyMap<string, BaseDocument>,
+): void {
   for (const socket of io.sockets.sockets.values()) {
-    socket.emit('broadcast', broadcastFor(seatOf(store, socket), broadcast));
+    socket.emit('broadcast', broadcastFor(seatOf(store, socket), broadcast, previous));
   }
 }
 
@@ -437,9 +443,17 @@ function handleOperation(
 
   const deviceToken = requireDeviceToken(socket);
 
+  /** What each document looked like before this operation, so access taken away reaches whoever held it. */
+  const previous = new Map<string, BaseDocument>();
   try {
     const { appliedOperation, seats, documents, deleted } = store.transaction(() => {
-      const result = dispatch(store, compendium, deviceToken, socket, parsed.data);
+      const result = dispatch(
+        recordPreviousDocuments(store, previous),
+        compendium,
+        deviceToken,
+        socket,
+        parsed.data,
+      );
       const newOperation: NewOperation = {
         id: parsed.data.id,
         worldId: store.world.id,
@@ -458,7 +472,7 @@ function handleOperation(
       deleted: deleted ?? [],
       seats,
     };
-    emitBroadcast(io, store, broadcast);
+    emitBroadcast(io, store, broadcast, previous);
     ack({ ok: true });
   } catch (error) {
     const message = error instanceof OperationRejected ? error.message : 'internal error';

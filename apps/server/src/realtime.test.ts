@@ -819,6 +819,36 @@ describe('actor.create and actor.delete', () => {
     }
   });
 
+  it('does not announce a hidden actor to players when the GM edits it', async () => {
+    const table = await seatedTable();
+    const { owner, other, gm } = table;
+    const created = allSockets(table).map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'npc', name: 'Secret' }));
+    const actor = (await Promise.all(created))[0]?.documents[0];
+    if (actor === undefined) {
+      throw new Error('expected a created actor');
+    }
+    store.putDocument({ ...actor, permissions: { default: 'none', seats: {} } });
+
+    const playersHeard = [owner, other].map(nextBroadcast);
+    const gmHeard = nextBroadcast(gm);
+    expect(
+      await emitOperation(
+        gm,
+        op('actor.update', { actorId: actor.id, changes: { name: 'Renamed' } }),
+      ),
+    ).toEqual({ ok: true });
+
+    // Neither player hears of the actor at all: no document, and no deletion either.
+    for (const broadcast of await Promise.all(playersHeard)) {
+      expect(broadcast.documents).toEqual([]);
+      expect(broadcast.deleted).toEqual([]);
+      expect(broadcast.operation.payload).toEqual({});
+      expect(broadcast.sequence).toBeGreaterThan(0);
+    }
+    expect((await gmHeard).documents[0]).toMatchObject({ id: actor.id, name: 'Renamed' });
+  });
+
   it('lets the GM delete a hidden actor without telling players it existed', async () => {
     const table = await seatedTable();
     const { owner, gm } = table;
