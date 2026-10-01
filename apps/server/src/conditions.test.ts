@@ -179,7 +179,7 @@ describe('addConditionToActor', () => {
     expect(sheetOf(actorId).conditions).toEqual([{ slug: 'mystery', value: 2 }]);
   });
 
-  it('refuses a non-owner, treats a hidden actor as not found, and rejects an NPC', () => {
+  it('refuses a non-owner, treats a hidden actor as not found, and rejects an NPC with no creature', () => {
     const { actorId } = ownedCharacter();
     expect(() => add(makeSeat(), actorId, 'prone')).toThrow(/do not have permission/);
 
@@ -189,7 +189,7 @@ describe('addConditionToActor', () => {
 
     const owner = makeSeat();
     const npc = createActor(store, owner, { kind: 'npc', name: 'Innkeeper' });
-    expect(() => add(owner, npc.id, 'prone')).toThrow(/does not have a character sheet/);
+    expect(() => add(owner, npc.id, 'prone')).toThrow(/has no creature stats/);
   });
 
   it('lets the GM add to any character', () => {
