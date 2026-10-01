@@ -1,13 +1,7 @@
 import type { ArmorEntry, ProficiencyRank, WeaponEntry } from '../index.js';
-import {
-  attributeModifier,
-  buildArmorClass,
-  buildClassDc,
-  buildPerception,
-  buildSave,
-  buildStrikeAttack,
-} from '../index.js';
+import { prepareCharacter } from '../index.js';
 import { describeGolden } from './describeGolden.js';
+import { goldenCharacter, goldenStatistics } from './goldenCharacter.js';
 
 /**
  * The scaling sweep (E.9 in the milestone plan): the same golden Rogue
@@ -22,13 +16,13 @@ import { describeGolden } from './describeGolden.js';
  * equipment are held constant across all three levels, to isolate
  * proficiency scaling from ability boosts gained at higher levels.
  */
-const ABILITY_MODIFIERS = {
-  str: attributeModifier(10),
-  dex: attributeModifier(18),
-  con: attributeModifier(12),
-  int: attributeModifier(10),
-  wis: attributeModifier(12),
-  cha: attributeModifier(14),
+const SCORES = {
+  str: 10,
+  dex: 18,
+  con: 12,
+  int: 10,
+  wis: 12,
+  cha: 14,
 };
 
 const IMPORTED_AT = '2026-09-30T00:00:00.000Z';
@@ -172,50 +166,27 @@ for (const ranks of LEVELS) {
         'strike:dagger': { total: expected.strike! },
       },
     },
-    () => ({
-      ac: buildArmorClass({
-        attributeModifiers: ABILITY_MODIFIERS,
-        armor: ARMOR,
-        proficiencyRank: ranks.armor,
-        level: ranks.level,
-      }),
-      fortitude: buildSave({
-        save: 'fortitude',
-        attributeModifiers: ABILITY_MODIFIERS,
-        proficiencyRank: ranks.fortitude,
-        level: ranks.level,
-      }),
-      reflex: buildSave({
-        save: 'reflex',
-        attributeModifiers: ABILITY_MODIFIERS,
-        proficiencyRank: ranks.reflex,
-        level: ranks.level,
-      }),
-      will: buildSave({
-        save: 'will',
-        attributeModifiers: ABILITY_MODIFIERS,
-        proficiencyRank: ranks.will,
-        level: ranks.level,
-      }),
-      perception: buildPerception({
-        attributeModifiers: ABILITY_MODIFIERS,
-        proficiencyRank: ranks.perception,
-        level: ranks.level,
-      }),
-      classDc: buildClassDc({
-        keyAttribute: 'dex',
-        attributeModifiers: ABILITY_MODIFIERS,
-        proficiencyRank: ranks.classDc,
-        level: ranks.level,
-      }),
-      'strike:dagger': buildStrikeAttack({
-        weapon: WEAPON,
-        attackAttribute: 'dex',
-        attributeModifiers: ABILITY_MODIFIERS,
-        proficiencyRank: ranks.weapon,
-        level: ranks.level,
-        attackNumber: 1,
-      }),
-    }),
+    () =>
+      goldenStatistics(
+        prepareCharacter(
+          goldenCharacter({
+            level: ranks.level,
+            scores: SCORES,
+            keyAttribute: 'dex',
+            ranks: {
+              perception: ranks.perception,
+              fortitude: ranks.fortitude,
+              reflex: ranks.reflex,
+              will: ranks.will,
+              classDc: ranks.classDc,
+              armor: ranks.armor,
+              weapon: ranks.weapon,
+            },
+            armor: ARMOR,
+            weapon: WEAPON,
+          }),
+        ),
+        'dagger',
+      ),
   );
 }

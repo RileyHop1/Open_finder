@@ -126,3 +126,29 @@ too.
 
 This answers CLAUDE.md's open question about level coverage, which now
 points here instead of carrying the question itself.
+
+## Routed through `prepareCharacter` (milestone 3)
+
+A golden character no longer calls `buildArmorClass`, `buildSave`, and the
+rest one by one. `golden/goldenCharacter.ts` turns a small spec (ability
+*scores*, ranks, an armor entry, a weapon entry, optional extra items) into
+`CharacterData`, and `goldenStatistics` reads the statistics back out of
+`prepareCharacter` under the same names fixtures always used. So a golden
+test now exercises the exact path the sheet and the server's roll handlers
+use: rule elements, conditions, active-item rules, strike selection, and max
+HP all sit under it.
+
+- **Values did not move.** Rerouting is only valid if every expected value
+  stays exactly as it was; a changed value in a reroute is a bug, not an
+  update. The Fighter and the three scaling files (Fighter, Cleric, Rogue at
+  levels 5, 11, 17) pass with their original numbers.
+- **Extra modifiers are now rule elements.** The Fighter's two same-sign
+  circumstance bonuses used to be passed straight to `buildSkill`; they are
+  now two gear items with `flatModifier` elements, which also exercises
+  selector routing. The suppression assertion is unchanged.
+- **New pinned value:** the Fighter's max HP (`hp:max`, 20), computed by hand.
+- **Strike rolls** use the prepared strike's `attackInputs` / `damageInputs`,
+  the same arguments the server will pass.
+
+The other fifteen level 1 class fixtures still call the builders directly and
+move in a follow-up.
