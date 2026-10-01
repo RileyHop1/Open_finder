@@ -49,7 +49,7 @@ const app = createApp({
   ...(staticDir === undefined ? {} : { staticDir }),
 });
 
-attachRealtime(app.server, { activeWorld });
+attachRealtime(app.server, { activeWorld, compendium });
 
 app
   .listen({ host, port })

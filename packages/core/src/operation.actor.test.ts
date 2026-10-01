@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   actorCreateOperationSchema,
+  actorAddItemOperationSchema,
   actorDeleteOperationSchema,
+  actorRemoveItemOperationSchema,
+  actorUpdateItemOperationSchema,
+  MAX_ITEM_QUANTITY,
   actorUpdateOperationSchema,
   MAX_ACTOR_CHANGES,
   broadcastSchema,
@@ -156,5 +160,88 @@ describe('actor.update', () => {
       Array.from({ length: MAX_ACTOR_CHANGES }, (_, n) => [`system.f${String(n)}`, n]),
     );
     expect(actorUpdateOperationSchema.safeParse(update(exactly)).success).toBe(true);
+  });
+});
+
+describe('actor item operations', () => {
+  const base = (type: string, payload: unknown) => ({ id: id(), type, payload });
+
+  it('actor.addItem takes only a pack and a slug, and drops anything else', () => {
+    const parsed = actorAddItemOperationSchema.parse(
+      base('actor.addItem', {
+        actorId: id(),
+        packId: 'equipment',
+        slug: 'longsword',
+        entry: { damage: 'a lot' },
+        equipped: true,
+      }),
+    );
+    expect(Object.keys(parsed.payload).sort()).toEqual(['actorId', 'packId', 'slug']);
+  });
+
+  it('actor.addItem rejects a missing slug and a malformed actor id', () => {
+    expect(
+      actorAddItemOperationSchema.safeParse(
+        base('actor.addItem', { actorId: id(), packId: 'equipment' }),
+      ).success,
+    ).toBe(false);
+    expect(
+      actorAddItemOperationSchema.safeParse(
+        base('actor.addItem', { actorId: 'x', packId: 'a', slug: 'b' }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it('actor.updateItem needs equipped or quantity, and bounds the quantity', () => {
+    const ids = { actorId: id(), itemId: id() };
+    const ok = (extra: object) =>
+      actorUpdateItemOperationSchema.safeParse(
+        base('actor.updateItem', { ...ids, ...extra }),
+      ).success;
+    expect(ok({ equipped: true })).toBe(true);
+    expect(ok({ equipped: false })).toBe(true);
+    expect(ok({ quantity: 3 })).toBe(true);
+    expect(ok({ equipped: true, quantity: MAX_ITEM_QUANTITY })).toBe(true);
+    expect(ok({})).toBe(false);
+    expect(ok({ quantity: 0 })).toBe(false);
+    expect(ok({ quantity: 1.5 })).toBe(false);
+    expect(ok({ quantity: MAX_ITEM_QUANTITY + 1 })).toBe(false);
+  });
+
+  it('actor.updateItem drops a smuggled entry', () => {
+    const parsed = actorUpdateItemOperationSchema.parse(
+      base('actor.updateItem', {
+        actorId: id(),
+        itemId: id(),
+        equipped: true,
+        entry: {},
+      }),
+    );
+    expect(parsed.payload).not.toHaveProperty('entry');
+  });
+
+  it('actor.removeItem takes an actor and an item id', () => {
+    expect(
+      actorRemoveItemOperationSchema.safeParse(
+        base('actor.removeItem', { actorId: id(), itemId: id() }),
+      ).success,
+    ).toBe(true);
+    expect(
+      actorRemoveItemOperationSchema.safeParse(
+        base('actor.removeItem', { actorId: id() }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it('all three route through the union', () => {
+    for (const [type, payload] of [
+      ['actor.addItem', { actorId: id(), packId: 'a', slug: 'b' }],
+      ['actor.updateItem', { actorId: id(), itemId: id(), equipped: true }],
+      ['actor.removeItem', { actorId: id(), itemId: id() }],
+    ] as const) {
+      expect(clientOperationUnionSchema.safeParse(base(type, payload)).success).toBe(
+        true,
+      );
+    }
   });
 });

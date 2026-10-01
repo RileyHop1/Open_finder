@@ -9,8 +9,35 @@ import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { type ActiveWorldManager, createActiveWorldManager } from './activeWorld.js';
+import type { CompendiumIndex } from './compendium.js';
 import { attachRealtime, type OperationAck, type SyncAck } from './realtime.js';
 import { createWorld, type WorldStore } from './worldStore.js';
+
+const ROPE = {
+  id: '30000000-0001-5000-8000-000000000001',
+  schemaVersion: 1,
+  createdAt: '2026-09-30T00:00:00.000Z',
+  updatedAt: '2026-09-30T00:00:00.000Z',
+  packId: 'equipment',
+  slug: 'rope',
+  name: 'Rope',
+  kind: 'gear' as const,
+  provenance: {
+    publication: 'Pathfinder Player Core',
+    license: 'ORC' as const,
+    remaster: true as const,
+  },
+  traits: [],
+  ruleElements: [],
+  description: '',
+};
+
+/** A one-entry compendium, so `actor.addItem` has something to copy. */
+const testCompendium: CompendiumIndex = {
+  status: () => ({ available: true, packs: [], entryCount: 1, skipped: 0 }),
+  search: () => [],
+  get: (packId, slug) => (packId === 'equipment' && slug === 'rope' ? ROPE : undefined),
+};
 
 let worldsRoot: string;
 let activeWorld: ActiveWorldManager;
@@ -87,7 +114,7 @@ beforeEach(async () => {
   store = activeWorld.set(worldsRoot, created.world.id);
 
   httpServer = createServer();
-  attachRealtime(httpServer, { activeWorld });
+  attachRealtime(httpServer, { activeWorld, compendium: testCompendium });
   clients = [];
 
   await new Promise<void>((resolve) => {
@@ -625,6 +652,35 @@ describe('actor.create and actor.delete', () => {
       name: 'Hero',
       system: { level: 1 },
     });
+  });
+
+  it('adds an item from the compendium and shows it to the table; an unknown entry is refused', async () => {
+    const table = await seatedTable();
+    const { owner } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+
+    const heard = everyone.map(nextBroadcast);
+    const ack = await emitOperation(
+      owner,
+      op('actor.addItem', { actorId, packId: 'equipment', slug: 'rope' }),
+    );
+    expect(ack).toEqual({ ok: true });
+    for (const broadcast of await Promise.all(heard)) {
+      expect(broadcast.documents[0]).toMatchObject({
+        id: actorId,
+        system: { items: [{ source: { slug: 'rope' }, entry: { name: 'Rope' } }] },
+      });
+    }
+
+    const refused = await emitOperation(
+      owner,
+      op('actor.addItem', { actorId, packId: 'equipment', slug: 'nope' }),
+    );
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toContain('no compendium entry');
   });
 
   it('lets the GM delete a hidden actor without telling players it existed', async () => {

@@ -14,6 +14,7 @@
 
 import type { Actor, BaseDocument, Seat } from '@hearthtable/core';
 import { actorSchema, baseDocumentSchema } from '@hearthtable/core';
+import type { CharacterData } from '@hearthtable/pf2e';
 import { characterDataSchema, newCharacterData } from '@hearthtable/pf2e';
 import type { ZodError } from 'zod';
 
@@ -110,6 +111,40 @@ export function updateActor(
 
   store.putDocument(actor);
   return actor;
+}
+
+/**
+ * Loads character actor `actorId` for `seat` (who must own it), runs `edit`
+ * on its parsed sheet, re-validates the result against
+ * `characterDataSchema`, and stores it. The one path items and conditions
+ * change a sheet by, so each of those operations is only its own edit
+ * function and every one gets the same ownership check, validation, and
+ * `updatedAt` bump. A non-character has no sheet and is rejected.
+ */
+export function editCharacter(
+  store: WorldStore,
+  seat: Seat,
+  actorId: string,
+  edit: (data: CharacterData) => CharacterData,
+): Actor {
+  const { raw } = loadOwnedDocument(store, seat, actorId, 'actor', 'actor');
+  const actor = actorSchema.parse(raw);
+  if (actor.kind !== 'character') {
+    throw new OperationRejected(`a ${actor.kind} does not have a character sheet`);
+  }
+  const next = characterDataSchema.safeParse(
+    edit(characterDataSchema.parse(actor.system)),
+  );
+  if (!next.success) {
+    throw new OperationRejected(describeIssue(next.error, 'system'));
+  }
+  const updated: Actor = {
+    ...actor,
+    system: next.data,
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+  return updated;
 }
 
 /** The first problem in `error` as a one-line message a person can act on. */

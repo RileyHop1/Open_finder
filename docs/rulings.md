@@ -232,3 +232,23 @@ ruling from silently drifting.
   unverified.
 - **Override:** the GM sets or removes any condition directly with
   `setCondition` / `removeCondition`.
+
+### Equipping armor takes off any other armor
+- **Rules text:** a character wears one suit of armor at a time. Armor's AC
+  bonus, Dexterity cap, and check penalty apply while it is worn (Player Core,
+  armor).
+- **The ambiguity:** none in the rules. The question is what the app does when
+  a player marks a second suit as equipped.
+- **Our reading:** equipping an armor item automatically unequips any other
+  armor. Equipping a weapon or gear, or unequipping armor, never changes
+  another item.
+- **Alternative reading:** allow several armors to be marked equipped and warn,
+  or let `prepareCharacter` pick one.
+- **Why:** `prepareCharacter` reads the first equipped armor, so two equipped
+  suits would make AC depend on the order of the item list, a number the player
+  would trust and could not explain. Swapping is the intent nearly every time.
+- **Golden test:** `apps/server/src/items.test.ts`, "takes off the other suit
+  of armor when one is equipped" and "changes the derived AC once armor is
+  equipped." Unit tests only; no golden character holds two suits.
+- **Override:** the GM can change any item directly. A deliberate "wearing two"
+  state (a specific magic item's effect) is not modeled.
