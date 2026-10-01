@@ -46,7 +46,12 @@ export default defineConfig({
       url: `${SERVER_URL}/api/worlds`,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
-      env: { HEARTHTABLE_WORLDS_ROOT: worldsRoot },
+      // No compendium: the suite must not depend on whatever a contributor
+      // happens to have imported locally (golden tests are hermetic for the same reason, ADR 0013).
+      env: {
+        HEARTHTABLE_WORLDS_ROOT: worldsRoot,
+        HEARTHTABLE_COMPENDIUM_DIR: join(worldsRoot, 'no-compendium'),
+      },
     },
     {
       // `--host 127.0.0.1` matters: Vite's default `localhost` binding can

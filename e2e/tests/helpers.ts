@@ -1,0 +1,68 @@
+/**
+ * Steps the e2e specs share: starting a campaign, adding and claiming seats.
+ * Each spec still owns its own two `BrowserContext`s, so these take a `Page`.
+ */
+import type { Locator, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
+
+export function campaignRow(page: Page, name: string): Locator {
+  return page.locator('li.campaign-row').filter({ hasText: name });
+}
+
+export function seatRow(page: Page, name: string): Locator {
+  return page.locator('li.seat-row').filter({ hasText: name });
+}
+
+/**
+ * Starts a campaign and leaves the page showing its lobby. The server's active
+ * world is process-wide and nothing deactivates it, so only the first spec in a
+ * run finds the campaign list; a later one finds the previous spec's lobby. The
+ * first path drives the real UI (that flow is milestone 1's own coverage); the
+ * second does the same two steps over HTTP, which also disconnects the old
+ * world's sockets, exactly as a GM activating another campaign would.
+ */
+export async function createAndActivateCampaign(page: Page, name: string): Promise<void> {
+  await page.goto('/');
+  const createField = page.getByLabel('New campaign name');
+  if (await createField.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await createField.fill(name);
+    await page.getByRole('button', { name: 'Create campaign' }).click();
+    await expect(campaignRow(page, name)).toBeVisible();
+    await campaignRow(page, name).getByRole('button', { name: 'Activate' }).click();
+  } else {
+    const created = await page.request.post('/api/worlds', { data: { name } });
+    expect(created.ok()).toBe(true);
+    const world = (await created.json()) as { id: string };
+    const activated = await page.request.post(`/api/worlds/${world.id}/activate`);
+    expect(activated.ok()).toBe(true);
+    await page.goto('/');
+  }
+  await expect(page.getByRole('heading', { name, level: 2 })).toBeVisible();
+}
+
+export async function waitForConnected(page: Page): Promise<void> {
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+}
+
+export async function addSeat(page: Page, name: string, isGM: boolean): Promise<void> {
+  await page.getByLabel('Character name').fill(name);
+  if (isGM) {
+    await page.getByLabel('GM seat').check();
+  }
+  await page.getByRole('button', { name: 'Add seat' }).click();
+  await expect(seatRow(page, name)).toBeVisible();
+}
+
+export async function claimSeat(page: Page, name: string): Promise<void> {
+  await seatRow(page, name).getByRole('button', { name: 'Claim' }).click();
+  // Holding a seat opens the table; the seat list folds into "Seats".
+  await expect(page.getByText(`Playing as ${name}`)).toBeVisible();
+}
+
+/** Seated players see the roster folded away (it stays reachable for a GM adding seats). */
+export async function openSeats(page: Page): Promise<void> {
+  const seats = page.locator('details.seat-manager');
+  if ((await seats.getAttribute('open')) === null) {
+    await seats.locator('summary').click();
+  }
+}

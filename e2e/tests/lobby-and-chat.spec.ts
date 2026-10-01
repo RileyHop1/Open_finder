@@ -7,43 +7,17 @@
  * neither shares cookies, `localStorage`, or (per `realtime/deviceToken.ts`,
  * ADR 0007) a device token with the other.
  */
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-function campaignRow(page: Page, name: string): Locator {
-  return page.locator('li.campaign-row').filter({ hasText: name });
-}
-
-function seatRow(page: Page, name: string): Locator {
-  return page.locator('li.seat-row').filter({ hasText: name });
-}
-
-async function createAndActivateCampaign(page: Page, name: string): Promise<void> {
-  await page.goto('/');
-  await page.getByLabel('New campaign name').fill(name);
-  await page.getByRole('button', { name: 'Create campaign' }).click();
-  await expect(campaignRow(page, name)).toBeVisible();
-  await campaignRow(page, name).getByRole('button', { name: 'Activate' }).click();
-  await expect(page.getByRole('heading', { name, level: 2 })).toBeVisible();
-}
-
-async function waitForConnected(page: Page): Promise<void> {
-  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
-}
-
-async function addSeat(page: Page, name: string, isGM: boolean): Promise<void> {
-  await page.getByLabel('Character name').fill(name);
-  if (isGM) {
-    await page.getByLabel('GM seat').check();
-  }
-  await page.getByRole('button', { name: 'Add seat' }).click();
-  await expect(seatRow(page, name)).toBeVisible();
-}
-
-async function claimSeat(page: Page, name: string): Promise<void> {
-  await seatRow(page, name).getByRole('button', { name: 'Claim' }).click();
-  await expect(seatRow(page, name).getByText('You', { exact: true })).toBeVisible();
-}
+import {
+  addSeat,
+  claimSeat,
+  createAndActivateCampaign,
+  openSeats,
+  seatRow,
+  waitForConnected,
+} from './helpers.js';
 
 async function sendChat(page: Page, text: string): Promise<void> {
   await page.getByLabel('Message').fill(text);
@@ -80,6 +54,7 @@ test('GM activates a campaign; a player joins, claims a seat, and they roll dice
     await claimSeat(playerPage, 'Valeros');
 
     // The GM's own window updates from the player's claim live, unprompted.
+    await openSeats(gmPage);
     await expect(
       seatRow(gmPage, 'Valeros').getByText('Claimed', { exact: true }),
     ).toBeVisible();
