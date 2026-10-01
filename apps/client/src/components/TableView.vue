@@ -22,6 +22,7 @@ import { uploadAsset } from '../api/assets.js';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
+import ContentImportPanel from './ContentImportPanel.vue';
 import PartyBar from './PartyBar.vue';
 import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
@@ -112,6 +113,9 @@ function sendItem(type: string, payload: Record<string, unknown>): void {
   }
 }
 
+/** Bumped when an import finishes, so panels that listed content (the item picker, the condition picker) look again. */
+const contentVersion = ref(0);
+
 const newName = ref('');
 /** Set while a create is in flight, so the new character is opened when it arrives. */
 const openNextNew = ref(false);
@@ -168,6 +172,8 @@ async function handleCreate(): Promise<void> {
       Playing as <strong>{{ seatName }}</strong>
       <button type="button" @click="lobby.releaseSeat()">Release seat</button>
     </p>
+
+    <ContentImportPanel v-if="lobby.mySeat?.isGM" @imported="contentVersion += 1" />
 
     <p v-if="documents.error" role="alert" class="status status-error">
       {{ documents.error }}
@@ -265,6 +271,7 @@ async function handleCreate(): Promise<void> {
           />
           <ConditionsPanel
             v-if="selected.kind === 'character'"
+            :key="`conditions-${contentVersion}`"
             :actor="selected"
             :editable="canEdit"
             @add="
@@ -279,6 +286,7 @@ async function handleCreate(): Promise<void> {
           />
           <InventoryPanel
             v-if="selected.kind === 'character'"
+            :key="`inventory-${contentVersion}`"
             :actor="selected"
             :editable="canEdit"
             @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"

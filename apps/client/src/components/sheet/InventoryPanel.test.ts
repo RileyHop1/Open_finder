@@ -165,7 +165,7 @@ describe('compendium picker', () => {
       props: { actor: actorWith([]), editable: true },
     });
     await open(wrapper);
-    expect(wrapper.find('.picker').text()).toContain('No content has been imported');
+    expect(wrapper.find('.picker').text()).toContain('No game content has been imported');
     expect(wrapper.find('form.search').exists()).toBe(false);
     expect(compendiumApi.searchCompendium).not.toHaveBeenCalled();
   });
@@ -210,5 +210,28 @@ describe('compendium picker', () => {
     await wrapper.find('form.search').trigger('submit');
     await flushPromises();
     expect(wrapper.find('[role="alert"]').text()).toBe('offline');
+  });
+});
+
+describe('compendium picker after an import', () => {
+  it('looks again when reopened, if it last found nothing', async () => {
+    let imported = false;
+    vi.mocked(compendiumApi.isCompendiumAvailable).mockImplementation(() =>
+      Promise.resolve(imported),
+    );
+    const wrapper = mount(InventoryPanel, {
+      props: { actor: actorWith([]), editable: true },
+    });
+    const details = wrapper.find('details.picker');
+    (details.element as HTMLDetailsElement).open = true;
+    await details.trigger('toggle');
+    await flushPromises();
+    expect(wrapper.find('.picker').text()).toContain('No game content');
+
+    // The GM imports; the player opens the picker again.
+    imported = true;
+    await details.trigger('toggle');
+    await flushPromises();
+    expect(wrapper.find('form.search').exists()).toBe(true);
   });
 });

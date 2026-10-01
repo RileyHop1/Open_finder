@@ -45,3 +45,4 @@ than a tidy file.
 | [0013](0013-golden-test-methodology.md) | Golden tests are hermetic; the real import is a separate CI job | Accepted |
 | [0014](0014-actor-document-shape.md) | Actors: a system-agnostic envelope, a PF2e payload, embedded item copies | Accepted |
 | [0015](0015-compendium-read-side.md) | The compendium is loaded into memory at startup and served read-only | Accepted |
+| [0016](0016-in-app-content-import.md) | The GM imports the game content from inside the app | Accepted |
