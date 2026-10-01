@@ -104,6 +104,20 @@ client server in production.
   arrives as a `token.drag` preview (`connection.onTokenDrag`, never an
   operation) and stands in for the settled position until the real move lands or
   the preview goes quiet for 2 seconds. No screen uses it yet. **Built.**
+- **The scene manager** (`components/scenes/SceneManager.vue`,
+  `SceneEditor.vue`, `imageSize.ts`) -- the GM's **Scenes** drawer, from the right
+  edge of the map (the `useDrawer` helper gives it, and the Characters drawer, the
+  same open, Escape, and focus-return behaviour). It lists every scene with its
+  kind and a "Party is here" badge, and each scene can be moved to (`Move party
+  here`, `scene.activate`), previewed (local to the GM's browser), edited, or
+  deleted (asks first, and says its tokens go with it). A new scene opens
+  straight into its settings: name, kind, the map picture (the browser reads its
+  size first, so the scene becomes exactly that size, and one too large or small
+  is refused with the reason before it is uploaded), size, and the grid (type,
+  square size, feet per square, shift). Every field saves the moment it changes as
+  one small `scene.update`, and editing previews the scene, so the grid is lined
+  up with the picture by eye. While a preview is on, a banner above the map says
+  which scene the players are on and offers the way back. **Built.**
 - **The table** (`components/TableView.vue`) -- what a seated player sees,
   shown by the lobby while this device holds a seat (the seat list folds into a
   "Seats" disclosure, still there for a GM adding seats). **Map-first** since

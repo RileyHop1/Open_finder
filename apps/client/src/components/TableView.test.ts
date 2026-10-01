@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import type { Actor, Party, Seat } from '@hearthtable/core';
+import type { Actor, Party, Scene, Seat } from '@hearthtable/core';
+import { sceneSchema } from '@hearthtable/core';
 import { newCharacterData } from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
@@ -11,6 +12,7 @@ import * as documentsApi from '../api/documents.js';
 import { createSocket, emitOperation } from '../realtime/socket.js';
 import { useConnectionStore } from '../stores/connection.js';
 import { useLobbyStore } from '../stores/lobby.js';
+import { useScenesStore } from '../stores/scenes.js';
 import TableView from './TableView.vue';
 
 // The lobby store (releasing a seat) and the chat panel are other components'
@@ -203,6 +205,103 @@ describe('map and character drawer', () => {
     await wrapper.get('.drawer-close').trigger('click');
     await wrapper.get('.map-tools button').trigger('click');
     expect(wrapper.get('.sheet h3').text()).toBe('Anna');
+  });
+});
+
+describe('the GM’s scene drawer', () => {
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: WORLD,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  const makeScene = (name: string): Scene =>
+    sceneSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'scene',
+      schemaVersion: 1,
+      permissions: { default: 'none', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      name,
+      kind: 'battle',
+    });
+
+  const sceneButton = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
+    wrapper.findAll('.map-tools button').find((b) => b.text() === 'Scenes');
+
+  it('is offered to the GM and not to a player', async () => {
+    mySeat = seat(false);
+    const player = await mountTable();
+    expect(sceneButton(player)).toBeUndefined();
+    expect(player.find('#scene-pane').exists()).toBe(false);
+
+    mySeat = seat(true);
+    const gm = await mountTable();
+    expect(sceneButton(gm)).toBeDefined();
+    expect(gm.find('#scene-pane').exists()).toBe(true);
+  });
+
+  it('opens from the Scenes button, closes on Escape, and gives focus back', async () => {
+    mySeat = seat(true);
+    const wrapper = await mountTable();
+    const opener = sceneButton(wrapper);
+    expect(opener?.attributes('aria-expanded')).toBe('false');
+    (opener?.element as HTMLButtonElement).focus();
+    await opener?.trigger('click');
+
+    const drawer = wrapper.get('#scene-pane');
+    expect((drawer.element as HTMLElement).style.display).not.toBe('none');
+    expect(sceneButton(wrapper)?.attributes('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(drawer.element);
+    expect(drawer.text()).toContain('No scenes yet');
+
+    await drawer.trigger('keydown', { key: 'Escape' });
+    expect((drawer.element as HTMLElement).style.display).toBe('none');
+    expect(document.activeElement).toBe(opener?.element);
+  });
+
+  it('starts closed, and can be open beside the character drawer', async () => {
+    mySeat = seat(true);
+    const wrapper = await mountTable();
+    expect((wrapper.get('#scene-pane').element as HTMLElement).style.display).toBe(
+      'none',
+    );
+    await sceneButton(wrapper)?.trigger('click');
+    await wrapper.get('.map-tools button').trigger('click');
+    expect((wrapper.get('#scene-pane').element as HTMLElement).style.display).not.toBe(
+      'none',
+    );
+    expect((wrapper.get('#sheet-pane').element as HTMLElement).style.display).not.toBe(
+      'none',
+    );
+  });
+
+  it('shows a banner, with the way back, only while previewing a scene the players are not on', async () => {
+    mySeat = seat(true);
+    const [bog, keep] = [makeScene('Bog'), makeScene('Keep')];
+    vi.mocked(documentsApi.listScenes).mockResolvedValue([bog, keep]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue({
+      ...makeParty([]),
+      sceneId: keep.id,
+    });
+    const wrapper = await mountTable();
+    expect(wrapper.find('.preview-banner').exists()).toBe(false);
+
+    const scenes = useScenesStore(wrapper.vm.$pinia);
+    scenes.previewScene(bog.id);
+    await flushPromises();
+    const banner = wrapper.get('.preview-banner');
+    expect(banner.text()).toContain('You are previewing Bog');
+    expect(banner.text()).toContain('The players are on Keep');
+
+    await banner.get('button').trigger('click');
+    expect(wrapper.find('.preview-banner').exists()).toBe(false);
   });
 });
 
