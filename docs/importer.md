@@ -9,7 +9,7 @@ before touching it. Lives at `systems/pf2e/src/importer/`.
 This page covers the full pipeline: fetch, verify, read, both filters, the
 rule-element mapper, every per-kind content mapper, dependency resolution,
 the writer, the coverage report, and the CLI that wires all of it together
-(`pnpm --filter @hearthtable/pf2e import`). Stack D (rules math) and Stack E
+(`pnpm --filter @hearthtable/pf2e run import`). Stack D (rules math) and Stack E
 (the golden test set), which consume what this produces, are documented
 elsewhere.
 
@@ -492,9 +492,24 @@ resolve dependencies, write packs, write the coverage report, print a
 summary. Run it with:
 
 ```
-pnpm --filter @hearthtable/pf2e import          # full run, fetches first
-pnpm --filter @hearthtable/pf2e import -- --skip-fetch   # reuse .data/upstream/
+pnpm --filter @hearthtable/pf2e run import          # full run, fetches first
+pnpm --filter @hearthtable/pf2e run import -- --skip-fetch   # reuse .data/upstream/
 ```
+
+**It has to be `run import`.** `pnpm import` is a built-in pnpm command (it
+converts another package manager's lockfile), so without `run` pnpm answers
+"No lockfile found" and never reaches this script.
+
+The run needs network access (it fetches the pinned upstream `packs/` with git)
+and takes a minute or two. It writes only to the git-ignored
+`systems/pf2e/.data/` folders. **A GM does not need this command:** the table
+has an "Import game content" button that runs this same importer and reloads
+the server's compendium with no restart ([content-import.md](content-import.md),
+ADR 0016). Run the command yourself when you are working on the importer; if you
+do, the running server only sees the result after a restart or after the GM
+imports from the table.
+The first real run (2026-09-30) read 34,102 upstream entries and kept 3,107
+across ten packs; the server loads them in under a second.
 
 **Split the same way `apps/server/src/index.ts` splits from `app.ts`.**
 `runImporter.ts` holds the actual pipeline as one plain, testable function
