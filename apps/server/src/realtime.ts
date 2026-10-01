@@ -71,6 +71,7 @@ import {
 } from './scenes.js';
 import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
+import { createToken, deleteToken, updateToken } from './tokens.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
@@ -360,13 +361,28 @@ function dispatch(
     }
     case 'actor.delete': {
       const seat = requireSeat(store, socket);
-      const { tombstone, party } = deleteActor(store, seat, operation.payload);
+      const { tombstone, party, tokens } = deleteActor(store, seat, operation.payload);
       return {
         seatId: seat.id,
         seats: [],
         documents: party === undefined ? [] : [party],
-        deleted: [tombstone],
+        deleted: [tombstone, ...tokens],
       };
+    }
+    case 'token.create': {
+      const seat = requireSeat(store, socket);
+      const token = createToken(store, compendium, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [token] };
+    }
+    case 'token.update': {
+      const seat = requireSeat(store, socket);
+      const token = updateToken(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [token] };
+    }
+    case 'token.delete': {
+      const seat = requireSeat(store, socket);
+      const tombstone = deleteToken(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [], deleted: [tombstone] };
     }
     case 'actor.rollCheck': {
       const seat = requireSeat(store, socket);
