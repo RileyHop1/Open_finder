@@ -178,11 +178,16 @@ changes in play.
 | `conditions` | `{ slug, value? }[]` | Same shape and one-per-slug rule as a character's |
 
 The GM can edit the copy (a tougher goblin is `system.creature.hp`), which is the
-override path. Players are not meant to receive an NPC's sheet: the server will
-create these `none` for players (milestone 4, the server PR that adds
-`actor.createFromCreature`). The server builds the payload from its own
+override path. Players do not receive an NPC's sheet: `actor.createFromCreature`
+([operations.md](operations.md)) creates it `none` for everyone but the GM, so its
+hit points and stat block are never sent to a player. What the table sees of a
+monster is its token ([token.md](token.md)), which carries a position, a size,
+and a label and none of its numbers. The server builds the payload from its own
 compendium, never from client content, and an unknown field a client adds is
-dropped on parse.
+dropped on parse. `actor.update` re-validates an NPC made from a creature against
+this schema, so a GM edit (`system.hp.current`, `system.creature.hp`) cannot leave
+it invalid. Showing a player a monster's stats, if a GM ever wants to, is a
+permission change that does not exist yet.
 
 Max HP, AC, saves, and strikes are read straight off `creature`, and with
 conditions applied by `prepareNpc` (below); nothing derived is stored.

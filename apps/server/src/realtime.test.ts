@@ -12,6 +12,7 @@ import type {
   TokenDrag,
 } from '@hearthtable/core';
 import { chatCheckMessageSchema, sceneSchema, tokenSchema } from '@hearthtable/core';
+import { creatureEntrySchema } from '@hearthtable/pf2e';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -39,11 +40,39 @@ const ROPE = {
   description: '',
 };
 
-/** A one-entry compendium, so `actor.addItem` has something to copy. */
+/** An invented monster, so `actor.createFromCreature` has something to copy (never a published stat block). */
+const BOG_STRANGLER = creatureEntrySchema.parse({
+  id: '20000000-0001-5000-8000-000000000001',
+  schemaVersion: 1,
+  createdAt: '2026-10-01T00:00:00.000Z',
+  updatedAt: '2026-10-01T00:00:00.000Z',
+  packId: 'bestiary',
+  slug: 'invented-bog-strangler',
+  name: 'Invented Bog Strangler',
+  kind: 'creature',
+  provenance: { publication: 'Pathfinder Monster Core', license: 'ORC', remaster: true },
+  level: 3,
+  size: 'large',
+  perception: 8,
+  ac: 19,
+  savingThrows: { fortitude: 10, reflex: 6, will: 7 },
+  hp: 45,
+  speeds: { land: 25 },
+  attributes: { str: 4, dex: 1, con: 3, int: -2, wis: 1, cha: -1 },
+});
+
+/** A small compendium: a rope for `actor.addItem`, and a monster for `actor.createFromCreature`. */
 const testCompendium: CompendiumIndex = {
-  status: () => ({ available: true, packs: [], entryCount: 1, skipped: 0 }),
+  status: () => ({ available: true, packs: [], entryCount: 2, skipped: 0 }),
   search: () => [],
-  get: (packId, slug) => (packId === 'equipment' && slug === 'rope' ? ROPE : undefined),
+  get: (packId, slug) => {
+    if (packId === 'equipment' && slug === 'rope') {
+      return ROPE;
+    }
+    return packId === 'bestiary' && slug === 'invented-bog-strangler'
+      ? BOG_STRANGLER
+      : undefined;
+  },
   conditions: () => new Map(),
 };
 
@@ -1556,6 +1585,122 @@ describe('token.create, token.update, token.delete', () => {
       await emitOperation(table.player, op('token.delete', { tokenId: heroToken.id })),
     ).toEqual(refused);
     expect(store.listOperationsSince(0)).toHaveLength(before);
+  });
+});
+
+describe('actor.createFromCreature', () => {
+  const op = (type: string, payload: unknown) => ({
+    id: crypto.randomUUID(),
+    type,
+    payload,
+  });
+
+  function nextBroadcast(socket: ClientSocket): Promise<Broadcast> {
+    return new Promise((resolve) => {
+      socket.once('broadcast', resolve);
+    });
+  }
+
+  async function table() {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    store.putSeat(makeSeat({ name: 'Player', claimedByDeviceToken: 'player' }));
+    const sockets = { gm: await connect('gm'), player: await connect('player') };
+    const send = async (from: ClientSocket, operation: ReturnType<typeof op>) => {
+      const heard = [sockets.gm, sockets.player].map(nextBroadcast);
+      expect(await emitOperation(from, operation)).toEqual({ ok: true });
+      const [forGm, forPlayer] = await Promise.all(heard);
+      if (forGm === undefined || forPlayer === undefined) {
+        throw new Error('expected both broadcasts');
+      }
+      return { forGm, forPlayer };
+    };
+    return { ...sockets, send };
+  }
+
+  const strangler = { packId: 'bestiary', slug: 'invented-bog-strangler' };
+
+  it('gives the GM a monster the player never hears of', async () => {
+    const t = await table();
+    const { forGm, forPlayer } = await t.send(
+      t.gm,
+      op('actor.createFromCreature', strangler),
+    );
+
+    expect(forGm.documents[0]).toMatchObject({
+      type: 'actor',
+      kind: 'npc',
+      name: 'Invented Bog Strangler',
+      system: { hp: { current: 45, temp: 0 }, creature: { ac: 19, size: 'large' } },
+    });
+    // Nothing of it reaches the player: no document, no deletion, and not even the request.
+    expect(forPlayer.documents).toEqual([]);
+    expect(forPlayer.deleted).toEqual([]);
+    expect(forPlayer.operation.payload).toEqual({});
+    expect(JSON.stringify(forPlayer)).not.toContain('Bog Strangler');
+  });
+
+  it('shows the player the monster’s token, a large one, but still never its sheet', async () => {
+    const t = await table();
+    const made = await t.send(t.gm, op('actor.createFromCreature', strangler));
+    const actorId = made.forGm.documents[0]?.id ?? '';
+    const scene = await t.send(t.gm, op('scene.create', { name: 'Bog', kind: 'battle' }));
+    const sceneId = scene.forGm.documents[0]?.id ?? '';
+    await t.send(t.gm, op('scene.activate', { sceneId }));
+
+    const placed = await t.send(t.gm, op('token.create', { sceneId, actorId }));
+
+    expect(placed.forPlayer.documents).toHaveLength(1);
+    expect(placed.forPlayer.documents[0]).toMatchObject({
+      type: 'token',
+      actorId,
+      size: 2,
+    });
+    // The token carries a position and a size, and none of the monster's numbers.
+    const heard = JSON.stringify(placed.forPlayer);
+    for (const secret of ['savingThrows', 'creature', 'Bog Strangler', '"hp"', '"ac"']) {
+      expect(heard).not.toContain(secret);
+    }
+  });
+
+  it('refuses a player, and an entry that is not a creature or not there, logging none', async () => {
+    const t = await table();
+    const before = store.listOperationsSince(0).length;
+
+    expect(
+      await emitOperation(t.player, op('actor.createFromCreature', strangler)),
+    ).toEqual({
+      ok: false,
+      error: 'only the GM can add a monster',
+    });
+    expect(
+      await emitOperation(
+        t.gm,
+        op('actor.createFromCreature', { packId: 'equipment', slug: 'rope' }),
+      ),
+    ).toMatchObject({ ok: false });
+    expect(
+      await emitOperation(
+        t.gm,
+        op('actor.createFromCreature', { packId: 'bestiary', slug: 'nope' }),
+      ),
+    ).toMatchObject({ ok: false });
+    expect(store.listOperationsSince(0)).toHaveLength(before);
+    expect(store.listDocuments('actor')).toEqual([]);
+  });
+
+  it('lets the GM change its hit points, and still tells the player nothing', async () => {
+    const t = await table();
+    const made = await t.send(t.gm, op('actor.createFromCreature', strangler));
+    const actorId = made.forGm.documents[0]?.id ?? '';
+
+    const hurt = await t.send(
+      t.gm,
+      op('actor.update', { actorId, changes: { 'system.hp.current': 12 } }),
+    );
+
+    expect(hurt.forGm.documents[0]).toMatchObject({ system: { hp: { current: 12 } } });
+    expect(hurt.forPlayer.documents).toEqual([]);
+    expect(hurt.forPlayer.deleted).toEqual([]);
   });
 });
 

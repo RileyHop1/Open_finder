@@ -82,6 +82,7 @@ export { GridlessGrid } from './grid/gridless.js';
 export { seatSchema, type Seat } from './seat.js';
 
 export {
+  actorCreateFromCreatureOperationSchema,
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
   actorAddConditionOperationSchema,
