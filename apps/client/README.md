@@ -100,7 +100,7 @@ client server in production.
   "Seats" disclosure, still there for a GM adding seats). Three landmarks, each
   with a skip link: the **party bar** (members in party order), the **character pane** (the
   characters this seat can see, a "new character" form that opens the character
-  when it arrives, and the sheet itself in a later PR), and the **chat**. Chat
+  when it arrives, and the sheet itself, below), and the **chat**. Chat
   sits beside the sheet from 900px and stacks below that, so it works at an
   iPad's 1024px; there is no phone layout (CLAUDE.md, Targets and budgets).
   **Built.**
@@ -198,7 +198,7 @@ client server in production.
   shown beside the picker and nothing changes. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
-- **Sheets, the party bar, and the action bar**. Not yet
+- **The action bar** (strikes, spells, and actions as hotbar icons). Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
   number, never recomputed (`docs/adr/0008-modifier-resolution.md`). Not yet

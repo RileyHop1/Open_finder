@@ -10,10 +10,10 @@ If a page and CLAUDE.md disagree, CLAUDE.md wins and the page is a bug.
 | Page | What it covers | Milestone |
 | --- | --- | --- |
 | [dice.md](dice.md) | Expression grammar, fortune/misfortune, degrees of success, damage and crits, the structured result shape | 0–1 |
-| [conditions.md](conditions.md) | Condition shape, valued vs. binary, durations, the dying chain, Remaster naming | 2, 3, 5 |
+| [conditions.md](conditions.md) | Condition shape, valued vs. binary, which conditions change a number, adding and setting them, durations and the dying chain (5), Remaster naming | 2, 3, 5 |
 | [action-economy.md](action-economy.md) | Three actions, reactions, MAP, and the display-and-warn rule | 5 |
 | [grid.md](grid.md) | Square grid, PF2e diagonals, token size, reach, flanking, templates | 4–5 |
-| [operations.md](operations.md) | The client-to-server operation vocabulary, the broadcast envelope, permission resolution | 1 |
+| [operations.md](operations.md) | The client-to-server operation vocabulary, the broadcast envelope, permission resolution, who receives what | 1, 3 |
 | [modifiers.md](modifiers.md) | Modifier and Statistic shapes, predicates, the stacking-rule resolver | 2 |
 | [rule-elements.md](rule-elements.md) | The rule-element schema, the v1 subset, the inert fallback | 2 |
 | [importer.md](importer.md) | The pin, fetch, verify, and re-pin procedure; grows as the importer does | 2 |
@@ -33,7 +33,7 @@ lands.
 | --- | --- |
 | [documents.md](documents.md) | The shared envelope every document extends — not a type itself, but read this first |
 | [world-and-seats.md](world-and-seats.md) | `World` and `Seat` — also not document types; the two other top-level schemas |
-| [chatMessage.md](chatMessage.md) | `ChatMessage` — the first concrete document type: plain messages and dice rolls |
+| [chatMessage.md](chatMessage.md) | `ChatMessage` — plain messages, dice rolls, and the structured sheet rolls (checks, strike attacks and damage) |
 | [compendium.md](compendium.md) | `CompendiumEntry` and pack manifests — also not a document type; a read-only import source (milestone 2) |
 | [actor.md](actor.md) | `Actor` -- the system-agnostic envelope; the system payload is opaque to core (milestone 3) |
 | [party.md](party.md) | `Party` -- ordered members and the party level (milestone 3) |

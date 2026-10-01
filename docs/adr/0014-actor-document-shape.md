@@ -1,6 +1,6 @@
 # 0014. Actors: a system-agnostic envelope, a PF2e payload, embedded item copies
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-30
 - **Relates to:** ADR 0002 (worlds are self-contained), ADR 0004 (rule elements),
   ADR 0008 (modifier resolution), ADR 0012 (packs are read-only sources)

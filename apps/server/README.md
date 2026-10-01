@@ -10,7 +10,8 @@ pnpm --filter @hearthtable/server dev
 ```
 
 Binds to `127.0.0.1:3000` by default. Override with `HEARTHTABLE_HOST`,
-`HEARTHTABLE_PORT`, `HEARTHTABLE_WORLDS_ROOT`, and `HEARTHTABLE_STATIC_DIR`
+`HEARTHTABLE_PORT`, `HEARTHTABLE_WORLDS_ROOT`, `HEARTHTABLE_STATIC_DIR`, and
+`HEARTHTABLE_COMPENDIUM_DIR`
 (env vars; see `index.ts`). Setting `HEARTHTABLE_HOST` to `0.0.0.0` or `::` is
 refused outright — see Deployment notes below.
 
@@ -66,6 +67,31 @@ refused outright — see Deployment notes below.
   new world's context. **Built.** Tested with a real listening server and a
   real `socket.io-client` (`realtime.test.ts`) — Fastify's `.inject()` can't
   drive WebSockets.
+- **Characters, items, conditions, and the party** (`actors.ts`, `items.ts`,
+  `conditions.ts`, `party.ts`, `patch` from core) — the milestone 3 operations.
+  Each goes through one write guard (`writeGuard.ts`: a document you cannot
+  read is reported as not found, changing needs `owner`, the GM always owns)
+  and one `editCharacter` path that re-validates the whole sheet before
+  storing, so a client can never persist a malformed one. `actor.addItem`
+  copies from the server's own compendium; a client cannot supply item
+  content. `actor.update` is a per-field dotted-path patch with an allow-list.
+  The party is the GM's, created on first use. See `docs/operations.md`.
+  **Built.**
+- **Sheet rolls** (`checks.ts`, `strikeRolls.ts`) — `actor.rollCheck`,
+  `actor.rollStrike`, and `actor.rollDamage`: the server prepares the character
+  with `prepareCharacter`, rolls, and stores a structured chat message with the
+  statistic it rolled. See `docs/chatMessage.md`. **Built.**
+- **What each seat receives** (`visibility.ts`) — broadcasts, sync replay, and
+  the documents route are filtered per seat (`none` and `limited` are
+  withheld), and a deletion travels as a bare tombstone. **Built.**
+- **The compendium** (`compendium.ts`, routes in `app.ts`) — the imported packs
+  loaded into memory at startup and served read-only: `GET /api/compendium`,
+  `/search`, and `/:packId/:slug` (ADR 0015). Starts empty and works without
+  an import. `HEARTHTABLE_COMPENDIUM_DIR` overrides where it loads from.
+  **Built**, against fixtures: never run against a real import.
+- **Image assets** (`assets.ts`, routes in `app.ts`) — `POST
+  /api/worlds/:id/assets` streams an image to `assets/<hash>.<ext>` after
+  checking its first bytes; `GET` serves it. See `docs/assets.md`. **Built.**
 - **Migrations** (`migrations.ts`) — the forward-only runner, run
   automatically whenever a world's database is opened; snapshots (via
   `db.serialize()`, never a raw file copy — see the module's own doc comment

@@ -47,8 +47,7 @@ Architecture section): `none`, `limited`, `observer`, `owner`.
 This schema stores **what's on the document**, not what a given seat can
 actually do with it. Resolving a seat's effective level — including "the GM
 always resolves to `owner`, regardless of what's stored here" — is resolution
-logic that reads this shape, not part of the shape itself. That resolver lands
-in a later PR (`packages/core`'s operations work).
+logic that reads this shape, not part of the shape itself. That resolver is `resolvePermission` in `packages/core/src/permission.ts`.
 
 ### Why no default `default`
 

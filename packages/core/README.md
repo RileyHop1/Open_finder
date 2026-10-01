@@ -19,23 +19,31 @@ permission model, and the operation shapes the server validates against.
   `RollResult` field for field (imported from that package's `/pure` entry
   point — see its README — so this package's own isomorphic typecheck never
   needs Node's types). **Built.**
-- **Other document schemas** — `Actor`, `Item`, `Party`, `JournalEntry`,
-  `Scene`, `Combat`, `Calendar`, `RollTable`, each extending the document
-  envelope. Not yet — these land through milestones 3–9 as each type's own
-  feature needs it
+- **`Actor` and `Party`** (`actor.ts`, `party.ts`) — a system-agnostic
+  actor whose `system` payload `systems/pf2e` validates, and the ordered
+  adventuring group. See `docs/actor.md` and `docs/party.md`. **Built.**
+- **Other document schemas** — `Item`, `JournalEntry`, `Scene`, `Combat`,
+  `Calendar`, `RollTable`, each extending the document envelope. Not yet —
+  these land through milestones 4–9 as each type's own feature needs it
 - **Operations** (`operation.ts`) — the client-to-server vocabulary: the
   `ClientOperation`/`AppliedOperation` envelopes, the broadcast shape, and
-  the four operations milestone 1 needs (`seat.claim`, `seat.release`,
-  `chat.sendMessage`, `chat.sendRoll`). See `docs/operations.md` and
+  the seat and chat operations milestone 1 needs, and milestone 3's actor,
+  item, condition, party, and roll operations (`docs/operations.md` has the
+  table). See `docs/operations.md` and
   `docs/adr/0005-concurrency.md`. **Built** — grows per slice as later
   milestones add operations
 - **Permission resolution** (`permission.ts`) — `resolvePermission(seat,
-  document) => level`. **Built.**
-- **`Modifier` and `Statistic`** — the modifier resolution types from
-  `docs/adr/0008-modifier-resolution.md`. Not yet
-- **The migration runner** that acts on `schemaVersion`. Not yet — the field
-  exists on every record already, since retrofitting it later is the
-  expensive mistake
+  document) => level`, and `canReadDocument` / `resolveViewerPermission`, which
+  the server uses to filter what each seat receives. **Built.**
+- **The dotted-path patch** (`patch.ts`) — `applyChanges`, which both the
+  server and the client use to apply an `actor.update`, so an optimistic edit
+  and the stored result cannot disagree. **Built.**
+- **`Modifier` and `Statistic`** (`modifier.ts`, `resolveStatistic.ts`) — the
+  modifier resolution types and the stacking resolver from
+  `docs/adr/0008-modifier-resolution.md`. **Built.**
+- **The migration runner** that acts on `schemaVersion` lives in
+  `apps/server` (`migrations.ts`), not here; this package only defines the
+  field every record carries.
 
 Types are always *inferred from* the Zod schema, never written twice.
 
