@@ -16,7 +16,8 @@
  * (which paths) and whether the result is valid are the caller's business.
  */
 
-import { OperationRejected } from './rejection.js';
+/** Thrown for a path or change that cannot be applied; the message is safe to show. */
+export class PatchError extends Error {}
 
 const SEGMENT = /^[A-Za-z0-9_-]+$/;
 const FORBIDDEN_SEGMENTS: ReadonlySet<string> = new Set([
@@ -25,12 +26,12 @@ const FORBIDDEN_SEGMENTS: ReadonlySet<string> = new Set([
   'prototype',
 ]);
 
-/** The segments of `path`, or throws `OperationRejected` if it is malformed. */
+/** The segments of `path`, or throws `PatchError` if it is malformed. */
 export function parsePath(path: string): string[] {
   const segments = path.split('.');
   for (const segment of segments) {
     if (!SEGMENT.test(segment) || FORBIDDEN_SEGMENTS.has(segment)) {
-      throw new OperationRejected(`invalid field path: ${path}`);
+      throw new PatchError(`invalid field path: ${path}`);
     }
   }
   return segments;
@@ -60,12 +61,12 @@ function applyOne(
     } else if (isPlainObject(next)) {
       node = next;
     } else {
-      throw new OperationRejected(`cannot change ${path}: ${segment} is not an object`);
+      throw new PatchError(`cannot change ${path}: ${segment} is not an object`);
     }
   }
   const leaf = segments[segments.length - 1];
   if (leaf === undefined) {
-    throw new OperationRejected(`invalid field path: ${path}`);
+    throw new PatchError(`invalid field path: ${path}`);
   }
   if (value === null) {
     // `delete` is the point here: a removed optional field must be absent, not null.

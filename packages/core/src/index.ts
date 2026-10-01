@@ -52,6 +52,8 @@ export {
   type ActorKind,
 } from './actor.js';
 
+export { applyChanges, parsePath, PatchError } from './patch.js';
+
 export { partySchema, type Party } from './party.js';
 
 export { seatSchema, type Seat } from './seat.js';

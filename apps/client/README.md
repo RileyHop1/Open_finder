@@ -83,6 +83,18 @@ client server in production.
   suite: two independent `socket.io-client` connections, one claims a seat,
   sends a message and a `/roll`, the other receives both live with a real
   evaluated `RollResult`, and a REST history fetch afterward agrees, in order.
+- **Characters and the party** (`stores/documents.ts`, `api/documents.ts`) --
+  the store the sheet and party bar read. Actors and the party load over REST
+  (with the device token, so the server filters by what this seat may read) and
+  stay live from broadcasts, including deletions (`Broadcast.deleted`). It
+  holds only *server-confirmed* documents plus a list of this client's pending
+  edits; what the UI reads is the confirmed document with the pending
+  `actor.update` changes applied on top, so an edit shows instantly, a
+  confirming broadcast replaces it, and a rejection just drops it (rollback with
+  nothing to undo by hand, ADR 0005). Only `actor.update` is optimistic;
+  operations whose result is server logic (items, conditions, rolls) go through
+  `send`. A reconnect reloads, so a broadcast missed offline cannot leave it
+  stale. No screen uses it yet. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet

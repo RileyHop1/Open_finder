@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyChanges, parsePath } from './patch.js';
-import { OperationRejected } from './rejection.js';
+import { applyChanges, parsePath, PatchError } from './patch.js';
 
 describe('parsePath', () => {
   it('splits a dotted path, allowing letters, digits, underscores, and hyphens', () => {
@@ -17,7 +16,7 @@ describe('parsePath', () => {
   it.each(['', '.', 'a..b', 'a.', '.a', 'a b', 'a[0]', 'a/b', 'a.$b', 'a.é'])(
     'rejects %j',
     (path) => {
-      expect(() => parsePath(path)).toThrow(OperationRejected);
+      expect(() => parsePath(path)).toThrow(PatchError);
     },
   );
 
@@ -76,7 +75,7 @@ describe('applyChanges', () => {
   it('cannot pollute Object.prototype', () => {
     const target: Record<string, unknown> = {};
     expect(() => applyChanges(target, { '__proto__.polluted': true })).toThrow(
-      OperationRejected,
+      PatchError,
     );
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
   });

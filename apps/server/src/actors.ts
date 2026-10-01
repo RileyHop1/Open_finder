@@ -13,13 +13,18 @@
  */
 
 import type { Actor, BaseDocument, Party, Seat } from '@hearthtable/core';
-import { actorSchema, baseDocumentSchema } from '@hearthtable/core';
+import {
+  actorSchema,
+  applyChanges,
+  baseDocumentSchema,
+  parsePath,
+  PatchError,
+} from '@hearthtable/core';
 import type { CharacterData } from '@hearthtable/pf2e';
 import { characterDataSchema, newCharacterData } from '@hearthtable/pf2e';
 import type { ZodError } from 'zod';
 
 import { removeFromParty } from './party.js';
-import { applyChanges, parsePath } from './patch.js';
 import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
@@ -86,14 +91,18 @@ export function updateActor(
 ): Actor {
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
 
-  for (const path of Object.keys(payload.changes)) {
-    if (!isEditablePath(parsePath(path))) {
-      throw new OperationRejected(`${path} cannot be changed with actor.update`);
-    }
-  }
-
   const draft = structuredClone(raw) as Record<string, unknown>;
-  applyChanges(draft, payload.changes);
+  try {
+    for (const path of Object.keys(payload.changes)) {
+      if (!isEditablePath(parsePath(path))) {
+        throw new OperationRejected(`${path} cannot be changed with actor.update`);
+      }
+    }
+    applyChanges(draft, payload.changes);
+  } catch (caught) {
+    // A malformed path is the client's mistake, reported as a rejection.
+    throw caught instanceof PatchError ? new OperationRejected(caught.message) : caught;
+  }
   draft['updatedAt'] = new Date().toISOString();
 
   const parsed = actorSchema.safeParse(draft);
