@@ -265,7 +265,8 @@ describe('deleteActor', () => {
     const owner = makeSeat();
     const actor = createActor(store, owner, { kind: 'character', name: 'Hero' });
 
-    const tombstone = deleteActor(store, owner, { actorId: actor.id });
+    const { tombstone, party } = deleteActor(store, owner, { actorId: actor.id });
+    expect(party).toBeUndefined();
 
     expect(store.getDocument(actor.id)).toBeUndefined();
     expect(tombstone.id).toBe(actor.id);

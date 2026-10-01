@@ -41,7 +41,10 @@ connection, never from the payload; a client that could self-report its own
 | `actor.addCondition` | `{ actorId, slug, value? }` | The ordinary way. A second source of a valued condition keeps the **higher** value, never the sum; the value is clamped to the condition's maximum; it clears whatever the condition supersedes. `value` 1 to 99 |
 | `actor.setCondition` | `{ actorId, slug, value? }` | The manual override: sets the value exactly, so it can go down, and `value: 0` removes the condition. Same clamping and clearing |
 | `actor.removeCondition` | `{ actorId, slug }` | Removing one the character does not have is not an error |
-| `actor.delete` | `{ actorId }` | Owner or GM only. A document the sender cannot read is reported as *not found*, never as forbidden, so a rejection does not confirm a hidden actor exists |
+| `party.addMember` | `{ actorId }` | **GM only.** Appends to the party, creating it on first use. A character or NPC; a hazard is refused. Adding a current member changes nothing |
+| `party.removeMember` | `{ actorId }` | **GM only.** Not being a member is not an error |
+| `party.reorder` | `{ memberIds }` | **GM only.** Must list exactly the current members, each once; anything else is rejected so a stale client cannot add or drop someone by reordering |
+| `actor.delete` | `{ actorId }` | Owner or GM only. A document the sender cannot read is reported as *not found*, never as forbidden, so a rejection does not confirm a hidden actor exists. If the actor was in the party it is removed from it, and the changed party rides in the same broadcast |
 
 ### The `pin` on `seat.claim`
 

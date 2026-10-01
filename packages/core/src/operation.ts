@@ -238,6 +238,28 @@ export const actorRemoveConditionOperationSchema = clientOperationSchema.extend(
   payload: z.object({ actorId: idSchema, slug: conditionSlugSchema }),
 });
 
+/** Add an actor to the party (created on first use). GM only. */
+export const partyAddMemberOperationSchema = clientOperationSchema.extend({
+  type: z.literal('party.addMember'),
+  payload: z.object({ actorId: idSchema }),
+});
+
+/** Take an actor out of the party. GM only; not an error if it was not a member. */
+export const partyRemoveMemberOperationSchema = clientOperationSchema.extend({
+  type: z.literal('party.removeMember'),
+  payload: z.object({ actorId: idSchema }),
+});
+
+/**
+ * Set the party's display order. `memberIds` must list exactly the current
+ * members, each once; the server rejects anything else so a stale client
+ * cannot silently add or drop someone by reordering. GM only.
+ */
+export const partyReorderOperationSchema = clientOperationSchema.extend({
+  type: z.literal('party.reorder'),
+  payload: z.object({ memberIds: z.array(idSchema) }),
+});
+
 /**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
@@ -258,6 +280,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorRemoveItemOperationSchema,
   actorAddConditionOperationSchema,
   actorSetConditionOperationSchema,
+  partyAddMemberOperationSchema,
+  partyRemoveMemberOperationSchema,
+  partyReorderOperationSchema,
   actorRemoveConditionOperationSchema,
 ]);
 
