@@ -299,6 +299,44 @@ describe('editing a character', () => {
     });
   });
 
+  describe('rolling', () => {
+    async function gmAtTable() {
+      mySeat = seat({ isGM: true });
+      vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+      const hero = makeActor('Anna');
+      const wrapper = await openHero(hero);
+      return { hero, wrapper };
+    }
+    const sent = () => vi.mocked(emitOperation).mock.calls.map((call) => call[1]);
+
+    it('rolls a skill with no DC when the box is empty', async () => {
+      const { hero, wrapper } = await gmAtTable();
+      await wrapper.find('button[aria-label="Roll Athletics"]').trigger('click');
+      expect(sent()[0]).toMatchObject({
+        type: 'actor.rollCheck',
+        payload: { actorId: hero.id, statistic: 'skill:athletics' },
+      });
+      expect(sent()[0]?.payload).not.toHaveProperty('dc');
+    });
+
+    it('rolls against the DC that was typed', async () => {
+      const { hero, wrapper } = await gmAtTable();
+      await wrapper.find('#roll-dc').setValue('18');
+      await wrapper.find('button[aria-label="Roll Perception"]').trigger('click');
+      expect(sent()[0]).toMatchObject({
+        type: 'actor.rollCheck',
+        payload: { actorId: hero.id, statistic: 'perception', dc: 18 },
+      });
+    });
+
+    it('offers no roll controls to a seat that only observes the character', async () => {
+      mySeat = seat();
+      const wrapper = await openHero(makeActor('Anna'));
+      expect(wrapper.find('#roll-dc').exists()).toBe(false);
+      expect(wrapper.find('button[aria-label="Roll Athletics"]').exists()).toBe(false);
+    });
+  });
+
   it('offers editing to the GM on a character they do not own', async () => {
     mySeat = seat({ isGM: true });
     const wrapper = await openHero({

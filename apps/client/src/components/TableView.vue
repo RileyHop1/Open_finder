@@ -23,6 +23,7 @@ import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
 import InventoryPanel from './sheet/InventoryPanel.vue';
+import StrikesPanel from './sheet/StrikesPanel.vue';
 
 const props = defineProps<{ worldId: string; seatName: string }>();
 
@@ -43,6 +44,21 @@ const canEdit = computed(() => {
     resolvePermission(seat, selected.value) === 'owner'
   );
 });
+
+/** The DC the next roll is made against, if the roller typed one. An empty box means no DC. */
+const dc = ref<number | ''>('');
+const dcPayload = computed(() =>
+  typeof dc.value === 'number' && Number.isInteger(dc.value) && dc.value >= 0
+    ? { dc: Math.min(dc.value, 99) }
+    : {},
+);
+
+/** Rolls are made by the server (it resolves the statistic and rolls the die); the result arrives in chat. */
+function roll(type: string, payload: Record<string, unknown>): void {
+  if (selectedId.value !== undefined) {
+    void documents.send(type, { actorId: selectedId.value, ...payload });
+  }
+}
 
 function saveChanges(changes: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
@@ -169,7 +185,27 @@ async function handleCreate(): Promise<void> {
         </form>
 
         <section v-if="selected" class="sheet" aria-label="Character sheet">
-          <CharacterSheet :actor="selected" :editable="canEdit" @change="saveChanges" />
+          <p v-if="canEdit && selected.kind === 'character'" class="roll-dc">
+            <label for="roll-dc">DC to roll against (optional)</label>
+            <input id="roll-dc" v-model.number="dc" type="number" min="0" max="99" />
+          </p>
+          <CharacterSheet
+            :actor="selected"
+            :editable="canEdit"
+            :rollable="canEdit"
+            @change="saveChanges"
+            @roll="(statistic) => roll('actor.rollCheck', { statistic, ...dcPayload })"
+          />
+          <StrikesPanel
+            v-if="selected.kind === 'character'"
+            :actor="selected"
+            :rollable="canEdit"
+            @attack="
+              (itemId, attackNumber) =>
+                roll('actor.rollStrike', { itemId, attackNumber, ...dcPayload })
+            "
+            @damage="(itemId, critical) => roll('actor.rollDamage', { itemId, critical })"
+          />
           <InventoryPanel
             v-if="selected.kind === 'character'"
             :actor="selected"
@@ -269,6 +305,17 @@ button[aria-pressed='true'] {
   align-items: center;
   gap: var(--space-2);
   margin: var(--space-3) 0;
+}
+
+.roll-dc {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.roll-dc input {
+  width: 5rem;
+  min-height: var(--touch-target-min);
 }
 
 .sheet {

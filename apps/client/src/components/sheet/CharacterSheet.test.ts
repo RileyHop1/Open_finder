@@ -330,3 +330,32 @@ describe('CharacterSheet edit mode', () => {
     expect(wrapper.emitted('change')).toEqual([[{ 'system.keyAttribute': 'dex' }]]);
   });
 });
+
+describe('CharacterSheet roll buttons', () => {
+  const rollable = () =>
+    mount(CharacterSheet, { props: { actor: makeActor(level3()), rollable: true } });
+
+  it('has no roll buttons unless the viewer may roll', () => {
+    const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    expect(wrapper.find('button').exists()).toBe(false);
+  });
+
+  it('rolls Perception, each save, and any skill by the key the server expects', async () => {
+    const wrapper = rollable();
+    for (const label of ['Fortitude', 'Perception', 'Athletics', 'Academia Lore']) {
+      await wrapper.find(`button[aria-label="Roll ${label}"]`).trigger('click');
+    }
+    expect(wrapper.emitted('roll')).toEqual([
+      ['fortitude'],
+      ['perception'],
+      ['skill:athletics'],
+      ['skill:academia-lore'],
+    ]);
+  });
+
+  it('offers no roll for AC or the class DC, which others roll against', () => {
+    const wrapper = rollable();
+    expect(wrapper.find('button[aria-label="Roll Armor Class"]').exists()).toBe(false);
+    expect(wrapper.find('button[aria-label="Roll Class DC"]').exists()).toBe(false);
+  });
+});

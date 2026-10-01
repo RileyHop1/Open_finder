@@ -141,8 +141,19 @@ client server in production.
   why in words ("not applied: Bless is better"); a Multiple Attack Penalty shows
   as its own line. The card reads the statistic stored in the message, so the
   breakdown is exactly what was rolled. The hover version is milestone 6.
-  Nothing sends these rolls yet; the roll buttons are the next change.
   **Built.**
+- **Roll buttons and strikes** (`CharacterSheet.vue`, `components/sheet/StrikesPanel.vue`)
+  -- an owner or the GM gets a Roll button on Perception, each save, and every
+  skill, and a "DC to roll against (optional)" box that applies to the next roll
+  (empty means no DC, so no degree). The strikes panel lists each equipped
+  weapon with three attack buttons -- 1st, 2nd, 3rd, each showing its bonus with
+  the Multiple Attack Penalty already in it -- plus Damage and Critical damage,
+  and the dice they will roll (a `deadly` die shows on the critical line before
+  it is rolled). The player picks which attack of the turn it is by which button
+  they press, because the server cannot count a turn's attacks until the combat
+  tracker (milestone 5). Every roll is made by the server; the card appears in
+  chat. AC and the class DC have no roll button, since others roll against
+  them. **No unarmed strike** yet (the empty state says so). **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet
