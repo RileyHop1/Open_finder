@@ -5,6 +5,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import * as compendiumApi from '../api/compendium.js';
 import * as documentsApi from '../api/documents.js';
 import { createSocket, emitOperation } from '../realtime/socket.js';
 import { useConnectionStore } from '../stores/connection.js';
@@ -14,6 +15,7 @@ import TableView from './TableView.vue';
 // The lobby store (releasing a seat) and the chat panel are other components'
 // concerns; this test is about the layout and the character roster.
 vi.mock('../stores/lobby.js', () => ({ useLobbyStore: vi.fn() }));
+vi.mock('../api/compendium.js');
 vi.mock('../api/documents.js');
 vi.mock('../realtime/socket.js');
 
@@ -56,6 +58,10 @@ let handlers: Map<string, (...args: never[]) => void>;
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(true);
+  vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
+    { packId: 'equipment', slug: 'rope', name: 'Rope', kind: 'gear', traits: [] },
+  ]);
   vi.mocked(documentsApi.listActors).mockResolvedValue([]);
   vi.mocked(documentsApi.getParty).mockResolvedValue(undefined);
   vi.mocked(useLobbyStore).mockReturnValue({
@@ -273,6 +279,24 @@ describe('editing a character', () => {
       .findAll('tbody tr')
       .find((r) => r.find('th').text() === 'Athletics');
     expect(athletics?.find('.total').text()).toBe('+3');
+  });
+
+  it('sends actor.addItem naming only the compendium entry, from the picker', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const hero = makeActor('Anna');
+    const wrapper = await openHero(hero);
+
+    const details = wrapper.find('details.picker');
+    (details.element as HTMLDetailsElement).open = true;
+    await details.trigger('toggle');
+    await flushPromises();
+    await wrapper.find('.results button').trigger('click');
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.addItem',
+      payload: { actorId: hero.id, packId: 'equipment', slug: 'rope' },
+    });
   });
 
   it('offers editing to the GM on a character they do not own', async () => {

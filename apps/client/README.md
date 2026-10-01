@@ -122,6 +122,17 @@ client server in production.
   extra work. Direct entry of HP and every rank is the GM's override path.
   **Built.** "Fill ranks from class" needs a class entry from the compendium, so
   it arrives with the compendium picker.
+- **Items and the compendium picker** (`components/sheet/InventoryPanel.vue`,
+  `api/compendium.ts`) -- under the sheet: what the character carries, with kind,
+  equipped state, and quantity. An owner or the GM can equip, change quantity,
+  remove, and open "Add an item from the compendium": a labelled search by name
+  and kind over the server's read-only compendium. Adding sends only the pack
+  and slug; the server makes the copy (ADR 0015), so a client cannot invent an
+  item. An item whose rules we could not automate carries a visible "Automation
+  not applied" flag with the count of effects to apply by hand (ADR 0004). With
+  nothing imported yet the picker says so instead of showing an empty list.
+  Item changes are not optimistic: they appear when the server's broadcast
+  returns. **Built**, against fixtures: no real import has been run through it.
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **Sheets, the party bar, and the action bar**. Not yet

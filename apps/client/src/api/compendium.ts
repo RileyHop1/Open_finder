@@ -1,0 +1,61 @@
+/**
+ * The client's view of `apps/server`'s read-only compendium routes
+ * (ADR 0015). Public reference data, so no device token. Search returns
+ * summaries only; the server makes the actual copy onto a character when an
+ * item is added, so the browser never needs a full entry.
+ */
+
+import { z } from 'zod';
+
+export const entrySummarySchema = z.object({
+  packId: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  kind: z.string(),
+  traits: z.array(z.string()),
+});
+
+export type EntrySummary = z.infer<typeof entrySummarySchema>;
+
+const statusSchema = z.object({ available: z.boolean(), entryCount: z.number() });
+
+export interface SearchParams {
+  q?: string;
+  kind?: string;
+  limit?: number;
+}
+
+async function getJson<T>(url: string, schema: z.ZodType<T>, action: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`failed to ${action}: server responded ${response.status}`);
+  }
+  const body: unknown = await response.json();
+  return schema.parse(body);
+}
+
+/** Whether any content has been imported at all. */
+export async function isCompendiumAvailable(): Promise<boolean> {
+  const status = await getJson('/api/compendium', statusSchema, 'check the compendium');
+  return status.available;
+}
+
+/** Entries whose name matches `q`, optionally of one `kind`, best matches first. */
+export function searchCompendium(params: SearchParams = {}): Promise<EntrySummary[]> {
+  const query = new URLSearchParams();
+  if (params.q !== undefined && params.q !== '') {
+    query.set('q', params.q);
+  }
+  if (params.kind !== undefined && params.kind !== '') {
+    query.set('kind', params.kind);
+  }
+  if (params.limit !== undefined) {
+    query.set('limit', String(params.limit));
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  return getJson(
+    `/api/compendium/search${suffix}`,
+    z.array(entrySummarySchema),
+    'search the compendium',
+  );
+}
