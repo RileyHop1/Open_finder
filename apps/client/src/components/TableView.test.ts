@@ -137,7 +137,7 @@ describe('party bar', () => {
 
     const wrapper = await mountTable();
     const buttons = wrapper.findAll('.party-members button');
-    expect(buttons.map((x) => x.text())).toEqual(['Bram', 'Anna']);
+    expect(buttons.map((x) => x.find('.name').text())).toEqual(['Bram', 'Anna']);
 
     await buttons[0]?.trigger('click');
     expect(wrapper.find('.sheet h3').text()).toBe('Bram');
