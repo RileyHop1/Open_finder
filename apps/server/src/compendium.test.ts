@@ -213,6 +213,29 @@ describe('search', () => {
   });
 });
 
+describe('conditions', () => {
+  it('lists only the condition entries, by slug', () => {
+    writePack('conditions', [
+      entry('conditions', 'prone', 'Prone', 'condition', { valued: false }),
+      entry('conditions', 'frightened', 'Frightened', 'condition', {
+        valued: true,
+        maxValue: 4,
+      }),
+    ]);
+    writePack('equipment', [entry('equipment', 'rope', 'Rope')]);
+
+    const definitions = loadCompendium(root).conditions();
+
+    expect([...definitions.keys()].sort()).toEqual(['frightened', 'prone']);
+    expect(definitions.get('frightened')).toMatchObject({ valued: true, maxValue: 4 });
+  });
+
+  it('is empty before anything has been imported', () => {
+    expect(emptyCompendium().conditions().size).toBe(0);
+    expect(loadCompendium(join(root, 'never-imported')).conditions().size).toBe(0);
+  });
+});
+
 describe('emptyCompendium', () => {
   it('answers every question with nothing', () => {
     const index = emptyCompendium();

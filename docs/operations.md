@@ -38,6 +38,9 @@ connection, never from the payload; a client that could self-report its own
 | `actor.addItem` | `{ actorId, packId, slug }` | Names a compendium entry and nothing else. The server copies it from its own compendium ([ADR 0015](adr/0015-compendium-read-side.md)); a client cannot supply item content. Characters only. Each add is a separate item, unequipped, quantity 1 |
 | `actor.updateItem` | `{ actorId, itemId, equipped?, quantity? }` | At least one of the two. The only fields a client may change on an item. Equipping armor takes off any other armor |
 | `actor.removeItem` | `{ actorId, itemId }` | |
+| `actor.addCondition` | `{ actorId, slug, value? }` | The ordinary way. A second source of a valued condition keeps the **higher** value, never the sum; the value is clamped to the condition's maximum; it clears whatever the condition supersedes. `value` 1 to 99 |
+| `actor.setCondition` | `{ actorId, slug, value? }` | The manual override: sets the value exactly, so it can go down, and `value: 0` removes the condition. Same clamping and clearing |
+| `actor.removeCondition` | `{ actorId, slug }` | Removing one the character does not have is not an error |
 | `actor.delete` | `{ actorId }` | Owner or GM only. A document the sender cannot read is reported as *not found*, never as forbidden, so a rejection does not confirm a hidden actor exists |
 
 ### The `pin` on `seat.claim`

@@ -37,6 +37,7 @@ const testCompendium: CompendiumIndex = {
   status: () => ({ available: true, packs: [], entryCount: 1, skipped: 0 }),
   search: () => [],
   get: (packId, slug) => (packId === 'equipment' && slug === 'rope' ? ROPE : undefined),
+  conditions: () => new Map(),
 };
 
 let worldsRoot: string;
@@ -681,6 +682,43 @@ describe('actor.create and actor.delete', () => {
     );
     expect(refused.ok).toBe(false);
     expect(refused.error).toContain('no compendium entry');
+  });
+
+  it('adds, restacks, and removes a condition, each shown to the table', async () => {
+    const table = await seatedTable();
+    const { owner } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+
+    const conditionsAfter = async (type: string, payload: object) => {
+      const heard = everyone.map(nextBroadcast);
+      expect(await emitOperation(owner, op(type, { actorId, ...payload }))).toEqual({
+        ok: true,
+      });
+      const forEveryone = await Promise.all(heard);
+      const seen = forEveryone.map(
+        (b) => (b.documents[0]?.system as { conditions: unknown[] }).conditions,
+      );
+      expect(new Set(seen.map((s) => JSON.stringify(s))).size).toBe(1);
+      return seen[0];
+    };
+
+    expect(
+      await conditionsAfter('actor.addCondition', { slug: 'frightened', value: 2 }),
+    ).toEqual([{ slug: 'frightened', value: 2 }]);
+    // A weaker second source does not lower it...
+    expect(
+      await conditionsAfter('actor.addCondition', { slug: 'frightened', value: 1 }),
+    ).toEqual([{ slug: 'frightened', value: 2 }]);
+    // ...but the manual override does.
+    expect(
+      await conditionsAfter('actor.setCondition', { slug: 'frightened', value: 1 }),
+    ).toEqual([{ slug: 'frightened', value: 1 }]);
+    expect(
+      await conditionsAfter('actor.removeCondition', { slug: 'frightened' }),
+    ).toEqual([]);
   });
 
   it('lets the GM delete a hidden actor without telling players it existed', async () => {

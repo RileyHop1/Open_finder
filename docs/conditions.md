@@ -114,6 +114,21 @@ server's condition operations. A character holds one entry per slug.
 - Without a definition (the compendium may not be loaded), a condition counts as
   valued only if it arrives with a value, has no maximum, and clears nothing.
 
+### On the wire (milestone 3)
+
+Three operations apply these ([operations.md](operations.md)):
+`actor.addCondition` (merge), `actor.setCondition` (the exact override), and
+`actor.removeCondition`. Both add and set are open to anyone who owns the
+character, and the GM owns everything, so every condition "can be added, edited,
+or removed manually" as the Automation boundaries section below requires.
+
+Once a compendium is imported, its condition definitions are the list of valid
+slugs, and an unknown one is refused (a typo should not become a permanent
+invisible condition). Before anything is imported there is nothing to check
+against, so any well-formed slug is accepted and, having no definition, adds no
+modifier. The dying chain and condition durations are not here; they arrive with
+the combat tracker (milestone 5).
+
 ## Valued conditions
 Carry a number that scales their effect: **clumsy, doomed, drained, dying,
 enfeebled, frightened, sickened, slowed, stunned, stupefied, wounded**.
