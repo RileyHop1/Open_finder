@@ -204,8 +204,15 @@ client server in production.
   disclosure, and folds to "Game content: N entries loaded" once done. The item
   and condition pickers look again after it finishes. See
   `docs/content-import.md`. **Built.**
-- **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
-  version pinned; upgrading it is its own reviewed PR. Not yet
+- **The map canvas** (`components/map/MapCanvas.vue`) — owns one PixiJS
+  `Application`: mounts its canvas, keeps it the size of its box, and destroys it
+  (and the WebGL context) on unmount. It is loaded with a dynamic import, so
+  PixiJS is its own chunk, fetched only when a map is first shown. A browser
+  without WebGL2 (or where PixiJS cannot start) gets a plain-language message
+  instead of a blank box. PixiJS is pinned to an exact version (`8.21.0`);
+  upgrading it is its own reviewed PR. **Built, not on screen yet:** the map,
+  grid, tokens, and movement are the next PRs of milestone 4
+  (`docs/adr/0017-scenes-and-tokens.md`).
 - **The action bar** (strikes, spells, and actions as hotbar icons). Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
