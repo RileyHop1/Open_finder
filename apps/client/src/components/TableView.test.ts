@@ -66,6 +66,8 @@ beforeEach(() => {
   ]);
   vi.mocked(documentsApi.listActors).mockResolvedValue([]);
   vi.mocked(documentsApi.getParty).mockResolvedValue(undefined);
+  vi.mocked(documentsApi.listScenes).mockResolvedValue([]);
+  vi.mocked(documentsApi.listTokens).mockResolvedValue([]);
   vi.mocked(useLobbyStore).mockReturnValue({
     releaseSeat,
     get mySeat() {
