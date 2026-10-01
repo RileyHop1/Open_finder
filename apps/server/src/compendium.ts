@@ -20,7 +20,7 @@ import { join } from 'node:path';
 
 import type { PackManifest } from '@hearthtable/core';
 import { packManifestSchema } from '@hearthtable/core';
-import type { Pf2eEntry } from '@hearthtable/pf2e';
+import type { ConditionEntry, Pf2eEntry } from '@hearthtable/pf2e';
 import { pf2eEntrySchema } from '@hearthtable/pf2e';
 
 /** The lightweight view search returns: enough to list and pick, not the whole entry. */
@@ -54,6 +54,8 @@ export interface CompendiumIndex {
   status(): CompendiumStatus;
   search(options?: SearchOptions): EntrySummary[];
   get(packId: string, slug: string): Pf2eEntry | undefined;
+  /** Every condition definition by slug, for the merge and clearing rules (`rules/conditionMerge.ts`). Empty before the importer has been run. */
+  conditions(): ReadonlyMap<string, ConditionEntry>;
 }
 
 export const DEFAULT_SEARCH_LIMIT = 50;
@@ -97,6 +99,13 @@ function buildIndex(
     entries.map((item) => [`${item.entry.packId}/${item.entry.slug}`, item.entry]),
   );
 
+  const conditionDefinitions = new Map<string, ConditionEntry>();
+  for (const item of entries) {
+    if (item.entry.kind === 'condition') {
+      conditionDefinitions.set(item.entry.slug, item.entry);
+    }
+  }
+
   return {
     status: () => ({
       available: entries.length > 0,
@@ -132,6 +141,8 @@ function buildIndex(
     },
 
     get: (packId, slug) => byKey.get(`${packId}/${slug}`),
+
+    conditions: () => conditionDefinitions,
   };
 }
 

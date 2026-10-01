@@ -156,3 +156,7 @@ actions; a condition or creature entry is refused. Only characters have items.
 suit of armor takes off any other; see [rulings.md](rulings.md). All three
 operations go through one server path (`editCharacter`) that checks ownership,
 re-validates the sheet, and stores it.
+
+`system.conditions` is likewise changed only by `actor.addCondition`,
+`actor.setCondition`, and `actor.removeCondition`, never by `actor.update`; see
+[conditions.md](conditions.md).

@@ -51,6 +51,11 @@ import { z } from 'zod';
 import type { ActiveWorldManager } from './activeWorld.js';
 import { createActor, deleteActor, updateActor } from './actors.js';
 import type { CompendiumIndex } from './compendium.js';
+import {
+  addConditionToActor,
+  removeConditionFromActor,
+  setConditionOnActor,
+} from './conditions.js';
 import { emptyCompendium } from './compendium.js';
 import { addItem, removeItem, updateItem } from './items.js';
 import { OperationRejected } from './rejection.js';
@@ -324,6 +329,21 @@ function dispatch(
     case 'actor.removeItem': {
       const seat = requireSeat(store, socket);
       const actor = removeItem(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.addCondition': {
+      const seat = requireSeat(store, socket);
+      const actor = addConditionToActor(store, seat, compendium, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.setCondition': {
+      const seat = requireSeat(store, socket);
+      const actor = setConditionOnActor(store, seat, compendium, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.removeCondition': {
+      const seat = requireSeat(store, socket);
+      const actor = removeConditionFromActor(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [actor] };
     }
     case 'actor.delete': {

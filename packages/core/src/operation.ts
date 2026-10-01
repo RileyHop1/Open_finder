@@ -193,6 +193,51 @@ export const actorRemoveItemOperationSchema = clientOperationSchema.extend({
   payload: z.object({ actorId: idSchema, itemId: idSchema }),
 });
 
+/** A condition slug: lowercase kebab-case, the same shape a trait slug has. */
+const conditionSlugSchema = z
+  .string()
+  .min(1)
+  .max(60)
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'must be a lowercase kebab-case slug');
+
+/** The largest condition value a payload may carry. A sanity bound; each condition's own maximum is the server's. */
+export const MAX_CONDITION_VALUE = 99;
+
+/**
+ * Apply a condition to a character the ordinary way: a second source of a
+ * valued condition keeps the *higher* value, never the sum, and the condition
+ * clears whatever it supersedes. `value` is for valued conditions and is
+ * ignored for a binary one.
+ */
+export const actorAddConditionOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.addCondition'),
+  payload: z.object({
+    actorId: idSchema,
+    slug: conditionSlugSchema,
+    value: z.number().int().min(1).max(MAX_CONDITION_VALUE).optional(),
+  }),
+});
+
+/**
+ * Set a condition to exactly this value: the manual override CLAUDE.md
+ * requires beside every automated change. Unlike `actor.addCondition` it can
+ * lower a value, and a `value` of 0 removes the condition.
+ */
+export const actorSetConditionOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.setCondition'),
+  payload: z.object({
+    actorId: idSchema,
+    slug: conditionSlugSchema,
+    value: z.number().int().min(0).max(MAX_CONDITION_VALUE).optional(),
+  }),
+});
+
+/** Remove a condition from a character. */
+export const actorRemoveConditionOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.removeCondition'),
+  payload: z.object({ actorId: idSchema, slug: conditionSlugSchema }),
+});
+
 /**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
@@ -211,6 +256,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorAddItemOperationSchema,
   actorUpdateItemOperationSchema,
   actorRemoveItemOperationSchema,
+  actorAddConditionOperationSchema,
+  actorSetConditionOperationSchema,
+  actorRemoveConditionOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

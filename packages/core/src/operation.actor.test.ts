@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   actorCreateOperationSchema,
+  actorAddConditionOperationSchema,
   actorAddItemOperationSchema,
+  actorRemoveConditionOperationSchema,
+  actorSetConditionOperationSchema,
+  MAX_CONDITION_VALUE,
   actorDeleteOperationSchema,
   actorRemoveItemOperationSchema,
   actorUpdateItemOperationSchema,
@@ -238,6 +242,56 @@ describe('actor item operations', () => {
       ['actor.addItem', { actorId: id(), packId: 'a', slug: 'b' }],
       ['actor.updateItem', { actorId: id(), itemId: id(), equipped: true }],
       ['actor.removeItem', { actorId: id(), itemId: id() }],
+    ] as const) {
+      expect(clientOperationUnionSchema.safeParse(base(type, payload)).success).toBe(
+        true,
+      );
+    }
+  });
+});
+
+describe('actor condition operations', () => {
+  const base = (type: string, payload: unknown) => ({ id: id(), type, payload });
+  const actorId = id();
+
+  it('actor.addCondition takes a slug and an optional value of at least 1', () => {
+    const ok = (payload: object) =>
+      actorAddConditionOperationSchema.safeParse(
+        base('actor.addCondition', { actorId, ...payload }),
+      ).success;
+    expect(ok({ slug: 'prone' })).toBe(true);
+    expect(ok({ slug: 'frightened', value: 2 })).toBe(true);
+    expect(ok({ slug: 'frightened', value: MAX_CONDITION_VALUE })).toBe(true);
+    expect(ok({ slug: 'frightened', value: 0 })).toBe(false);
+    expect(ok({ slug: 'frightened', value: 1.5 })).toBe(false);
+    expect(ok({ slug: 'frightened', value: MAX_CONDITION_VALUE + 1 })).toBe(false);
+  });
+
+  it('actor.setCondition also accepts 0, which removes the condition', () => {
+    const ok = (payload: object) =>
+      actorSetConditionOperationSchema.safeParse(
+        base('actor.setCondition', { actorId, ...payload }),
+      ).success;
+    expect(ok({ slug: 'frightened', value: 0 })).toBe(true);
+    expect(ok({ slug: 'frightened', value: -1 })).toBe(false);
+  });
+
+  it.each(['Frightened', 'off guard', 'a_b', '-x', 'x-', '', 'a'.repeat(61), '../x'])(
+    'rejects the slug %j',
+    (slug) => {
+      expect(
+        actorRemoveConditionOperationSchema.safeParse(
+          base('actor.removeCondition', { actorId, slug }),
+        ).success,
+      ).toBe(false);
+    },
+  );
+
+  it('accepts a kebab-case slug and routes all three through the union', () => {
+    for (const [type, payload] of [
+      ['actor.addCondition', { actorId, slug: 'off-guard' }],
+      ['actor.setCondition', { actorId, slug: 'frightened', value: 3 }],
+      ['actor.removeCondition', { actorId, slug: 'off-guard' }],
     ] as const) {
       expect(clientOperationUnionSchema.safeParse(base(type, payload)).success).toBe(
         true,
