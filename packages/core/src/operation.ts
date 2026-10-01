@@ -14,6 +14,7 @@ import { baseDocumentSchema } from './document.js';
 import { idSchema, timestampSchema } from './record.js';
 import { MAX_SCENE_PIXELS, sceneGridChangesSchema, sceneKindSchema } from './scene.js';
 import { seatSchema } from './seat.js';
+import { MAX_TOKEN_SIZE } from './token.js';
 
 /**
  * What a client actually sends over the wire: an intent (`type`) and its
@@ -390,6 +391,57 @@ export const sceneActivateOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Put an actor's token on a scene. GM only. `at` is where its centre goes (the
+ * scene's centre if absent) and the server snaps it to the scene's grid; the
+ * size is the server's, from the actor. Whether a player can see it is derived
+ * by the server from the scene and `hidden`, never sent.
+ */
+export const tokenCreateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('token.create'),
+  payload: z.object({
+    sceneId: idSchema,
+    actorId: idSchema,
+    at: z
+      .object({
+        x: z.number().min(0).max(MAX_SCENE_PIXELS),
+        y: z.number().min(0).max(MAX_SCENE_PIXELS),
+      })
+      .optional(),
+    hidden: z.boolean().optional(),
+  }),
+});
+
+/**
+ * The fields `token.update` may change, each optional so two edits to different
+ * fields never overwrite each other. `name` is a label for the map, or `null`
+ * to go back to the actor's name. Position is not here: moving has its own
+ * operation. Unknown keys are refused and so is an empty change.
+ */
+export const tokenChangesSchema = z
+  .object({
+    hidden: z.boolean(),
+    size: z.number().int().min(1).max(MAX_TOKEN_SIZE),
+    name: z.string().trim().min(1).max(100).nullable(),
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, {
+    message: 'a token change must set at least one field',
+  });
+
+/** Hide, show, resize, or relabel a token. GM only. */
+export const tokenUpdateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('token.update'),
+  payload: z.object({ tokenId: idSchema, changes: tokenChangesSchema }),
+});
+
+/** Take a token off its scene. GM only; the actor is untouched. */
+export const tokenDeleteOperationSchema = clientOperationSchema.extend({
+  type: z.literal('token.delete'),
+  payload: z.object({ tokenId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -422,6 +474,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,
   sceneActivateOperationSchema,
+  tokenCreateOperationSchema,
+  tokenUpdateOperationSchema,
+  tokenDeleteOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

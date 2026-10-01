@@ -30,14 +30,27 @@ the GM always reads everything. Anything that changes either fact recomputes the
 affected tokens in the same transaction (`tokenPermissions` in
 `apps/server/src/tokens.ts` is the one place that decides it).
 
-**Who makes tokens.** So far only `scene.activate` ([operations.md](operations.md)),
-which places a token for each party member who has none on the scene the party is
-moving to: a row of tokens at the arrival point or the scene's centre, one cell
-apart and snapped to the scene's grid. Its `size` comes from the actor: a
-creature's size for an NPC, the ancestry's size for a character whose ancestry is
-a compendium entry, one square otherwise. The GM can change it by hand (a
-Gargantuan creature can be larger than 4x4). Placing, hiding, and moving tokens
-directly are the next server PRs.
+**Who makes and changes tokens** (all GM only, in [operations.md](operations.md)):
+- `scene.activate` places a token for each party member who has none on the scene
+  the party is moving to: a row of tokens at the arrival point or the scene's
+  centre, one cell apart and snapped to the scene's grid.
+- `token.create` puts any actor's token on any scene, at a point snapped to the
+  grid, optionally hidden. `token.update` hides or shows it, resizes it, or gives
+  it a map label. `token.delete` takes it off the scene.
+- Deleting an actor deletes its tokens, on every scene.
+- Moving a token is a separate operation (a later PR).
+
+A token's `size` comes from the actor: a creature's size for an NPC, the ancestry's
+size for a character whose ancestry is a compendium entry, one square otherwise.
+The GM can change it by hand (`token.update`), which matters for a Gargantuan
+creature larger than 4x4. Resizing re-snaps the token to the grid.
+
+**Hiding takes effect for players who already hold the token.** Setting `hidden`
+sends them a deletion, and clearing it sends the token again
+([operations.md](operations.md), "Taking access away"). Editing a hidden token
+tells players nothing, so it never announces that it exists. A token the GM
+pre-places on a scene the party has not reached is invisible until the party
+arrives.
 
 ## Example
 ```ts

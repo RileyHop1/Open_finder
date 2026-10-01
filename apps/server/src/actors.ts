@@ -26,6 +26,7 @@ import type { ZodError } from 'zod';
 
 import { removeFromParty } from './party.js';
 import { OperationRejected } from './rejection.js';
+import { deleteTokensOf } from './tokens.js';
 import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
 
@@ -170,16 +171,21 @@ function describeIssue(error: ZodError, prefix?: string): string {
 /**
  * Deletes actor `actorId` if `seat` owns it. Returns its bare envelope as the
  * tombstone to broadcast (never the body, so a deletion does not re-send what
- * was removed), and the party if the actor was a member and so had to be
- * taken out of it.
+ * was removed), the party if the actor was a member and so had to be taken out
+ * of it, and the tombstones of the actor's tokens, which go with it so no token
+ * is left standing for nothing.
  */
 export function deleteActor(
   store: WorldStore,
   seat: Seat,
   payload: { actorId: string },
-): { tombstone: BaseDocument; party: Party | undefined } {
+): { tombstone: BaseDocument; party: Party | undefined; tokens: BaseDocument[] } {
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
   const tombstone = baseDocumentSchema.parse(raw);
   store.deleteDocument(payload.actorId);
-  return { tombstone, party: removeFromParty(store, payload.actorId) };
+  return {
+    tombstone,
+    party: removeFromParty(store, payload.actorId),
+    tokens: deleteTokensOf(store, payload.actorId),
+  };
 }

@@ -1268,6 +1268,217 @@ describe('scene.activate', () => {
   });
 });
 
+describe('token.create, token.update, token.delete', () => {
+  function nextBroadcast(socket: ClientSocket): Promise<Broadcast> {
+    return new Promise((resolve) => {
+      socket.once('broadcast', resolve);
+    });
+  }
+
+  const op = (type: string, payload: unknown) => ({
+    id: crypto.randomUUID(),
+    type,
+    payload,
+  });
+
+  type Table = { gm: ClientSocket; player: ClientSocket };
+
+  /** Sends `operation` from `from` and returns what the GM and the player each heard. */
+  async function send(
+    from: ClientSocket,
+    table: Table,
+    operation: ReturnType<typeof op>,
+  ) {
+    const heard = [table.gm, table.player].map(nextBroadcast);
+    expect(await emitOperation(from, operation)).toEqual({ ok: true });
+    const [forGm, forPlayer] = await Promise.all(heard);
+    if (forGm === undefined || forPlayer === undefined) {
+      throw new Error('expected both broadcasts');
+    }
+    return { forGm, forPlayer };
+  }
+
+  /** A player with a character in the party, standing in a scene the party has entered. */
+  async function inTheCrypt() {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    store.putSeat(makeSeat({ name: 'Player', claimedByDeviceToken: 'player' }));
+    const table: Table = { gm: await connect('gm'), player: await connect('player') };
+    const made = await send(
+      table.player,
+      table,
+      op('actor.create', { kind: 'character', name: 'Hero' }),
+    );
+    const heroId = made.forGm.documents[0]?.id ?? '';
+    await send(table.gm, table, op('party.addMember', { actorId: heroId }));
+    const crypt = await send(
+      table.gm,
+      table,
+      op('scene.create', { name: 'Crypt', kind: 'battle' }),
+    );
+    const sceneId = crypt.forGm.documents[0]?.id ?? '';
+    const entered = await send(table.gm, table, op('scene.activate', { sceneId }));
+    const heroToken = entered.forPlayer.documents.find((d) => d.type === 'token');
+    if (heroToken === undefined) {
+      throw new Error('expected the hero to have a token');
+    }
+    return { table, heroId, sceneId, heroToken };
+  }
+
+  async function newNpc(table: Table, name: string): Promise<string> {
+    const made = await send(table.gm, table, op('actor.create', { kind: 'npc', name }));
+    return made.forGm.documents[0]?.id ?? '';
+  }
+
+  it('takes a token away from a player when the GM hides it, and gives it back when shown', async () => {
+    const { table, heroToken } = await inTheCrypt();
+
+    const hide = await send(
+      table.gm,
+      table,
+      op('token.update', { tokenId: heroToken.id, changes: { hidden: true } }),
+    );
+    // The player is told to drop it, and is sent nothing about it.
+    expect(hide.forPlayer.deleted.map((d) => d.id)).toEqual([heroToken.id]);
+    expect(hide.forPlayer.documents).toEqual([]);
+    // The GM still has it, now marked hidden.
+    expect(hide.forGm.deleted).toEqual([]);
+    expect(hide.forGm.documents[0]).toMatchObject({ id: heroToken.id, hidden: true });
+
+    const show = await send(
+      table.gm,
+      table,
+      op('token.update', { tokenId: heroToken.id, changes: { hidden: false } }),
+    );
+    expect(show.forPlayer.documents.map((d) => d.id)).toEqual([heroToken.id]);
+    expect(show.forPlayer.documents[0]).toMatchObject({ hidden: false });
+    expect(show.forPlayer.deleted).toEqual([]);
+  });
+
+  it('keeps a hidden token from the player from the moment it is created, and shows an ordinary one', async () => {
+    const { table, sceneId } = await inTheCrypt();
+    const lurkerActor = await newNpc(table, 'Lurker');
+    const guardActor = await newNpc(table, 'Guard');
+
+    const lurker = await send(
+      table.gm,
+      table,
+      op('token.create', { sceneId, actorId: lurkerActor, hidden: true }),
+    );
+    expect(lurker.forGm.documents[0]).toMatchObject({
+      actorId: lurkerActor,
+      hidden: true,
+    });
+    expect(lurker.forPlayer.documents).toEqual([]);
+    expect(lurker.forPlayer.deleted).toEqual([]);
+
+    const guard = await send(
+      table.gm,
+      table,
+      op('token.create', { sceneId, actorId: guardActor, at: { x: 450, y: 450 } }),
+    );
+    expect(guard.forPlayer.documents[0]).toMatchObject({
+      actorId: guardActor,
+      x: 450,
+      y: 450,
+    });
+
+    // Editing the hidden token afterwards still tells the player nothing at all.
+    const lurkerToken = lurker.forGm.documents[0];
+    const edit = await send(
+      table.gm,
+      table,
+      op('token.update', { tokenId: lurkerToken?.id, changes: { name: 'Shadow' } }),
+    );
+    expect(edit.forPlayer.documents).toEqual([]);
+    expect(edit.forPlayer.deleted).toEqual([]);
+    expect(JSON.stringify(edit.forPlayer)).not.toContain(lurkerToken?.id ?? 'x');
+  });
+
+  it('shows a pre-placed token to no one until the party arrives', async () => {
+    const { table } = await inTheCrypt();
+    const garden = await send(
+      table.gm,
+      table,
+      op('scene.create', { name: 'Garden', kind: 'area' }),
+    );
+    const gardenId = garden.forGm.documents[0]?.id ?? '';
+    const actorId = await newNpc(table, 'Gardener');
+
+    const placed = await send(
+      table.gm,
+      table,
+      op('token.create', { sceneId: gardenId, actorId }),
+    );
+    expect(placed.forPlayer.documents).toEqual([]);
+    expect(placed.forPlayer.deleted).toEqual([]);
+  });
+
+  it('tells a player a token they could see is gone, and says nothing about a hidden one', async () => {
+    const { table, sceneId } = await inTheCrypt();
+    const seenActor = await newNpc(table, 'Seen');
+    const unseenActor = await newNpc(table, 'Unseen');
+    const seen = await send(
+      table.gm,
+      table,
+      op('token.create', { sceneId, actorId: seenActor }),
+    );
+    const unseen = await send(
+      table.gm,
+      table,
+      op('token.create', { sceneId, actorId: unseenActor, hidden: true }),
+    );
+    const seenId = seen.forGm.documents[0]?.id ?? '';
+    const unseenId = unseen.forGm.documents[0]?.id ?? '';
+
+    const removedSeen = await send(
+      table.gm,
+      table,
+      op('token.delete', { tokenId: seenId }),
+    );
+    expect(removedSeen.forPlayer.deleted.map((d) => d.id)).toEqual([seenId]);
+    expect(removedSeen.forGm.deleted.map((d) => d.id)).toEqual([seenId]);
+
+    const removedUnseen = await send(
+      table.gm,
+      table,
+      op('token.delete', { tokenId: unseenId }),
+    );
+    expect(removedUnseen.forPlayer.deleted).toEqual([]);
+    expect(removedUnseen.forGm.deleted.map((d) => d.id)).toEqual([unseenId]);
+  });
+
+  it('removes an actor’s token for everyone when the actor is deleted', async () => {
+    const { table, heroId, heroToken } = await inTheCrypt();
+    const gone = await send(table.player, table, op('actor.delete', { actorId: heroId }));
+    for (const heard of [gone.forGm, gone.forPlayer]) {
+      expect(heard.deleted.map((d) => d.id).sort()).toEqual(
+        [heroId, heroToken.id].sort(),
+      );
+    }
+    expect(store.getDocument(heroToken.id)).toBeUndefined();
+  });
+
+  it('refuses a player for every token operation, logging none', async () => {
+    const { table, sceneId, heroId, heroToken } = await inTheCrypt();
+    const before = store.listOperationsSince(0).length;
+    const refused = { ok: false, error: 'only the GM can change tokens' };
+
+    expect(
+      await emitOperation(table.player, op('token.create', { sceneId, actorId: heroId })),
+    ).toEqual(refused);
+    expect(
+      await emitOperation(
+        table.player,
+        op('token.update', { tokenId: heroToken.id, changes: { hidden: true } }),
+      ),
+    ).toEqual(refused);
+    expect(
+      await emitOperation(table.player, op('token.delete', { tokenId: heroToken.id })),
+    ).toEqual(refused);
+    expect(store.listOperationsSince(0)).toHaveLength(before);
+  });
+});
+
 describe('sync -- who is asking', () => {
   it("withholds a non-public operation's payload from a player but not from the GM", async () => {
     const gmSeat = makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm-token' });
