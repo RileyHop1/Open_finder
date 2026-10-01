@@ -15,11 +15,12 @@
  * manager.
  */
 
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { createActiveWorldManager } from './activeWorld.js';
 import { createApp } from './app.js';
-import { loadCompendium } from './compendium.js';
+import { createReloadableCompendium } from './compendium.js';
+import { createContentImporter, spawnImporter } from './contentImport.js';
 import { assertNotAllInterfaces } from './hostGuard.js';
 import { attachRealtime } from './realtime.js';
 
@@ -40,12 +41,34 @@ const compendiumDir =
 assertNotAllInterfaces(host);
 
 const activeWorld = createActiveWorldManager();
-const compendium = loadCompendium(compendiumDir);
+const compendium = createReloadableCompendium(compendiumDir);
+
+// The in-app import runs the same importer as `pnpm --filter @hearthtable/pf2e
+// run import`, as a child process, writing where the compendium reads from.
+// Its working directory is the pf2e package (where `tsx` resolves from); how
+// this is bundled for a double-click install is ADR 0010's open question.
+const importerDir =
+  process.env.HEARTHTABLE_IMPORTER_DIR ?? join(process.cwd(), 'systems', 'pf2e');
+const contentImport = createContentImporter({
+  reload: () => compendium.reload(),
+  run: spawnImporter({
+    command: process.execPath,
+    args: ['--import', 'tsx', join('src', 'importer', 'index.ts')],
+    cwd: importerDir,
+    env: {
+      ...process.env,
+      HEARTHTABLE_PF2E_OUTPUT_DIR: compendiumDir,
+      HEARTHTABLE_PF2E_UPSTREAM_DIR: join(dirname(compendiumDir), 'upstream'),
+    },
+    timeoutMs: 20 * 60 * 1000,
+  }),
+});
 
 const app = createApp({
   worldsRoot,
   activeWorld,
   compendium,
+  contentImport,
   ...(staticDir === undefined ? {} : { staticDir }),
 });
 
@@ -59,7 +82,7 @@ app
     app.log.info(
       status.available
         ? `compendium: ${String(status.entryCount)} entries in ${String(status.packs.length)} packs (${String(status.skipped)} skipped) from ${compendiumDir}`
-        : `compendium: nothing imported at ${compendiumDir}; run the importer to add rules content`,
+        : `compendium: nothing imported at ${compendiumDir}; the GM can import it from the table`,
     );
   })
   .catch((error: unknown) => {

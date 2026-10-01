@@ -63,7 +63,7 @@ const searching = ref(false);
 const pickerError = ref<string>();
 
 async function open(event: Event): Promise<void> {
-  if (!(event.target as HTMLDetailsElement).open || available.value !== undefined) {
+  if (!(event.target as HTMLDetailsElement).open || available.value === true) {
     return;
   }
   try {
@@ -147,8 +147,8 @@ async function search(): Promise<void> {
       <summary>Add an item from the compendium</summary>
 
       <p v-if="available === false" class="empty">
-        No content has been imported yet, so there is nothing to browse. The server needs
-        the importer run once (see the importer docs).
+        No game content has been imported yet, so there is nothing to browse. The GM can
+        import it from the table.
       </p>
       <template v-else>
         <form class="search" role="search" @submit.prevent="search">

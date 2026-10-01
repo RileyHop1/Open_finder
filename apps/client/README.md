@@ -196,6 +196,14 @@ client server in production.
   an optimistic `actor.update`, and the party bar shows it. If the server
   refuses the file (it checks the contents, not just the label), its reason is
   shown beside the picker and nothing changes. **Built.**
+- **The content import button** (`components/ContentImportPanel.vue`,
+  `api/contentImport.ts`) — the GM's "Import game content". On a table with
+  nothing imported it is the first thing on the GM's screen, in plain words (what
+  it is, that nothing is uploaded, that it needs internet); it shows the seconds
+  while it runs, explains a failure in a sentence with the detail behind a
+  disclosure, and folds to "Game content: N entries loaded" once done. The item
+  and condition pickers look again after it finishes. See
+  `docs/content-import.md`. **Built.**
 - **The canvas** — PixiJS scene rendering, tokens, grid, and movement. Major
   version pinned; upgrading it is its own reviewed PR. Not yet
 - **The action bar** (strikes, spells, and actions as hotbar icons). Not yet

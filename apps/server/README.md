@@ -89,6 +89,11 @@ refused outright — see Deployment notes below.
   `/search`, and `/:packId/:slug` (ADR 0015). Starts empty and works without
   an import. `HEARTHTABLE_COMPENDIUM_DIR` overrides where it loads from.
   **Built**, against fixtures: never run against a real import.
+- **The in-app content import** (`contentImport.ts`, routes in `app.ts`) —
+  `POST /api/compendium/import` (GM only) runs the importer as a child process
+  and reloads the compendium without a restart; `GET` reports the state. See
+  `docs/content-import.md` and ADR 0016. **Built**, and run once end to end
+  against a live server.
 - **Image assets** (`assets.ts`, routes in `app.ts`) — `POST
   /api/worlds/:id/assets` streams an image to `assets/<hash>.<ext>` after
   checking its first bytes; `GET` serves it. See `docs/assets.md`. **Built.**

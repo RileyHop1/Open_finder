@@ -48,8 +48,9 @@ each.
   megabytes, but **that is not measured**: no real import has been read through
   this loader yet (milestone 3's A.0 spike is still open). If it turns out
   slow, the fix is lazy per-pack loading, which this API does not preclude.
-- **No hot reload.** Re-importing needs a server restart to be seen. Acceptable:
-  re-importing is a deliberate, reviewed act (ADR 0003).
+- **Reloading is possible without a restart** (ADR 0016 added it, for the
+  in-app import): the app and realtime layer hold a wrapper whose index can be
+  swapped. Re-importing is still a deliberate act (ADR 0003).
 - **Search is deliberately simple.** Name substring only; no trait filter, no
   full-text, no fuzzy matching. A scan of the array per query. Good enough to
   pick a longsword; revisit if the encyclopedia (milestone 6) needs more.

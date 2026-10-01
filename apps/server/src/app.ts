@@ -22,6 +22,7 @@ import { z } from 'zod';
 import type { ActiveWorldManager } from './activeWorld.js';
 import type { CompendiumIndex } from './compendium.js';
 import { emptyCompendium, MAX_SEARCH_LIMIT } from './compendium.js';
+import type { ContentImporter } from './contentImport.js';
 import {
   contentTypeOfAsset,
   IMAGE_TYPES,
@@ -57,6 +58,11 @@ export interface AppOptions {
    * one: the routes still answer, saying nothing is available.
    */
   readonly compendium?: CompendiumIndex;
+  /**
+   * Runs the content import from inside the app (`contentImport.ts`, ADR 0016).
+   * Absent means the routes say importing is not available here.
+   */
+  readonly contentImport?: ContentImporter;
   /** Defaults to true. Tests pass false to keep their output readable. */
   readonly logger?: boolean;
 }
@@ -365,6 +371,40 @@ export function createApp(options: AppOptions): FastifyInstance {
   // The compendium is read-only reference data, public to every seat: it is
   // the imported rules content, not anything a world owns (ADR 0015).
   app.get('/api/compendium', () => compendium.status());
+
+  // Importing the content is the GM's, because it downloads onto this
+  // computer and replaces what every seat searches. Its status is open to all:
+  // a player seeing "the GM has not imported anything yet" is useful.
+  app.get('/api/compendium/import', async (_request, reply) => {
+    if (options.contentImport === undefined) {
+      await reply
+        .status(404)
+        .send({ error: 'importing is not available on this server' });
+      return;
+    }
+    await reply.send(options.contentImport.status());
+  });
+
+  app.post('/api/compendium/import', async (request, reply) => {
+    const importer = options.contentImport;
+    if (importer === undefined) {
+      await reply
+        .status(404)
+        .send({ error: 'importing is not available on this server' });
+      return;
+    }
+    const deviceToken = request.headers['x-device-token'];
+    const seat =
+      typeof deviceToken === 'string' && deviceToken.length > 0
+        ? activeWorld.get()?.getSeatByDeviceToken(deviceToken)
+        : undefined;
+    if (seat?.isGM !== true) {
+      await reply.status(403).send({ error: 'only the GM can import game content' });
+      return;
+    }
+    const started = importer.start();
+    await reply.status(started === 'started' ? 202 : 409).send(importer.status());
+  });
 
   app.get('/api/compendium/search', async (request, reply) => {
     const parsed = compendiumSearchQuerySchema.safeParse(request.query);

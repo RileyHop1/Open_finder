@@ -191,3 +191,30 @@ export function loadCompendium(root: string): CompendiumIndex {
 
   return buildIndex(entries, packs, skipped);
 }
+
+/** A compendium whose contents can be replaced while the server runs, after an in-app import. */
+export interface ReloadableCompendium extends CompendiumIndex {
+  /** Re-reads the packs from disk and swaps them in, returning the new status. */
+  reload(): CompendiumStatus;
+}
+
+/**
+ * A `CompendiumIndex` that delegates to whatever `loadCompendium(root)`
+ * last returned. The app and the realtime layer hold *this* object, so a
+ * reload is visible to both without either being rebuilt (ADR 0016); nothing
+ * holds the underlying index across calls. Synchronous, like the first load:
+ * swapping in a fully built index means no request ever sees half of one.
+ */
+export function createReloadableCompendium(root: string): ReloadableCompendium {
+  let current = loadCompendium(root);
+  return {
+    status: () => current.status(),
+    search: (options) => current.search(options),
+    get: (packId, slug) => current.get(packId, slug),
+    conditions: () => current.conditions(),
+    reload() {
+      current = loadCompendium(root);
+      return current.status();
+    },
+  };
+}

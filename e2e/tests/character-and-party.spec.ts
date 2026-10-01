@@ -57,6 +57,16 @@ test('a player builds a character, the GM adds it to the party, and they play wi
     await waitForConnected(player);
     await claimSeat(player, 'Valeros');
 
+    // --- Nothing is imported (the config points at an empty compendium), so the
+    // GM is offered the import button, in plain words, and the player is not. ---
+    await expect(
+      gm.getByRole('heading', { name: 'This table has no game content yet' }),
+    ).toBeVisible();
+    await expect(gm.getByRole('button', { name: 'Import game content' })).toBeVisible();
+    await expect(player.getByRole('button', { name: 'Import game content' })).toHaveCount(
+      0,
+    );
+
     // --- The player makes a character and hand-builds it. ---
     await player.getByLabel('New character name').fill('Valeria');
     await player.getByRole('button', { name: 'Create character' }).click();

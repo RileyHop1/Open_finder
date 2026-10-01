@@ -109,8 +109,11 @@ server's condition operations. A character holds one entry per slug.
 - `setCondition` is the GM override: it sets the value exactly (so it can go
   down), and a value of 0 removes the condition.
 - Both clear what the new condition supersedes: the slugs in its definition's
-  `overrides`, and any other member of its `group`. **(confirm)** both fields
-  against the importer's output once a real import has been read.
+  `overrides`, and any other member of its `group`. Both fields were checked
+  against the first real import (2026-09-30): `group` is kept only for the
+  detection states and the attitudes, which are mutually exclusive; the other
+  upstream groupings are display-only and are not imported as groups. See
+  [rulings.md](rulings.md), "Which condition groups are mutually exclusive".
 - Without a definition (the compendium may not be loaded), a condition counts as
   valued only if it arrives with a value, has no maximum, and clears nothing.
 
