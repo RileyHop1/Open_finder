@@ -27,3 +27,8 @@ convenience.
 ## How it fits
 Depends on `@hearthtable/core` and `@hearthtable/dice`. Nothing in `core` may
 depend on this package.
+
+**The rules code runs in the browser too** (the sheet calls `prepareCharacter`), so
+anything outside `src/importer/` must import dice from `@hearthtable/dice/pure`,
+not the package root: the root also exports `cryptoRandomSource`, which needs
+`node:crypto`. The importer is Node-only and is not exported from `src/index.ts`.

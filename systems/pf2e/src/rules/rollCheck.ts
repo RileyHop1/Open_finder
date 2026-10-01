@@ -15,8 +15,8 @@ import type {
   DieTerm,
   RandomSource,
   RollResult,
-} from '@hearthtable/dice';
-import { degreeOfSuccess, evaluate, parse } from '@hearthtable/dice';
+} from '@hearthtable/dice/pure';
+import { degreeOfSuccess, evaluate, parse } from '@hearthtable/dice/pure';
 
 export interface RollCheckOptions {
   /** The bonus rolled: its `total` is added to the d20. */

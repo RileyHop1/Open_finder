@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import type { Actor, Party } from '@hearthtable/core';
+import { newCharacterData } from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,7 +31,7 @@ function makeActor(name: string): Actor {
     updatedAt: NOW,
     kind: 'character',
     name,
-    system: {},
+    system: newCharacterData(),
   };
 }
 

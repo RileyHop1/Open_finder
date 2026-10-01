@@ -18,8 +18,8 @@ import type {
   DieTerm,
   RandomSource,
   RollResult,
-} from '@hearthtable/dice';
-import { degreeOfSuccess, evaluate, parse } from '@hearthtable/dice';
+} from '@hearthtable/dice/pure';
+import { degreeOfSuccess, evaluate, parse } from '@hearthtable/dice/pure';
 
 import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { WeaponEntry } from '../content/weapon.js';

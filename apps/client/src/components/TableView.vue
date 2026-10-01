@@ -20,6 +20,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import ChatLog from './ChatLog.vue';
+import CharacterSheet from './sheet/CharacterSheet.vue';
 
 const props = defineProps<{ worldId: string; seatName: string }>();
 
@@ -142,9 +143,8 @@ async function handleCreate(): Promise<void> {
           <button type="submit">Create character</button>
         </form>
 
-        <section v-if="selected" class="sheet" aria-labelledby="selected-heading">
-          <h3 id="selected-heading">{{ selected.name }}</h3>
-          <p class="empty">The character sheet itself arrives in the next change.</p>
+        <section v-if="selected" class="sheet" aria-label="Character sheet">
+          <CharacterSheet :actor="selected" />
         </section>
       </section>
 
