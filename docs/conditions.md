@@ -125,6 +125,12 @@ Three operations apply these ([operations.md](operations.md)):
 character, and the GM owns everything, so every condition "can be added, edited,
 or removed manually" as the Automation boundaries section below requires.
 
+The same three work on a **monster** (an NPC made from a creature, milestone 4):
+its `conditions` list is edited the same way, and `prepareNpc` applies them, so
+frightened 2 lowers its AC and attacks. Only the GM can, since a monster is
+`none` to players. A hand-made NPC with no creature has nothing to apply them to
+and is refused.
+
 Once a compendium is imported, its condition definitions are the list of valid
 slugs, and an unknown one is refused (a typo should not become a permanent
 invisible condition). Before anything is imported there is nothing to check

@@ -1744,6 +1744,38 @@ describe('actor.createFromCreature', () => {
     expect(attack.forPlayer.documents[0]).toMatchObject({ strikeKey: 'strike:vine' });
   });
 
+  it('lets the GM frighten and then free a monster, and still tells the player nothing', async () => {
+    const t = await table();
+    const made = await t.send(t.gm, op('actor.createFromCreature', strangler));
+    const actorId = made.forGm.documents[0]?.id ?? '';
+
+    const scared = await t.send(
+      t.gm,
+      op('actor.addCondition', { actorId, slug: 'frightened', value: 2 }),
+    );
+    expect(scared.forGm.documents[0]).toMatchObject({
+      system: { conditions: [{ slug: 'frightened', value: 2 }] },
+    });
+    expect(scared.forPlayer.documents).toEqual([]);
+    expect(scared.forPlayer.deleted).toEqual([]);
+
+    const freed = await t.send(
+      t.gm,
+      op('actor.removeCondition', { actorId, slug: 'frightened' }),
+    );
+    expect(freed.forGm.documents[0]).toMatchObject({ system: { conditions: [] } });
+    expect(freed.forPlayer.documents).toEqual([]);
+
+    expect(
+      (
+        await emitOperation(
+          t.player,
+          op('actor.addCondition', { actorId, slug: 'prone' }),
+        )
+      ).ok,
+    ).toBe(false);
+  });
+
   it('refuses a player rolling for a monster, and one strike named two ways', async () => {
     const t = await table();
     const made = await t.send(t.gm, op('actor.createFromCreature', strangler));
