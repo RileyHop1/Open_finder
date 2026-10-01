@@ -221,3 +221,5 @@ export {
   type InertItem,
   type PreparedCharacter,
 } from './rules/prepareCharacter.js';
+
+export { prepareStrikes, type PreparedStrike } from './rules/prepareStrikes.js';
