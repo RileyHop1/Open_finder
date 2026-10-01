@@ -157,3 +157,69 @@ export function deleteScene(
   }
   return { deleted, changed };
 }
+
+/**
+ * Adds an exit to a scene and returns the changed scene. The server issues the
+ * link's id. The target must be a scene that exists and is not this one, and the
+ * point must lie on this scene, so a link can never sit off the map or lead
+ * nowhere. Two exits to the same place are allowed (a door and a trapdoor).
+ */
+export function addSceneLink(
+  store: WorldStore,
+  seat: Seat,
+  payload: {
+    sceneId: string;
+    label: string;
+    x: number;
+    y: number;
+    targetSceneId: string;
+  },
+): Scene {
+  requireGM(seat);
+  const scene = loadScene(store, payload.sceneId);
+  if (payload.targetSceneId === scene.id) {
+    throw new OperationRejected('an exit cannot lead back to the scene it is in');
+  }
+  loadScene(store, payload.targetSceneId);
+  if (payload.x > scene.width || payload.y > scene.height) {
+    throw new OperationRejected(
+      `the exit must be on the scene (0 to ${scene.width} across, 0 to ${scene.height} down)`,
+    );
+  }
+  const updated: Scene = {
+    ...scene,
+    links: [
+      ...scene.links,
+      {
+        id: crypto.randomUUID(),
+        label: payload.label,
+        x: payload.x,
+        y: payload.y,
+        targetSceneId: payload.targetSceneId,
+      },
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(sceneSchema.parse(updated));
+  return updated;
+}
+
+/** Removes an exit. Returns the changed scene, or `undefined` if there was no such exit (not an error). */
+export function removeSceneLink(
+  store: WorldStore,
+  seat: Seat,
+  payload: { sceneId: string; linkId: string },
+): Scene | undefined {
+  requireGM(seat);
+  const scene = loadScene(store, payload.sceneId);
+  if (!scene.links.some((link) => link.id === payload.linkId)) {
+    return undefined;
+  }
+  const updated: Scene = {
+    ...scene,
+    links: scene.links.filter((link) => link.id !== payload.linkId),
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+  return updated;
+}

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { BaseDocument, Broadcast, ChatRollMessage, Seat } from '@hearthtable/core';
-import { chatCheckMessageSchema } from '@hearthtable/core';
+import { chatCheckMessageSchema, sceneSchema } from '@hearthtable/core';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -1027,6 +1027,118 @@ describe('scene.create, scene.update, and scene.delete', () => {
       expect(broadcast?.documents[0]).toMatchObject({ id: party.id });
       expect(broadcast?.documents[0]).not.toHaveProperty('sceneId');
     }
+  });
+});
+
+describe('scene.addLink and scene.removeLink', () => {
+  function nextBroadcast(socket: ClientSocket): Promise<Broadcast> {
+    return new Promise((resolve) => {
+      socket.once('broadcast', resolve);
+    });
+  }
+
+  const op = (type: string, payload: unknown) => ({
+    id: crypto.randomUUID(),
+    type,
+    payload,
+  });
+
+  /** A GM, a player, and two scenes made by the GM. */
+  async function setup() {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    store.putSeat(makeSeat({ name: 'Player', claimedByDeviceToken: 'player' }));
+    const gm = await connect('gm');
+    const player = await connect('player');
+    const made: Broadcast[] = [];
+    for (const name of ['Here', 'There']) {
+      const heard = [gm, player].map(nextBroadcast);
+      await emitOperation(gm, op('scene.create', { name, kind: 'area' }));
+      const [forGm] = await Promise.all(heard);
+      if (forGm === undefined) {
+        throw new Error('expected a broadcast');
+      }
+      made.push(forGm);
+    }
+    const [here, there] = made.map((b) => b.documents[0]);
+    if (here === undefined || there === undefined) {
+      throw new Error('expected two scenes');
+    }
+    return { gm, player, here, there };
+  }
+
+  it('adds and removes an exit on a hidden scene for the GM only', async () => {
+    const { gm, player, here, there } = await setup();
+
+    const added = [gm, player].map(nextBroadcast);
+    expect(
+      await emitOperation(
+        gm,
+        op('scene.addLink', {
+          sceneId: here.id,
+          label: 'To the cellar',
+          x: 400,
+          y: 250,
+          targetSceneId: there.id,
+        }),
+      ),
+    ).toEqual({ ok: true });
+    const [forGm, forPlayer] = await Promise.all(added);
+    const linked = sceneSchema.parse(forGm?.documents[0]);
+    expect(linked.links.map((l) => l.label)).toEqual(['To the cellar']);
+    expect(forPlayer?.documents).toEqual([]);
+    expect(forPlayer?.deleted).toEqual([]);
+
+    const removed = [gm, player].map(nextBroadcast);
+    const linkId = linked.links[0]?.id ?? '';
+    expect(
+      await emitOperation(gm, op('scene.removeLink', { sceneId: here.id, linkId })),
+    ).toEqual({ ok: true });
+    const [removedForGm, removedForPlayer] = await Promise.all(removed);
+    expect(sceneSchema.parse(removedForGm?.documents[0]).links).toEqual([]);
+    expect(removedForPlayer?.documents).toEqual([]);
+  });
+
+  it('shows a player the new exit once the scene is one they can see', async () => {
+    const { gm, player, here, there } = await setup();
+    store.putDocument({ ...here, permissions: { default: 'observer', seats: {} } });
+
+    const heard = [gm, player].map(nextBroadcast);
+    await emitOperation(
+      gm,
+      op('scene.addLink', {
+        sceneId: here.id,
+        label: 'Door',
+        x: 10,
+        y: 10,
+        targetSceneId: there.id,
+      }),
+    );
+    for (const broadcast of await Promise.all(heard)) {
+      expect(broadcast.documents[0]).toMatchObject({
+        id: here.id,
+        links: [{ label: 'Door', targetSceneId: there.id }],
+      });
+    }
+  });
+
+  it('refuses a player and a link off the scene, logging neither', async () => {
+    const { gm, player, here, there } = await setup();
+    const before = store.listOperationsSince(0).length;
+    const link = (x: number) => ({
+      sceneId: here.id,
+      label: 'x',
+      x,
+      y: 10,
+      targetSceneId: there.id,
+    });
+    expect(await emitOperation(player, op('scene.addLink', link(10)))).toEqual({
+      ok: false,
+      error: 'only the GM can change scenes',
+    });
+    expect(await emitOperation(gm, op('scene.addLink', link(5000)))).toMatchObject({
+      ok: false,
+    });
+    expect(store.listOperationsSince(0)).toHaveLength(before);
   });
 });
 
