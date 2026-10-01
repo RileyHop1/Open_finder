@@ -4,7 +4,13 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { BaseDocument, Broadcast, ChatRollMessage, Seat } from '@hearthtable/core';
+import type {
+  BaseDocument,
+  Broadcast,
+  ChatRollMessage,
+  Seat,
+  TokenDrag,
+} from '@hearthtable/core';
 import { chatCheckMessageSchema, sceneSchema, tokenSchema } from '@hearthtable/core';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -1551,6 +1557,166 @@ describe('token.create, token.update, token.delete', () => {
     ).toEqual(refused);
     expect(store.listOperationsSince(0)).toHaveLength(before);
   });
+});
+
+describe('token.drag (the live preview)', () => {
+  const op = (type: string, payload: unknown) => ({
+    id: crypto.randomUUID(),
+    type,
+    payload,
+  });
+
+  const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+  function nextBroadcast(socket: ClientSocket): Promise<Broadcast> {
+    return new Promise((resolve) => {
+      socket.once('broadcast', resolve);
+    });
+  }
+
+  /** Every `token.drag` this socket is sent from now on. */
+  function listen(socket: ClientSocket): TokenDrag[] {
+    const heard: TokenDrag[] = [];
+    socket.on('token.drag', (drag: TokenDrag) => {
+      heard.push(drag);
+    });
+    return heard;
+  }
+
+  /** The GM, a player who owns a character in the party, and a second player who can see the table but owns nothing. */
+  async function table() {
+    store.putSeat(makeSeat({ name: 'GM', isGM: true, claimedByDeviceToken: 'gm' }));
+    store.putSeat(makeSeat({ name: 'Owner', claimedByDeviceToken: 'owner' }));
+    store.putSeat(makeSeat({ name: 'Watcher', claimedByDeviceToken: 'watcher' }));
+    const sockets = {
+      gm: await connect('gm'),
+      owner: await connect('owner'),
+      watcher: await connect('watcher'),
+    };
+    const everyone = Object.values(sockets);
+    const send = async (from: ClientSocket, operation: ReturnType<typeof op>) => {
+      const heard = everyone.map(nextBroadcast);
+      expect(await emitOperation(from, operation)).toEqual({ ok: true });
+      return (await Promise.all(heard))[0] as Broadcast;
+    };
+
+    const made = await send(
+      sockets.owner,
+      op('actor.create', { kind: 'character', name: 'Hero' }),
+    );
+    const heroId = made.documents[0]?.id ?? '';
+    await send(sockets.gm, op('party.addMember', { actorId: heroId }));
+    const crypt = await send(
+      sockets.gm,
+      op('scene.create', { name: 'Crypt', kind: 'battle' }),
+    );
+    const sceneId = crypt.documents[0]?.id ?? '';
+    const entered = await send(sockets.gm, op('scene.activate', { sceneId }));
+    const heroToken = entered.documents.find((d) => d.type === 'token');
+    if (heroToken === undefined) {
+      throw new Error('expected the hero to have a token');
+    }
+    return { ...sockets, send, heroId, sceneId, heroToken };
+  }
+
+  it('shows an owner’s drag to everyone else who can see the token, and not back to them', async () => {
+    const t = await table();
+    const gmHeard = listen(t.gm);
+    const watcherHeard = listen(t.watcher);
+    const ownerHeard = listen(t.owner);
+
+    t.owner.emit('token.drag', { tokenId: heroTokenId(t), x: 712.5, y: 833.25 });
+    await wait(100);
+
+    expect(gmHeard).toEqual([{ tokenId: heroTokenId(t), x: 712.5, y: 833.25 }]);
+    expect(watcherHeard).toEqual(gmHeard);
+    expect(ownerHeard).toEqual([]);
+  });
+
+  it('is never stored or sequenced: no operation is logged and the token does not move', async () => {
+    const t = await table();
+    const before = store.listOperationsSince(0).length;
+    const start = store.getDocument(heroTokenId(t));
+
+    t.owner.emit('token.drag', { tokenId: heroTokenId(t), x: 900, y: 900 });
+    await wait(100);
+
+    expect(store.listOperationsSince(0)).toHaveLength(before);
+    expect(store.getDocument(heroTokenId(t))).toEqual(start);
+  });
+
+  it('keeps a drag of a token the GM has hidden from every player', async () => {
+    const t = await table();
+    await t.send(
+      t.gm,
+      op('token.update', { tokenId: heroTokenId(t), changes: { hidden: true } }),
+    );
+    expect(store.getDocument(heroTokenId(t))).toMatchObject({ hidden: true });
+    const ownerHeard = listen(t.owner);
+    const watcherHeard = listen(t.watcher);
+
+    t.gm.emit('token.drag', { tokenId: heroTokenId(t), x: 500, y: 500 });
+    await wait(100);
+
+    expect(ownerHeard).toEqual([]);
+    expect(watcherHeard).toEqual([]);
+  });
+
+  it('drops a drag by someone who does not own the token’s actor', async () => {
+    const t = await table();
+    const gmHeard = listen(t.gm);
+    const ownerHeard = listen(t.owner);
+
+    t.watcher.emit('token.drag', { tokenId: heroTokenId(t), x: 500, y: 500 });
+    await wait(100);
+
+    expect(gmHeard).toEqual([]);
+    expect(ownerHeard).toEqual([]);
+  });
+
+  it('keeps a drag on the scene, and drops malformed ones without harm', async () => {
+    const t = await table();
+    const gmHeard = listen(t.gm);
+
+    t.owner.emit('token.drag', 'not a drag');
+    await wait(60);
+    t.owner.emit('token.drag', { tokenId: heroTokenId(t), x: 30000, y: 30000 });
+    await wait(100);
+
+    expect(gmHeard).toEqual([{ tokenId: heroTokenId(t), x: 2000, y: 2000 }]);
+  });
+
+  it('rate-limits a flood from one connection, but still lets the first through', async () => {
+    const t = await table();
+    const gmHeard = listen(t.gm);
+
+    for (let i = 0; i < 60; i += 1) {
+      t.owner.emit('token.drag', { tokenId: heroTokenId(t), x: 100 + i, y: 100 });
+    }
+    await wait(200);
+
+    expect(gmHeard.length).toBeGreaterThanOrEqual(1);
+    expect(gmHeard.length).toBeLessThanOrEqual(4);
+    expect(gmHeard[0]).toMatchObject({ x: 100 });
+  });
+
+  it('lets the settled move through as the real operation after a drag', async () => {
+    const t = await table();
+    t.owner.emit('token.drag', { tokenId: heroTokenId(t), x: 700, y: 800 });
+    await wait(60);
+
+    const moved = await t.send(
+      t.owner,
+      op('token.move', { tokenId: heroTokenId(t), x: 710, y: 820 }),
+    );
+
+    expect(moved.documents[0]).toMatchObject({ x: 750, y: 850 });
+    expect(store.getDocument(heroTokenId(t))).toMatchObject({ x: 750, y: 850 });
+  });
+
+  function heroTokenId(t: { heroToken: { id: string } }): string {
+    return t.heroToken.id;
+  }
 });
 
 describe('sync -- who is asking', () => {
