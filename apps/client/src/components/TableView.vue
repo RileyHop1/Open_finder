@@ -25,8 +25,10 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { uploadAsset } from '../api/assets.js';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
+import { useScenesStore } from '../stores/scenes.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
+import MapView from './map/MapView.vue';
 import PartyBar from './PartyBar.vue';
 import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
@@ -40,6 +42,7 @@ const props = defineProps<{ worldId: string; seatName: string }>();
 
 const documents = useDocumentsStore();
 const lobby = useLobbyStore();
+const scenes = useScenesStore();
 
 const selectedId = ref<string>();
 const selected = computed(() =>
@@ -156,6 +159,7 @@ const openNextNew = ref(false);
 
 onMounted(() => {
   void documents.load(props.worldId);
+  void scenes.load(props.worldId);
 });
 
 // A deleted character cannot stay selected.
@@ -251,10 +255,7 @@ async function handleCreate(): Promise<void> {
           tabindex="-1"
           data-testid="map-pane"
         >
-          <p class="empty map-empty">
-            No scene is showing yet. When the GM moves the party to a scene, its map
-            appears here.
-          </p>
+          <MapView :world-id="worldId" />
         </section>
 
         <Transition name="drawer">
@@ -508,20 +509,11 @@ button[aria-pressed='true'] {
 }
 
 .map-pane {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   height: calc(100vh - 14rem);
   min-height: 24rem;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  padding: var(--space-4);
-  text-align: center;
-}
-
-.map-empty {
-  margin: 0;
-  max-width: 28rem;
 }
 
 .sheet-pane {

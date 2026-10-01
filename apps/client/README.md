@@ -225,9 +225,18 @@ client server in production.
   PixiJS is its own chunk, fetched only when a map is first shown. A browser
   without WebGL2 (or where PixiJS cannot start) gets a plain-language message
   instead of a blank box. PixiJS is pinned to an exact version (`8.21.0`);
-  upgrading it is its own reviewed PR. **Built, not on screen yet:** the map,
-  grid, tokens, and movement are the next PRs of milestone 4
-  (`docs/adr/0017-scenes-and-tokens.md`).
+  upgrading it is its own reviewed PR. **Built.**
+- **The map** (`components/map/MapView.vue`, `sceneView.ts`, `mapImage.ts`,
+  `camera.ts`) — the shown scene (`stores/scenes.ts`) drawn into the canvas and
+  fitted to the box: the map picture (or a plain backdrop when the scene has
+  none) with the grid over it. With no scene it says so in words and starts no
+  canvas. The picture is shrunk on the way in to the graphics card's texture
+  limit (the stored file is untouched), and stretched back to the scene's size
+  so it still lines up with the grid. The grid is one cached cell texture
+  repeated by a `TilingSprite`, never redrawn lines (ADR 0017). The camera is
+  pure maths (`camera.ts`: fit, pan, zoom about a point, limits) so it is unit
+  tested; only `sceneView.ts` needs a real WebGL context. Pan and zoom input,
+  tokens, and movement are the next PRs of milestone 4. **Built (fit only).**
 - **The action bar** (strikes, spells, and actions as hotbar icons). Not yet
 - **Tooltips and the encyclopedia** — the "hover to learn" system. Not yet
 - **Modifier breakdowns** — rendered from the `Statistic` that computed the
