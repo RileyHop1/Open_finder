@@ -37,6 +37,7 @@ lands.
 | [compendium.md](compendium.md) | `CompendiumEntry` and pack manifests — also not a document type; a read-only import source (milestone 2) |
 | [actor.md](actor.md) | `Actor` -- the system-agnostic envelope; the system payload is opaque to core (milestone 3) |
 | [party.md](party.md) | `Party` -- ordered members and the party level (milestone 3) |
+| [assets.md](assets.md) | Content-addressed image uploads and how they are served (milestone 3) |
 
 ## PF2e content kinds (`systems/pf2e`)
 One page per content kind whose fields are non-obvious enough to need a spec,

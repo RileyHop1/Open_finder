@@ -10,7 +10,8 @@
  * `.inject()` against a real router with no open socket.
  */
 
-import { existsSync } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Readable } from 'node:stream';
 
 import type { Seat } from '@hearthtable/core';
@@ -21,6 +22,12 @@ import { z } from 'zod';
 import type { ActiveWorldManager } from './activeWorld.js';
 import type { CompendiumIndex } from './compendium.js';
 import { emptyCompendium, MAX_SEARCH_LIMIT } from './compendium.js';
+import {
+  contentTypeOfAsset,
+  IMAGE_TYPES,
+  InvalidAssetError,
+  storeAsset,
+} from './assets.js';
 import { resolveWorldPaths } from './paths.js';
 import { readableDocuments } from './visibility.js';
 import { withWorldStore } from './worldAccess.js';
@@ -103,6 +110,15 @@ export function createApp(options: AppOptions): FastifyInstance {
   app.addContentTypeParser('application/octet-stream', (_request, payload, done) => {
     done(null, payload);
   });
+
+  // Image uploads (portraits now, maps later) arrive as the raw file with its
+  // own media type, so the body can stream to disk (`assets.ts`) instead of
+  // being buffered or parsed as multipart.
+  for (const mediaType of Object.keys(IMAGE_TYPES)) {
+    app.addContentTypeParser(mediaType, (_request, payload, done) => {
+      done(null, payload);
+    });
+  }
 
   app.get('/api/worlds', () => listWorlds(options.worldsRoot));
 
@@ -277,6 +293,73 @@ export function createApp(options: AppOptions): FastifyInstance {
         caught instanceof Error ? caught.message : 'failed to import world archive';
       await reply.status(400).send({ error: message });
     }
+  });
+
+  // Any seated player may upload an image: portraits are the player's own, and
+  // the table is trusted (ADR 0007). A caller with no seat is refused so a
+  // stranger on the network cannot fill the GM's disk.
+  app.post('/api/worlds/:id/assets', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const deviceToken = request.headers['x-device-token'];
+    let seated: boolean;
+    try {
+      if (!z.uuid().safeParse(id).success) {
+        throw new Error('not a world id');
+      }
+      seated = withWorldStore(activeWorld, options.worldsRoot, id, (store) =>
+        typeof deviceToken === 'string' && deviceToken.length > 0
+          ? store.getSeatByDeviceToken(deviceToken) !== undefined
+          : false,
+      );
+    } catch {
+      await reply.status(404).send({ error: `no world found with id ${id}` });
+      return;
+    }
+    if (!seated) {
+      await reply.status(403).send({ error: 'claim a seat before uploading' });
+      return;
+    }
+    const mediaType = (request.headers['content-type'] ?? '').split(';')[0]?.trim() ?? '';
+    try {
+      const stored = await storeAsset(
+        resolveWorldPaths(options.worldsRoot, id).assetsDir,
+        mediaType,
+        request.body as Readable,
+      );
+      await reply.status(201).send({
+        ...stored,
+        url: `/api/worlds/${id}/assets/${stored.name}`,
+      });
+    } catch (caught) {
+      if (caught instanceof InvalidAssetError) {
+        await reply.status(400).send({ error: caught.message });
+        return;
+      }
+      throw caught;
+    }
+  });
+
+  // Readable by anyone who can reach the table: an <img> tag cannot send the
+  // device header. The name must be exactly `<hash>.<ext>`, so no request
+  // parameter can name another path; the world id is checked by the lookup.
+  app.get('/api/worlds/:id/assets/:name', async (request, reply) => {
+    const { id, name } = request.params as { id: string; name: string };
+    const contentType = contentTypeOfAsset(name);
+    // A world id is a UUID; anything else cannot name a folder, so it never
+    // reaches the filesystem.
+    const file =
+      contentType !== undefined && z.uuid().safeParse(id).success
+        ? join(resolveWorldPaths(options.worldsRoot, id).assetsDir, name)
+        : undefined;
+    if (contentType === undefined || file === undefined || !existsSync(file)) {
+      await reply.status(404).send({ error: 'no such asset' });
+      return;
+    }
+    await reply
+      .header('content-type', contentType)
+      .header('cache-control', 'public, max-age=31536000, immutable')
+      .header('x-content-type-options', 'nosniff')
+      .send(createReadStream(file));
   });
 
   // The compendium is read-only reference data, public to every seat: it is
