@@ -18,6 +18,7 @@ import type { Scene } from '@hearthtable/core';
 import type * as Pixi from 'pixi.js';
 
 import { type Camera, type Size, worldTransform } from './camera.js';
+import { type ExitView, exitRadius } from './exitModel.js';
 import { FALLBACK_MAX_TEXTURE_SIZE } from './mapImage.js';
 import type { TokenView } from './tokenModel.js';
 
@@ -36,6 +37,12 @@ export interface SceneView {
     portraits: ReadonlyMap<string, ImageBitmap>,
     cell: number,
   ): void;
+  /**
+   * Makes the exit markers on screen exactly `exits`: a diamond with an arrow in
+   * it and the exit's label beneath (a shape and words, never colour alone). `cell`
+   * sizes them like the tokens. They draw under the tokens.
+   */
+  setExits(exits: readonly ExitView[], cell: number): void;
   destroy(): void;
 }
 
@@ -57,8 +64,9 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
   const world = new pixi.Container();
   // Two layers, so a redraw of the map never lands on top of the tokens.
   const mapLayer = new pixi.Container();
+  const exitLayer = new pixi.Container();
   const tokenLayer = new pixi.Container();
-  world.addChild(mapLayer, tokenLayer);
+  world.addChild(mapLayer, exitLayer, tokenLayer);
   app.stage.addChild(world);
 
   /** Everything `update` made, so the next one can release it. */
@@ -179,7 +187,51 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
     return node;
   }
 
+  /** What the exit layer was built from, so an unchanged set is left alone. */
+  let exitsLook = '';
+
   return {
+    setExits(exits, cell) {
+      const look = JSON.stringify([exits.map((e) => [e.id, e.label, e.x, e.y]), cell]);
+      if (look === exitsLook) {
+        return;
+      }
+      exitsLook = look;
+      for (const child of exitLayer.removeChildren()) {
+        child.destroy({ children: true });
+      }
+      const radius = exitRadius(cell);
+      const fontSize = Math.min(Math.max(cell * 0.2, 14), 40);
+      for (const exit of exits) {
+        const node = new pixi.Container();
+        node.addChild(
+          new pixi.Graphics()
+            .poly([0, -radius, radius, 0, 0, radius, -radius, 0])
+            .fill(0x1f6f8b)
+            .stroke({ width: 4, color: 0xece7dc }),
+        );
+        const arrow = radius * 0.45;
+        node.addChild(
+          new pixi.Graphics()
+            .poly([-arrow, -arrow * 0.6, arrow, 0, -arrow, arrow * 0.6])
+            .fill(0xece7dc),
+        );
+        const name = new pixi.Text({
+          text: exit.label,
+          style: {
+            fill: 0xffffff,
+            fontSize,
+            stroke: { color: 0x000000, width: Math.max(3, fontSize * 0.2) },
+          },
+        });
+        name.anchor.set(0.5, 0);
+        name.position.set(0, radius + fontSize * 0.2);
+        node.addChild(name);
+        node.position.set(exit.x, exit.y);
+        exitLayer.addChild(node);
+      }
+    },
+
     setTokens(views, portraits, cell) {
       const wanted = new Set(views.map((view) => view.id));
       for (const [id, entry] of tokenNodes) {
@@ -270,6 +322,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
       }
       portraitTextures.clear();
       tokenNodes.clear();
+      exitsLook = '';
       world.destroy({ children: true });
     },
   };

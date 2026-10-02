@@ -11,15 +11,33 @@
  * its buttons does, so a sighted keyboard user sees where they are. A token
  * whose actor this seat cannot open (a monster, for a player) has no sheet
  * button, since there is nothing to open.
+ *
+ * The GM's exits are listed here too, after the tokens, each a button that asks
+ * to move the party through it: the keyboard route to what a click on the exit's
+ * marker does.
  */
+import { describeExit, type ExitView } from './exitModel.js';
 import { describeToken, type TokenView } from './tokenModel.js';
 
-defineProps<{ views: readonly TokenView[] }>();
-const emit = defineEmits<{ select: [tokenId: string]; open: [actorId: string] }>();
+withDefaults(
+  defineProps<{ views: readonly TokenView[]; exits?: readonly ExitView[] }>(),
+  {
+    exits: () => [],
+  },
+);
+const emit = defineEmits<{
+  select: [tokenId: string];
+  open: [actorId: string];
+  exit: [exitId: string];
+}>();
 </script>
 
 <template>
-  <section v-if="views.length > 0" class="token-list" aria-label="Tokens on the map">
+  <section
+    v-if="views.length > 0 || exits.length > 0"
+    class="token-list"
+    :aria-label="exits.length > 0 ? 'Tokens and exits on the map' : 'Tokens on the map'"
+  >
     <ul>
       <li v-for="view in views" :key="view.id">
         <button
@@ -38,6 +56,15 @@ const emit = defineEmits<{ select: [tokenId: string]; open: [actorId: string] }>
           @click="emit('open', view.actorId)"
         >
           Sheet
+        </button>
+      </li>
+      <li v-for="exit in exits" :key="exit.id">
+        <button
+          type="button"
+          title="Move the party through this exit"
+          @click="emit('exit', exit.id)"
+        >
+          {{ describeExit(exit) }}
         </button>
       </li>
     </ul>

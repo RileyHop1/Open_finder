@@ -76,8 +76,12 @@ Things worth knowing:
   add. The target must be another existing scene and the point must be on this
   scene. An exit to a hidden scene is visible to a player who can see the scene it
   is on, and shows only its label and the target's id, never the target's name
-  or contents. Using an exit to move the party is `scene.activate` with the exit's
-  position as `at`, so the party arrives at the door it used.
+  or contents. Using an exit to move the party is `scene.activate`. An exit's position is
+  in *its own* scene's pixels, so it says nothing about where the other side is:
+  the client sends as `at` the position of the target scene's own exit back to
+  the scene the party left (the door they came through), and with no way back
+  sends none, so the party arrives in the middle. Only the GM's screen draws or
+  lists exits; a player's never does.
 
 ## Example
 ```ts

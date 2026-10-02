@@ -16,11 +16,14 @@ const moveToken = vi.fn<(id: string, x: number, y: number) => Promise<boolean>>(
 const setLocalDrag = vi.fn<(id: string, x: number, y: number) => void>();
 const clearLocalDrag = vi.fn<(id: string) => void>();
 const sendDrag = vi.fn<(id: string, x: number, y: number) => void>();
+const previewScene = vi.fn<(id: string | undefined) => void>();
 const send = vi.fn<(type: string, payload: unknown) => Promise<boolean>>();
 const placeToken =
   vi.fn<(actorId: string, at?: { x: number; y: number }) => Promise<boolean>>();
 const state = reactive<{
   shownScene: Scene | undefined;
+  scenes: Scene[];
+  previewScene: typeof previewScene;
   shownTokens: Token[];
   error: string | undefined;
   placeToken: typeof placeToken;
@@ -31,6 +34,8 @@ const state = reactive<{
   sendDrag: typeof sendDrag;
 }>({
   shownScene: undefined,
+  scenes: [],
+  previewScene,
   shownTokens: [],
   error: undefined,
   placeToken,
@@ -80,6 +85,7 @@ const view = {
   update: vi.fn(),
   setCamera: vi.fn(),
   setTokens: vi.fn(),
+  setExits: vi.fn(),
   destroy: vi.fn(),
 };
 
@@ -114,6 +120,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   state.shownScene = undefined;
   state.shownTokens = [];
+  state.scenes = [];
   state.error = undefined;
   moveToken.mockResolvedValue(true);
   placeToken.mockResolvedValue(true);
@@ -1232,5 +1239,182 @@ describe('the token menu', () => {
     await rightClick(surface, 149, 149);
     await wrapper.get('.token-menu').trigger('keydown', { key: 'ArrowDown' });
     expect(moveToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('exits', () => {
+  const world = crypto.randomUUID();
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  /**
+   * A Yard (2000 x 1000, fitted at 0.5: scene (250, 250) is screen (149, 149)) with a
+   * Gate at (250, 250) leading to a Keep, which may have its own way back.
+   */
+  async function setup(who: Seat, withWayBack = false) {
+    lobby.mySeat = who;
+    const keep = makeScene({
+      name: 'Keep',
+      links: withWayBack ? [] : [],
+    });
+    const yard = makeScene({
+      name: 'Yard',
+      links: [
+        {
+          id: crypto.randomUUID(),
+          label: 'Gate',
+          x: 250,
+          y: 250,
+          targetSceneId: keep.id,
+        },
+      ],
+    });
+    const keepWithBack = withWayBack
+      ? makeScene({
+          id: keep.id,
+          name: 'Keep',
+          links: [
+            {
+              id: crypto.randomUUID(),
+              label: 'Door',
+              x: 700,
+              y: 300,
+              targetSceneId: yard.id,
+            },
+          ],
+        })
+      : keep;
+    state.scenes = [yard, keepWithBack];
+    state.shownScene = yard;
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, yard, keep: keepWithBack, surface: wrapper.get('.map-surface') };
+  }
+
+  const click = (surface: { element: Element }, x: number, y: number) =>
+    pointer(surface, 'pointerdown', { pointerId: 1, button: 0, clientX: x, clientY: y });
+
+  it('draws the GM’s exits and lists them beside the tokens', async () => {
+    const { wrapper, keep } = await setup(seat(true));
+    expect(view.setExits.mock.lastCall?.[0]).toEqual([
+      expect.objectContaining({
+        label: 'Gate',
+        targetName: 'Keep',
+        targetSceneId: keep.id,
+      }),
+    ]);
+    expect(wrapper.get('.token-list').text()).toContain('Exit: Gate, to Keep');
+  });
+
+  it('shows a player none', async () => {
+    const { wrapper } = await setup(seat(false));
+    expect(view.setExits.mock.lastCall?.[0]).toEqual([]);
+    expect(wrapper.text()).not.toContain('Exit: Gate');
+  });
+
+  it('asks before moving the party when an exit marker is pressed', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    await click(surface, 149, 149);
+    const question = wrapper.get('[role="alertdialog"]');
+    expect(question.text()).toContain('Move the party to Keep?');
+    expect(send).not.toHaveBeenCalled();
+    expect(document.activeElement?.textContent).toContain('Move the party');
+  });
+
+  it('does not pan the map when an exit is pressed, and still pans from empty ground', async () => {
+    const { surface } = await setup(seat(true));
+    view.setCamera.mockClear();
+    await click(surface, 149, 149);
+    await pointer(surface, 'pointermove', { pointerId: 1, clientX: 200, clientY: 149 });
+    expect(view.setCamera).not.toHaveBeenCalled();
+
+    await click(surface, 800, 400);
+    await pointer(surface, 'pointermove', { pointerId: 1, clientX: 850, clientY: 400 });
+    expect(view.setCamera).toHaveBeenCalled();
+  });
+
+  it('moves the party on yes, and goes back to showing the party’s scene', async () => {
+    const { wrapper, keep, surface } = await setup(seat(true));
+    await click(surface, 149, 149);
+    await wrapper.get('[role="alertdialog"] button').trigger('click');
+    await flushPromises();
+
+    expect(send).toHaveBeenCalledWith('scene.activate', { sceneId: keep.id });
+    expect(previewScene).toHaveBeenCalledWith(undefined);
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false);
+    expect(wrapper.get('p[role="status"].visually-hidden').text()).toBe(
+      'The party moved to Keep.',
+    );
+    expect(document.activeElement).toBe(surface.element);
+  });
+
+  it('arrives at the target’s own exit back, when it has one', async () => {
+    const { wrapper, keep, surface } = await setup(seat(true), true);
+    await click(surface, 149, 149);
+    await wrapper.get('[role="alertdialog"] button').trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('scene.activate', {
+      sceneId: keep.id,
+      at: { x: 700, y: 300 },
+    });
+  });
+
+  it('keeps the party where it is on Cancel and on Escape', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    await click(surface, 149, 149);
+    await wrapper.get('[role="alertdialog"]').trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(surface.element);
+
+    await click(surface, 149, 149);
+    const cancel = wrapper
+      .findAll('[role="alertdialog"] button')
+      .find((b) => b.text() === 'Cancel');
+    await cancel?.trigger('click');
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('does nothing further, and says nothing, when the server refuses', async () => {
+    send.mockResolvedValue(false);
+    const { wrapper, surface } = await setup(seat(true));
+    await click(surface, 149, 149);
+    await wrapper.get('[role="alertdialog"] button').trigger('click');
+    await flushPromises();
+    expect(previewScene).not.toHaveBeenCalled();
+    expect(wrapper.get('p[role="status"].visually-hidden').text()).toBe('');
+  });
+
+  it('asks through the keyboard list too', async () => {
+    const { wrapper } = await setup(seat(true));
+    const button = wrapper
+      .findAll('.token-list button')
+      .find((b) => b.text().startsWith('Exit: Gate'));
+    await button?.trigger('click');
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true);
+  });
+
+  it('will not move the party to a scene that is gone', async () => {
+    const { wrapper } = await setup(seat(true));
+    state.scenes = state.scenes.filter((scene) => scene.name !== 'Keep');
+    await flushPromises();
+    const button = wrapper
+      .findAll('.token-list button')
+      .find((b) => b.text().includes('a scene that is gone'));
+    await button?.trigger('click');
+    expect(
+      wrapper.get('[role="alertdialog"] button').attributes('disabled'),
+    ).toBeDefined();
   });
 });
