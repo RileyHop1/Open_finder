@@ -193,3 +193,83 @@ describe('the map picture', () => {
     expect(wrapper.get('[role="alert"]').text()).toBe('could not decode');
   });
 });
+
+describe('exits', () => {
+  const keep = { id: crypto.randomUUID(), name: 'Keep' };
+
+  function mountWithOthers(scene = makeScene(), others = [keep]) {
+    return mount(SceneEditor, { props: { scene, worldId: 'world-1', others } });
+  }
+
+  const added = (wrapper: ReturnType<typeof mountWithOthers>) =>
+    wrapper.emitted('addExit');
+
+  it('lists the exits with where each leads, and removes one by its id', async () => {
+    const scene = makeScene({
+      links: [
+        { id: crypto.randomUUID(), label: 'Gate', x: 5, y: 6, targetSceneId: keep.id },
+      ],
+    });
+    const wrapper = mountWithOthers(scene);
+    expect(wrapper.get('.exits ul').text()).toContain('Gate to Keep');
+    await wrapper.get('button[aria-label="Remove the exit Gate"]').trigger('click');
+    expect(wrapper.emitted('removeExit')).toEqual([[scene.links[0]?.id]]);
+  });
+
+  it('says so when there are no exits, or the target is gone', () => {
+    expect(mountWithOthers().text()).toContain('No exits yet');
+    const scene = makeScene({
+      links: [
+        {
+          id: crypto.randomUUID(),
+          label: 'Gate',
+          x: 5,
+          y: 6,
+          targetSceneId: crypto.randomUUID(),
+        },
+      ],
+    });
+    expect(mountWithOthers(scene).text()).toContain('Gate to a scene that is gone');
+  });
+
+  it('adds an exit at the middle of the scene unless a spot is given', async () => {
+    const scene = makeScene({ width: 3000, height: 1000 });
+    const wrapper = mountWithOthers(scene);
+    await wrapper.get(`#exit-label-${scene.id}`).setValue('  Gate ');
+    await wrapper.get('.exits form').trigger('submit');
+    expect(added(wrapper)).toEqual([
+      [{ label: 'Gate', targetSceneId: keep.id, x: 1500, y: 500 }],
+    ]);
+  });
+
+  it('adds one at the spot typed, to the scene chosen, and clears the form', async () => {
+    const scene = makeScene();
+    const cellar = { id: crypto.randomUUID(), name: 'Cellar' };
+    const wrapper = mountWithOthers(scene, [keep, cellar]);
+    await wrapper.get(`#exit-label-${scene.id}`).setValue('Trapdoor');
+    await wrapper.get(`#exit-target-${scene.id}`).setValue(cellar.id);
+    await wrapper.get(`#exit-x-${scene.id}`).setValue('120');
+    await wrapper.get(`#exit-y-${scene.id}`).setValue('340');
+    await wrapper.get('.exits form').trigger('submit');
+    expect(added(wrapper)).toEqual([
+      [{ label: 'Trapdoor', targetSceneId: cellar.id, x: 120, y: 340 }],
+    ]);
+    expect(
+      (wrapper.get(`#exit-label-${scene.id}`).element as HTMLInputElement).value,
+    ).toBe('');
+  });
+
+  it('adds nothing for a blank label', async () => {
+    const scene = makeScene();
+    const wrapper = mountWithOthers(scene);
+    await wrapper.get(`#exit-label-${scene.id}`).setValue('   ');
+    await wrapper.get('.exits form').trigger('submit');
+    expect(added(wrapper)).toBeUndefined();
+  });
+
+  it('says to make another scene when there is none to lead to', () => {
+    const wrapper = mountWithOthers(makeScene(), []);
+    expect(wrapper.text()).toContain('Make another scene to add an exit');
+    expect(wrapper.find('.exits form').exists()).toBe(false);
+  });
+});

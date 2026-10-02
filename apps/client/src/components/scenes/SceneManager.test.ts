@@ -219,6 +219,46 @@ describe('editing', () => {
   });
 });
 
+describe('exits', () => {
+  it('sends an exit added in the settings as scene.addLink on that scene, to a different scene', async () => {
+    const [bog, keep] = [makeScene('Bog'), makeScene('Keep')];
+    state.scenes = [bog, keep];
+    const wrapper = mountManager();
+    await button(rowOf(wrapper, 'Bog'), 'Edit')?.trigger('click');
+
+    expect(wrapper.findAll(`#exit-target-${bog.id} option`).map((o) => o.text())).toEqual(
+      ['Keep'],
+    );
+    await wrapper.get(`#exit-label-${bog.id}`).setValue('Gate');
+    await wrapper.get('.exits form').trigger('submit');
+    expect(send).toHaveBeenCalledWith('scene.addLink', {
+      sceneId: bog.id,
+      label: 'Gate',
+      targetSceneId: keep.id,
+      x: 1000,
+      y: 1000,
+    });
+  });
+
+  it('sends a removal as scene.removeLink', async () => {
+    const keep = makeScene('Keep');
+    const bog = {
+      ...makeScene('Bog'),
+      links: [
+        { id: crypto.randomUUID(), label: 'Gate', x: 5, y: 6, targetSceneId: keep.id },
+      ],
+    };
+    state.scenes = [bog, keep];
+    const wrapper = mountManager();
+    await button(rowOf(wrapper, 'Bog'), 'Edit')?.trigger('click');
+    await wrapper.get('button[aria-label="Remove the exit Gate"]').trigger('click');
+    expect(send).toHaveBeenCalledWith('scene.removeLink', {
+      sceneId: bog.id,
+      linkId: bog.links[0]?.id,
+    });
+  });
+});
+
 describe('deleting', () => {
   it('asks first, says what goes with it, and deletes only on confirmation', async () => {
     const bog = makeScene('Bog');

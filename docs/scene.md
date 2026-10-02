@@ -81,7 +81,9 @@ Things worth knowing:
   the client sends as `at` the position of the target scene's own exit back to
   the scene the party left (the door they came through), and with no way back
   sends none, so the party arrives in the middle. Only the GM's screen draws or
-  lists exits; a player's never does.
+  lists exits; a player's never does. The GM adds one by right-clicking
+  empty ground on the map (or the Menu key, or the scene settings' Exits form) and
+  removes one from its marker or the same form.
 
 ## Example
 ```ts

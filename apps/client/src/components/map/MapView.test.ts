@@ -1124,10 +1124,9 @@ describe('the token menu', () => {
     expect(wrapper.find('.token-list button[aria-pressed="true"]').exists()).toBe(true);
   });
 
-  it('leaves empty ground, and every click by a player, to the browser', async () => {
+  it('opens no token menu on empty ground, and leaves every click by a player to the browser', async () => {
     const { wrapper, surface } = await setup(seat(true));
-    const empty = await rightClick(surface, 600, 400);
-    expect(empty.defaultPrevented).toBe(false);
+    await rightClick(surface, 600, 400);
     expect(wrapper.find('.token-menu').exists()).toBe(false);
 
     lobby.mySeat = seat(false);
@@ -1416,5 +1415,128 @@ describe('exits', () => {
     expect(
       wrapper.get('[role="alertdialog"] button').attributes('disabled'),
     ).toBeDefined();
+  });
+
+  const rightClick = async (surface: { element: Element }, x: number, y: number) => {
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+    });
+    surface.element.dispatchEvent(event);
+    await flushPromises();
+    return event;
+  };
+
+  const status = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('p[role="status"].visually-hidden').text();
+
+  it('adds an exit where the GM right-clicks empty ground', async () => {
+    const { wrapper, yard, keep, surface } = await setup(seat(true));
+    // Screen (449, 349) is scene (850, 650).
+    const event = await rightClick(surface, 449, 349);
+    expect(event.defaultPrevented).toBe(true);
+    expect(wrapper.get('.exit-menu').attributes('aria-label')).toBe('Add an exit here');
+
+    await wrapper.get('#exit-label').setValue('Trapdoor');
+    await wrapper.get('.exit-menu form').trigger('submit');
+    await flushPromises();
+
+    expect(send).toHaveBeenCalledWith('scene.addLink', {
+      sceneId: yard.id,
+      label: 'Trapdoor',
+      x: 850,
+      y: 650,
+      targetSceneId: keep.id,
+    });
+    expect(wrapper.find('.exit-menu').exists()).toBe(false);
+    expect(status(wrapper)).toBe('Exit Trapdoor added.');
+    expect(document.activeElement).toBe(surface.element);
+  });
+
+  it('adds one in the middle of the view from the keyboard, when nothing is selected', async () => {
+    const { wrapper, yard, keep, surface } = await setup(seat(true));
+    await surface.trigger('keydown', { key: 'ContextMenu' });
+    await wrapper.get('#exit-label').setValue('Stairs');
+    await wrapper.get('.exit-menu form').trigger('submit');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('scene.addLink', {
+      sceneId: yard.id,
+      label: 'Stairs',
+      x: 1000,
+      y: 500,
+      targetSceneId: keep.id,
+    });
+
+    await surface.trigger('keydown', { key: 'F10', shiftKey: true });
+    expect(wrapper.find('.exit-menu').exists()).toBe(true);
+  });
+
+  it('offers the other scenes only', async () => {
+    const { wrapper, yard } = await setup(seat(true));
+    await rightClick(wrapper.get('.map-surface'), 449, 349);
+    const names = wrapper.findAll('.exit-menu option').map((o) => o.text());
+    expect(names).toEqual(['Keep']);
+    expect(names).not.toContain(yard.name);
+  });
+
+  it('is never offered to a player', async () => {
+    const { wrapper, surface } = await setup(seat(false));
+    const event = await rightClick(surface, 449, 349);
+    expect(event.defaultPrevented).toBe(false);
+    await surface.trigger('keydown', { key: 'ContextMenu' });
+    expect(wrapper.find('.exit-menu').exists()).toBe(false);
+  });
+
+  it('does not open off the scene', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    // The scene is 2000 x 1000 at half size, centred: its left edge is screen x 24.
+    const event = await rightClick(surface, 5, 149);
+    expect(event.defaultPrevented).toBe(false);
+    expect(wrapper.find('.exit-menu').exists()).toBe(false);
+  });
+
+  it('removes an exit from a right click on its marker', async () => {
+    const { wrapper, yard, surface } = await setup(seat(true));
+    await rightClick(surface, 149, 149);
+    expect(wrapper.get('.exit-menu').text()).toContain('Gate leads to Keep');
+    const remove = wrapper
+      .findAll('.exit-menu button')
+      .find((b) => b.text() === 'Remove exit');
+    await remove?.trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('scene.removeLink', {
+      sceneId: yard.id,
+      linkId: yard.links[0]?.id,
+    });
+    expect(status(wrapper)).toBe('Exit Gate removed.');
+  });
+
+  it('closes on Escape, and when the map is pressed elsewhere', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    await rightClick(surface, 449, 349);
+    await wrapper.get('.exit-menu').trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('.exit-menu').exists()).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+
+    await rightClick(surface, 449, 349);
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 0,
+      clientX: 700,
+      clientY: 450,
+    });
+    expect(wrapper.find('.exit-menu').exists()).toBe(false);
+  });
+
+  it('says nothing was added when the server refuses', async () => {
+    send.mockResolvedValue(false);
+    const { wrapper, surface } = await setup(seat(true));
+    await rightClick(surface, 449, 349);
+    await wrapper.get('#exit-label').setValue('Trapdoor');
+    await wrapper.get('.exit-menu form').trigger('submit');
+    await flushPromises();
+    expect(status(wrapper)).toBe('');
   });
 });

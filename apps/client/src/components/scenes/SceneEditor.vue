@@ -11,9 +11,14 @@
  * `SceneManager` sends them. Uploading a map reads the picture's size first, so
  * the scene becomes exactly that size; a picture larger than a scene may be is
  * refused here with the reason, before anything is uploaded.
+ *
+ * It also lists the scene's exits, with a way to remove each and a form to add one
+ * (a label, which other scene it leads to, and where it is, in pixels from the top
+ * left). That form is the keyboard route to what a right click on the map does
+ * (`ExitMenu.vue`), and the only one that can put an exit at an exact spot.
  */
 import { MAX_SCENE_PIXELS, type Scene } from '@hearthtable/core';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import {
   ACCEPTED_IMAGE_TYPES,
@@ -23,8 +28,47 @@ import {
 } from '../../api/assets.js';
 import { readImageSize } from './imageSize.js';
 
-const props = defineProps<{ scene: Scene; worldId: string }>();
-const emit = defineEmits<{ change: [changes: Record<string, unknown>] }>();
+const props = defineProps<{
+  scene: Scene;
+  worldId: string;
+  /** Every scene but this one: what an exit can lead to. */
+  others?: readonly { id: string; name: string }[];
+}>();
+const emit = defineEmits<{
+  change: [changes: Record<string, unknown>];
+  addExit: [exit: { label: string; x: number; y: number; targetSceneId: string }];
+  removeExit: [linkId: string];
+}>();
+
+const targets = computed(() => props.others ?? []);
+const exitLabel = ref('');
+const exitTarget = ref('');
+/** Blank means the middle of the scene. */
+const exitX = ref<number | ''>('');
+const exitY = ref<number | ''>('');
+
+function nameOf(sceneId: string): string {
+  return (
+    targets.value.find((other) => other.id === sceneId)?.name ?? 'a scene that is gone'
+  );
+}
+
+function submitExit(): void {
+  const label = exitLabel.value.trim();
+  const targetSceneId = exitTarget.value || targets.value[0]?.id;
+  if (label === '' || targetSceneId === undefined) {
+    return;
+  }
+  emit('addExit', {
+    label,
+    targetSceneId,
+    x: Math.round(typeof exitX.value === 'number' ? exitX.value : props.scene.width / 2),
+    y: Math.round(typeof exitY.value === 'number' ? exitY.value : props.scene.height / 2),
+  });
+  exitLabel.value = '';
+  exitX.value = '';
+  exitY.value = '';
+}
 
 const accept = ACCEPTED_IMAGE_TYPES.join(',');
 const busy = ref(false);
@@ -174,6 +218,72 @@ async function onPick(event: Event): Promise<void> {
       </p>
     </fieldset>
 
+    <fieldset class="exits">
+      <legend>Exits</legend>
+      <p class="hint">
+        An exit is a door to another scene. On the map, right-click empty ground to add
+        one there, or use this form.
+      </p>
+      <ul v-if="scene.links.length > 0">
+        <li v-for="link in scene.links" :key="link.id">
+          <span>{{ link.label }} to {{ nameOf(link.targetSceneId) }}</span>
+          <button
+            type="button"
+            :aria-label="`Remove the exit ${link.label}`"
+            @click="emit('removeExit', link.id)"
+          >
+            Remove
+          </button>
+        </li>
+      </ul>
+      <p v-else class="hint">No exits yet.</p>
+
+      <p v-if="targets.length === 0" class="hint">
+        Make another scene to add an exit that leads to it.
+      </p>
+      <form v-else @submit.prevent="submitExit">
+        <p>
+          <label :for="`exit-label-${scene.id}`">Exit label</label>
+          <input
+            :id="`exit-label-${scene.id}`"
+            v-model="exitLabel"
+            type="text"
+            maxlength="100"
+            required
+          />
+        </p>
+        <p>
+          <label :for="`exit-target-${scene.id}`">Leads to</label>
+          <select :id="`exit-target-${scene.id}`" v-model="exitTarget">
+            <option v-for="other in targets" :key="other.id" :value="other.id">
+              {{ other.name }}
+            </option>
+          </select>
+        </p>
+        <p>
+          <label :for="`exit-x-${scene.id}`">Across (pixels)</label>
+          <input
+            :id="`exit-x-${scene.id}`"
+            v-model.number="exitX"
+            type="number"
+            min="0"
+            :max="scene.width"
+            :placeholder="String(Math.round(scene.width / 2))"
+          />
+          <label :for="`exit-y-${scene.id}`">Down (pixels)</label>
+          <input
+            :id="`exit-y-${scene.id}`"
+            v-model.number="exitY"
+            type="number"
+            min="0"
+            :max="scene.height"
+            :placeholder="String(Math.round(scene.height / 2))"
+          />
+        </p>
+        <button type="submit">Add exit</button>
+      </form>
+    </fieldset>
+
     <fieldset>
       <legend>Grid</legend>
       <p class="hint">
@@ -267,6 +377,22 @@ fieldset {
   margin: var(--space-3) 0;
   border: 1px solid var(--color-border);
   border-radius: 4px;
+}
+
+.exits ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.exits li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .map-thumb {

@@ -96,6 +96,13 @@ async function remove(sceneId: string): Promise<void> {
   await scenes.send('scene.delete', { sceneId });
 }
 
+/** Adds or removes an exit on the scene being edited. */
+function sendLink(type: 'scene.addLink' | 'scene.removeLink', fields: object): void {
+  if (editingId.value !== undefined) {
+    void scenes.send(type, { sceneId: editingId.value, ...fields });
+  }
+}
+
 function change(changes: Record<string, unknown>): void {
   if (editingId.value !== undefined) {
     void scenes.send('scene.update', { sceneId: editingId.value, changes });
@@ -160,7 +167,15 @@ function change(changes: Record<string, unknown>): void {
     </ul>
     <p v-else class="empty">No scenes yet. Make one below.</p>
 
-    <SceneEditor v-if="editing" :scene="editing" :world-id="worldId" @change="change" />
+    <SceneEditor
+      v-if="editing"
+      :scene="editing"
+      :world-id="worldId"
+      :others="scenes.scenes.filter((scene) => scene.id !== editing?.id)"
+      @change="change"
+      @add-exit="(exit) => sendLink('scene.addLink', exit)"
+      @remove-exit="(linkId) => sendLink('scene.removeLink', { linkId })"
+    />
 
     <form class="new-scene" @submit.prevent="create">
       <p>

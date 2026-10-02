@@ -52,6 +52,11 @@
  * listed beside the tokens. Pressing one (or its list button) asks "Move the party
  * to <scene>?", and yes sends `scene.activate`, arriving at the target's own exit
  * back to this scene if it has one. The players' screens follow.
+ *
+ * **Making and removing exits** (GM, `ExitMenu.vue`): right-click empty ground (or
+ * press the Menu key / Shift+F10 with no token selected, for the middle of the
+ * view) to add an exit there, and right-click an exit's marker to remove it. The
+ * scene's settings have the same two as a form.
  */
 import type { Application } from 'pixi.js';
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
@@ -72,6 +77,7 @@ import MapCanvas from './MapCanvas.vue';
 import { gridForScene } from './mapGrid.js';
 import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
+import ExitMenu from './ExitMenu.vue';
 import { ACTOR_DRAG_TYPE, type Covered, viewCentre } from './placement.js';
 import {
   arrivalPoint,
@@ -295,6 +301,7 @@ function onPointerDown(event: PointerEvent): void {
     return;
   }
   menu.value = undefined;
+  exitMenu.value = undefined;
   surface.value?.focus();
   const point = sample(event);
   const hit = tokenAt(
@@ -457,19 +464,84 @@ const menuToken = computed(() =>
 /** How big the menu is allowed to be, so it can be kept inside the map when it opens near an edge. */
 const MENU_ROOM = { width: 220, height: 180 };
 
+/** Where a pop-up for something at `screen` sits: just beside it, and kept inside the map. */
+function menuSpot(screen: Point): { x: number; y: number } {
+  const room = viewportSize();
+  return {
+    x: Math.max(0, Math.min(screen.x + 12, room.width - MENU_ROOM.width)),
+    y: Math.max(0, Math.min(screen.y + 12, room.height - MENU_ROOM.height)),
+  };
+}
+
 function openMenu(token: TokenView): void {
   const scene = scenes.shownScene;
   if (lobby.mySeat?.isGM !== true || scene === undefined) {
     return;
   }
   const at = sceneToScreen(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), token);
-  const room = viewportSize();
-  menu.value = {
-    tokenId: token.id,
-    x: Math.max(0, Math.min(at.x + 12, room.width - MENU_ROOM.width)),
-    y: Math.max(0, Math.min(at.y + 12, room.height - MENU_ROOM.height)),
-  };
+  menu.value = { tokenId: token.id, ...menuSpot(at) };
   selectedId.value = token.id;
+}
+
+/** The open exit pop-up: adding an exit at `at` (scene pixels), or removing `exitId`; and where it sits. */
+const exitMenu = ref<{
+  mode: 'add' | 'remove';
+  x: number;
+  y: number;
+  at: Point;
+  exitId?: string;
+}>();
+const menuExit = computed(() =>
+  exits.value.find((exit) => exit.id === exitMenu.value?.exitId),
+);
+/** An exit leads to a different scene, so these are the choices. */
+const exitTargets = computed(() =>
+  scenes.scenes
+    .filter((scene) => scene.id !== scenes.shownScene?.id)
+    .map((scene) => ({ id: scene.id, name: scene.name })),
+);
+
+function openAddExit(at: Point, screen: Point): void {
+  if (lobby.mySeat?.isGM === true && scenes.shownScene !== undefined) {
+    exitMenu.value = { mode: 'add', at, ...menuSpot(screen) };
+  }
+}
+
+function closeExitMenu(): void {
+  if (exitMenu.value !== undefined) {
+    exitMenu.value = undefined;
+    surface.value?.focus();
+  }
+}
+
+async function addExit(label: string, targetSceneId: string): Promise<void> {
+  const scene = scenes.shownScene;
+  const open = exitMenu.value;
+  closeExitMenu();
+  if (scene === undefined || open === undefined) {
+    return;
+  }
+  const accepted = await scenes.send('scene.addLink', {
+    sceneId: scene.id,
+    label,
+    x: Math.round(open.at.x),
+    y: Math.round(open.at.y),
+    targetSceneId,
+  });
+  if (accepted) {
+    announcement.value = `Exit ${label} added.`;
+  }
+}
+
+async function removeExit(): Promise<void> {
+  const scene = scenes.shownScene;
+  const exit = menuExit.value;
+  closeExitMenu();
+  if (scene !== undefined && exit !== undefined) {
+    if (await scenes.send('scene.removeLink', { sceneId: scene.id, linkId: exit.id })) {
+      announcement.value = `Exit ${exit.label} removed.`;
+    }
+  }
 }
 
 function closeMenu(): void {
@@ -506,19 +578,35 @@ function onContextMenu(event: MouseEvent): void {
   if (lobby.mySeat?.isGM !== true) {
     return;
   }
-  if (menu.value !== undefined) {
+  if (menu.value !== undefined || exitMenu.value !== undefined) {
     // The Menu key opened it on key down; the browser's own menu would follow.
     event.preventDefault();
     return;
   }
+  const scene = scenes.shownScene;
   const point = sample(event as PointerEvent);
-  const hit = tokenAt(
-    views.value,
-    screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
-  );
+  const at = screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point);
+  const hit = tokenAt(views.value, at);
   if (hit !== undefined) {
     event.preventDefault();
     openMenu(hit);
+    return;
+  }
+  const exit = exitAt(exits.value, at, exitRadius(scene?.grid.size ?? 100));
+  if (exit !== undefined) {
+    event.preventDefault();
+    exitMenu.value = { mode: 'remove', at, exitId: exit.id, ...menuSpot(point) };
+    return;
+  }
+  if (
+    scene !== undefined &&
+    at.x >= 0 &&
+    at.y >= 0 &&
+    at.x <= scene.width &&
+    at.y <= scene.height
+  ) {
+    event.preventDefault();
+    openAddExit(at, point);
   }
 }
 
@@ -601,11 +689,19 @@ function onKeyDown(event: KeyboardEvent): void {
   }
   if (
     (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) &&
-    selectedView.value !== undefined &&
     lobby.mySeat?.isGM === true
   ) {
     event.preventDefault();
-    openMenu(selectedView.value);
+    if (selectedView.value !== undefined) {
+      openMenu(selectedView.value);
+    } else if (scenes.shownScene !== undefined && camera !== undefined) {
+      // Nothing selected: an exit in the middle of what is on screen.
+      const room = viewportSize();
+      openAddExit(viewCentre(camera, room, scenes.shownScene), {
+        x: room.width / 2,
+        y: room.height / 2,
+      });
+    }
     return;
   }
   const direction = ARROW_DIRECTIONS[event.key];
@@ -731,6 +827,18 @@ onBeforeUnmount(() => {
       @keydown="onKeyDown"
     >
       <MapCanvas @ready="onReady" />
+      <ExitMenu
+        v-if="exitMenu && (exitMenu.mode === 'add' || menuExit)"
+        :key="`${exitMenu.mode}-${exitMenu.exitId ?? ''}`"
+        :mode="exitMenu.mode"
+        :x="exitMenu.x"
+        :y="exitMenu.y"
+        :targets="exitTargets"
+        :exit="menuExit"
+        @close="closeExitMenu"
+        @add="addExit"
+        @remove="removeExit"
+      />
       <TokenMenu
         v-if="menu && menuToken"
         :key="menu.tokenId"
