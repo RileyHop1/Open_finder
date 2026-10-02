@@ -135,6 +135,14 @@ client server in production.
   arriving at the target's own exit back to this scene if it has one, then shows
   the party's scene again. A link to a scene that is gone is listed as such and
   cannot be used. Players are never shown exits. **Built.**
+- **The ruler** (`components/map/ruler.ts`, `sceneView.ts`, `TokenList.vue`) -- **M** or
+  the Ruler button turns it on for anyone; each click adds a point (snapped to the
+  middle of its cell) and the distance along the route, by the scene's grid rules
+  (PF2e diagonals 5, 10, 5...; straight feet on a gridless scene), follows the
+  pointer. Backspace takes a point back; M or Escape puts it away. It is drawn
+  on this screen only and never sent. The keyboard equivalent is in the token list:
+  with a token selected, every other token says "N ft away".
+  **Built.**
 - **Making and removing exits** (`components/map/ExitMenu.vue`, the Exits section of
   `scenes/SceneEditor.vue`) -- the GM right-clicks empty ground on the map to add
   an exit there (a label and which *other* scene it leads to), or an exit's marker
