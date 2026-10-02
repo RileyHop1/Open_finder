@@ -12,7 +12,12 @@
  * Unarmed strikes are not modeled yet, and the empty state says so.
  */
 import type { Actor } from '@hearthtable/core';
-import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
+import {
+  characterDataSchema,
+  npcDataSchema,
+  prepareCharacter,
+  prepareNpc,
+} from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
 import { signed } from './format.js';
@@ -25,9 +30,24 @@ const emit = defineEmits<{
 
 const ATTACK_LABELS = ['1st', '2nd', '3rd'] as const;
 
+/**
+ * What a roll names: a character's strike by its weapon's item id, a monster's by
+ * its strike key (`TableView` sends `itemId` or `strikeKey` to match).
+ */
 const strikes = computed(() => {
+  if (props.actor.kind === 'npc') {
+    const npc = npcDataSchema.safeParse(props.actor.system);
+    return npc.success
+      ? prepareNpc(npc.data).strikes.map((strike) => ({ ...strike, id: strike.key }))
+      : [];
+  }
   const parsed = characterDataSchema.safeParse(props.actor.system);
-  return parsed.success ? prepareCharacter(parsed.data).strikes : [];
+  return parsed.success
+    ? prepareCharacter(parsed.data).strikes.map((strike) => ({
+        ...strike,
+        id: strike.itemId,
+      }))
+    : [];
 });
 
 /** "1d8+4 slashing": what a damage roll will roll, so the player sees it before pressing. */
@@ -40,7 +60,10 @@ function dice(components: readonly { expression: string; damageType: string }[])
   <section class="strikes" aria-labelledby="strikes-heading">
     <h4 id="strikes-heading">Strikes</h4>
 
-    <p v-if="strikes.length === 0" class="empty">
+    <p v-if="strikes.length === 0 && actor.kind === 'npc'" class="empty">
+      This monster has no strikes.
+    </p>
+    <p v-else-if="strikes.length === 0" class="empty">
       No equipped weapon. Equip one under Items to strike with it. (Unarmed strikes are
       not modeled yet.)
     </p>
@@ -55,7 +78,7 @@ function dice(components: readonly { expression: string; damageType: string }[])
               v-if="rollable"
               type="button"
               :aria-label="`Roll ${strike.name} ${ATTACK_LABELS[index]} attack, ${signed(attack.total)}`"
-              @click="emit('attack', strike.itemId, (index + 1) as 1 | 2 | 3)"
+              @click="emit('attack', strike.id, (index + 1) as 1 | 2 | 3)"
             >
               {{ ATTACK_LABELS[index] }} {{ signed(attack.total) }}
             </button>
@@ -71,14 +94,14 @@ function dice(components: readonly { expression: string; damageType: string }[])
           <button
             type="button"
             :aria-label="`Roll ${strike.name} damage`"
-            @click="emit('damage', strike.itemId, false)"
+            @click="emit('damage', strike.id, false)"
           >
             Damage
           </button>
           <button
             type="button"
             :aria-label="`Roll ${strike.name} critical damage`"
-            @click="emit('damage', strike.itemId, true)"
+            @click="emit('damage', strike.id, true)"
           >
             Critical damage
           </button>

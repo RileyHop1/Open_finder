@@ -40,6 +40,7 @@ import { useDrawer } from './useDrawer.js';
 import PartyBar from './PartyBar.vue';
 import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
+import NpcSheet from './sheet/NpcSheet.vue';
 import ConditionsPanel from './sheet/ConditionsPanel.vue';
 import PortraitPicker from './sheet/PortraitPicker.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
@@ -80,6 +81,11 @@ function roll(type: string, payload: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
     void documents.send(type, { actorId: selectedId.value, ...payload });
   }
+}
+
+/** A strike is named by its weapon's item id on a character and by its stat-block key on a monster. */
+function strikeTarget(id: string): { itemId: string } | { strikeKey: string } {
+  return selected.value?.kind === 'npc' ? { strikeKey: id } : { itemId: id };
 }
 
 /** Condition changes are server logic (merging a second source, clearing what a condition supersedes), so they are sent and shown when the broadcast returns. */
@@ -409,7 +415,7 @@ async function handleCreate(): Promise<void> {
             </form>
 
             <section v-if="selected" class="sheet" aria-label="Character sheet">
-              <p v-if="canEdit && selected.kind === 'character'" class="roll-dc">
+              <p v-if="canEdit" class="roll-dc">
                 <label for="roll-dc">DC to roll against (optional)</label>
                 <input id="roll-dc" v-model.number="dc" type="number" min="0" max="99" />
               </p>
@@ -424,12 +430,22 @@ async function handleCreate(): Promise<void> {
                 @clear="saveChanges({ portrait: null })"
               />
               <HitPointsPanel
-                v-if="selected.kind === 'character'"
+                v-if="selected.kind === 'character' || selected.kind === 'npc'"
                 :actor="selected"
                 :editable="canEdit"
                 @change="saveChanges"
               />
+              <NpcSheet
+                v-if="selected.kind === 'npc'"
+                :actor="selected"
+                :rollable="canEdit"
+                @change="saveChanges"
+                @roll="
+                  (statistic) => roll('actor.rollCheck', { statistic, ...dcPayload })
+                "
+              />
               <CharacterSheet
+                v-else
                 :actor="selected"
                 :editable="canEdit"
                 :rollable="canEdit"
@@ -439,19 +455,24 @@ async function handleCreate(): Promise<void> {
                 "
               />
               <StrikesPanel
-                v-if="selected.kind === 'character'"
+                v-if="selected.kind === 'character' || selected.kind === 'npc'"
                 :actor="selected"
                 :rollable="canEdit"
                 @attack="
-                  (itemId, attackNumber) =>
-                    roll('actor.rollStrike', { itemId, attackNumber, ...dcPayload })
+                  (id, attackNumber) =>
+                    roll('actor.rollStrike', {
+                      ...strikeTarget(id),
+                      attackNumber,
+                      ...dcPayload,
+                    })
                 "
                 @damage="
-                  (itemId, critical) => roll('actor.rollDamage', { itemId, critical })
+                  (id, critical) =>
+                    roll('actor.rollDamage', { ...strikeTarget(id), critical })
                 "
               />
               <ConditionsPanel
-                v-if="selected.kind === 'character'"
+                v-if="selected.kind === 'character' || selected.kind === 'npc'"
                 :key="`conditions-${contentVersion}`"
                 :actor="selected"
                 :editable="canEdit"

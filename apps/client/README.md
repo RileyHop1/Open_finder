@@ -128,6 +128,17 @@ client server in production.
   browser shows, so a scene being built in a preview gets its tokens before the
   players are there. The server sizes and snaps it; it appears when the
   broadcast arrives, and a screen reader is told. **Built.**
+- **The monster sheet** (`components/sheet/NpcSheet.vue`, and the NPC branches of
+  `HitPointsPanel`, `ConditionsPanel`, `StrikesPanel`) -- opened by the GM from a
+  monster's token (the list's Sheet button) or the roster. The stat block's finished
+  numbers come from `prepareNpc`, the same code the server rolls with, so a
+  condition already shows in the totals; every statistic but Armor Class has a
+  Roll (`actor.rollCheck`, against the DC box), strikes roll by their stat-block key
+  (`strikeKey`) for the 1st, 2nd, and 3rd attack and for damage and critical damage,
+  and hit points take Damage, Heal, and Temp HP like a character's plus a **Set
+  current hit points** box as the GM's override. Conditions are the shared panel.
+  Players never receive a monster's actor, so there is nothing to show them.
+  **Built.**
 - **Adding a monster** (`components/scenes/MonsterPicker.vue`, `TableView.vue`) -- in the
   Characters drawer, GM only: **Add a monster** searches the imported creatures
   (Monster Core) by name and each result has **Add to map**. The client only names

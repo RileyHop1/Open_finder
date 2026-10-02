@@ -19,14 +19,21 @@ import {
   characterDataSchema,
   grantTemporaryHitPoints,
   type HitPointState,
+  npcDataSchema,
   prepareCharacter,
+  prepareNpc,
 } from '@hearthtable/pf2e';
 import { computed, ref } from 'vue';
 
 const props = defineProps<{ actor: Actor; editable?: boolean }>();
 const emit = defineEmits<{ change: [changes: Record<string, number>] }>();
 
+/** A character's or a monster's hit points: both store `system.hp.current` and `.temp`, and prepare a maximum. */
 const prepared = computed(() => {
+  if (props.actor.kind === 'npc') {
+    const npc = npcDataSchema.safeParse(props.actor.system);
+    return npc.success ? prepareNpc(npc.data) : undefined;
+  }
   const parsed = characterDataSchema.safeParse(props.actor.system);
   return parsed.success ? prepareCharacter(parsed.data) : undefined;
 });
