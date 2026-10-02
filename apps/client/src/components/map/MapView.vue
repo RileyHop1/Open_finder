@@ -47,9 +47,14 @@
  * press the Menu key or Shift+F10, to hide or show it, rename or resize it, or
  * remove it from the map. It closes on Escape (focus goes back to the map), on a
  * click elsewhere, and when its token goes away.
+ *
+ * **Exits** (GM, `exitModel.ts`): a scene's links are drawn as labelled markers and
+ * listed beside the tokens. Pressing one (or its list button) asks "Move the party
+ * to <scene>?", and yes sends `scene.activate`, arriving at the target's own exit
+ * back to this scene if it has one. The players' screens follow.
  */
 import type { Application } from 'pixi.js';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 
 import { assetUrl } from '../../api/assets.js';
 import { useDocumentsStore } from '../../stores/documents.js';
@@ -68,6 +73,13 @@ import { gridForScene } from './mapGrid.js';
 import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
 import { ACTOR_DRAG_TYPE, type Covered, viewCentre } from './placement.js';
+import {
+  arrivalPoint,
+  type ExitView,
+  exitAt,
+  exitRadius,
+  exitViews,
+} from './exitModel.js';
 import { createThrottle } from './throttle.js';
 import {
   canMoveToken,
@@ -203,6 +215,7 @@ const fetchingPortraits = new Set<string>();
 
 function drawTokens(): void {
   view?.setTokens(views.value, portraits, scenes.shownScene?.grid.size ?? 100);
+  view?.setExits(exits.value, scenes.shownScene?.grid.size ?? 100);
 }
 
 function loadPortraits(): void {
@@ -314,6 +327,15 @@ function onPointerDown(event: PointerEvent): void {
     }
     return;
   }
+  const pressed = exitAt(
+    exits.value,
+    screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
+    exitRadius(scenes.shownScene?.grid.size ?? 100),
+  );
+  if (pressed !== undefined) {
+    void askExit(pressed.id);
+    return;
+  }
   surface.value?.setPointerCapture(event.pointerId);
   input.pointerDown(point);
   dragging.value = true;
@@ -377,6 +399,53 @@ function onPointerUp(event: PointerEvent): void {
   }
   input.pointerUp(sample(event));
   dragging.value = input.dragging;
+}
+
+/** The scene's exits: only the GM moves the party, so only the GM is shown them. */
+const exits = computed(() =>
+  lobby.mySeat?.isGM === true ? exitViews(scenes.shownScene, scenes.scenes) : [],
+);
+
+/** The exit the GM has pressed, while "Move the party?" waits for an answer. */
+const pendingExit = ref<ExitView>();
+const exitMove = useTemplateRef<HTMLElement>('exitMove');
+
+async function askExit(exitId: string): Promise<void> {
+  pendingExit.value = exits.value.find((exit) => exit.id === exitId);
+  await nextTick();
+  exitMove.value?.focus();
+  // A press on the map is followed by the browser moving focus to the map itself, so look again a beat later.
+  globalThis.setTimeout(() => exitMove.value?.focus(), 0);
+}
+
+function cancelExit(): void {
+  if (pendingExit.value !== undefined) {
+    pendingExit.value = undefined;
+    surface.value?.focus();
+  }
+}
+
+async function confirmExit(): Promise<void> {
+  const exit = pendingExit.value;
+  const from = scenes.shownScene;
+  if (exit === undefined || from === undefined) {
+    return;
+  }
+  pendingExit.value = undefined;
+  const at = arrivalPoint(
+    scenes.scenes.find((scene) => scene.id === exit.targetSceneId),
+    from.id,
+  );
+  const accepted = await scenes.send('scene.activate', {
+    sceneId: exit.targetSceneId,
+    ...(at === undefined ? {} : { at }),
+  });
+  if (accepted) {
+    // The party is there now, so there is nothing left to preview.
+    scenes.previewScene(undefined);
+    announcement.value = `The party moved to ${exit.targetName ?? 'the next scene'}.`;
+  }
+  surface.value?.focus();
 }
 
 /** The open token menu: whose, and where (pixels in the map). */
@@ -617,7 +686,7 @@ function release(): void {
 }
 
 // Tokens and the actors behind them change often (a drag preview, a rename): redraw only the tokens.
-watch([views, () => scenes.shownScene?.grid.size], () => {
+watch([views, exits, () => scenes.shownScene?.grid.size], () => {
   drawTokens();
   loadPortraits();
 });
@@ -710,8 +779,32 @@ onBeforeUnmount(() => {
       No scene is showing yet. When the GM moves the party to a scene, its map appears
       here.
     </p>
+    <div
+      v-if="pendingExit"
+      class="exit-confirm"
+      role="alertdialog"
+      aria-labelledby="exit-question"
+      @keydown.esc.stop="cancelExit"
+    >
+      <p id="exit-question">
+        Move the party to
+        <strong>{{ pendingExit.targetName ?? 'a scene that is gone' }}</strong
+        >?
+      </p>
+      <button
+        ref="exitMove"
+        type="button"
+        :disabled="pendingExit.targetName === undefined"
+        @click="confirmExit"
+      >
+        Move the party
+      </button>
+      <button type="button" @click="cancelExit">Cancel</button>
+    </div>
     <TokenList
       :views="views"
+      :exits="exits"
+      @exit="askExit"
       @select="selectFromList"
       @open="(actorId) => emit('openActor', actorId)"
     />
@@ -779,6 +872,31 @@ onBeforeUnmount(() => {
   padding: var(--space-4);
   color: var(--color-text-muted);
   text-align: center;
+}
+
+.exit-confirm {
+  position: absolute;
+  top: var(--space-2);
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transform: translateX(-50%);
+}
+
+.exit-confirm p {
+  margin: 0;
+}
+
+.exit-confirm button {
+  min-height: var(--touch-target-min);
 }
 
 .visually-hidden {

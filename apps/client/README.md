@@ -128,6 +128,14 @@ client server in production.
   browser shows, so a scene being built in a preview gets its tokens before the
   players are there. The server sizes and snaps it; it appears when the
   broadcast arrives, and a screen reader is told. **Built.**
+- **Exits** (`components/map/exitModel.ts`, `sceneView.ts`, `TokenList.vue`, `MapView.vue`) --
+  the GM's view of a scene's links: a labelled diamond marker on the map (a shape
+  and words, never colour alone) and a button for each in the keyboard list.
+  Pressing either asks **Move the party to <scene>?**; yes sends `scene.activate`,
+  arriving at the target's own exit back to this scene if it has one, then shows
+  the party's scene again. A link to a scene that is gone is listed as such and
+  cannot be used. Players are never shown exits. Adding and removing them is the
+  next PR. **Built.**
 - **The monster sheet** (`components/sheet/NpcSheet.vue`, and the NPC branches of
   `HitPointsPanel`, `ConditionsPanel`, `StrikesPanel`) -- opened by the GM from a
   monster's token (the list's Sheet button) or the roster. The stat block's finished
