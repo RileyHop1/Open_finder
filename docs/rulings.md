@@ -312,6 +312,28 @@ ruling from silently drifting.
 - **Override:** the GM sets or removes any condition directly
   (`setCondition` / `removeCondition`).
 
+### Two sources of a condition keep the longer duration
+- **Rules text:** Player Core says that if you are subject to the same valued
+  condition from more than one source, you use the **highest** value. It does not
+  say what happens to the *duration* when two sources overlap, or how a 3-round
+  effect compares with a 10-minute one.
+- **The ambiguity:** each source plausibly runs on its own clock, and a table that
+  tracks them separately would see the shorter one end first, leaving the other.
+- **Our reading:** a character holds one entry per condition (the model since
+  milestone 3), so the entry with the higher value brings its own duration. On an
+  equal value, or a condition with no value, the **longer-lasting** duration is
+  kept. Durations are compared in seconds: a round is 6, a `turn` counts as one
+  round, `sustained` as a minute, `untilRemoved` (or no duration) as forever, and
+  calendar kinds at face value. A condition applied again with no duration becomes
+  permanent.
+- **Alternative reading:** track each source separately, so a lower *frightened*
+  from a longer effect returns when the higher one ends.
+- **Why:** it matches the single-entry model with no new state, and a wrong number
+  here is a *longer* condition the GM can see and remove, not a hidden one.
+- **Override:** `setCondition` sets the value and the duration exactly, and
+  `removeCondition` removes it.
+- **Golden test:** `conditionMerge.test.ts`, "durations".
+
 ### Distance between tokens counts diagonals the same way
 - **Rules text:** Player Core's Grid Movement counts the first diagonal square
   of a turn as 5 feet, the second as 10, alternating, tracked across all the

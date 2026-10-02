@@ -195,3 +195,82 @@ describe('immutability', () => {
     expect(current).toEqual([frightened(1), { slug: 'observed' }]);
   });
 });
+
+describe('durations', () => {
+  const COMBATANT = '4b1e7c20-9d3a-4f6e-8c11-2a5d7e9f0b34';
+  const threeRounds = { type: 'rounds', remaining: 3 } as const;
+  const oneRound = { type: 'rounds', remaining: 1 } as const;
+  const tenMinutes = { type: 'minutes', remaining: 10 } as const;
+  const endOfTurn = { type: 'turn', combatantId: COMBATANT, boundary: 'end' } as const;
+  const timed = (
+    value: number,
+    duration: AppliedCondition['duration'],
+  ): AppliedCondition =>
+    duration === undefined ? frightened(value) : { slug: 'frightened', value, duration };
+
+  it('stores the duration a condition arrives with', () => {
+    expect(addCondition([], timed(2, threeRounds), DEFINITIONS)).toEqual([
+      timed(2, threeRounds),
+    ]);
+  });
+
+  it('brings the duration of the higher value, whichever arrives first', () => {
+    expect(addCondition([timed(1, tenMinutes)], timed(2, oneRound), DEFINITIONS)).toEqual(
+      [timed(2, oneRound)],
+    );
+    expect(addCondition([timed(2, oneRound)], timed(1, tenMinutes), DEFINITIONS)).toEqual(
+      [timed(2, oneRound)],
+    );
+  });
+
+  it('keeps the longer-lasting duration when the values are equal', () => {
+    expect(
+      addCondition([timed(2, oneRound)], timed(2, threeRounds), DEFINITIONS),
+    ).toEqual([timed(2, threeRounds)]);
+    expect(
+      addCondition([timed(2, tenMinutes)], timed(2, threeRounds), DEFINITIONS),
+    ).toEqual([timed(2, tenMinutes)]);
+  });
+
+  it('makes a timed condition permanent when the same one arrives with no duration', () => {
+    expect(addCondition([timed(2, threeRounds)], frightened(2), DEFINITIONS)).toEqual([
+      frightened(2),
+    ]);
+  });
+
+  it('is idempotent for a binary condition, and keeps a duration it already has', () => {
+    const once = addCondition([], { slug: 'prone', duration: endOfTurn }, DEFINITIONS);
+    expect(once).toEqual([{ slug: 'prone', duration: endOfTurn }]);
+    expect(
+      addCondition(once, { slug: 'prone', duration: endOfTurn }, DEFINITIONS),
+    ).toEqual(once);
+    expect(
+      addCondition(
+        once,
+        { slug: 'prone', duration: { type: 'rounds', remaining: 1 } },
+        DEFINITIONS,
+      ),
+    ).toEqual(once);
+  });
+
+  it('sets the duration exactly, including a shorter one, and clears it when none is given', () => {
+    expect(setCondition([timed(2, tenMinutes)], timed(2, oneRound), DEFINITIONS)).toEqual(
+      [timed(2, oneRound)],
+    );
+    expect(setCondition([timed(2, tenMinutes)], frightened(2), DEFINITIONS)).toEqual([
+      frightened(2),
+    ]);
+  });
+
+  it('removes a timed condition like any other', () => {
+    expect(removeCondition([timed(2, oneRound)], 'frightened')).toEqual([]);
+  });
+
+  it('does not touch the duration of a condition it merely supersedes or leaves alone', () => {
+    const current: AppliedCondition[] = [{ slug: 'prone', duration: endOfTurn }];
+    expect(addCondition(current, frightened(1), DEFINITIONS)).toEqual([
+      { slug: 'prone', duration: endOfTurn },
+      frightened(1),
+    ]);
+  });
+});

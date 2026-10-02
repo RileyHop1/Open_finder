@@ -214,6 +214,15 @@ export {
 } from './rules/applyRuleElements.js';
 
 export {
+  TURN_BOUNDARIES,
+  conditionDurationSchema,
+  type ConditionDuration,
+  type TurnBoundary,
+} from './content/conditionDuration.js';
+
+export { durationSeconds, longerDuration } from './rules/conditionDuration.js';
+
+export {
   appliedConditionSchema,
   characterAttributesSchema,
   characterDataSchema,
