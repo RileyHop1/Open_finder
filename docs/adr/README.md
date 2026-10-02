@@ -47,3 +47,4 @@ than a tidy file.
 | [0015](0015-compendium-read-side.md) | The compendium is loaded into memory at startup and served read-only | Accepted |
 | [0016](0016-in-app-content-import.md) | The GM imports the game content from inside the app | Accepted |
 | [0017](0017-scenes-and-tokens.md) | Scenes and tokens: separate documents, a party-owned current scene, drag previews outside the log | Accepted |
+| [0018](0018-combat-tracker.md) | Combat tracker: server-owned turn state, combatants as documents, expiry inside the turn operation | Accepted |
