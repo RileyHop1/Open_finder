@@ -10,6 +10,13 @@
  * The server's "active world" is process-wide state (`activeWorld.ts`), so
  * tests cannot run concurrently against one instance -- hence `workers: 1`
  * and a single shared `webServer` pair for the whole run, not one per test.
+ *
+ * **It never reuses a server that is already running** (`reuseExistingServer:
+ * false`). A contributor's own dev server on these ports is serving their real
+ * `worlds/` folder, and a spec that created and *activated* campaigns there
+ * would litter it and switch the active campaign out from under them. With a
+ * dev server running the run stops with "port already used" instead; stop it
+ * first.
  */
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,7 +51,7 @@ export default defineConfig({
       command: 'pnpm --filter @hearthtable/server exec tsx src/index.ts',
       cwd: repoRoot,
       url: `${SERVER_URL}/api/worlds`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
       // No compendium: the suite must not depend on whatever a contributor
       // happens to have imported locally (golden tests are hermetic for the same reason, ADR 0013).
@@ -61,7 +68,7 @@ export default defineConfig({
         'pnpm --filter @hearthtable/client exec vite --host 127.0.0.1 --port 5173 --strictPort',
       cwd: repoRoot,
       url: CLIENT_URL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
     },
   ],
