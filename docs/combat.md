@@ -64,6 +64,27 @@ order" field (two sort keys to keep consistent); the midpoint keeps one key and 
 tie rule untouched. The turn pointer is an id, so moving someone, even the active
 combatant, never moves the turn onto the wrong creature.
 
+### How a reorder picks the numbers
+`placeCombatant(sorted, moverId, beforeId)` (`systems/pf2e/src/rules/initiativeReorder.ts`)
+turns "move this one before that one" (or "last") into the initiative changes that
+make the derived order come out that way. It is pure and returns only what changed.
+
+- **Room between the neighbours:** the mover takes the midpoint (14.5 between a 15
+  and a 14).
+- **The ends:** one above the first to go first, one below the last rolled to go last.
+- **A tie:** no number lies strictly between two equal ones, so the tied group,
+  mover included, is spread evenly across the gap up to the next higher initiative,
+  keeping its current order and leaving its last member's number alone. A few
+  neighbours' numbers change; the order is preserved.
+- **An unrolled combatant** gets a number by being placed among the rolled. But a
+  place *among the unrolled* cannot be chosen (they have no number to sit between),
+  so the server asks the GM to roll first.
+- **When it cannot:** it returns nothing for that place (after about fifty moves into
+  one gap, or at the edge of the allowed range), and the server tells the GM to set
+  the initiative directly. It never misorders silently.
+- Moving a combatant to the place it already holds changes nothing, and moving the
+  active combatant is safe: the turn pointer is an id.
+
 ## The turn bar
 The order is shown as a row of **token portraits across the top of the map**, in turn
 order, and it **shifts as turns pass**: the first portrait is always the combatant
