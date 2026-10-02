@@ -34,6 +34,12 @@ it, the same two commands the root README's Quick start has a contributor run
 by hand -- against a throwaway temp `worlds/` folder, so nothing here ever
 touches a real campaign. There is nothing to start yourself first.
 
+It **never reuses a server that is already running**: a dev server of your own
+on those ports serves your real `worlds/` folder, and the specs create and activate
+campaigns, which would litter it and switch your active campaign. If one is
+running the run stops with "port already used"; stop it first (and start it again
+afterwards).
+
 ## How it fits
 
 Depends on nothing else in the workspace; it only ever talks to
