@@ -13,7 +13,7 @@
  * accepts any well-formed one until definitions exist (`docs/conditions.md`).
  */
 import type { Actor } from '@hearthtable/core';
-import { characterDataSchema } from '@hearthtable/pf2e';
+import { characterDataSchema, npcDataSchema } from '@hearthtable/pf2e';
 import { computed, onMounted, ref } from 'vue';
 
 import { type EntrySummary, searchCompendium } from '../../api/compendium.js';
@@ -28,7 +28,9 @@ const emit = defineEmits<{
 }>();
 
 const conditions = computed(() => {
-  const parsed = characterDataSchema.safeParse(props.actor.system);
+  const parsed = (
+    props.actor.kind === 'npc' ? npcDataSchema : characterDataSchema
+  ).safeParse(props.actor.system);
   return parsed.success ? parsed.data.conditions : [];
 });
 

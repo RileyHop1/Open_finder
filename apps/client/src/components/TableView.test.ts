@@ -14,6 +14,7 @@ import { useConnectionStore } from '../stores/connection.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
 import { ACTOR_DRAG_TYPE } from './map/placement.js';
+import { makeNpc } from './sheet/testNpc.js';
 import TableView from './TableView.vue';
 
 // The lobby store (releasing a seat) and the chat panel are other components'
@@ -529,6 +530,105 @@ describe('adding a monster', () => {
     const wrapper = await openPicker(false);
     expect(addButton(wrapper).attributes('disabled')).toBeDefined();
     expect(wrapper.get('details.monster-picker').text()).toContain('Make a scene');
+  });
+});
+
+describe('a monster’s sheet', () => {
+  const gm: Seat = {
+    id: crypto.randomUUID(),
+    worldId: WORLD,
+    schemaVersion: 1,
+    name: 'GM',
+    isGM: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+
+  async function openMonster() {
+    mySeat = gm;
+    const monster = makeNpc({ worldId: WORLD });
+    vi.mocked(documentsApi.listActors).mockResolvedValue([monster]);
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const wrapper = await mountTable();
+    await wrapper.get('.roster button').trigger('click');
+    return { wrapper, monster };
+  }
+
+  it('shows the stat block, hit points, strikes, and conditions, and no character-only panels', async () => {
+    const { wrapper } = await openMonster();
+    const sheet = wrapper.get('.sheet');
+    expect(sheet.text()).toContain('Creature 3');
+    expect(sheet.text()).toContain('45 / 45');
+    expect(sheet.text()).toContain('Vine');
+    expect(sheet.find('section[aria-labelledby="conditions-heading"]').exists()).toBe(
+      true,
+    );
+    expect(sheet.find('section[aria-labelledby="inventory-heading"]').exists()).toBe(
+      false,
+    );
+  });
+
+  it('rolls a statistic for the monster, against the DC typed', async () => {
+    const { wrapper, monster } = await openMonster();
+    vi.mocked(emitOperation).mockClear();
+    await wrapper.get('#roll-dc').setValue('20');
+    await wrapper.get('button[aria-label="Roll Athletics"]').trigger('click');
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.rollCheck',
+      payload: { actorId: monster.id, statistic: 'skill:athletics', dc: 20 },
+    });
+  });
+
+  it('rolls a strike by its stat-block key, never an item id', async () => {
+    const { wrapper, monster } = await openMonster();
+    vi.mocked(emitOperation).mockClear();
+    await wrapper.get('button[aria-label^="Roll Vine 1st attack"]').trigger('click');
+    await wrapper.get('button[aria-label="Roll Vine damage"]').trigger('click');
+    const [attack, damage] = vi.mocked(emitOperation).mock.calls.map((call) => call[1]);
+    expect(attack).toMatchObject({
+      type: 'actor.rollStrike',
+      payload: { actorId: monster.id, strikeKey: 'strike:vine', attackNumber: 1 },
+    });
+    expect(attack?.payload).not.toHaveProperty('itemId');
+    expect(damage).toMatchObject({
+      type: 'actor.rollDamage',
+      payload: { actorId: monster.id, strikeKey: 'strike:vine', critical: false },
+    });
+  });
+
+  it('sets hit points directly as the GM’s override', async () => {
+    const { wrapper, monster } = await openMonster();
+    vi.mocked(emitOperation).mockClear();
+    const field = wrapper.get('.npc-sheet input[type="number"]');
+    (field.element as HTMLInputElement).value = '12';
+    await field.trigger('change');
+    await flushPromises();
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.update',
+      payload: { actorId: monster.id, changes: { 'system.hp.current': 12 } },
+    });
+  });
+
+  it('adds a condition to the monster through the shared conditions panel', async () => {
+    vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
+      {
+        packId: 'conditions',
+        slug: 'frightened',
+        name: 'Frightened',
+        kind: 'condition',
+        traits: [],
+      },
+    ]);
+    const { wrapper, monster } = await openMonster();
+    vi.mocked(emitOperation).mockClear();
+    const panel = wrapper.get('section[aria-labelledby="conditions-heading"]');
+    await panel.get('#condition-pick').setValue('frightened');
+    await panel.get('form').trigger('submit');
+    await flushPromises();
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.addCondition',
+      payload: { actorId: monster.id, slug: 'frightened' },
+    });
   });
 });
 
