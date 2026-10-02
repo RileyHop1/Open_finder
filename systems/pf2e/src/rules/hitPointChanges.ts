@@ -6,7 +6,7 @@
  *
  * - **Damage** is taken from temporary hit points first, then from current hit
  *   points, which stop at 0. Going unconscious, dying, and wounded at 0 are
- *   the combat tracker's (milestone 5); this only moves the numbers.
+ *   `dyingChain.ts`'s; this only moves the numbers.
  * - **Healing** raises current hit points, never above the maximum, and does
  *   not touch temporary hit points.
  * - **Temporary hit points do not stack**: gaining some when you already have
