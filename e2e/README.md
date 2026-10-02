@@ -14,6 +14,15 @@ a condition lowers a skill on both screens, and the player's roll lands as the
 same card in both chats. A hidden actor never reaching a player is **not** here:
 there is no UI to hide one yet, so the server's socket tests hold that.
 
+Milestone 4's flow is `tests/scenes-and-tokens.spec.ts`: a GM builds two scenes and
+an exit between them, moves the party in, and places two characters; the player moves
+their own token by the keyboard (the token list's route, since the map is a canvas),
+and the GM's screen shows the new distance. A character the GM owns will not move for
+the player, only the GM sees exits, and taking one moves the party on both screens. A
+compendium monster is **not** used: the config's compendium is empty on purpose, and
+ownership is the same rule for a GM-owned character; the server's `tokens.test.ts`
+holds the creature half.
+
 `tests/helpers.ts` holds the shared steps. The server's active world is
 process-wide and nothing deactivates it, so only the first spec of a run finds
 the campaign list; `createAndActivateCampaign` drives the UI when it can and
