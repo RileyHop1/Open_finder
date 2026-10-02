@@ -42,6 +42,11 @@
  * a token there, and `placeAtCentre` (for the roster's "Place on map" button, the
  * keyboard route to the same thing) puts one in the middle of what can be seen.
  * The server sizes and snaps it; it appears when the broadcast arrives.
+ *
+ * **The token menu** (GM, `TokenMenu.vue`): right-click a token, or select one and
+ * press the Menu key or Shift+F10, to hide or show it, rename or resize it, or
+ * remove it from the map. It closes on Escape (focus goes back to the map), on a
+ * click elsewhere, and when its token goes away.
  */
 import type { Application } from 'pixi.js';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -64,9 +69,16 @@ import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
 import { ACTOR_DRAG_TYPE, type Covered, viewCentre } from './placement.js';
 import { createThrottle } from './throttle.js';
-import { canMoveToken, describeToken, tokenAt, tokenViews } from './tokenModel.js';
+import {
+  canMoveToken,
+  describeToken,
+  tokenAt,
+  type TokenView,
+  tokenViews,
+} from './tokenModel.js';
 import { ARROW_DIRECTIONS, type Direction, dragTarget, stepToken } from './tokenStep.js';
 import TokenList from './TokenList.vue';
+import TokenMenu from './TokenMenu.vue';
 
 /** A portrait is a small picture in a circle: this is more than enough, and keeps a big upload from costing GPU memory. */
 const PORTRAIT_TEXTURE_SIZE = 256;
@@ -269,6 +281,7 @@ function onPointerDown(event: PointerEvent): void {
   if (event.button !== 0 && event.button !== 1) {
     return;
   }
+  menu.value = undefined;
   surface.value?.focus();
   const point = sample(event);
   const hit = tokenAt(
@@ -366,6 +379,80 @@ function onPointerUp(event: PointerEvent): void {
   dragging.value = input.dragging;
 }
 
+/** The open token menu: whose, and where (pixels in the map). */
+const menu = ref<{ tokenId: string; x: number; y: number }>();
+const menuToken = computed(() =>
+  views.value.find((view) => view.id === menu.value?.tokenId),
+);
+
+/** How big the menu is allowed to be, so it can be kept inside the map when it opens near an edge. */
+const MENU_ROOM = { width: 220, height: 180 };
+
+function openMenu(token: TokenView): void {
+  const scene = scenes.shownScene;
+  if (lobby.mySeat?.isGM !== true || scene === undefined) {
+    return;
+  }
+  const at = sceneToScreen(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), token);
+  const room = viewportSize();
+  menu.value = {
+    tokenId: token.id,
+    x: Math.max(0, Math.min(at.x + 12, room.width - MENU_ROOM.width)),
+    y: Math.max(0, Math.min(at.y + 12, room.height - MENU_ROOM.height)),
+  };
+  selectedId.value = token.id;
+}
+
+function closeMenu(): void {
+  if (menu.value !== undefined) {
+    menu.value = undefined;
+    surface.value?.focus();
+  }
+}
+
+/** Sends one change to the menu's token and says what happened. */
+async function tokenChange(
+  changes: { hidden?: boolean; name?: string | null; size?: number },
+  said: (token: TokenView) => string,
+): Promise<void> {
+  const token = menuToken.value;
+  closeMenu();
+  if (
+    token !== undefined &&
+    (await scenes.send('token.update', { tokenId: token.id, changes }))
+  ) {
+    announcement.value = said(token);
+  }
+}
+
+async function removeToken(): Promise<void> {
+  const token = menuToken.value;
+  closeMenu();
+  if (token !== undefined && (await scenes.send('token.delete', { tokenId: token.id }))) {
+    announcement.value = `${token.label} removed from the map.`;
+  }
+}
+
+function onContextMenu(event: MouseEvent): void {
+  if (lobby.mySeat?.isGM !== true) {
+    return;
+  }
+  if (menu.value !== undefined) {
+    // The Menu key opened it on key down; the browser's own menu would follow.
+    event.preventDefault();
+    return;
+  }
+  const point = sample(event as PointerEvent);
+  const hit = tokenAt(
+    views.value,
+    screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
+  );
+  if (hit !== undefined) {
+    event.preventDefault();
+    openMenu(hit);
+  }
+}
+
 /** Puts `actorId`'s token on the shown scene at `at`, or in the middle of what can be seen, and says so. */
 async function placeActor(actorId: string, at?: Point): Promise<void> {
   const scene = scenes.shownScene;
@@ -441,6 +528,15 @@ function onWheel(event: WheelEvent): void {
 function onKeyDown(event: KeyboardEvent): void {
   // Ctrl, Cmd and Alt belong to the browser (Ctrl + zooms the page).
   if (event.ctrlKey || event.metaKey || event.altKey) {
+    return;
+  }
+  if (
+    (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) &&
+    selectedView.value !== undefined &&
+    lobby.mySeat?.isGM === true
+  ) {
+    event.preventDefault();
+    openMenu(selectedView.value);
     return;
   }
   const direction = ARROW_DIRECTIONS[event.key];
@@ -562,9 +658,27 @@ onBeforeUnmount(() => {
       @wheel.prevent="onWheel"
       @dragover="onDragOver"
       @drop="onDrop"
+      @contextmenu="onContextMenu"
       @keydown="onKeyDown"
     >
       <MapCanvas @ready="onReady" />
+      <TokenMenu
+        v-if="menu && menuToken"
+        :key="menu.tokenId"
+        :token="menuToken"
+        :x="menu.x"
+        :y="menu.y"
+        @close="closeMenu"
+        @toggle-hidden="
+          tokenChange({ hidden: !menuToken.hidden }, (token) =>
+            token.hidden
+              ? `${token.label} shown to the players.`
+              : `${token.label} hidden from the players.`,
+          )
+        "
+        @remove="removeToken"
+        @update="(changes) => tokenChange(changes, (token) => `${token.label} updated.`)"
+      />
       <output
         v-if="readout"
         class="move-readout"

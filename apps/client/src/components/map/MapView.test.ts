@@ -16,6 +16,7 @@ const moveToken = vi.fn<(id: string, x: number, y: number) => Promise<boolean>>(
 const setLocalDrag = vi.fn<(id: string, x: number, y: number) => void>();
 const clearLocalDrag = vi.fn<(id: string) => void>();
 const sendDrag = vi.fn<(id: string, x: number, y: number) => void>();
+const send = vi.fn<(type: string, payload: unknown) => Promise<boolean>>();
 const placeToken =
   vi.fn<(actorId: string, at?: { x: number; y: number }) => Promise<boolean>>();
 const state = reactive<{
@@ -23,6 +24,7 @@ const state = reactive<{
   shownTokens: Token[];
   error: string | undefined;
   placeToken: typeof placeToken;
+  send: typeof send;
   moveToken: typeof moveToken;
   setLocalDrag: typeof setLocalDrag;
   clearLocalDrag: typeof clearLocalDrag;
@@ -32,6 +34,7 @@ const state = reactive<{
   shownTokens: [],
   error: undefined,
   placeToken,
+  send,
   moveToken,
   setLocalDrag,
   clearLocalDrag,
@@ -114,6 +117,7 @@ beforeEach(() => {
   state.error = undefined;
   moveToken.mockResolvedValue(true);
   placeToken.mockResolvedValue(true);
+  send.mockResolvedValue(true);
   lobby.mySeat = undefined;
   docs.actors = [];
   vi.mocked(sceneViewModule.createSceneView).mockReturnValue(view);
@@ -1033,5 +1037,200 @@ describe('placing tokens', () => {
     const { wrapper } = await setup(seat(true));
     await wrapper.vm.placeAtCentre(crypto.randomUUID());
     expect(placeToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('the token menu', () => {
+  const world = crypto.randomUUID();
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  const hero: Actor = {
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name: 'Valeros',
+    system: {},
+  };
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  /** Scene 2000 x 1000 fitted at 0.5: the token at scene (250, 250) is at screen (149, 149). */
+  async function setup(who: Seat, hidden = false) {
+    lobby.mySeat = who;
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    const token = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: world,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: hero.id,
+      x: 250,
+      y: 250,
+      hidden,
+    });
+    state.shownTokens = [token];
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, token, surface: wrapper.get('.map-surface') };
+  }
+
+  const rightClick = async (surface: { element: Element }, x: number, y: number) => {
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+    });
+    surface.element.dispatchEvent(event);
+    await flushPromises();
+    return event;
+  };
+
+  const status = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('p[role="status"].visually-hidden').text();
+
+  it('opens on a right click on a token, and selects it', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    const event = await rightClick(surface, 149, 149);
+    expect(event.defaultPrevented).toBe(true);
+    expect(wrapper.find('.token-menu').exists()).toBe(true);
+    expect(wrapper.find('.token-list button[aria-pressed="true"]').exists()).toBe(true);
+  });
+
+  it('leaves empty ground, and every click by a player, to the browser', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    const empty = await rightClick(surface, 600, 400);
+    expect(empty.defaultPrevented).toBe(false);
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+
+    lobby.mySeat = seat(false);
+    const refused = await rightClick(surface, 149, 149);
+    expect(refused.defaultPrevented).toBe(false);
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+  });
+
+  it('opens from the keyboard for the selected token, by the Menu key or Shift+F10', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    await surface.trigger('keydown', { key: 'ContextMenu' });
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+
+    await wrapper.get('.token-list button').trigger('click');
+    await surface.trigger('keydown', { key: 'ContextMenu' });
+    expect(wrapper.find('.token-menu').exists()).toBe(true);
+
+    await wrapper.get('.token-menu').trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+    expect(document.activeElement).toBe(surface.element);
+
+    await surface.trigger('keydown', { key: 'F10', shiftKey: true });
+    expect(wrapper.find('.token-menu').exists()).toBe(true);
+  });
+
+  it('is not offered to a player by the keyboard either', async () => {
+    const { wrapper, surface } = await setup(seat(false));
+    await wrapper.get('.token-list button').trigger('click');
+    await surface.trigger('keydown', { key: 'ContextMenu' });
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+  });
+
+  it('hides a token with token.update, and says so', async () => {
+    const { wrapper, token, surface } = await setup(seat(true));
+    await rightClick(surface, 149, 149);
+    await wrapper.get('.token-menu [role="menuitem"]').trigger('click');
+    await flushPromises();
+
+    expect(send).toHaveBeenCalledWith('token.update', {
+      tokenId: token.id,
+      changes: { hidden: true },
+    });
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+    expect(status(wrapper)).toBe('Valeros hidden from the players.');
+  });
+
+  it('shows a hidden token', async () => {
+    const { wrapper, token, surface } = await setup(seat(true), true);
+    await rightClick(surface, 149, 149);
+    await wrapper.get('.token-menu [role="menuitem"]').trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('token.update', {
+      tokenId: token.id,
+      changes: { hidden: false },
+    });
+    expect(status(wrapper)).toBe('Valeros shown to the players.');
+  });
+
+  it('removes a token with token.delete', async () => {
+    const { wrapper, token, surface } = await setup(seat(true));
+    await rightClick(surface, 149, 149);
+    const remove = wrapper
+      .findAll('.token-menu [role="menuitem"]')
+      .find((b) => b.text() === 'Remove from map');
+    await remove?.trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('token.delete', { tokenId: token.id });
+    expect(status(wrapper)).toBe('Valeros removed from the map.');
+  });
+
+  it('resizes from the form, and says nothing when the server refuses', async () => {
+    send.mockResolvedValue(false);
+    const { wrapper, token, surface } = await setup(seat(true));
+    await rightClick(surface, 149, 149);
+    await wrapper
+      .findAll('.token-menu [role="menuitem"]')
+      .find((b) => b.text() === 'Name and size')
+      ?.trigger('click');
+    await wrapper.get('#token-size').setValue('2');
+    await wrapper.get('.token-menu form').trigger('submit');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('token.update', {
+      tokenId: token.id,
+      changes: { size: 2 },
+    });
+    expect(status(wrapper)).toBe('');
+  });
+
+  it('closes when the map is pressed elsewhere, and when its token goes away', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    await rightClick(surface, 149, 149);
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 0,
+      clientX: 600,
+      clientY: 400,
+    });
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+
+    await rightClick(surface, 149, 149);
+    expect(wrapper.find('.token-menu').exists()).toBe(true);
+    state.shownTokens = [];
+    await flushPromises();
+    expect(wrapper.find('.token-menu').exists()).toBe(false);
+  });
+
+  it('keeps the menu’s keys from moving the selected token', async () => {
+    const { wrapper, surface } = await setup(seat(true));
+    await rightClick(surface, 149, 149);
+    await wrapper.get('.token-menu').trigger('keydown', { key: 'ArrowDown' });
+    expect(moveToken).not.toHaveBeenCalled();
   });
 });
