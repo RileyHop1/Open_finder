@@ -17,7 +17,7 @@ A `Combat` holds only where the encounter is in time. Each creature in it is a
 player may not read and spending one action writes one small row.
 
 The initiative **order is never stored**. It is derived from the combatants'
-initiative (and a tie rule, [rulings.md](rulings.md), once decided), so adding a
+initiative (and a tie rule, [rulings.md](rulings.md)), so adding a
 late arrival or fixing a roll changes no other document, and the turn pointer is
 an id, not a position that could drift onto the wrong creature.
 
@@ -55,6 +55,24 @@ an id, not a position that could drift onto the wrong creature.
 It lives on the combatant, not the actor: it means nothing outside a fight, and
 leaving a combat must leave the actor exactly as it was, apart from the real
 changes (hit points, conditions).
+
+## Turn order
+`sortByInitiative`, `nextCombatant`, and `previousCombatant`
+(`systems/pf2e/src/rules/initiativeOrder.ts`) are pure functions over plain
+entries (`id`, `initiative`, `defeated`, `isCharacter`, `createdAt`), so the server
+and the tracker panel share one answer.
+
+- **Order:** highest initiative first. Ties: a player character before a monster,
+  then who joined first, then the id ([rulings.md](rulings.md), "Initiative
+  ties"). An unrolled combatant sorts last.
+- **Who takes turns:** a combatant with an initiative who is not defeated. An
+  unrolled one waits in the list until it rolls; a defeated one stays in place for
+  the GM but is skipped.
+- **Stepping:** `nextCombatant` and `previousCombatant` return who is next and
+  whether the step went past the end (or start) of the order, which is when the
+  round changes. With nobody active, forward gives the first and counts as the
+  start of round 1. An id no longer in the order is treated as nobody, so the
+  server steps *before* it removes a combatant.
 
 ## Permissions
 The server derives them and a client never sets them, as for a token

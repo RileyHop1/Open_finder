@@ -312,6 +312,30 @@ ruling from silently drifting.
 - **Override:** the GM sets or removes any condition directly
   (`setCondition` / `removeCondition`).
 
+### Initiative ties
+- **Rules text:** initiative is a Perception check (or another skill the activity
+  names), and everyone acts from highest to lowest. The rules say what to do when
+  results tie, but **(confirm)**: the Archives of Nethys page could not be reached
+  from the environment this was written in (2026-10-02), so the wording below is
+  from memory and has not been checked against it.
+- **The ambiguity:** as remembered, a player character acts before a monster that
+  tied them, and players who tie decide among themselves. Neither says what to do
+  for monsters that tie each other, or for two players who have not decided, and an
+  app needs one answer that is the same on every screen.
+- **Our reading:** a player character goes before a monster with the same
+  initiative. Past that, whoever joined the combat first goes first, then the
+  smaller id, so the order is fixed and never depends on how a list arrived.
+- **Alternative reading:** break every tie by the initiative *modifier* (higher
+  first), as some tables do, or let the GM place tied creatures freely.
+- **Why:** "players before monsters" is the common table reading, and the later
+  tie-breaks only have to be stable. A tie among players is theirs to settle, and the
+  GM's override below does that.
+- **Override:** the GM sets any combatant's initiative directly (`combat.setInitiative`,
+  milestone 5's server stack), so a tie the table settles differently is one number
+  changed. The order is derived, so nothing else needs fixing.
+- **Golden test:** `systems/pf2e/src/rules/initiativeOrder.test.ts`, "sortByInitiative".
+  Clear the **(confirm)** here when the page can be checked.
+
 ### Two sources of a condition keep the longer duration
 - **Rules text:** Player Core says that if you are subject to the same valued
   condition from more than one source, you use the **highest** value. It does not
