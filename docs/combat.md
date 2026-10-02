@@ -23,15 +23,29 @@ as it does today.
   Penalty from the tracker (a strike still takes an explicit attack number, as
   now). Nothing ticks, so no turn-based condition expires. This is the current
   behavior of `token.move`, and it must stay true.
-- **On:** the tracker keeps the turn state, supplies the attack number, and ticks
-  durations ([turn boundaries](#turn-boundaries)). Movement is still the table's:
-  the app **shows whose turn it is and warns** on a move out of turn, and never
-  blocks it, in line with [action-economy.md](action-economy.md). The GM can end
-  the combat at any time to go back to free play.
-- **Ending a combat** returns to free play. What happens to a condition that was
-  anchored to one of its combatants (`turn` durations) is decided with `combat.end`
-  (B.3); the recommendation is that it ends with the encounter, since the turn it
-  waits for will never come.
+- **Starting combat rolls initiative.** `combat.start` makes a combatant of every
+  **party member's token and every visible token** on the combat's scene, and rolls
+  each one's initiative (Perception by default) at once. A **hidden** token stays
+  out until the GM adds it, so an ambush is not announced by the start; it rolls
+  when added. The GM can remove any combatant, or set any initiative, before the
+  first turn.
+- **On: movement follows the turn.** A player can move a token only on its
+  combatant's turn. The server refuses any other move (and the live drag preview),
+  and the client says why ("It is not Valeria's turn"), in text, never colour alone.
+  **The GM is never blocked.** A token that is not a combatant (a bystander, a
+  hidden creature not yet added) is not gated.
+- **A special ruling lifts it.** The GM can switch on **free movement** for the whole
+  combat (a chase, a cutscene), or **let one token move** out of turn once (a
+  reaction Stride, a ruling at the table). A single grant clears when that token's
+  next turn ends. Both are the GM's, both are shown on the tracker so nobody is
+  surprised, and the keyboard and menu routes are the same as for any GM tool.
+- **Actions are still only warned about.** Overspending a turn's actions is shown
+  and never blocked ([action-economy.md](action-economy.md)); movement is the one
+  thing the tracker enforces, because it has the GM's override above.
+- **Ending a combat** returns to free play, and the rulings go with it. What
+  happens to a condition that was anchored to one of its combatants (`turn`
+  durations) is decided with `combat.end` (B.3); the recommendation is that it ends
+  with the encounter, since the turn it waits for will never come.
 
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a
