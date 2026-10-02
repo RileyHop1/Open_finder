@@ -11,6 +11,83 @@ Milestone 5 adds the schemas first (this page), then the rules in
 `systems/pf2e`, the server operations, and the tracker UI. Sections below say
 which parts exist so far.
 
+## Turn-based mode is the GM's switch
+Combat only happens when the GM turns it on. Until then the table plays freely,
+as it does today.
+
+- **On means `status: 'active'`**, reached only by the GM's `combat.start`. A
+  combat that is `pending` (being set up) or `ended` tracks nothing. Opening a
+  battle map, placing monsters, or adding combatants never starts one.
+- **Off (no active combat):** a token moves anywhere, with no speed limit and no
+  turn check. There is no turn state, no action counting, and no Multiple Attack
+  Penalty from the tracker (a strike still takes an explicit attack number, as
+  now). Nothing ticks, so no turn-based condition expires. This is the current
+  behavior of `token.move`, and it must stay true.
+- **Starting combat rolls initiative.** `combat.start` makes a combatant of every
+  **party member's token and every visible token** on the combat's scene, and rolls
+  each one's initiative (Perception by default) at once. A **hidden** token stays
+  out until the GM adds it, so an ambush is not announced by the start; it rolls
+  when added. The GM can remove any combatant, or set any initiative, before the
+  first turn.
+- **On: movement follows the turn.** A player can move a token only on its
+  combatant's turn. The server refuses any other move (and the live drag preview),
+  and the client says why ("It is not Valeria's turn"), in text, never colour alone.
+  **The GM is never blocked.** A token that is not a combatant (a bystander, a
+  hidden creature not yet added) is not gated.
+- **A special ruling lifts it.** The GM can switch on **free movement** for the whole
+  combat (a chase, a cutscene), or **let one token move** out of turn once (a
+  reaction Stride, a ruling at the table). A single grant clears when that token's
+  next turn ends. Both are the GM's, both are shown on the tracker so nobody is
+  surprised, and the keyboard and menu routes are the same as for any GM tool.
+- **Actions are still only warned about.** Overspending a turn's actions is shown
+  and never blocked ([action-economy.md](action-economy.md)); movement is the one
+  thing the tracker enforces, because it has the GM's override above.
+- **Ending a combat** returns to free play, and the rulings go with it. What
+  happens to a condition that was anchored to one of its combatants (`turn`
+  durations) is decided with `combat.end` (B.3); the recommendation is that it ends
+  with the encounter, since the turn it waits for will never come.
+
+## Initiative is automatic, and the GM can reorder it
+Nobody rolls by hand: initiative is rolled for you when combat starts (above) and
+when a combatant joins. The **GM can change the order at will**, at any time:
+drag a combatant to a new place in the turn bar, or use the keyboard route (a
+"Move earlier" and "Move later" on each combatant, and a "Move before..." menu), or
+set a number directly. A player cannot reorder.
+
+A reorder does not store a separate order. The order stays derived from initiative
+([Turn order](#turn-order)), so a move **gives the combatant an initiative between
+its new neighbours** (the midpoint, so 14.5 between a 15 and a 14, and one above or
+below the ends). That means `initiative` is a number that may be fractional, which
+is a small change to the `Combatant` schema (A.2b). It was weighed against
+renumbering everyone (which erases rolled values) and against a second "manual
+order" field (two sort keys to keep consistent); the midpoint keeps one key and the
+tie rule untouched. The turn pointer is an id, so moving someone, even the active
+combatant, never moves the turn onto the wrong creature.
+
+## The turn bar
+The order is shown as a row of **token portraits across the top of the map**, in turn
+order, and it **shifts as turns pass**: the first portrait is always the combatant
+with the action, and when their turn ends they move to the back of the row. It is
+the party bar's counterpart for the encounter, in the spirit of Owlcat's initiative
+bar.
+
+- **Each portrait** shows the token's portrait (or its initials), the name, and the
+  initiative, with the round number beside the row. The active one is larger and
+  labelled "Taking their turn" in text, not only highlighted.
+- **Who is shown:** a player sees only combatants they can read, so a hidden
+  creature is absent from the row; if it is the one acting, the bar shows a
+  "Someone is acting" placeholder in first place and nothing more. The GM sees
+  everyone, hidden ones marked "(hidden)", and defeated ones dimmed and labelled.
+- **It is a list, not only a picture:** an ordered list with the active item marked
+  `aria-current`, each portrait a button that selects and centres that token, and
+  the GM's reorder buttons and menu on the same items. Touch targets are at least
+  44px, and it fits at 1024px wide by scrolling sideways.
+- **Motion:** portraits slide into place; with reduced motion they simply swap.
+- **Only while combat is on.** With no active combat the bar is not shown, and the
+  map is just the map.
+- It is HTML over the canvas, not drawn in it, so it does not touch the canvas
+  budget (the perf check, D.1, covers it anyway).
+
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a
 `Combatant`, a document of its own, so a hidden monster is simply a document a
