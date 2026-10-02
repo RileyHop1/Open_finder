@@ -47,6 +47,47 @@ as it does today.
   durations) is decided with `combat.end` (B.3); the recommendation is that it ends
   with the encounter, since the turn it waits for will never come.
 
+## Initiative is automatic, and the GM can reorder it
+Nobody rolls by hand: initiative is rolled for you when combat starts (above) and
+when a combatant joins. The **GM can change the order at will**, at any time:
+drag a combatant to a new place in the turn bar, or use the keyboard route (a
+"Move earlier" and "Move later" on each combatant, and a "Move before..." menu), or
+set a number directly. A player cannot reorder.
+
+A reorder does not store a separate order. The order stays derived from initiative
+([Turn order](#turn-order)), so a move **gives the combatant an initiative between
+its new neighbours** (the midpoint, so 14.5 between a 15 and a 14, and one above or
+below the ends). That means `initiative` is a number that may be fractional, which
+is a small change to the `Combatant` schema (A.2b). It was weighed against
+renumbering everyone (which erases rolled values) and against a second "manual
+order" field (two sort keys to keep consistent); the midpoint keeps one key and the
+tie rule untouched. The turn pointer is an id, so moving someone, even the active
+combatant, never moves the turn onto the wrong creature.
+
+## The turn bar
+The order is shown as a row of **token portraits across the top of the map**, in turn
+order, and it **shifts as turns pass**: the first portrait is always the combatant
+with the action, and when their turn ends they move to the back of the row. It is
+the party bar's counterpart for the encounter, in the spirit of Owlcat's initiative
+bar.
+
+- **Each portrait** shows the token's portrait (or its initials), the name, and the
+  initiative, with the round number beside the row. The active one is larger and
+  labelled "Taking their turn" in text, not only highlighted.
+- **Who is shown:** a player sees only combatants they can read, so a hidden
+  creature is absent from the row; if it is the one acting, the bar shows a
+  "Someone is acting" placeholder in first place and nothing more. The GM sees
+  everyone, hidden ones marked "(hidden)", and defeated ones dimmed and labelled.
+- **It is a list, not only a picture:** an ordered list with the active item marked
+  `aria-current`, each portrait a button that selects and centres that token, and
+  the GM's reorder buttons and menu on the same items. Touch targets are at least
+  44px, and it fits at 1024px wide by scrolling sideways.
+- **Motion:** portraits slide into place; with reduced motion they simply swap.
+- **Only while combat is on.** With no active combat the bar is not shown, and the
+  map is just the map.
+- It is HTML over the canvas, not drawn in it, so it does not touch the canvas
+  budget (the perf check, D.1, covers it anyway).
+
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a
 `Combatant`, a document of its own, so a hidden monster is simply a document a
