@@ -74,6 +74,25 @@ and the tracker panel share one answer.
   start of round 1. An id no longer in the order is treated as nobody, so the
   server steps *before* it removes a combatant.
 
+## Turn boundaries
+`startOfTurn(participants, activeCombatantId)` and `endOfTurn(...)`
+(`systems/pf2e/src/rules/turnBoundaries.ts`) are pure. They take everyone in the
+combat (id, conditions borne, turn state) and return the new values to write for
+only the combatants that changed, plus **events** describing each change (expired,
+ticked, reduced) so the table is told and the GM can undo it by hand. The server's
+`combat.nextTurn` applies them in one transaction (ADR 0018, decision 5).
+
+- **Start of a turn:** the active combatant's actions, attack count, and reaction
+  reset; their `rounds` durations tick; and any condition on anyone that lasts
+  "until the start of" their turn ends.
+- **End of a turn:** their *frightened* drops by 1; and any condition on anyone
+  that lasts "until the end of" their turn ends.
+- Looks at **every** participant's conditions, because a goblin held "until the end
+  of Valeria's turn" bears the condition but is anchored to Valeria.
+- Not here: slowed, stunned, and quickened's actions (A.6), the dying chain (A.7),
+  and persistent damage (A.8). When a combatant is removed, conditions anchored to
+  it are the server's to clean up (B.1).
+
 ## Permissions
 The server derives them and a client never sets them, as for a token
 ([token.md](token.md)). That arrives with the operations that create these

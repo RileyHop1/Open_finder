@@ -38,8 +38,9 @@ subtly wrong.
 - The **second** attack in a turn takes **−5**; the **third and later**, **−10**.
 - A weapon with the **agile** trait uses **−4 / −8** instead.
 - MAP counts **attacks**, not actions, and resets at the **start of your turn**
-  **(confirm the reset point and the interaction with attacks made on other
-  creatures' turns via reactions)**.
+  **(confirm: the reset point is implemented as the start of
+  your own turn, and reaction attacks are not counted; see `docs/rulings.md`, "The
+  Multiple Attack Penalty resets at the start of your own turn")**.
 - The penalty applies to attack rolls only, never to damage or to DCs.
 - MAP is an **untyped penalty** in the modifier system (ADR 0008), so it stacks
   with everything and is never suppressed.
