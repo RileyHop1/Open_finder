@@ -20,6 +20,8 @@
 
 import type { AppliedCondition } from '../content/character.js';
 import type { ConditionEntry } from '../content/condition.js';
+import type { ConditionDuration } from '../content/conditionDuration.js';
+import { longerDuration } from './conditionDuration.js';
 
 /** Conditions' compendium definitions by slug. */
 export type ConditionDefinitions = ReadonlyMap<string, ConditionEntry>;
@@ -73,14 +75,39 @@ function withEntry(
   return list.map((existing, i) => (i === index ? entry : existing));
 }
 
-function build(slug: string, value: number | undefined): AppliedCondition {
-  return value === undefined ? { slug } : { slug, value };
+function build(
+  slug: string,
+  value: number | undefined,
+  duration: ConditionDuration | undefined,
+): AppliedCondition {
+  return {
+    slug,
+    ...(value === undefined ? {} : { value }),
+    ...(duration === undefined ? {} : { duration }),
+  };
+}
+
+/**
+ * The duration a merged condition keeps. The entry with the higher value brings
+ * its own duration with it; on an equal value (or a binary condition) the
+ * longer-lasting one is kept. See `docs/rulings.md`.
+ */
+function mergedDuration(
+  existing: AppliedCondition,
+  value: number | undefined,
+  incoming: AppliedCondition,
+): ConditionDuration | undefined {
+  if (value !== undefined && existing.value !== undefined && value !== existing.value) {
+    return value > existing.value ? incoming.duration : existing.duration;
+  }
+  return longerDuration(existing.duration, incoming.duration);
 }
 
 /**
  * Adds `incoming`, merging with an existing entry of the same slug (higher
- * value wins) and clearing anything it supersedes. A binary condition that is
- * already present is left exactly as it was.
+ * value wins, and brings its duration with it; on a tie the longer-lasting
+ * duration is kept) and clearing anything it supersedes. A binary condition
+ * that is already present with an equal or longer duration is left exactly as it was.
  */
 export function addCondition(
   current: readonly AppliedCondition[],
@@ -93,14 +120,19 @@ export function addCondition(
     value === undefined || existing?.value === undefined
       ? value
       : Math.max(existing.value, value);
+  const duration =
+    existing === undefined
+      ? incoming.duration
+      : mergedDuration(existing, value, incoming);
   const cleared = clearSuperseded(current, incoming.slug, definitions);
-  return withEntry(cleared, build(incoming.slug, merged));
+  return withEntry(cleared, build(incoming.slug, merged, duration));
 }
 
 /**
  * Sets a condition to exactly `incoming`: the GM's manual edit. A valued
  * condition with a value of 0 or less is removed. Otherwise it behaves like
- * `addCondition` except that no merge happens, so a value can go down.
+ * `addCondition` except that no merge happens, so a value can go down and the
+ * duration is exactly `incoming`'s (none at all clears it).
  */
 export function setCondition(
   current: readonly AppliedCondition[],
@@ -111,7 +143,10 @@ export function setCondition(
     return removeCondition(current, incoming.slug);
   }
   const cleared = clearSuperseded(current, incoming.slug, definitions);
-  return withEntry(cleared, build(incoming.slug, normalizedValue(incoming, definitions)));
+  return withEntry(
+    cleared,
+    build(incoming.slug, normalizedValue(incoming, definitions), incoming.duration),
+  );
 }
 
 /** Removes the condition with `slug`, if present. */

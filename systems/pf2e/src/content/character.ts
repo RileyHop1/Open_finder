@@ -18,6 +18,7 @@ import { actionEntrySchema } from './action.js';
 import { armorEntrySchema } from './armor.js';
 import { classFeatureEntrySchema } from './class.js';
 import { attributeSchema, proficiencyRankSchema } from './common.js';
+import { conditionDurationSchema } from './conditionDuration.js';
 import { featEntrySchema } from './feat.js';
 import { gearEntrySchema } from './gear.js';
 import { spellEntrySchema } from './spell.js';
@@ -103,10 +104,15 @@ export const characterItemSchema = z.object({
 
 export type CharacterItem = z.infer<typeof characterItemSchema>;
 
-/** A condition currently on the character. Its modifiers are computed from the slug and value, never stored. */
+/**
+ * A condition currently on the character. Its modifiers are computed from the slug and value, never stored.
+ * `duration` says when it ends; absent means until it is removed, so a condition stored before
+ * durations existed is unchanged (`conditionDuration.ts`).
+ */
 export const appliedConditionSchema = z.object({
   slug: z.string().min(1),
   value: z.number().int().positive().optional(),
+  duration: conditionDurationSchema.optional(),
 });
 
 export type AppliedCondition = z.infer<typeof appliedConditionSchema>;

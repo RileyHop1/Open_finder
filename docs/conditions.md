@@ -158,15 +158,30 @@ applying one must clear the others. Model detection as a single enum per
 observer-target pair rather than as four booleans.
 
 ## Durations
-```
-until-end-of-turn      | whose turn, resolved against the Combat tracker
-until-start-of-turn    | likewise
-rounds(n)              | decremented by the combat tracker
-minutes(n) / hours(n)  | decremented by the Calendar clock
-sustained              | ends if the caster stops sustaining
-until-removed          | manual only
-until-condition-met    | e.g. until you Recover; needs an explicit trigger
-```
+`appliedConditionSchema` has an optional `duration` (`systems/pf2e/src/content/conditionDuration.ts`),
+a union on `type` so a new kind is one more member and never a change to stored
+data. **Absent means `untilRemoved`**: a condition stored before durations
+existed is unchanged, which is why this needed no migration (the database
+migrations version the tables, and an optional field changes no stored data).
+This departs from the "migration with the first rules PR" line in
+[ADR 0018](adr/0018-combat-tracker.md); a test loads a pre-duration condition
+instead.
+
+| `type` | Fields | Ends |
+| --- | --- | --- |
+| `untilRemoved` | none | Manual only; same as no duration |
+| `turn` | `combatantId`, `boundary` (`start` \| `end`) | At the start or end of that combatant's turn |
+| `rounds` | `remaining` 1-99 | Ticks down at turn boundaries |
+| `sustained` | none | When the caster stops sustaining; by hand until spells are automated |
+| `minutes`, `hours`, `days` | `remaining` | Stored now; **nothing expires them until the `Calendar` (milestone 13)**, so they end by hand and the UI says so |
+
+Not built: "until a condition is met" (until you Recover, until your next daily
+preparations), which needs an explicit trigger design.
+
+**Two sources of one condition** keep the higher value, and that entry's duration
+comes with it. On an equal value (or a binary condition) the longer-lasting
+duration is kept; the GM's `setCondition` sets it exactly. See
+[rulings.md](rulings.md), "Two sources of a condition keep the longer duration".
 
 Durations tick in the combat tracker (milestone 5), which is why conditions and
 the tracker ship close together. Outside combat, `minutes`/`hours` durations are
