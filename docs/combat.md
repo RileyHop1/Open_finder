@@ -183,14 +183,15 @@ ticked, reduced) so the table is told and the GM can undo it by hand. The server
 `combat.nextTurn` applies them in one transaction (ADR 0018, decision 5).
 
 - **Start of a turn:** the active combatant's actions, attack count, and reaction
-  reset; their `rounds` durations tick; and any condition on anyone that lasts
-  "until the start of" their turn ends.
+  reset; their `rounds` durations tick; any condition on anyone that lasts "until
+  the start of" their turn ends; and their **stunned** takes actions off the turn
+  (counted as spent) and wears off by that many.
 - **End of a turn:** their *frightened* drops by 1; and any condition on anyone
   that lasts "until the end of" their turn ends.
 - Looks at **every** participant's conditions, because a goblin held "until the end
   of Valeria's turn" bears the condition but is anchored to Valeria.
-- Not here: slowed, stunned, and quickened's actions (A.6), the dying chain (A.7),
-  and persistent damage (A.8). When a combatant is removed, conditions anchored to
+- Not here: the dying chain (A.7) and persistent damage (A.8). How many actions a
+  turn has (3, plus quickened, minus slowed) is `actionCapacity`. When a combatant is removed, conditions anchored to
   it are the server's to clean up (B.1).
 
 ## Permissions

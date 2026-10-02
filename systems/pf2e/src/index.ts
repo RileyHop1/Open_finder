@@ -234,6 +234,12 @@ export {
 export { placeCombatant, type InitiativeChange } from './rules/initiativeReorder.js';
 
 export {
+  BASE_ACTIONS,
+  actionCapacity,
+  type ActionCapacity,
+} from './rules/actionCapacity.js';
+
+export {
   endOfTurn,
   startOfTurn,
   type TurnChange,

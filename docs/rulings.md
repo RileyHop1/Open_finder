@@ -312,6 +312,29 @@ ruling from silently drifting.
 - **Override:** the GM sets or removes any condition directly
   (`setCondition` / `removeCondition`).
 
+### Stunned, slowed, and quickened
+- **Rules text:** a turn has three actions. *Quickened* grants an extra action that
+  can be used only for certain things. *Slowed N* loses you N actions, and *stunned N*
+  loses you N actions and then reduces by the number lost. **(confirm)** The Archives
+  of Nethys page could not be reached from the environment this was written in
+  (2026-10-02), so this is from memory, and so is how stunned and slowed combine.
+- **The ambiguity:** the rules do not make clear what happens when stunned and
+  slowed together exceed the turn, or whether the extra quickened action can be
+  counted as an ordinary one.
+- **Our reading:** capacity is 3, plus 1 for quickened, minus slowed, never below 0.
+  At the start of the turn stunned takes up to the **remaining** capacity (after
+  slowed) and wears off by exactly what it took, so it carries over what it could not
+  take. The actions it takes **count as spent**, so the tray shows them used. The
+  quickened extra action is shown as restricted and never enforced.
+- **Alternative reading:** stunned takes its full value from the three base actions
+  regardless of slowed, so the two overlap and cost more; or the extra quickened action
+  is treated as unrestricted.
+- **Why:** counting lost actions as spent needs no new stored state and is exactly what
+  the player sees at the table; a wrong total here is a number the GM can see and adjust.
+- **Override:** the GM sets or removes any condition, and sets actions spent directly.
+- **Golden test:** `actionCapacity.test.ts`, and `turnBoundaries.test.ts`, "stunned".
+  Clear the **(confirm)** here when the page can be checked.
+
 ### When a rounds duration ticks, and when frightened drops
 - **Rules text:** a duration measured in rounds is counted by turns, and
   *frightened* decreases by 1 at the end of each of your turns (Player Core,

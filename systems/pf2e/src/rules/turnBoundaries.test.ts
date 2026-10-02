@@ -216,3 +216,66 @@ describe('endOfTurn -- frightened', () => {
     ]);
   });
 });
+
+describe('startOfTurn -- stunned', () => {
+  const stunned = (value: number): AppliedCondition => ({ slug: 'stunned', value });
+
+  it('takes that many actions, counts them as spent, and wears off by that many', () => {
+    const result = startOfTurn([who(VALEROS, [stunned(3)], SPENT)], VALEROS);
+    expect(result.changes).toEqual([
+      {
+        combatantId: VALEROS,
+        conditions: [],
+        turn: { actionsSpent: 3, reactionUsed: false, attacksMade: 0 },
+      },
+    ]);
+    expect(result.events).toEqual([
+      { kind: 'actionsLost', combatantId: VALEROS, slug: 'stunned', count: 3 },
+      { kind: 'reduced', combatantId: VALEROS, slug: 'stunned', from: 3, to: 0 },
+    ]);
+  });
+
+  it('loses only what the turn has when stunned is bigger, and keeps the rest', () => {
+    const result = startOfTurn([who(VALEROS, [stunned(4)])], VALEROS);
+    expect(result.changes[0]?.turn.actionsSpent).toBe(3);
+    expect(result.changes[0]?.conditions).toEqual([stunned(1)]);
+  });
+
+  it('takes one action and ends at stunned 1', () => {
+    const result = startOfTurn([who(VALEROS, [stunned(1), { slug: 'prone' }])], VALEROS);
+    expect(result.changes[0]?.turn.actionsSpent).toBe(1);
+    expect(result.changes[0]?.conditions).toEqual([{ slug: 'prone' }]);
+  });
+
+  it('takes from what slowed leaves, so slowed 2 and stunned 2 lose one action', () => {
+    const conditions: AppliedCondition[] = [{ slug: 'slowed', value: 2 }, stunned(2)];
+    const result = startOfTurn([who(VALEROS, conditions)], VALEROS);
+    expect(result.changes[0]?.turn.actionsSpent).toBe(1);
+    expect(result.changes[0]?.conditions).toEqual([
+      { slug: 'slowed', value: 2 },
+      stunned(1),
+    ]);
+  });
+
+  it('takes nothing, and does not wear off, when slowed has already taken every action', () => {
+    const conditions: AppliedCondition[] = [{ slug: 'slowed', value: 3 }, stunned(2)];
+    expect(startOfTurn([who(VALEROS, conditions)], VALEROS).changes).toEqual([]);
+  });
+
+  it('does not touch anyone else’s stunned', () => {
+    expect(startOfTurn([who(GOBLIN, [stunned(2)])], VALEROS).changes).toEqual([]);
+  });
+
+  it('does not take actions from a stunned that ends at the start of this same turn', () => {
+    const ending: AppliedCondition = {
+      slug: 'stunned',
+      value: 2,
+      duration: untilStartOf(VALEROS),
+    };
+    const result = startOfTurn([who(VALEROS, [ending])], VALEROS);
+    expect(result.changes[0]?.turn.actionsSpent).toBe(0);
+    expect(result.events).toEqual([
+      { kind: 'expired', combatantId: VALEROS, slug: 'stunned' },
+    ]);
+  });
+});

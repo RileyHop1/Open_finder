@@ -26,10 +26,20 @@ text and icon, never color alone (see Accessibility).
 - Activities cost 1, 2, or 3 actions and are shown as ◆, ◆◆, ◆◆◆; reactions as ↺
   and free actions as ◇. Icons always carry a text label or `aria-label`.
 
-**Quickened** grants an extra action usable only for specific things, and
-**slowed N** removes N actions at the start of your turn. Both are conditions
-(see `docs/conditions.md`) and both change the tray's capacity rather than being
-special-cased in the tracker.
+**How many actions a turn has** is `actionCapacity`
+(`systems/pf2e/src/rules/actionCapacity.ts`), from the conditions the combatant bears:
+- **3** actions, then **quickened** adds one and **slowed N** removes N, never below 0.
+- The quickened extra action is **restricted** to particular uses the app cannot
+  judge, so it is shown as "restricted" and never enforced.
+- **Stunned N** is not part of the capacity: it takes actions at the *start* of the
+  turn and then wears off by that many, so `startOfTurn` applies it (up to what the
+  turn has, after slowed) and the lost actions **count as spent**. The tray shows
+  them used, and nothing about the schema changes.
+
+All of these are conditions (see `docs/conditions.md`) and change the tray's
+capacity rather than being special-cased in the tracker. Spending more than the
+capacity is warned about and never blocked. See [rulings.md](rulings.md), "Stunned,
+slowed, and quickened".
 
 ## Multiple Attack Penalty
 MAP is the most-used piece of combat math in the game and the easiest to get

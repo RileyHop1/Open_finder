@@ -8,6 +8,8 @@
  * **Start of a turn** (the combatant whose turn begins):
  * - their actions, attack count, and reaction are fresh: the reaction refreshes
  *   and the Multiple Attack Penalty resets (`docs/rulings.md`);
+ * - **stunned** takes actions off the front of the turn (up to what the turn has,
+ *   after slowed) and wears off by that many; the lost actions count as spent;
  * - a `rounds` duration on their conditions ticks down one, ending at zero;
  * - any condition anywhere that lasts "until the start of their turn" ends.
  *
@@ -24,12 +26,13 @@
  * Every change comes back as an event too, so the table is told what happened
  * (a chat card) and the GM can undo it by hand, as CLAUDE.md requires of every
  * automated change. Persistent damage and the dying chain are separate rules
- * (A.7, A.8) and slowed, stunned and quickened's actions are A.6's.
+ * (A.7, A.8); how many actions a turn has is `actionCapacity`.
  */
 
 import type { TurnState } from '@hearthtable/core';
 
 import type { AppliedCondition } from '../content/character.js';
+import { actionCapacity } from './actionCapacity.js';
 
 /** One combatant, as the turn rules see it: its id, the conditions it bears, and what it has used. */
 export interface TurnParticipant {
@@ -56,7 +59,14 @@ export type TurnEvent =
       readonly slug: string;
       readonly remaining: number;
     }
-  /** A valued condition went down by one at the end of a turn. `to` is 0 when it ended. */
+  /** Stunned took this many of the turn's actions; they count as spent. */
+  | {
+      readonly kind: 'actionsLost';
+      readonly combatantId: string;
+      readonly slug: string;
+      readonly count: number;
+    }
+  /** A valued condition went down (frightened at the end of a turn, stunned as it takes actions). `to` is 0 when it ended. */
   | {
       readonly kind: 'reduced';
       readonly combatantId: string;
@@ -105,7 +115,7 @@ export function startOfTurn(
 
   for (const participant of participants) {
     const own = participant.combatantId === activeCombatantId;
-    const conditions: AppliedCondition[] = [];
+    let conditions: AppliedCondition[] = [];
     let touched = false;
 
     for (const condition of participant.conditions) {
@@ -141,7 +151,39 @@ export function startOfTurn(
       conditions.push(condition);
     }
 
-    const turn = own ? FRESH_TURN : participant.turn;
+    let turn = own ? FRESH_TURN : participant.turn;
+
+    // Stunned takes actions off the front of the turn, then wears off by that many.
+    const stunned = own
+      ? conditions.find((c) => c.slug === 'stunned' && c.value !== undefined)
+      : undefined;
+    if (stunned?.value !== undefined) {
+      const lost = Math.min(stunned.value, actionCapacity(conditions).total);
+      if (lost > 0) {
+        const to = stunned.value - lost;
+        turn = { ...FRESH_TURN, actionsSpent: lost };
+        conditions = conditions.flatMap((c) =>
+          c !== stunned ? [c] : to > 0 ? [{ ...c, value: to }] : [],
+        );
+        events.push(
+          {
+            kind: 'actionsLost',
+            combatantId: participant.combatantId,
+            slug: 'stunned',
+            count: lost,
+          },
+          {
+            kind: 'reduced',
+            combatantId: participant.combatantId,
+            slug: 'stunned',
+            from: stunned.value,
+            to,
+          },
+        );
+        touched = true;
+      }
+    }
+
     if (touched || !sameTurn(turn, participant.turn)) {
       changes.push({
         combatantId: participant.combatantId,

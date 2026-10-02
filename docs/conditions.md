@@ -93,7 +93,9 @@ the attribute the roll adds), or `maxHp` (with the level).
 
 Everything else (slowed, stunned, quickened, dying, wounded, doomed, blinded,
 dazzled, concealed, the detection states) contributes no modifier and is not
-guessed at. See [rulings.md](rulings.md).
+guessed at. See [rulings.md](rulings.md). Slowed, stunned, and quickened are
+**action rules**, not modifiers: `actionCapacity` and `startOfTurn` apply them
+([action-economy.md](action-economy.md)).
 
 ### Adding, setting, and removing
 
