@@ -532,3 +532,27 @@ ruling from silently drifting.
   attributes and traits").
 - **Override:** the GM can set or remove any condition directly, or edit the
   creature's copy (`system.creature`) to change the printed numbers.
+
+### Burst and emanation origin points
+- **Rules text:** **(confirm)**. The Archives of Nethys pages could not be
+  reached from the environment this was written in (2026-10-02), so this is
+  from memory of Player Core and unverified.
+- **The ambiguity:** a burst is placed by a point of origin, but the rules
+  distinguish a grid intersection, a corner, and the centre of a square as
+  different legal origins, and which one a caller passes is not settled here.
+- **Our reading:** `GridStrategy.burst` snaps its `origin` to the nearest
+  1-square cell, the same way a token snaps, and measures from that cell's
+  centre. A caller that wants a burst centred on an intersection snaps to that
+  intersection itself before calling; the method does not distinguish them.
+- **Alternative reading:** accept a raw point and measure from it directly
+  without snapping (letting a burst originate anywhere, not only cell centres),
+  or add a second parameter for which kind of origin was meant.
+- **Why:** one snap rule, shared with every other point this app already
+  snaps, is simpler than branching on origin kind for a case the rules text
+  cannot currently confirm needs it.
+- **Override:** none needed yet -- nothing places a template on the wire until
+  milestone 5's server stack (B.10). Revisit this entry once that PR shows
+  whether callers actually need an unsnapped origin.
+- **Golden test:** `systems/pf2e/src/rules/squareGrid.test.ts`, "burst" and
+  "emanation". Clear the **(confirm)** here and in `grid.md` when the pages can
+  be checked.

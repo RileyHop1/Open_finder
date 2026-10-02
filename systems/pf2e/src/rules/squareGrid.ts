@@ -12,6 +12,9 @@
 
 import type { Cell, Footprint, GridStrategy, Point, SceneGrid } from '@hearthtable/core';
 
+/** Floating-point slack for a radius comparison (feet). */
+const EPSILON_FEET = 1e-9;
+
 import type { Size } from '../content/common.js';
 
 /**
@@ -125,6 +128,63 @@ export class SquareGrid implements GridStrategy {
       ta.row - (tb.row + b.size - 1),
     );
     return squaresAcross(dx, dy) * this.grid.distance;
+  }
+
+  /**
+   * Every cell within `radiusFeet` of `origin`, snapped to the nearest
+   * 1-square cell -- see `docs/rulings.md`, "Burst and emanation origin
+   * points" for why a cell centre rather than an intersection. Scanned over a
+   * bounding box and kept by the same alternating-diagonal rule
+   * `distanceBetween` uses, in row-major order.
+   */
+  burst(origin: Point, radiusFeet: number): Cell[] {
+    const centre = this.topLeft({ center: origin, size: 1 });
+    const reach = this.squaresFor(radiusFeet);
+    const cells: Cell[] = [];
+    for (let row = centre.row - reach; row <= centre.row + reach; row += 1) {
+      for (let col = centre.col - reach; col <= centre.col + reach; col += 1) {
+        const feet =
+          squaresAcross(Math.abs(col - centre.col), Math.abs(row - centre.row)) *
+          this.grid.distance;
+        if (feet <= radiusFeet + EPSILON_FEET) {
+          cells.push({ col, row });
+        }
+      }
+    }
+    return cells;
+  }
+
+  /**
+   * Every cell within `radiusFeet` of `footprint`'s nearest edge: the same gap
+   * measurement `distanceBetween` makes against another footprint, applied to
+   * every cell in a bounding box, in row-major order. At `radiusFeet` 0 this is
+   * exactly `cellsUnder(footprint)`, since a cell under the footprint has a gap
+   * of 0 on both axes.
+   */
+  emanation(footprint: Footprint, radiusFeet: number): Cell[] {
+    const top = this.topLeft(footprint);
+    const reach = this.squaresFor(radiusFeet);
+    const cells: Cell[] = [];
+    const rowStart = top.row - reach;
+    const rowEnd = top.row + footprint.size - 1 + reach;
+    const colStart = top.col - reach;
+    const colEnd = top.col + footprint.size - 1 + reach;
+    for (let row = rowStart; row <= rowEnd; row += 1) {
+      for (let col = colStart; col <= colEnd; col += 1) {
+        const dx = Math.max(0, col - (top.col + footprint.size - 1), top.col - col);
+        const dy = Math.max(0, row - (top.row + footprint.size - 1), top.row - row);
+        const feet = squaresAcross(dx, dy) * this.grid.distance;
+        if (feet <= radiusFeet + EPSILON_FEET) {
+          cells.push({ col, row });
+        }
+      }
+    }
+    return cells;
+  }
+
+  /** Squares `radiusFeet` could possibly reach, rounded up: the scan's bounding box. */
+  private squaresFor(radiusFeet: number): number {
+    return Math.ceil(radiusFeet / this.grid.distance);
   }
 
   /** The column or row of a footprint's first square, given its centre along one axis. */

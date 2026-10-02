@@ -61,4 +61,20 @@ export interface GridStrategy {
    * Large creature is measured from the edge nearest the other.
    */
   distanceBetween(a: Footprint, b: Footprint): number;
+
+  /**
+   * Every cell within `radiusFeet` of `origin`, by the grid's own distance
+   * rule (the same one `distanceBetween` uses) -- a burst area template. A
+   * strategy with no cells (gridless) returns an empty array; the client draws
+   * the circle directly from `radiusFeet` instead.
+   */
+  burst(origin: Point, radiusFeet: number): Cell[];
+
+  /**
+   * Every cell within `radiusFeet` of `footprint`'s **nearest edge** -- an
+   * emanation area template, which always includes the footprint's own cells
+   * (`radiusFeet` of 0 returns exactly `cellsUnder(footprint)`). A strategy
+   * with no cells (gridless) returns an empty array.
+   */
+  emanation(footprint: Footprint, radiusFeet: number): Cell[];
 }

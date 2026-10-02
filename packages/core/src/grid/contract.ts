@@ -138,6 +138,69 @@ export function describeGridStrategy(
           // Adjacent to the large token's east edge: one cell, not two.
           expect(strategy.distanceBetween(large, near)).toBeCloseTo(grid.distance, 6);
         });
+
+        it("has an emanation at radius 0 that is exactly the footprint's own cells", () => {
+          for (const size of [1, 2]) {
+            const footprint: Footprint = {
+              center: strategy.snap({ x: 500, y: 500 }, size),
+              size,
+            };
+            const own = strategy.cellsUnder(footprint);
+            const emanation = strategy.emanation(footprint, 0);
+            expect(new Set(emanation.map((c) => `${c.col},${c.row}`))).toEqual(
+              new Set(own.map((c) => `${c.col},${c.row}`)),
+            );
+          }
+        });
+
+        it("has a burst at radius 0 that is exactly the origin's own cell", () => {
+          const origin = strategy.snap({ x: 500, y: 500 }, 1);
+          const burst = strategy.burst(origin, 0);
+          const own = strategy.cellsUnder({ center: origin, size: 1 });
+          expect(new Set(burst.map((c) => `${c.col},${c.row}`))).toEqual(
+            new Set(own.map((c) => `${c.col},${c.row}`)),
+          );
+        });
+
+        it('never loses a cell when the radius grows: burst and emanation are monotonic', () => {
+          const origin = strategy.snap({ x: 500, y: 500 }, 1);
+          const footprint: Footprint = { center: origin, size: 1 };
+          const smallerBurst = new Set(
+            strategy.burst(origin, grid.distance).map((c) => `${c.col},${c.row}`),
+          );
+          const largerBurst = new Set(
+            strategy.burst(origin, grid.distance * 3).map((c) => `${c.col},${c.row}`),
+          );
+          for (const key of smallerBurst) {
+            expect(largerBurst.has(key)).toBe(true);
+          }
+
+          const smallerEmanation = new Set(
+            strategy.emanation(footprint, grid.distance).map((c) => `${c.col},${c.row}`),
+          );
+          const largerEmanation = new Set(
+            strategy
+              .emanation(footprint, grid.distance * 3)
+              .map((c) => `${c.col},${c.row}`),
+          );
+          for (const key of smallerEmanation) {
+            expect(largerEmanation.has(key)).toBe(true);
+          }
+        });
+
+        it('returns real, addressable cells: each is covered by cellsUnder of a footprint centred the same way', () => {
+          const origin = strategy.snap({ x: 500, y: 500 }, 1);
+          for (const cell of strategy.burst(origin, grid.distance * 2)) {
+            const centred = strategy.snap(
+              {
+                x: grid.offsetX + (cell.col + 0.5) * grid.size,
+                y: grid.offsetY + (cell.row + 0.5) * grid.size,
+              },
+              1,
+            );
+            expect(strategy.cellsUnder({ center: centred, size: 1 })).toEqual([cell]);
+          }
+        });
       });
     }
   });
