@@ -223,6 +223,15 @@ export {
 export { durationSeconds, longerDuration } from './rules/conditionDuration.js';
 
 export {
+  nextCombatant,
+  previousCombatant,
+  sortByInitiative,
+  takesTurns,
+  type InitiativeEntry,
+  type TurnStep,
+} from './rules/initiativeOrder.js';
+
+export {
   appliedConditionSchema,
   characterAttributesSchema,
   characterDataSchema,
