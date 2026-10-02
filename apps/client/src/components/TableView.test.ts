@@ -407,6 +407,131 @@ describe('placing tokens from the roster', () => {
   });
 });
 
+describe('adding a monster', () => {
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: WORLD,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  const goblin = {
+    packId: 'creatures',
+    slug: 'goblin-warrior',
+    name: 'Goblin Warrior',
+    kind: 'creature',
+    traits: ['goblin'],
+  };
+
+  async function openPicker(withScene: boolean) {
+    mySeat = seat(true);
+    if (withScene) {
+      const bog = sceneSchema.parse({
+        id: crypto.randomUUID(),
+        worldId: WORLD,
+        type: 'scene',
+        schemaVersion: 1,
+        permissions: { default: 'none', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        name: 'Bog',
+        kind: 'battle',
+      });
+      vi.mocked(documentsApi.listScenes).mockResolvedValue([bog]);
+      vi.mocked(documentsApi.getParty).mockResolvedValue({
+        ...makeParty([]),
+        sceneId: bog.id,
+      });
+    }
+    vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([goblin]);
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const wrapper = await mountTable();
+    const details = wrapper.get('details.monster-picker');
+    (details.element as HTMLDetailsElement).open = true;
+    await details.trigger('toggle');
+    await flushPromises();
+    return wrapper;
+  }
+
+  const addButton = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
+    wrapper.get('button[aria-label="Add Goblin Warrior to the map"]');
+
+  it('is offered to the GM only', async () => {
+    const gm = await openPicker(true);
+    expect(gm.find('details.monster-picker').exists()).toBe(true);
+    gm.unmount();
+
+    mySeat = seat(false);
+    const player = await mountTable();
+    expect(player.find('details.monster-picker').exists()).toBe(false);
+  });
+
+  it('makes the monster from the compendium entry, then places its token when it arrives', async () => {
+    const wrapper = await openPicker(true);
+    await addButton(wrapper).trigger('click');
+    await flushPromises();
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.createFromCreature',
+      payload: { packId: 'creatures', slug: 'goblin-warrior' },
+    });
+
+    const monster: Actor = { ...makeActor('Goblin Warrior'), kind: 'npc' };
+    vi.mocked(emitOperation).mockClear();
+    handlers.get('broadcast')?.({
+      sequence: 1,
+      operation: {
+        id: 'x',
+        worldId: 'w',
+        type: 'actor.createFromCreature',
+        payload: {},
+        appliedAt: '',
+      },
+      documents: [monster],
+      deleted: [],
+      seats: [],
+    } as never);
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'token.create',
+      payload: { actorId: monster.id },
+    });
+  });
+
+  it('places nothing when the server refuses to make the monster', async () => {
+    const wrapper = await openPicker(true);
+    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'no such creature' });
+    await addButton(wrapper).trigger('click');
+    await flushPromises();
+
+    vi.mocked(emitOperation).mockClear();
+    handlers.get('broadcast')?.({
+      sequence: 1,
+      operation: {
+        id: 'x',
+        worldId: 'w',
+        type: 'actor.create',
+        payload: {},
+        appliedAt: '',
+      },
+      documents: [makeActor('Someone else')],
+      deleted: [],
+      seats: [],
+    } as never);
+    await flushPromises();
+    expect(emitOperation).not.toHaveBeenCalled();
+  });
+
+  it('has the buttons off, and says why, with no scene to place on', async () => {
+    const wrapper = await openPicker(false);
+    expect(addButton(wrapper).attributes('disabled')).toBeDefined();
+    expect(wrapper.get('details.monster-picker').text()).toContain('Make a scene');
+  });
+});
+
 describe('party bar', () => {
   it('shows an empty message with no party', async () => {
     const wrapper = await mountTable();
