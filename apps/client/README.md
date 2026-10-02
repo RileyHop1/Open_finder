@@ -128,6 +128,14 @@ client server in production.
   browser shows, so a scene being built in a preview gets its tokens before the
   players are there. The server sizes and snaps it; it appears when the
   broadcast arrives, and a screen reader is told. **Built.**
+- **The token menu** (`components/map/TokenMenu.vue`, wired in `MapView.vue`) -- the
+  GM right-clicks a token, or selects it and presses the Menu key or Shift+F10, to
+  hide it from the players or show it (`token.update`; the server takes a hidden
+  token away from players who hold it), change its name (blank goes back to the
+  character's own) and size, or remove it from the map (`token.delete`; the
+  character stays, so it can be placed again). A `menu` with arrow keys, Home and
+  End; Escape, Tab, or a press elsewhere on the map closes it and focus goes back
+  to the map. Players are never offered it. **Built.**
 - **The table** (`components/TableView.vue`) -- what a seated player sees,
   shown by the lobby while this device holds a seat (the seat list folds into a
   "Seats" disclosure, still there for a GM adding seats). **Map-first** since
