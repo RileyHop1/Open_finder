@@ -7,8 +7,8 @@ lives on the party ([party.md](party.md)). Rationale in
 [ADR 0017](adr/0017-scenes-and-tokens.md); how distance is measured is
 [grid.md](grid.md).
 
-Milestone 4 adds the schema, then the server operations and the client canvas.
-Sections below say which parts exist so far.
+Milestone 4 added the schema, then the server operations and the client canvas;
+`e2e/tests/scenes-and-tokens.spec.ts` walks the whole flow with a GM and a player.
 
 ## Fields (beyond the envelope)
 
