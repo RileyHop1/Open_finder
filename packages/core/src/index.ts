@@ -76,6 +76,21 @@ export {
 
 export { MAX_TOKEN_SIZE, tokenSchema, type Token } from './token.js';
 
+export {
+  COMBAT_STATUSES,
+  MAX_COUNTER,
+  MAX_INITIATIVE,
+  MAX_ROUND,
+  combatSchema,
+  combatStatusSchema,
+  combatantSchema,
+  turnStateSchema,
+  type Combat,
+  type Combatant,
+  type CombatStatus,
+  type TurnState,
+} from './combat.js';
+
 export type { Cell, Footprint, GridStrategy, Point } from './grid/gridStrategy.js';
 export { GridlessGrid } from './grid/gridless.js';
 
