@@ -34,6 +34,7 @@ import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import MapView from './map/MapView.vue';
 import { startActorDrag } from './map/placement.js';
+import MonsterPicker from './scenes/MonsterPicker.vue';
 import SceneManager from './scenes/SceneManager.vue';
 import { useDrawer } from './useDrawer.js';
 import PartyBar from './PartyBar.vue';
@@ -172,6 +173,16 @@ function openSheetOf(actorId: string): void {
 }
 
 const newName = ref('');
+/** Set while a monster is being made, so its token is placed when the new actor arrives. */
+const placeNextNew = ref(false);
+
+/** The server makes the actor from its own compendium copy; the token follows when it arrives (below). */
+async function addMonster(packId: string, slug: string): Promise<void> {
+  placeNextNew.value = true;
+  if (!(await documents.send('actor.createFromCreature', { packId, slug }))) {
+    placeNextNew.value = false;
+  }
+}
 /** Set while a create is in flight, so the new character is opened when it arrives. */
 const openNextNew = ref(false);
 
@@ -189,6 +200,14 @@ watch(
       !actors.some((a) => a.id === selectedId.value)
     ) {
       selectedId.value = undefined;
+    }
+    if (placeNextNew.value) {
+      const known = new Set(previous.map((a) => a.id));
+      const made = actors.find((a) => !known.has(a.id));
+      if (made !== undefined) {
+        placeNextNew.value = false;
+        void placeOnMap(made.id);
+      }
     }
     if (openNextNew.value) {
       const known = new Set(previous.map((a) => a.id));
@@ -369,6 +388,13 @@ async function handleCreate(): Promise<void> {
             <p v-if="lobby.mySeat?.isGM && scenes.shownScene === undefined" class="empty">
               Make a scene and move the party to it (the Scenes button) to place tokens.
             </p>
+
+            <MonsterPicker
+              v-if="lobby.mySeat?.isGM"
+              :key="`monsters-${contentVersion}`"
+              :can-place="scenes.shownScene !== undefined"
+              @add="addMonster"
+            />
 
             <form class="new-character" @submit.prevent="handleCreate">
               <label for="new-character-name">New character name</label>

@@ -128,6 +128,15 @@ client server in production.
   browser shows, so a scene being built in a preview gets its tokens before the
   players are there. The server sizes and snaps it; it appears when the
   broadcast arrives, and a screen reader is told. **Built.**
+- **Adding a monster** (`components/scenes/MonsterPicker.vue`, `TableView.vue`) -- in the
+  Characters drawer, GM only: **Add a monster** searches the imported creatures
+  (Monster Core) by name and each result has **Add to map**. The client only names
+  the entry (`actor.createFromCreature`); the server copies it from its own
+  compendium, so a client never supplies a monster's stats, and the monster is
+  hidden from players (their view of its token shows no name). When the new actor
+  arrives its token is placed the same way as **Place on map**. With nothing
+  imported it says so in words, and with no scene the buttons are off and say why.
+  **Built.**
 - **The token menu** (`components/map/TokenMenu.vue`, wired in `MapView.vue`) -- the
   GM right-clicks a token, or selects it and presses the Menu key or Shift+F10, to
   hide it from the players or show it (`token.update`; the server takes a hidden
