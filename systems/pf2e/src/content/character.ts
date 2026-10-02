@@ -21,6 +21,7 @@ import { attributeSchema, proficiencyRankSchema } from './common.js';
 import { conditionDurationSchema } from './conditionDuration.js';
 import { featEntrySchema } from './feat.js';
 import { gearEntrySchema } from './gear.js';
+import { persistentDamageSchema } from './persistentDamage.js';
 import { spellEntrySchema } from './spell.js';
 import { weaponEntrySchema } from './weapon.js';
 
@@ -144,6 +145,8 @@ export const characterDataSchema = z
     }),
     items: z.array(characterItemSchema).default([]),
     conditions: z.array(appliedConditionSchema).default([]),
+    /** Persistent damage still burning; empty when none (`persistentDamage.ts`). */
+    persistentDamage: z.array(persistentDamageSchema).default([]),
     /** Already-made `choiceSet` selections, keyed by the element's `rollOptionPrefix` (see `applyRuleElements`). */
     choices: z.record(z.string().min(1), z.string().min(1)).default({}),
   })

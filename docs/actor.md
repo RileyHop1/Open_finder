@@ -76,6 +76,7 @@ total is derived by `prepareCharacter` and never stored.
 | `hp` | `{ current, temp }` |
 | `items` | Embedded copies of weapon, armor, gear, feat, classFeature, spell, and action entries, each with its own id, an optional `source`, `equipped`, and `quantity` |
 | `conditions` | `{ slug, value? }`, one per slug. Modifiers are computed, never stored ([conditions.md](conditions.md)) |
+| `persistentDamage` | `{ id, formula, damageType, source? }[]`, default empty. Persistent damage still burning, one entry per damage type (`systems/pf2e/src/content/persistentDamage.ts`). Absent in an actor stored before it existed, which parses as none |
 | `choices` | Made `choiceSet` selections, keyed by `rollOptionPrefix` |
 
 A character cannot list two items with the same id, or one condition twice
@@ -176,6 +177,7 @@ changes in play.
 | `source` | `{ packId, slug }`, optional | Where the copy came from. Absent for a hand-made creature |
 | `hp` | `{ current, temp }` | `current` starts at the creature's `hp`; `temp` at 0. Not bounded by the schema, like a character's: the damage and healing rules clamp it |
 | `conditions` | `{ slug, value? }[]` | Same shape and one-per-slug rule as a character's |
+| `persistentDamage` | `{ id, formula, damageType, source? }[]` | Same as a character's: default empty |
 
 The GM can edit the copy (a tougher goblin is `system.creature.hp`), which is the
 override path. Players do not receive an NPC's sheet: `actor.createFromCreature`
