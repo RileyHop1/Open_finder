@@ -237,6 +237,29 @@ whole answer to a disagreement: set or remove `dying`, `wounded`, `doomed`, and
 especially prominent on this one, since it is the automation a GM is most likely
 to want to overrule.
 
+## Persistent damage
+Persistent damage hurts its bearer again at the **end of their turn** until a flat
+check ends it. It is a **list of its own** on the actor (`persistentDamage`,
+`systems/pf2e/src/content/persistentDamage.ts`), not a condition: a character
+holds one entry per condition, and persistent damage stacks by damage type (fire
+and bleed together). An actor stored without it parses as having none, so nothing
+needed migrating. **Every number is marked (confirm)**; see
+[rulings.md](rulings.md), "Persistent damage".
+
+- Each entry is `{ id, formula, damageType, source? }`, with a plain dice formula
+  (`1d6`, `2d6+3`), never a reference or a keep/drop/reroll/explode modifier.
+- **One entry per damage type** (`addPersistentDamage`): a second source of the same
+  type keeps the worse, the higher average (a tie keeps the existing one). Different
+  types stack.
+- At the end of the bearer's turn, `endOfTurn` returns what is due (`persistentDue`).
+  The server (B.7) rolls each entry's damage, applies it (resistances and immunities
+  are the damage layer's, and dropping to 0 HP runs the dying chain), then rolls a
+  **flat check, DC 15, or DC 10 if someone helps**. A flat check is a plain d20: it
+  succeeds on a natural roll at or above the DC, with no degrees and no natural 20
+  or natural 1 shift. Success ends that entry (`resolvePersistentDamage`).
+- Each step is an event (damaged, ended, still burning), so the table is told and the
+  GM can undo it. The GM can add, edit, or remove any entry by hand.
+
 ## Automation boundaries
 - The app **applies and tracks** conditions, and applies their modifiers.
 - The app **does not decide** whether a condition should be applied in an

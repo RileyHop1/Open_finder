@@ -279,3 +279,54 @@ describe('startOfTurn -- stunned', () => {
     ]);
   });
 });
+
+describe('persistent damage at the end of a turn', () => {
+  const fire = {
+    id: '00000000-0000-4000-8000-0000000000aa',
+    formula: '1d6',
+    damageType: 'fire',
+  };
+  const bleed = {
+    id: '00000000-0000-4000-8000-0000000000bb',
+    formula: '1d4',
+    damageType: 'bleed',
+  };
+  const burning = (
+    combatantId: string,
+    ...entries: (typeof fire)[]
+  ): TurnParticipant => ({
+    combatantId,
+    conditions: [],
+    turn: FRESH,
+    persistentDamage: entries,
+  });
+
+  it('hands back what is due for the one whose turn is ending, in order', () => {
+    const result = endOfTurn(
+      [burning(VALEROS, fire, bleed), burning(GOBLIN, fire)],
+      VALEROS,
+    );
+    expect(result.persistentDue).toEqual([
+      { combatantId: VALEROS, entries: [fire, bleed] },
+    ]);
+  });
+
+  it('hands back nothing for a bearer with none, or for anyone else’s turn', () => {
+    expect(endOfTurn([who(VALEROS)], VALEROS).persistentDue).toEqual([]);
+    expect(endOfTurn([burning(GOBLIN, fire)], VALEROS).persistentDue).toEqual([]);
+  });
+
+  it('hands back nothing at the start of a turn', () => {
+    expect(startOfTurn([burning(VALEROS, fire)], VALEROS).persistentDue).toEqual([]);
+  });
+
+  it('does not change the other end-of-turn results', () => {
+    const frightened: AppliedCondition = { slug: 'frightened', value: 2 };
+    const result = endOfTurn(
+      [{ ...burning(VALEROS, fire), conditions: [frightened] }],
+      VALEROS,
+    );
+    expect(result.changes[0]?.conditions).toEqual([{ slug: 'frightened', value: 1 }]);
+    expect(result.persistentDue).toHaveLength(1);
+  });
+});

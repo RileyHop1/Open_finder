@@ -312,6 +312,32 @@ ruling from silently drifting.
 - **Override:** the GM sets or removes any condition directly
   (`setCondition` / `removeCondition`).
 
+### Persistent damage
+- **Rules text:** **(confirm)** every number below. The Archives of Nethys pages
+  could not be reached from the environment this was written in (2026-10-02), so
+  all of it is from memory of Player Core and unverified.
+- **Our reading:** persistent damage hurts its bearer at the **end of their turn**
+  (after the damage is rolled and applied, a flat check follows). The flat check is
+  **DC 15**, or **DC 10** if someone helps (an appropriate treatment, or help from an
+  ally). It is a plain d20: it succeeds on a natural roll at or above the DC, with no
+  degrees. Success ends that persistent damage; failure leaves it for the next turn.
+  Several sources of the **same damage type** do not add: only the worse counts (the
+  higher average). Different types stack and are rolled separately.
+- **The ambiguity and the alternatives:**
+  - whether a natural 20 or natural 1 on a flat check shifts anything (we say no);
+  - how "the worse" is judged between two formulas (we compare the average);
+  - whether each source should be tracked separately so a weaker one returns when a
+    stronger ends (we keep one entry per type);
+  - what counts as help for DC 10 (the caller says whether it did).
+- **Why:** one entry per type is the common table reading and needs no extra state,
+  and a plain flat check is the simplest consistent rule. A wrong step is a damage
+  entry the GM can see and remove.
+- **Override:** the GM adds, edits, or removes any persistent damage entry directly,
+  and sets the HP it caused.
+- **Golden test:** `systems/pf2e/src/rules/persistentDamage.test.ts` (the flat check,
+  stacking, resolving) and `turnBoundaries.test.ts` ("persistent damage"). Clear the
+  **(confirm)** here and in `conditions.md` when the pages can be checked.
+
 ### The dying chain
 - **Rules text:** **(confirm)** every number below. The Archives of Nethys pages
   could not be reached from the environment this was written in (2026-10-02), so
