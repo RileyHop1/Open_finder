@@ -41,6 +41,16 @@ describe('combatSchema', () => {
     expect(parsed.status).toBe('pending');
     expect(parsed.round).toBe(0);
     expect(parsed.activeCombatantId).toBeUndefined();
+    expect(parsed.freeMovement).toBe(false);
+  });
+
+  it('keeps the GM\u2019s free-movement ruling, and rejects one that is not a boolean', () => {
+    expect(
+      combatSchema.parse({ ...combatFields(), freeMovement: true }).freeMovement,
+    ).toBe(true);
+    expect(
+      combatSchema.safeParse({ ...combatFields(), freeMovement: 'yes' }).success,
+    ).toBe(false);
   });
 
   it('keeps a running combat: its round and whose turn it is, by id', () => {
@@ -86,6 +96,7 @@ describe('combatantSchema', () => {
     expect(parsed.initiative).toBeUndefined();
     expect(parsed.defeated).toBe(false);
     expect(parsed.hidden).toBe(false);
+    expect(parsed.movementGrant).toBe(false);
     expect(parsed.turn).toEqual({ actionsSpent: 0, reactionUsed: false, attacksMade: 0 });
   });
 
@@ -96,6 +107,15 @@ describe('combatantSchema', () => {
     expect(combatantSchema.parse({ ...combatantFields(), defeated: true }).defeated).toBe(
       true,
     );
+  });
+
+  it('keeps a one-off movement grant, and rejects one that is not a boolean', () => {
+    expect(
+      combatantSchema.parse({ ...combatantFields(), movementGrant: true }).movementGrant,
+    ).toBe(true);
+    expect(
+      combatantSchema.safeParse({ ...combatantFields(), movementGrant: 1 }).success,
+    ).toBe(false);
   });
 
   it('fills the rest of a partly written turn', () => {
@@ -114,18 +134,28 @@ describe('combatantSchema', () => {
     expect(parsed.turn.actionsSpent).toBe(4);
   });
 
-  it('rejects an initiative that is a fraction or past the bound', () => {
+  it('keeps a fractional initiative, as a reorder between two others gives', () => {
     expect(
-      combatantSchema.safeParse({ ...combatantFields(), initiative: 12.5 }).success,
-    ).toBe(false);
+      combatantSchema.parse({ ...combatantFields(), initiative: 14.5 }).initiative,
+    ).toBe(14.5);
     expect(
-      combatantSchema.safeParse({ ...combatantFields(), initiative: MAX_INITIATIVE + 1 })
-        .success,
-    ).toBe(false);
-    expect(
-      combatantSchema.safeParse({ ...combatantFields(), initiative: -MAX_INITIATIVE - 1 })
-        .success,
-    ).toBe(false);
+      combatantSchema.parse({ ...combatantFields(), initiative: -0.25 }).initiative,
+    ).toBe(-0.25);
+  });
+
+  it('rejects an initiative that is not a finite number or is past the bound', () => {
+    for (const initiative of [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      MAX_INITIATIVE + 1,
+      -MAX_INITIATIVE - 1,
+      '12',
+    ]) {
+      expect(
+        combatantSchema.safeParse({ ...combatantFields(), initiative }).success,
+      ).toBe(false);
+    }
   });
 
   it('rejects counters that are negative, fractions, or past the bound', () => {

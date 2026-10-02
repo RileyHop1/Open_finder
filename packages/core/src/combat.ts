@@ -44,6 +44,12 @@ export const combatSchema = baseDocumentSchema.extend({
    * combatant (a hidden creature acting).
    */
   activeCombatantId: idSchema.optional(),
+  /**
+   * The GM's ruling that lifts the turn rule for everyone (a chase, a cutscene):
+   * while true, a player's token may move out of turn. Off by default. The GM is
+   * never blocked either way (docs/combat.md, "Turn-based mode is the GM's switch").
+   */
+  freeMovement: z.boolean().default(false),
 });
 
 export type Combat = z.infer<typeof combatSchema>;
@@ -76,12 +82,23 @@ export const combatantSchema = baseDocumentSchema.extend({
   /** The token that fights. A combatant is a token on a scene, so a creature with no token cannot join. */
   tokenId: idSchema,
   actorId: idSchema,
-  /** The rolled (or GM-set) initiative. Absent until rolled; an unrolled combatant sorts last. */
-  initiative: z.number().int().min(-MAX_INITIATIVE).max(MAX_INITIATIVE).optional(),
+  /**
+   * The rolled (or GM-set) initiative. Absent until rolled; an unrolled combatant
+   * sorts last. **May be fractional**: when the GM moves a combatant between two
+   * others it takes a number between theirs (14.5 between a 15 and a 14), so the
+   * order stays derived from this one number (ADR 0018, decision 3).
+   */
+  initiative: z.number().min(-MAX_INITIATIVE).max(MAX_INITIATIVE).optional(),
   /** Out of the fight (dead, fled, left behind). Still listed for the GM; skipped by the turn order. */
   defeated: z.boolean().default(false),
   /** Whether players can see it in the order. The server derives the permissions from this, never the client. */
   hidden: z.boolean().default(false),
+  /**
+   * The GM's one-off ruling that lets this combatant's token move out of turn
+   * once (a reaction Stride, a call at the table). The server clears it when the
+   * combatant's next turn ends. Off by default.
+   */
+  movementGrant: z.boolean().default(false),
   turn: turnStateSchema.default({ actionsSpent: 0, reactionUsed: false, attacksMade: 0 }),
 });
 

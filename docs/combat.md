@@ -58,7 +58,7 @@ A reorder does not store a separate order. The order stays derived from initiati
 ([Turn order](#turn-order)), so a move **gives the combatant an initiative between
 its new neighbours** (the midpoint, so 14.5 between a 15 and a 14, and one above or
 below the ends). That means `initiative` is a number that may be fractional, which
-is a small change to the `Combatant` schema (A.2b). It was weighed against
+is allowed by the `Combatant` schema. It was weighed against
 renumbering everyone (which erases rolled values) and against a second "manual
 order" field (two sort keys to keep consistent); the midpoint keeps one key and the
 tie rule untouched. The turn pointer is an id, so moving someone, even the active
@@ -107,6 +107,7 @@ an id, not a position that could drift onto the wrong creature.
 | `status` | `pending` \| `active` \| `ended`, default `pending` | `ended` is kept as a record until the GM deletes it. Only one combat per world may be `active`: the server enforces that |
 | `round` | integer 0-9999, default 0 | 0 until the combat starts, then 1 and counting |
 | `activeCombatantId` | UUID, optional | Whose turn it is. Absent before the start and after the end. A player may not be able to read this combatant (a hidden creature acting): they are shown "someone's turn" and nothing else |
+| `freeMovement` | boolean, default `false` | The GM's ruling that lifts the turn rule for everyone while it is on. The GM is never blocked either way |
 
 ## Combatant fields (beyond the envelope)
 
@@ -116,9 +117,10 @@ an id, not a position that could drift onto the wrong creature.
 | `combatId` | UUID | The combat it is in |
 | `tokenId` | UUID | The token that fights. A combatant is a token on a scene, so a creature with no token cannot join: the GM places one first |
 | `actorId` | UUID | The actor behind the token |
-| `initiative` | integer, optional | Absent until rolled or set; an unrolled combatant sorts last. Any integer from -1000 to 1000, negatives included |
+| `initiative` | number, optional | Absent until rolled or set; an unrolled combatant sorts last. Any finite number from -1000 to 1000, negatives and **fractions** included: a reorder gives a combatant the midpoint between its new neighbours |
 | `defeated` | boolean, default `false` | Out of the fight. Still listed for the GM, skipped by the turn order |
 | `hidden` | boolean, default `false` | Whether players see it in the order. The server derives the permissions from this, never the client |
+| `movementGrant` | boolean, default `false` | The GM's one-off ruling that lets this token move out of turn once. The server clears it when the combatant's next turn ends |
 | `turn` | [turn state](#turn-state), default all zero | What it has used this turn |
 
 ### Turn state
@@ -198,5 +200,5 @@ nobody active) and a running one kept; every status and no other; a round that i
 negative, a fraction, or past the bound; a malformed active id and a missing scene.
 A combatant's defaults (unrolled, in the fight, visible, a fresh turn); a negative
 initiative kept; a partly written turn filled in; overspending allowed; an
-initiative or counter that is a fraction, negative, or past its bound; and each of
+initiative that is not a finite number or is past its bound (fractions are kept); a counter that is a fraction, negative, or past its bound; the free-movement ruling and the movement grant; and each of
 the three required ids.
