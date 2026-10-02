@@ -232,6 +232,15 @@ export {
 } from './rules/initiativeOrder.js';
 
 export {
+  endOfTurn,
+  startOfTurn,
+  type TurnChange,
+  type TurnEvent,
+  type TurnParticipant,
+  type TurnResult,
+} from './rules/turnBoundaries.js';
+
+export {
   appliedConditionSchema,
   characterAttributesSchema,
   characterDataSchema,

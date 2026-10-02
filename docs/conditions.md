@@ -188,6 +188,16 @@ the tracker ship close together. Outside combat, `minutes`/`hours` durations are
 advanced by the `Calendar` — the same clock that overworld travel and downtime
 use, which is why `Calendar` is a first-class document.
 
+**What ticks, and when** (`startOfTurn` / `endOfTurn`,
+`systems/pf2e/src/rules/turnBoundaries.ts`; [combat.md](combat.md)):
+- `turn` ends at the start or end of the named combatant's turn, on whoever
+  bears it.
+- `rounds` counts down at the start of the **bearer's** own turn and ends at zero.
+- *Frightened* drops by 1 at the end of its bearer's turn.
+- `minutes`, `hours`, `days`, `sustained`, and `untilRemoved` are never touched.
+
+See [rulings.md](rulings.md), "When a rounds duration ticks, and when frightened drops".
+
 **Expiry is a server operation**, not a client timer. A condition that expires
 must broadcast like any other change (ADR 0005).
 

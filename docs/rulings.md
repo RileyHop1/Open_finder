@@ -312,6 +312,47 @@ ruling from silently drifting.
 - **Override:** the GM sets or removes any condition directly
   (`setCondition` / `removeCondition`).
 
+### When a rounds duration ticks, and when frightened drops
+- **Rules text:** a duration measured in rounds is counted by turns, and
+  *frightened* decreases by 1 at the end of each of your turns (Player Core,
+  Conditions). The rules do not say, for an effect one creature puts on another,
+  whose turn counts the rounds.
+- **The ambiguity:** an effect "for 3 rounds" that a goblin puts on you could run
+  on the goblin's clock, yours, or from the moment it was applied.
+- **Our reading:** a `rounds` duration ticks at the **start of the bearer's own
+  turn** (the one who has the condition), and ends when it reaches zero, so "1
+  round" lasts until the start of your next turn. *Frightened* drops by 1 at the
+  **end of the bearer's turn**, and ends at zero, including a frightened that was
+  applied during that same turn.
+- **Alternative reading:** tick on the clock of whoever applied it, which the app
+  would need the condition's source to know (a field this milestone does not add).
+- **Why:** the bearer is always known, and it is the reading that needs no extra
+  state. A wrong tick is a condition that ends a turn early or late, which the GM
+  sees and fixes by editing the duration.
+- **Override:** the GM sets or removes any condition and edits its duration
+  (`setCondition`). Every tick and drop is reported as an event the table sees.
+- **Golden test:** `systems/pf2e/src/rules/turnBoundaries.test.ts`.
+
+### The Multiple Attack Penalty resets at the start of your own turn
+- **Rules text:** the penalty applies to the attacks you make on **your turn**
+  (-5 on the second, -10 on the third and later, -4 and -8 with an agile weapon).
+  **(confirm)** The Archives of Nethys page could not be reached from the
+  environment this was written in (2026-10-02), so what follows is from memory.
+- **The ambiguity:** whether an attack made on someone else's turn as a reaction
+  counts toward the penalty or takes it.
+- **Our reading:** the attack count lives on the combatant and **resets at the start
+  of that combatant's own turn**. A strike made as a reaction on another's turn takes
+  no penalty and is not counted (the server's strike operation, B.4, honours that).
+  It does not reset on a new round while another creature is acting.
+- **Alternative reading:** a rolling count that resets after a full turn passes, or
+  that counts reaction attacks too.
+- **Why:** it is the plain reading of "on your turn", and the count is one number
+  the table can see and the GM can set.
+- **Override:** the GM or the player sets the attack number on a strike directly,
+  as they can today (`actor.rollStrike` keeps an explicit number).
+- **Golden test:** `turnBoundaries.test.ts`, "the turn resets". Clear the
+  **(confirm)** here and in `action-economy.md` when the page can be checked.
+
 ### Initiative ties
 - **Rules text:** initiative is a Perception check (or another skill the activity
   names), and everyone acts from highest to lowest. The rules say what to do when
