@@ -86,6 +86,17 @@ multi-square creature is counted; this is the usual table reading)**.
 Tiny creatures sharing a square is a real rule, not an edge case, and the token
 layer has to allow co-occupancy rather than assuming one token per square.
 
+## Measuring
+
+The client's ruler (`M`, or the Ruler button) and the distances in the token list
+both go through the scene's `GridStrategy`, so they give the number a token's
+move shows. The ruler runs between the *centres of cells* (a click snaps to the
+cell it is in), counts diagonals 5, 10, 5... along the whole route, and on a
+gridless scene is a straight line in feet from exactly where you click. The token
+list's "N ft away" is `distanceBetween` the selected token and each other, to the
+nearest occupied square (a Large creature is measured from its edge). Both are
+local to the screen; nothing is sent.
+
 ## Reach and threatened area
 Default melee reach is 5 feet; reach weapons extend it, and larger creatures have
 larger natural reach. Reach is a property of the **attack**, not only the creature,

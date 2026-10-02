@@ -12,6 +12,9 @@
  * whose actor this seat cannot open (a monster, for a player) has no sheet
  * button, since there is nothing to open.
  *
+ * While a token is selected each other token also says how far it is from it, in
+ * feet: the keyboard route to what the ruler measures with a pointer.
+ *
  * The GM's exits are listed here too, after the tokens, each a button that asks
  * to move the party through it: the keyboard route to what a click on the exit's
  * marker does.
@@ -19,17 +22,28 @@
 import { describeExit, type ExitView } from './exitModel.js';
 import { describeToken, type TokenView } from './tokenModel.js';
 
-withDefaults(
-  defineProps<{ views: readonly TokenView[]; exits?: readonly ExitView[] }>(),
-  {
-    exits: () => [],
-  },
+const props = withDefaults(
+  defineProps<{
+    views: readonly TokenView[];
+    exits?: readonly ExitView[];
+    /** Feet from the selected token, by token id. */
+    distances?: Readonly<Record<string, number>>;
+  }>(),
+  { exits: () => [], distances: () => ({}) },
 );
 const emit = defineEmits<{
   select: [tokenId: string];
   open: [actorId: string];
   exit: [exitId: string];
 }>();
+
+/** A token's row: its name, and how far it is from the selected token when one is selected. */
+function rowText(view: TokenView): string {
+  const feet = props.distances[view.id];
+  return feet === undefined
+    ? describeToken(view)
+    : `${describeToken(view)}, ${feet} ft away`;
+}
 </script>
 
 <template>
@@ -46,7 +60,7 @@ const emit = defineEmits<{
           :title="view.movable ? 'Select, then the arrow keys move it' : 'Select'"
           @click="emit('select', view.id)"
         >
-          {{ describeToken(view) }}
+          {{ rowText(view) }}
         </button>
         <button
           v-if="view.openable"

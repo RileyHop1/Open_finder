@@ -86,6 +86,7 @@ const view = {
   setCamera: vi.fn(),
   setTokens: vi.fn(),
   setExits: vi.fn(),
+  setRuler: vi.fn(),
   destroy: vi.fn(),
 };
 
@@ -1538,5 +1539,173 @@ describe('exits', () => {
     await wrapper.get('.exit-menu form').trigger('submit');
     await flushPromises();
     expect(status(wrapper)).toBe('');
+  });
+});
+
+describe('the ruler', () => {
+  const world = crypto.randomUUID();
+  const seat = (isGM: boolean): Seat => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'S',
+    isGM,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  /** Scene 2000 x 1000, 100 px squares, fitted at 0.5: scene (250, 250) is screen (149, 149), a square is 50 px. */
+  async function setup(who = seat(false)) {
+    lobby.mySeat = who;
+    state.shownScene = makeScene();
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, surface: wrapper.get('.map-surface') };
+  }
+
+  const press = (surface: { element: Element }, x: number, y: number) =>
+    pointer(surface, 'pointerdown', { pointerId: 1, button: 0, clientX: x, clientY: y });
+  const move = (surface: { element: Element }, x: number, y: number) =>
+    pointer(surface, 'pointermove', { pointerId: 1, clientX: x, clientY: y });
+  const status = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('p[role="status"].visually-hidden').text();
+  const rulerButton = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('.map-zoom button[title^="Measure"]');
+  const lastRuler = () => view.setRuler.mock.lastCall?.[0] as { x: number; y: number }[];
+
+  it('turns on with M or the button, and off again, saying so', async () => {
+    const { wrapper, surface } = await setup();
+    expect(rulerButton(wrapper).attributes('aria-pressed')).toBe('false');
+    await surface.trigger('keydown', { key: 'm' });
+    expect(rulerButton(wrapper).attributes('aria-pressed')).toBe('true');
+    expect(surface.classes()).toContain('is-measuring');
+    expect(status(wrapper)).toContain('Ruler on');
+
+    await surface.trigger('keydown', { key: 'M' });
+    expect(rulerButton(wrapper).attributes('aria-pressed')).toBe('false');
+    expect(status(wrapper)).toBe('Ruler off.');
+
+    await rulerButton(wrapper).trigger('click');
+    expect(surface.classes()).toContain('is-measuring');
+  });
+
+  it('measures from the first click to the pointer, in feet, by the grid rules', async () => {
+    const { wrapper, surface } = await setup();
+    await surface.trigger('keydown', { key: 'm' });
+    await press(surface, 149, 149);
+    await move(surface, 399, 149);
+    // From square centre (250, 250) to (750, 250): five squares.
+    expect(wrapper.get('output.move-readout').text()).toBe('25 ft');
+    expect(lastRuler()).toEqual([
+      { x: 250, y: 250 },
+      { x: 750, y: 250 },
+    ]);
+
+    await move(surface, 399, 399);
+    // Five across and five down: five diagonals, 5 + 10 + 5 + 10 + 5.
+    expect(wrapper.get('output.move-readout').text()).toBe('35 ft');
+  });
+
+  it('adds up a route through several points, and announces the total', async () => {
+    const { wrapper, surface } = await setup();
+    await surface.trigger('keydown', { key: 'm' });
+    await press(surface, 149, 149);
+    await press(surface, 349, 149);
+    expect(status(wrapper)).toBe('Ruler: 20 ft so far.');
+    await move(surface, 349, 249);
+    expect(wrapper.get('output.move-readout').text()).toBe('30 ft');
+  });
+
+  it('takes the last point back with Backspace, and puts the ruler away with Escape', async () => {
+    const { wrapper, surface } = await setup();
+    await surface.trigger('keydown', { key: 'm' });
+    await press(surface, 149, 149);
+    await press(surface, 349, 149);
+    await surface.trigger('keydown', { key: 'Backspace' });
+    await move(surface, 349, 149);
+    expect(wrapper.get('output.move-readout').text()).toBe('20 ft');
+
+    await surface.trigger('keydown', { key: 'Escape' });
+    expect(rulerButton(wrapper).attributes('aria-pressed')).toBe('false');
+    expect(wrapper.find('output.move-readout').exists()).toBe(false);
+    expect(lastRuler()).toEqual([]);
+  });
+
+  it('does not pan the map while measuring, and does not select tokens', async () => {
+    const { surface } = await setup();
+    await surface.trigger('keydown', { key: 'm' });
+    view.setCamera.mockClear();
+    await press(surface, 149, 149);
+    await move(surface, 300, 300);
+    expect(view.setCamera).not.toHaveBeenCalled();
+  });
+
+  it('forgets its points when the ruler is turned off and on again', async () => {
+    const { surface } = await setup();
+    await surface.trigger('keydown', { key: 'm' });
+    await press(surface, 149, 149);
+    await surface.trigger('keydown', { key: 'm' });
+    await surface.trigger('keydown', { key: 'm' });
+    await move(surface, 300, 300);
+    expect(lastRuler()).toHaveLength(1);
+  });
+
+  it('is there for a player as well as the GM', async () => {
+    const { wrapper } = await setup(seat(false));
+    expect(wrapper.find('.map-zoom button[title^="Measure"]').exists()).toBe(true);
+    const gm = await setup(seat(true));
+    expect(gm.wrapper.find('.map-zoom button[title^="Measure"]').exists()).toBe(true);
+  });
+});
+
+describe('distances in the token list', () => {
+  const world = crypto.randomUUID();
+  const hero = (name: string): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    system: {},
+  });
+
+  it('says how far each other token is from the selected one, in feet', async () => {
+    lobby.mySeat = undefined;
+    const [anna, ben] = [hero('Anna'), hero('Ben')];
+    docs.actors = [anna, ben];
+    const scene = makeScene();
+    state.shownScene = scene;
+    const token = (actor: Actor, x: number) =>
+      tokenSchema.parse({
+        id: crypto.randomUUID(),
+        worldId: world,
+        type: 'token',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        actorId: actor.id,
+        x,
+        y: 250,
+      });
+    state.shownTokens = [token(anna, 250), token(ben, 650)];
+    const wrapper = mountView();
+    await ready(wrapper);
+
+    const buttons = () =>
+      wrapper.findAll('.token-list li > button:first-child').map((b) => b.text());
+    expect(buttons()).toEqual(['Anna', 'Ben']);
+
+    await wrapper.get('.token-list li button').trigger('click');
+    expect(buttons()).toEqual(['Anna', 'Ben, 20 ft away']);
   });
 });

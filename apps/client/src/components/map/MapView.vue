@@ -57,6 +57,12 @@
  * press the Menu key / Shift+F10 with no token selected, for the middle of the
  * view) to add an exit there, and right-click an exit's marker to remove it. The
  * scene's settings have the same two as a form.
+ *
+ * **The ruler** (`ruler.ts`): the Ruler button, or M, turns it on; each click adds a
+ * point (on the cell's centre) and the distance along the route, by the scene's
+ * grid rules, follows the pointer. Backspace takes the last point back; M or
+ * Escape puts it away. It is local to this screen. The keyboard equivalent is in
+ * the token list, which says how far each token is from the selected one.
  */
 import type { Application } from 'pixi.js';
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
@@ -86,6 +92,7 @@ import {
   exitRadius,
   exitViews,
 } from './exitModel.js';
+import { rulerFeet, rulerPoint, tokenDistances } from './ruler.js';
 import { createThrottle } from './throttle.js';
 import {
   canMoveToken,
@@ -222,6 +229,7 @@ const fetchingPortraits = new Set<string>();
 function drawTokens(): void {
   view?.setTokens(views.value, portraits, scenes.shownScene?.grid.size ?? 100);
   view?.setExits(exits.value, scenes.shownScene?.grid.size ?? 100);
+  view?.setRuler(rulerPath.value, scenes.shownScene?.grid.size ?? 100);
 }
 
 function loadPortraits(): void {
@@ -304,6 +312,18 @@ function onPointerDown(event: PointerEvent): void {
   exitMenu.value = undefined;
   surface.value?.focus();
   const point = sample(event);
+  if (rulerOn.value && event.button === 0) {
+    const spot = rulerAt(point);
+    const last = rulerPoints.value[rulerPoints.value.length - 1];
+    if (spot !== undefined && (last?.x !== spot.x || last?.y !== spot.y)) {
+      rulerPoints.value = [...rulerPoints.value, spot];
+      const scene = scenes.shownScene;
+      if (scene !== undefined && rulerPoints.value.length > 1) {
+        announcement.value = `Ruler: ${rulerFeet(gridForScene(scene), rulerPoints.value)} ft so far.`;
+      }
+    }
+    return;
+  }
   const hit = tokenAt(
     views.value,
     screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
@@ -350,6 +370,9 @@ function onPointerDown(event: PointerEvent): void {
 
 function onPointerMove(event: PointerEvent): void {
   const point = sample(event);
+  if (rulerOn.value) {
+    rulerCursor.value = rulerAt(point);
+  }
   const current = held;
   if (current === undefined) {
     input.pointerMove(point);
@@ -407,6 +430,67 @@ function onPointerUp(event: PointerEvent): void {
   input.pointerUp(sample(event));
   dragging.value = input.dragging;
 }
+
+/** The ruler: on or off, its points so far, and where the pointer is now. */
+const rulerOn = ref(false);
+const rulerPoints = ref<Point[]>([]);
+const rulerCursor = ref<Point>();
+const rulerPath = computed(() =>
+  rulerCursor.value === undefined
+    ? rulerPoints.value
+    : [...rulerPoints.value, rulerCursor.value],
+);
+const rulerReadout = computed(() => {
+  const scene = scenes.shownScene;
+  const cursor = rulerCursor.value;
+  if (
+    !rulerOn.value ||
+    scene === undefined ||
+    cursor === undefined ||
+    camera === undefined
+  ) {
+    return undefined;
+  }
+  const place = sceneToScreen(camera, viewportSize(), cursor);
+  return {
+    x: place.x,
+    y: place.y,
+    feet: rulerFeet(gridForScene(scene), rulerPoints.value, cursor),
+  };
+});
+
+function clearRuler(): void {
+  rulerPoints.value = [];
+  rulerCursor.value = undefined;
+}
+
+function setRuler(on: boolean): void {
+  rulerOn.value = on;
+  clearRuler();
+  announcement.value = on
+    ? 'Ruler on. Click to measure, Backspace to undo a point, M or Escape to stop. The token list says how far each token is from the selected one.'
+    : 'Ruler off.';
+}
+
+/** Where the pointer is on the scene, snapped for the ruler. */
+function rulerAt(point: Point): Point | undefined {
+  const scene = scenes.shownScene;
+  return scene === undefined
+    ? undefined
+    : rulerPoint(
+        gridForScene(scene),
+        scene,
+        screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
+      );
+}
+
+/** How far each other token is from the selected one, for the keyboard list. */
+const distances = computed(() => {
+  const scene = scenes.shownScene;
+  return selectedId.value === undefined || scene === undefined
+    ? {}
+    : tokenDistances(gridForScene(scene), views.value, selectedId.value);
+});
 
 /** The scene's exits: only the GM moves the party, so only the GM is shown them. */
 const exits = computed(() =>
@@ -704,6 +788,21 @@ function onKeyDown(event: KeyboardEvent): void {
     }
     return;
   }
+  if (event.key.toLowerCase() === 'm' && !event.shiftKey) {
+    event.preventDefault();
+    setRuler(!rulerOn.value);
+    return;
+  }
+  if (rulerOn.value && event.key === 'Backspace') {
+    event.preventDefault();
+    rulerPoints.value = rulerPoints.value.slice(0, -1);
+    return;
+  }
+  if (rulerOn.value && event.key === 'Escape') {
+    event.preventDefault();
+    setRuler(false);
+    return;
+  }
   const direction = ARROW_DIRECTIONS[event.key];
   if (direction !== undefined && selectedView.value?.movable === true) {
     event.preventDefault();
@@ -782,7 +881,7 @@ function release(): void {
 }
 
 // Tokens and the actors behind them change often (a drag preview, a rename): redraw only the tokens.
-watch([views, exits, () => scenes.shownScene?.grid.size], () => {
+watch([views, exits, rulerPath, () => scenes.shownScene?.grid.size], () => {
   drawTokens();
   loadPortraits();
 });
@@ -812,7 +911,7 @@ onBeforeUnmount(() => {
       v-if="scenes.shownScene"
       ref="surface"
       class="map-surface"
-      :class="{ 'is-dragging': dragging }"
+      :class="{ 'is-dragging': dragging, 'is-measuring': rulerOn }"
       tabindex="0"
       role="group"
       aria-label="Map. Arrow keys move the view, plus and minus zoom, zero shows the whole map."
@@ -863,6 +962,13 @@ onBeforeUnmount(() => {
       >
         {{ readout.feet }} ft
       </output>
+      <output
+        v-if="rulerReadout"
+        class="move-readout"
+        :style="{ left: `${rulerReadout.x}px`, top: `${rulerReadout.y}px` }"
+      >
+        {{ rulerReadout.feet }} ft
+      </output>
       <div class="map-zoom" role="group" aria-label="Zoom" @pointerdown.stop>
         <button
           type="button"
@@ -881,6 +987,14 @@ onBeforeUnmount(() => {
           −
         </button>
         <button type="button" title="Show the whole map" @click="input.fit()">Fit</button>
+        <button
+          type="button"
+          title="Measure distances (M)"
+          :aria-pressed="rulerOn"
+          @click="setRuler(!rulerOn)"
+        >
+          Ruler
+        </button>
       </div>
     </div>
     <p v-else class="map-empty">
@@ -912,6 +1026,7 @@ onBeforeUnmount(() => {
     <TokenList
       :views="views"
       :exits="exits"
+      :distances="distances"
       @exit="askExit"
       @select="selectFromList"
       @open="(actorId) => emit('openActor', actorId)"
@@ -944,6 +1059,15 @@ onBeforeUnmount(() => {
 
 .map-surface.is-dragging {
   cursor: grabbing;
+}
+
+.map-surface.is-measuring {
+  cursor: crosshair;
+}
+
+.map-zoom button[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
 }
 
 .move-readout {

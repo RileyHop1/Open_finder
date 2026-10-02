@@ -14,7 +14,7 @@
  * (the camera, the image limits) is pure and unit-tested.
  */
 
-import type { Scene } from '@hearthtable/core';
+import type { Point, Scene } from '@hearthtable/core';
 import type * as Pixi from 'pixi.js';
 
 import { type Camera, type Size, worldTransform } from './camera.js';
@@ -43,6 +43,11 @@ export interface SceneView {
    * sizes them like the tokens. They draw under the tokens.
    */
   setExits(exits: readonly ExitView[], cell: number): void;
+  /**
+   * Draws the measuring ruler through `points` (scene pixels; none clears it): a
+   * line with a dot at each, above the tokens. Local to this screen, never sent.
+   */
+  setRuler(points: readonly Point[], cell: number): void;
   destroy(): void;
 }
 
@@ -66,7 +71,8 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
   const mapLayer = new pixi.Container();
   const exitLayer = new pixi.Container();
   const tokenLayer = new pixi.Container();
-  world.addChild(mapLayer, exitLayer, tokenLayer);
+  const rulerLayer = new pixi.Container();
+  world.addChild(mapLayer, exitLayer, tokenLayer, rulerLayer);
   app.stage.addChild(world);
 
   /** Everything `update` made, so the next one can release it. */
@@ -191,6 +197,38 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
   let exitsLook = '';
 
   return {
+    setRuler(points, cell) {
+      for (const child of rulerLayer.removeChildren()) {
+        child.destroy({ children: true });
+      }
+      if (points.length === 0) {
+        return;
+      }
+      const width = Math.max(cell * 0.06, 3);
+      const line = new pixi.Graphics();
+      points.forEach((point, index) => {
+        if (index === 0) {
+          line.moveTo(point.x, point.y);
+        } else {
+          line.lineTo(point.x, point.y);
+        }
+      });
+      // A dark line under a light one, so it shows on a pale map and a dark one.
+      line.stroke({ width: width * 2, color: 0x000000, alpha: 0.5 });
+      points.forEach((point, index) => {
+        if (index === 0) {
+          line.moveTo(point.x, point.y);
+        } else {
+          line.lineTo(point.x, point.y);
+        }
+      });
+      line.stroke({ width, color: 0xffc857 });
+      for (const point of points) {
+        line.circle(point.x, point.y, width * 1.6).fill(0xffc857);
+      }
+      rulerLayer.addChild(line);
+    },
+
     setExits(exits, cell) {
       const look = JSON.stringify([exits.map((e) => [e.id, e.label, e.x, e.y]), cell]);
       if (look === exitsLook) {
