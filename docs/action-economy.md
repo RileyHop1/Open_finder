@@ -60,7 +60,10 @@ Triggers we cannot detect are simply not surfaced. A missing prompt is acceptabl
 a wrong automatic reaction is not.
 
 ## Exploration and downtime
-Outside encounter mode there is no three-action economy. Exploration activities
+Outside encounter mode there is no three-action economy. Encounter mode is the
+GM's switch: it exists only while a combat is active, and movement is
+unconstrained otherwise ([combat.md](combat.md), "Turn-based mode is the GM's
+switch"). Exploration activities
 and downtime activities are their own modes — see the Game flow section of
 CLAUDE.md, and milestones 13 and 14.
 

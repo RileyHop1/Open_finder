@@ -11,6 +11,28 @@ Milestone 5 adds the schemas first (this page), then the rules in
 `systems/pf2e`, the server operations, and the tracker UI. Sections below say
 which parts exist so far.
 
+## Turn-based mode is the GM's switch
+Combat only happens when the GM turns it on. Until then the table plays freely,
+as it does today.
+
+- **On means `status: 'active'`**, reached only by the GM's `combat.start`. A
+  combat that is `pending` (being set up) or `ended` tracks nothing. Opening a
+  battle map, placing monsters, or adding combatants never starts one.
+- **Off (no active combat):** a token moves anywhere, with no speed limit and no
+  turn check. There is no turn state, no action counting, and no Multiple Attack
+  Penalty from the tracker (a strike still takes an explicit attack number, as
+  now). Nothing ticks, so no turn-based condition expires. This is the current
+  behavior of `token.move`, and it must stay true.
+- **On:** the tracker keeps the turn state, supplies the attack number, and ticks
+  durations ([turn boundaries](#turn-boundaries)). Movement is still the table's:
+  the app **shows whose turn it is and warns** on a move out of turn, and never
+  blocks it, in line with [action-economy.md](action-economy.md). The GM can end
+  the combat at any time to go back to free play.
+- **Ending a combat** returns to free play. What happens to a condition that was
+  anchored to one of its combatants (`turn` durations) is decided with `combat.end`
+  (B.3); the recommendation is that it ends with the encounter, since the turn it
+  waits for will never come.
+
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a
 `Combatant`, a document of its own, so a hidden monster is simply a document a
