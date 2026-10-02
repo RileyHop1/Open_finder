@@ -231,6 +231,8 @@ export {
   type TurnStep,
 } from './rules/initiativeOrder.js';
 
+export { placeCombatant, type InitiativeChange } from './rules/initiativeReorder.js';
+
 export {
   endOfTurn,
   startOfTurn,
