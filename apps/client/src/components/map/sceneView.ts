@@ -7,7 +7,10 @@
  * are drawn once into a small texture, which a `TilingSprite` repeats across
  * the scene. Redrawing a few hundred `Graphics` lines every frame is what the
  * canvas budget cannot afford (ADR 0017); this costs one draw call however
- * many cells there are, and the grid offset is just the tile's position.
+ * many cells there are, and the grid offset is just the tile's position. Far
+ * zoomed out the lines are thinner than a pixel and alias into bands, so the grid
+ * fades out as a cell shrinks below 16 screen pixels and is gone under 4
+ * (`gridAlpha`).
  *
  * Needs a real WebGL context, so it is exercised in a browser (the stress
  * scene of D.1 and the e2e flow of D.2), while everything with logic in it
@@ -17,7 +20,7 @@
 import type { Point, Scene } from '@hearthtable/core';
 import type * as Pixi from 'pixi.js';
 
-import { type Camera, type Size, worldTransform } from './camera.js';
+import { type Camera, gridAlpha, type Size, worldTransform } from './camera.js';
 import { type ExitView, exitRadius } from './exitModel.js';
 import { FALLBACK_MAX_TEXTURE_SIZE } from './mapImage.js';
 import type { TokenView } from './tokenModel.js';
@@ -75,6 +78,9 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
   world.addChild(mapLayer, exitLayer, tokenLayer, rulerLayer);
   app.stage.addChild(world);
 
+  /** The grid sprite and its cell size, so `setCamera` can fade it as the cells shrink (`gridAlpha`). */
+  let gridSprite: { sprite: Pixi.TilingSprite; cell: number } | undefined;
+
   /** Everything `update` made, so the next one can release it. */
   let drawn: { destroy: () => void }[] = [];
 
@@ -83,6 +89,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
       item.destroy();
     }
     drawn = [];
+    gridSprite = undefined;
   }
 
   /** One cell's top and left edges: a dark line under a light one, so it shows on a pale map and a dark one. */
@@ -341,6 +348,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
           tilePosition: { x: scene.grid.offsetX, y: scene.grid.offsetY },
         });
         mapLayer.addChild(grid);
+        gridSprite = { sprite: grid, cell: scene.grid.size };
         drawn.push({
           destroy: () => grid.destroy({ texture: true, textureSource: true }),
         });
@@ -351,6 +359,9 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
       const transform = worldTransform(camera, viewport);
       world.position.set(transform.x, transform.y);
       world.scale.set(transform.scale);
+      if (gridSprite !== undefined) {
+        gridSprite.sprite.alpha = gridAlpha(gridSprite.cell * transform.scale);
+      }
     },
 
     destroy() {

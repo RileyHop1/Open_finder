@@ -2,7 +2,10 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     // Playwright's config and test runner both run under Node, never a browser.
-    "types": ["node", "@playwright/test"]
+    "types": ["node", "@playwright/test"],
+    // The canvas budget spec (perf/) hands functions to `page.evaluate`, which run in
+    // the browser and use its globals; the DOM types are for those bodies only.
+    "lib": ["ES2023", "DOM"]
   },
   "include": ["**/*.ts"]
 }

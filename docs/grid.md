@@ -86,6 +86,15 @@ multi-square creature is counted; this is the usual table reading)**.
 Tiny creatures sharing a square is a real rule, not an edge case, and the token
 layer has to allow co-occupancy rather than assuming one token per square.
 
+## Drawing the grid far out
+
+A grid line is two scene pixels wide, so when a large map is fitted to a small
+screen (an 8000-pixel map in a laptop window has cells under ten pixels across) the
+lines are thinner than a pixel and alias into uneven bands. The client fades the
+grid out as one cell shrinks below 16 screen pixels and stops drawing it under 4;
+it is solid again as soon as you zoom in to where it is useful. This is display
+only: snapping and distances do not change.
+
 ## Measuring
 
 The client's ruler (`M`, or the Ruler button) and the distances in the token list

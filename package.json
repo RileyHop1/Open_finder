@@ -16,6 +16,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "test:e2e": "pnpm --filter @hearthtable/e2e test:e2e",
+    "test:perf": "pnpm --filter @hearthtable/e2e test:perf",
     "build": "pnpm -r --if-present build"
   },
   "devDependencies": {

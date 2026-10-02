@@ -36,6 +36,24 @@ export const MAX_ZOOM = 4;
 /** Space left round the map when it is fitted to the viewport, in screen pixels. */
 export const FIT_MARGIN = 24;
 
+/** A grid cell smaller than this on screen is not drawn at all: the lines are thinner than a pixel and only make noise. */
+export const GRID_HIDDEN_BELOW_PX = 4;
+/** From this size up the grid is fully drawn; between the two it fades in. */
+export const GRID_SOLID_FROM_PX = 16;
+
+/**
+ * How visible the grid is when one cell is `cellPixels` wide on screen. A grid line
+ * is two scene pixels wide, so far zoomed out (an 8000-pixel map fitted into a
+ * laptop screen has cells under ten pixels across) the lines shrink below a
+ * pixel and alias into uneven bands. Fading the grid out as the cells shrink
+ * leaves a clean map there, and it comes back as you zoom in to where it is useful.
+ */
+export function gridAlpha(cellPixels: number): number {
+  const t =
+    (cellPixels - GRID_HIDDEN_BELOW_PX) / (GRID_SOLID_FROM_PX - GRID_HIDDEN_BELOW_PX);
+  return Math.min(Math.max(t, 0), 1);
+}
+
 /** The zoom at which the whole scene is visible with `FIT_MARGIN` to spare. */
 export function fitZoom(scene: Size, viewport: Size): number {
   const room = {
