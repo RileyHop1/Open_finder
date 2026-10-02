@@ -134,8 +134,15 @@ client server in production.
   Pressing either asks **Move the party to <scene>?**; yes sends `scene.activate`,
   arriving at the target's own exit back to this scene if it has one, then shows
   the party's scene again. A link to a scene that is gone is listed as such and
-  cannot be used. Players are never shown exits. Adding and removing them is the
-  next PR. **Built.**
+  cannot be used. Players are never shown exits. **Built.**
+- **Making and removing exits** (`components/map/ExitMenu.vue`, the Exits section of
+  `scenes/SceneEditor.vue`) -- the GM right-clicks empty ground on the map to add
+  an exit there (a label and which *other* scene it leads to), or an exit's marker
+  to remove it; the Menu key or Shift+F10 with no token selected adds one in the
+  middle of the view. The scene's settings have the same two as a form (and the
+  only way to give an exact spot), which is the keyboard route. `scene.addLink` /
+  `scene.removeLink`; with only one scene it says to make another first.
+  **Built.**
 - **The monster sheet** (`components/sheet/NpcSheet.vue`, and the NPC branches of
   `HitPointsPanel`, `ConditionsPanel`, `StrikesPanel`) -- opened by the GM from a
   monster's token (the list's Sheet button) or the roster. The stat block's finished
