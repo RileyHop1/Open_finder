@@ -133,11 +133,36 @@ penalty came from and a GM can remove it if they disagree.
 ## Templates
 Cone, burst, emanation, and line, needed by milestone 5 for spells and abilities.
 Each is a `GridStrategy` method returning the set of affected squares, because
-the shapes are defined in grid terms and differ between square and hex.
+the shapes are defined in grid terms and differ between square and hex. `burst`
+and `emanation` exist now (milestone 5, A.9a); `cone` and `line` are A.9b.
 
 Templates highlight affected squares and list the creatures caught, but **do not
 auto-apply** effects — the GM confirms targets. Autotargeting an area spell is
 the kind of automation that is wrong just often enough to be infuriating.
+
+### Burst and emanation
+Both return cells in row-major order, and both return an empty array on a
+gridless scene (there are no cells; the client draws the circle directly from
+the radius and the scene's pixels-per-foot).
+
+- **`burst(origin, radiusFeet)`**: every cell within `radiusFeet` of `origin`,
+  by the grid's own distance rule -- the same rule `distanceBetween` already
+  measures with, applied from a point instead of between two footprints.
+  `origin` is snapped to the nearest 1-square cell before measuring, the same
+  way a token snaps. A 5-foot burst is the origin and its eight neighbours
+  (every adjacent square, including diagonally, is one diagonal step); a
+  10-foot burst reaches two squares straight or a two-and-one combination, but
+  not the two-square diagonal, which needs 15 (`squareGrid.test.ts`, "burst").
+- **`emanation(footprint, radiusFeet)`**: every cell within `radiusFeet` of the
+  footprint's **nearest edge** -- `distanceBetween`'s measurement, applied to
+  every cell in a bounding box instead of to one other footprint. At
+  `radiusFeet` 0 this is exactly `cellsUnder(footprint)`, since emanation always
+  includes the creature's own space. A Large (2x2) footprint's 5-foot emanation
+  reaches one square past each edge, including the diagonal corners.
+- **(confirm)** which point a burst may originate from -- a cell's centre, a
+  corner, or any grid intersection -- is not settled from memory and Archives of
+  Nethys is unreachable from the environment this was written in. See
+  [rulings.md](rulings.md), "Burst and emanation origin points".
 
 ## Testing
 - Diagonal counting: 1, 2, 3, 4 diagonal steps produce 5, 15, 20, 30 feet

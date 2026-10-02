@@ -168,3 +168,105 @@ describe('footprintForSize', () => {
     ).toEqual([1, 1, 1, 2, 3, 4]);
   });
 });
+
+describe('burst', () => {
+  const grid = new SquareGrid(sceneGridSchema.parse({}));
+
+  function cellsOf(result: ReturnType<typeof grid.burst>): Set<string> {
+    return new Set(result.map((c) => `${c.col},${c.row}`));
+  }
+
+  it('at 5 feet is the origin and its eight neighbours -- every adjacent square is one diagonal', () => {
+    const result = cellsOf(grid.burst(cell(5, 5), 5));
+    expect(result.size).toBe(9);
+    for (let dc = -1; dc <= 1; dc += 1) {
+      for (let dr = -1; dr <= 1; dr += 1) {
+        expect(result.has(`${5 + dc},${5 + dr}`)).toBe(true);
+      }
+    }
+    expect(result.has('7,5')).toBe(false);
+  });
+
+  it('at 10 feet reaches two squares straight, and the two-one diagonal, but not two-two', () => {
+    const result = cellsOf(grid.burst(cell(5, 5), 10));
+    expect(result.size).toBe(21);
+    expect(result.has('7,5')).toBe(true); // two squares straight: 10ft
+    expect(result.has('7,6')).toBe(true); // two straight, one diagonal: 10ft
+    expect(result.has('7,7')).toBe(false); // two-square diagonal: 15ft
+  });
+
+  it('at 15 feet includes the two-square diagonal and three squares straight', () => {
+    const result = cellsOf(grid.burst(cell(5, 5), 15));
+    expect(result.has('7,7')).toBe(true); // two-square diagonal: 15ft
+    expect(result.has('8,5')).toBe(true); // three squares straight: 15ft
+    expect(result.has('8,8')).toBe(false); // three-square diagonal: 20ft
+  });
+
+  it('matches distanceBetween: every returned cell is that close or closer, every excluded cell is farther', () => {
+    const origin = cell(5, 5);
+    const originFootprint = { center: origin, size: 1 };
+    const radius = 20;
+    const result = cellsOf(grid.burst(origin, radius));
+    for (let dc = -5; dc <= 5; dc += 1) {
+      for (let dr = -5; dr <= 5; dr += 1) {
+        const target = { center: cell(5 + dc, 5 + dr), size: 1 };
+        const feet = grid.distanceBetween(originFootprint, target);
+        const included = result.has(`${5 + dc},${5 + dr}`);
+        expect(included).toBe(feet <= radius);
+      }
+    }
+  });
+
+  it('is empty for a negative radius (no cell can be at a negative distance)', () => {
+    expect(grid.burst(cell(0, 0), -5)).toEqual([]);
+  });
+});
+
+describe('emanation', () => {
+  const grid = new SquareGrid(sceneGridSchema.parse({}));
+
+  function cellsOf(result: ReturnType<typeof grid.emanation>): Set<string> {
+    return new Set(result.map((c) => `${c.col},${c.row}`));
+  }
+
+  it('at radius 0 is exactly the footprint’s own cells', () => {
+    const footprint = { center: cell(5, 5), size: 1 };
+    expect(cellsOf(grid.emanation(footprint, 0))).toEqual(new Set(['5,5']));
+  });
+
+  it('from a Large (2x2) footprint reaches one square past each edge at 5 feet', () => {
+    // A 2x2 footprint centred on the intersection at (5,5)/(6,6) covers cols/rows 5-6.
+    const footprint = { center: { x: 600, y: 600 }, size: 2 };
+    const own = grid.cellsUnder(footprint);
+    expect(own.map((c) => `${c.col},${c.row}`).sort()).toEqual(
+      ['5,5', '5,6', '6,5', '6,6'].sort(),
+    );
+    const result = cellsOf(grid.emanation(footprint, 5));
+    expect(result.has('7,5')).toBe(true); // one square east of the footprint
+    expect(result.has('4,6')).toBe(true); // one square west
+    expect(result.has('7,7')).toBe(true); // the diagonal corner, one square out
+    expect(result.has('8,5')).toBe(false); // two squares out: too far at 5ft
+  });
+
+  it('is a superset of the footprint’s own cells at any positive radius', () => {
+    const footprint = { center: { x: 600, y: 600 }, size: 2 };
+    const own = new Set(grid.cellsUnder(footprint).map((c) => `${c.col},${c.row}`));
+    const result = cellsOf(grid.emanation(footprint, 10));
+    for (const key of own) {
+      expect(result.has(key)).toBe(true);
+    }
+  });
+
+  it('matches distanceBetween against the footprint, the same way burst matches it against a point', () => {
+    const footprint = { center: cell(5, 5), size: 1 };
+    const radius = 15;
+    const result = cellsOf(grid.emanation(footprint, radius));
+    for (let dc = -4; dc <= 4; dc += 1) {
+      for (let dr = -4; dr <= 4; dr += 1) {
+        const target = { center: cell(5 + dc, 5 + dr), size: 1 };
+        const feet = grid.distanceBetween(footprint, target);
+        expect(result.has(`${5 + dc},${5 + dr}`)).toBe(feet <= radius);
+      }
+    }
+  });
+});
