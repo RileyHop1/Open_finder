@@ -240,6 +240,12 @@ export {
 } from './rules/actionCapacity.js';
 
 export {
+  averageDamage,
+  persistentDamageSchema,
+  type PersistentDamage,
+} from './content/persistentDamage.js';
+
+export {
   damageWhileDying,
   deathThreshold,
   dyingStateOf,

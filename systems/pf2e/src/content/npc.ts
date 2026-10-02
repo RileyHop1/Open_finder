@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 import { appliedConditionSchema, itemSourceSchema } from './character.js';
 import { creatureEntrySchema, type CreatureEntry } from './creature.js';
+import { persistentDamageSchema } from './persistentDamage.js';
 
 export const npcDataSchema = z
   .object({
@@ -27,6 +28,8 @@ export const npcDataSchema = z
       temp: z.number().int().nonnegative().default(0),
     }),
     conditions: z.array(appliedConditionSchema).default([]),
+    /** Persistent damage still burning; empty when none (`persistentDamage.ts`). */
+    persistentDamage: z.array(persistentDamageSchema).default([]),
   })
   .refine(
     (data) =>
