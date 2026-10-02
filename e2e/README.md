@@ -40,6 +40,27 @@ campaigns, which would litter it and switch your active campaign. If one is
 running the run stops with "port already used"; stop it first (and start it again
 afterwards).
 
+## The canvas budget (on demand)
+
+`pnpm test:perf` builds a stress scene through the real app -- a generated
+8000 x 8000 map picture, a battle scene, 100 tokens -- then zooms and pans it with a
+real mouse while the page records the time between animation frames, and prints
+fps, median, p95, p99, worst frame, and the share of visible hitches for each of
+three phases, **with the graphics card the browser really used**. It is not part
+of CI (frame timing on a shared runner is noise, and a headless browser with no
+card renders in software, which it calls out). Run it on the machine whose numbers
+matter, with the dev server stopped:
+
+```bash
+pnpm test:perf                      # the browser picks its graphics backend
+PERF_ANGLE=d3d11 pnpm test:perf     # Windows; metal on a Mac, gl or vulkan on Linux
+PERF_HEADED=1 pnpm test:perf        # show the window (some drivers need it for the real GPU)
+PERF_BUDGET=1 pnpm test:perf        # fail if p95 > 20ms or the average is under 55fps
+```
+
+A display that refreshes at 60Hz cannot show more than 60fps, so a run at 60.0 with
+no hitches means the frame budget is met, not by how much.
+
 ## How it fits
 
 Depends on nothing else in the workspace; it only ever talks to

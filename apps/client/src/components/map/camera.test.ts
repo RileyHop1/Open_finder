@@ -5,6 +5,7 @@ import {
   constrainCamera,
   fitCamera,
   fitZoom,
+  gridAlpha,
   MAX_ZOOM,
   minZoom,
   panBy,
@@ -103,6 +104,21 @@ describe('zoomAt', () => {
       minZoom(scene, viewport),
     );
     expect(minZoom(scene, viewport)).toBe(0.25);
+  });
+});
+
+describe('gridAlpha', () => {
+  it('is solid for a cell big enough to read, and gone for one too small to draw', () => {
+    expect(gridAlpha(64)).toBe(1);
+    expect(gridAlpha(16)).toBe(1);
+    expect(gridAlpha(4)).toBe(0);
+    expect(gridAlpha(1)).toBe(0);
+  });
+
+  it('fades in between, and never goes backwards as the cell grows', () => {
+    expect(gridAlpha(10)).toBeCloseTo(0.5);
+    const steps = [2, 4, 6, 8, 10, 12, 14, 16, 20].map(gridAlpha);
+    expect([...steps].sort((a, b) => a - b)).toEqual(steps);
   });
 });
 
