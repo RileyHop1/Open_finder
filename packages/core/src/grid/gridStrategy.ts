@@ -77,4 +77,23 @@ export interface GridStrategy {
    * with no cells (gridless) returns an empty array.
    */
   emanation(footprint: Footprint, radiusFeet: number): Cell[];
+
+  /**
+   * Cells on the segment from `from` to `to`, `widthFeet` wide -- a line area
+   * template. A cell is included when its centre's perpendicular distance from
+   * the segment is at most half the width and its projection onto the segment
+   * falls within the two endpoints: a rectangle, not a capsule with rounded
+   * ends. A strategy with no cells (gridless) returns an empty array.
+   */
+  line(from: Point, to: Point, widthFeet: number): Cell[];
+
+  /**
+   * Cells within `lengthFeet` of `origin`, inside the 90-degree arc facing
+   * `towards` -- a cone area template, PF2e's fixed cone angle. A cell is
+   * included by a plain geometric distance and angle test (a drawn shape, not
+   * the grid's measured distance -- `docs/grid.md`, "Templates"), never by
+   * `distanceBetween`'s diagonal count. A strategy with no cells (gridless)
+   * returns an empty array.
+   */
+  cone(origin: Point, towards: Point, lengthFeet: number): Cell[];
 }

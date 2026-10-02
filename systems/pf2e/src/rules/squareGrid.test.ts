@@ -270,3 +270,106 @@ describe('emanation', () => {
     }
   });
 });
+
+describe('line', () => {
+  const grid = new SquareGrid(sceneGridSchema.parse({}));
+
+  function cellsOf(result: ReturnType<typeof grid.line>): Set<string> {
+    return new Set(result.map((c) => `${c.col},${c.row}`));
+  }
+
+  it('a 5-foot-wide, 30-foot east line covers a single row of six cells', () => {
+    const result = cellsOf(grid.line(cell(0, 5), cell(5, 5), 5));
+    expect(result.size).toBe(6);
+    for (let col = 0; col <= 5; col += 1) {
+      expect(result.has(`${col},5`)).toBe(true);
+    }
+    expect(result.has('0,4')).toBe(false);
+    expect(result.has('0,6')).toBe(false);
+  });
+
+  it('widening to 10 feet picks up the row on either side', () => {
+    const result = cellsOf(grid.line(cell(0, 5), cell(5, 5), 10));
+    expect(result.has('2,4')).toBe(true);
+    expect(result.has('2,5')).toBe(true);
+    expect(result.has('2,6')).toBe(true);
+  });
+
+  it('runs diagonally the same way, at 45 degrees', () => {
+    const result = cellsOf(grid.line(cell(0, 0), cell(5, 5), 5));
+    for (let i = 0; i <= 5; i += 1) {
+      expect(result.has(`${i},${i}`)).toBe(true);
+    }
+    expect(result.has('0,5')).toBe(false);
+  });
+
+  it('gives the same cells reversed', () => {
+    const forward = grid.line(cell(0, 5), cell(5, 5), 5);
+    const backward = grid.line(cell(5, 5), cell(0, 5), 5);
+    expect(cellsOf(backward)).toEqual(cellsOf(forward));
+  });
+
+  it('is empty when from and to are the same point: there is no line to be on', () => {
+    expect(grid.line(cell(3, 3), cell(3, 3), 5)).toEqual([]);
+  });
+
+  it('does not extend past either endpoint', () => {
+    const result = cellsOf(grid.line(cell(2, 5), cell(4, 5), 5));
+    expect(result.has('1,5')).toBe(false);
+    expect(result.has('5,5')).toBe(false);
+  });
+});
+
+describe('cone', () => {
+  const grid = new SquareGrid(sceneGridSchema.parse({}));
+
+  function cellsOf(result: ReturnType<typeof grid.cone>): Set<string> {
+    return new Set(result.map((c) => `${c.col},${c.row}`));
+  }
+
+  it('facing east, includes the cell directly ahead and excludes the one directly behind', () => {
+    const origin = cell(5, 5);
+    const result = cellsOf(grid.cone(origin, cell(6, 5), 15));
+    expect(result.has('6,5')).toBe(true); // straight ahead
+    expect(result.has('7,5')).toBe(true); // straight ahead, farther
+    expect(result.has('4,5')).toBe(false); // straight behind
+    expect(result.has('5,5')).toBe(true); // the origin's own cell
+  });
+
+  it('is a 90-degree arc: a cell 45 degrees off-axis is right at the edge, and 90 degrees off is excluded', () => {
+    const origin = cell(5, 5);
+    const result = cellsOf(grid.cone(origin, cell(6, 5), 20));
+    expect(result.has('7,7')).toBe(true); // 45 degrees off the east axis: inside the arc's edge
+    expect(result.has('5,7')).toBe(false); // due south: 90 degrees off-axis, outside
+  });
+
+  it('does not reach past its length', () => {
+    const origin = cell(5, 5);
+    const result = cellsOf(grid.cone(origin, cell(6, 5), 10));
+    expect(result.has('6,5')).toBe(true);
+    expect(result.has('9,5')).toBe(false);
+  });
+
+  it('keeps the same cell count facing any of the four cardinal directions, by symmetry', () => {
+    const origin = cell(5, 5);
+    const east = grid.cone(origin, cell(6, 5), 15).length;
+    const north = grid.cone(origin, cell(5, 4), 15).length;
+    const south = grid.cone(origin, cell(5, 6), 15).length;
+    const west = grid.cone(origin, cell(4, 5), 15).length;
+    expect([north, south, west]).toEqual([east, east, east]);
+  });
+
+  it('is empty when towards equals origin: there is no direction to face', () => {
+    expect(grid.cone(cell(3, 3), cell(3, 3), 15)).toEqual([]);
+  });
+
+  it('is always a subset of a burst of the same length from the same origin', () => {
+    const origin = cell(5, 5);
+    const burst = new Set(grid.burst(origin, 20).map((c) => `${c.col},${c.row}`));
+    const cone = cellsOf(grid.cone(origin, cell(6, 5), 20));
+    for (const key of cone) {
+      expect(burst.has(key)).toBe(true);
+    }
+    expect(cone.size).toBeLessThan(burst.size);
+  });
+});

@@ -133,8 +133,8 @@ penalty came from and a GM can remove it if they disagree.
 ## Templates
 Cone, burst, emanation, and line, needed by milestone 5 for spells and abilities.
 Each is a `GridStrategy` method returning the set of affected squares, because
-the shapes are defined in grid terms and differ between square and hex. `burst`
-and `emanation` exist now (milestone 5, A.9a); `cone` and `line` are A.9b.
+the shapes are defined in grid terms and differ between square and hex. All four
+exist now (milestone 5, A.9a and A.9b).
 
 Templates highlight affected squares and list the creatures caught, but **do not
 auto-apply** effects — the GM confirms targets. Autotargeting an area spell is
@@ -163,6 +163,26 @@ the radius and the scene's pixels-per-foot).
   corner, or any grid intersection -- is not settled from memory and Archives of
   Nethys is unreachable from the environment this was written in. See
   [rulings.md](rulings.md), "Burst and emanation origin points".
+
+### Cone and line
+A cone or line is a **drawn shape**, not a measured distance, so which squares
+it covers is a different question from `burst`/`emanation`'s distance count:
+`cone` and `line` test a cell's **centre point** against the shape in real pixel
+space (an angle test, a perpendicular-distance-and-projection test), never
+`distanceBetween`'s diagonal count. **(confirm)**: an overlap-area or
+corner-inclusion test is the alternative, and memory of which the rules intend
+is unverified -- see [rulings.md](rulings.md).
+
+- **`line(from, to, widthFeet)`**: a rectangle along the segment, `widthFeet`
+  wide, not a capsule with rounded ends -- it does not extend past either
+  endpoint. Empty when `from` equals `to`.
+- **`cone(origin, towards, lengthFeet)`**: within `lengthFeet` of `origin` by
+  plain distance, inside the 90-degree arc facing `towards` (PF2e's fixed cone
+  angle; not a parameter). The origin's own cell is always included. Empty when
+  `towards` equals `origin`. Always a subset of `burst(origin, lengthFeet)`,
+  since a cone is a wedge of the same circle a burst draws.
+- Both return `[]` on a gridless scene, like `burst`/`emanation`; the client
+  draws the shape directly from the feet values.
 
 ## Testing
 - Diagonal counting: 1, 2, 3, 4 diagonal steps produce 5, 15, 20, 30 feet
