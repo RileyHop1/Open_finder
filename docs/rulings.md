@@ -312,6 +312,38 @@ ruling from silently drifting.
 - **Override:** the GM sets or removes any condition directly
   (`setCondition` / `removeCondition`).
 
+### The dying chain
+- **Rules text:** **(confirm)** every number below. The Archives of Nethys pages
+  could not be reached from the environment this was written in (2026-10-02), so
+  all of it is from memory of Player Core and unverified.
+- **Our reading:** dropped to 0 HP, a character is unconscious with **dying 1**
+  (2 on a critical hit) **plus wounded**. Damage at 0 HP raises dying by 1 (2 on a
+  critical). At the start of each turn a flat check against **DC 10 + dying** moves
+  dying by -2, -1, +1, or +2 for a critical success, success, failure, critical
+  failure. Dying reaching 0 raises **wounded** by 1 and leaves the character
+  unconscious and stable. Healing above 0 HP ends dying and unconsciousness and
+  raises wounded by 1 if they were dying. A character dies when dying reaches **4
+  minus doomed** (never below 1), or when the damage left after reaching 0 HP is at
+  least their maximum HP.
+- **The ambiguity and the alternatives:**
+  - whether a stable character who takes damage is knocked out again (we say yes,
+    with wounded added again);
+  - whether wounded rises when dying ends by a recovery check as well as by healing
+    (we say yes, both);
+  - the massive-damage rule, which some tables do not use (it is the rule in the
+    book as remembered, and the GM can ignore a result);
+  - whether doomed lowers the threshold or the starting value (we lower the
+    threshold).
+- **Why:** the plain reading of the chain, with no stored state beyond the four
+  conditions, and every step visible as an event. A wrong step is one the GM sees
+  and fixes.
+- **Override:** the GM sets or removes `dying`, `wounded`, `doomed`, and
+  `unconscious` directly (`setCondition`, `removeCondition`), and marks a character
+  dead or alive by hand. The server stack (B.6) keeps that prominent.
+- **Golden test:** `systems/pf2e/src/rules/dyingChain.test.ts`: a row for every
+  transition, a whole sequence, and the adapter. Clear the **(confirm)** here and in
+  `conditions.md` when the pages can be checked.
+
 ### Stunned, slowed, and quickened
 - **Rules text:** a turn has three actions. *Quickened* grants an extra action that
   can be used only for certain things. *Slowed N* loses you N actions, and *stunned N*

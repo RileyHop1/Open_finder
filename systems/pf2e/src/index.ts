@@ -240,6 +240,22 @@ export {
 } from './rules/actionCapacity.js';
 
 export {
+  damageWhileDying,
+  deathThreshold,
+  dyingStateOf,
+  healFromDying,
+  instantDeath,
+  knockOut,
+  recoveryChange,
+  recoveryCheck,
+  recoveryDc,
+  withDyingState,
+  type DyingEvent,
+  type DyingResult,
+  type DyingState,
+} from './rules/dyingChain.js';
+
+export {
   endOfTurn,
   startOfTurn,
   type TurnChange,

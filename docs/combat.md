@@ -190,7 +190,7 @@ ticked, reduced) so the table is told and the GM can undo it by hand. The server
   that lasts "until the end of" their turn ends.
 - Looks at **every** participant's conditions, because a goblin held "until the end
   of Valeria's turn" bears the condition but is anchored to Valeria.
-- Not here: the dying chain (A.7) and persistent damage (A.8). How many actions a
+- Not here: persistent damage (A.8). The dying chain is `dyingChain.ts` ([conditions.md](conditions.md), "The dying chain"), applied by the server in B.6. How many actions a
   turn has (3, plus quickened, minus slowed) is `actionCapacity`. When a combatant is removed, conditions anchored to
   it are the server's to clean up (B.1).
 

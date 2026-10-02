@@ -204,19 +204,38 @@ See [rulings.md](rulings.md), "When a rounds duration ticks, and when frightened
 must broadcast like any other change (ADR 0005).
 
 ## The dying chain
-The fiddliest part of the system, and worth writing tests for before writing code.
+The fiddliest part of the system, and the one most worth getting right: a mistake
+here kills a player character who should have lived. It is a set of pure functions
+in `systems/pf2e/src/rules/dyingChain.ts`, each transition a golden case in
+`dyingChain.test.ts`. **Every number is marked (confirm)**: it was written from
+memory of Player Core, and not checked against the Archives of Nethys. See
+[rulings.md](rulings.md), "The dying chain".
 
-- **dying** increases as you take damage while unconscious; at **dying 4** the
-  character dies **(confirm the threshold and its interaction with doomed)**.
-- **wounded** raises the dying value you re-enter at, so repeated drops get
+| Moment | What happens |
+| --- | --- |
+| Dropped to 0 HP (`knockOut`) | Unconscious, **dying 1** (2 on a critical hit) **plus wounded** |
+| Damage at 0 HP (`damageWhileDying`) | dying **+1** (+2 on a critical). A stable character (unconscious, not dying) is knocked out again |
+| Start of the turn (`recoveryCheck`) | Flat check **DC 10 + dying**: critical success -2, success -1, failure +1, critical failure +2 |
+| Dying reaches 0 | Dying ends, **wounded +1**, and the character stays unconscious, stable |
+| Healed above 0 HP (`healFromDying`) | Dying and unconscious end, **wounded +1** if they were dying (a stable character only wakes) |
+| Death | dying reaches **4 minus doomed** (never less than 1), or damage left after 0 HP is at least maximum HP (`instantDeath`) |
+
+- **wounded** raises the dying value you re-enter at, so repeated drops are
   progressively more dangerous.
-- **doomed** reduces the dying value at which death occurs.
-- **Recovering** removes dying and increases wounded.
+- **doomed** lowers the dying value at which death occurs.
+- Each function returns the new state and **events** (knocked out, dying changed,
+  stabilised, revived, wounded raised, dead), so the table is told and the GM can
+  undo it. `dyingStateOf` and `withDyingState` read and write the four conditions
+  through the same `setCondition` / `removeCondition` the GM's override uses.
+- The server applies it (damage to 0, the recovery check at the start of a turn,
+  healing) in milestone 5's server stack (B.6); this page is what that stack
+  implements.
 
-These three interact multiplicatively and a mistake here kills a player character
-who should have lived. Treat every transition as a golden test case, and make the
-GM override path (see GM experience in CLAUDE.md) especially prominent on this
-one — it is the automation a GM is most likely to want to overrule.
+These interact and a wrong step is a dead character, so the **GM override** is the
+whole answer to a disagreement: set or remove `dying`, `wounded`, `doomed`, and
+`unconscious` directly, and mark a character dead or alive by hand. Make it
+especially prominent on this one, since it is the automation a GM is most likely
+to want to overrule.
 
 ## Automation boundaries
 - The app **applies and tracks** conditions, and applies their modifiers.
