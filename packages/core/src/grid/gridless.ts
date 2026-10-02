@@ -62,6 +62,16 @@ export class GridlessGrid implements GridStrategy {
     return [];
   }
 
+  /** No cells on a gridless scene: the client draws the shape itself. */
+  line(): Cell[] {
+    return [];
+  }
+
+  /** No cells on a gridless scene: the client draws the shape itself. */
+  cone(): Cell[] {
+    return [];
+  }
+
   private toFeet(pixels: number): number {
     return (pixels * this.grid.distance) / this.grid.size;
   }

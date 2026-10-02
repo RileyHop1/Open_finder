@@ -201,6 +201,48 @@ export function describeGridStrategy(
             expect(strategy.cellsUnder({ center: centred, size: 1 })).toEqual([cell]);
           }
         });
+
+        it('never loses a cell when a line grows longer or wider', () => {
+          const from = { x: 500, y: 500 };
+          const shortNarrow = new Set(
+            strategy
+              .line(from, { x: from.x + grid.size * 2, y: from.y }, grid.distance)
+              .map((c) => `${c.col},${c.row}`),
+          );
+          const longWide = new Set(
+            strategy
+              .line(from, { x: from.x + grid.size * 6, y: from.y }, grid.distance * 3)
+              .map((c) => `${c.col},${c.row}`),
+          );
+          for (const key of shortNarrow) {
+            expect(longWide.has(key)).toBe(true);
+          }
+        });
+
+        it('never loses a cell when a cone grows longer, and stays inside a burst of the same length', () => {
+          const origin = strategy.snap({ x: 500, y: 500 }, 1);
+          const towards = { x: origin.x + grid.size, y: origin.y };
+          const shorter = new Set(
+            strategy
+              .cone(origin, towards, grid.distance * 2)
+              .map((c) => `${c.col},${c.row}`),
+          );
+          const longer = new Set(
+            strategy
+              .cone(origin, towards, grid.distance * 5)
+              .map((c) => `${c.col},${c.row}`),
+          );
+          for (const key of shorter) {
+            expect(longer.has(key)).toBe(true);
+          }
+
+          const burst = new Set(
+            strategy.burst(origin, grid.distance * 5).map((c) => `${c.col},${c.row}`),
+          );
+          for (const key of longer) {
+            expect(burst.has(key)).toBe(true);
+          }
+        });
       });
     }
   });

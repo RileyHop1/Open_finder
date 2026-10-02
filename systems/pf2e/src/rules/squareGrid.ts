@@ -12,7 +12,7 @@
 
 import type { Cell, Footprint, GridStrategy, Point, SceneGrid } from '@hearthtable/core';
 
-/** Floating-point slack for a radius comparison (feet). */
+/** Floating-point slack for a distance or angle comparison, in whatever unit is being compared. */
 const EPSILON_FEET = 1e-9;
 
 import type { Size } from '../content/common.js';
@@ -180,6 +180,114 @@ export class SquareGrid implements GridStrategy {
       }
     }
     return cells;
+  }
+
+  /**
+   * Cells on the segment from `from` to `to`, `widthFeet` wide: a rectangle in
+   * real pixel space, not a diagonal-counted distance -- see the file comment
+   * on `cone` for why. A cell is included when its centre's perpendicular
+   * distance from the segment is at most half the width and its projection
+   * onto the segment falls within the two endpoints. Degenerate (`from`
+   * equals `to`) returns `[]`: there is no line to be on.
+   */
+  line(from: Point, to: Point, widthFeet: number): Cell[] {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length === 0) {
+      return [];
+    }
+    const halfWidth = ((widthFeet / 2) * this.grid.size) / this.grid.distance;
+    const unitX = dx / length;
+    const unitY = dy / length;
+    const minCol = this.colAt(Math.min(from.x, to.x) - halfWidth);
+    const maxCol = this.colAt(Math.max(from.x, to.x) + halfWidth);
+    const minRow = this.rowAt(Math.min(from.y, to.y) - halfWidth);
+    const maxRow = this.rowAt(Math.max(from.y, to.y) + halfWidth);
+
+    const cells: Cell[] = [];
+    for (let row = minRow; row <= maxRow; row += 1) {
+      for (let col = minCol; col <= maxCol; col += 1) {
+        const centre = this.cellCentre(col, row);
+        const alongX = centre.x - from.x;
+        const alongY = centre.y - from.y;
+        const along = alongX * unitX + alongY * unitY;
+        if (along < -EPSILON_FEET || along > length + EPSILON_FEET) {
+          continue;
+        }
+        const across = Math.abs(alongX * unitY - alongY * unitX);
+        if (across <= halfWidth + EPSILON_FEET) {
+          cells.push({ col, row });
+        }
+      }
+    }
+    return cells;
+  }
+
+  /**
+   * Cells within `lengthFeet` of `origin`, inside the 90-degree arc facing
+   * `towards`. Membership is a **plain geometric distance and angle test in
+   * pixel space**, not `distanceBetween`'s diagonal count: a cone is a drawn
+   * shape, and which squares a drawn shape covers is a different question
+   * from how far apart two tokens are (`docs/grid.md`, "Templates"; marked
+   * **(confirm)** in `docs/rulings.md`). Degenerate (`towards` equals
+   * `origin`) returns `[]`: there is no direction to face.
+   */
+  cone(origin: Point, towards: Point, lengthFeet: number): Cell[] {
+    const dx = towards.x - origin.x;
+    const dy = towards.y - origin.y;
+    const facing = Math.hypot(dx, dy);
+    if (facing === 0) {
+      return [];
+    }
+    const unitX = dx / facing;
+    const unitY = dy / facing;
+    const lengthPixels = (lengthFeet * this.grid.size) / this.grid.distance;
+    const halfAngleCos = Math.SQRT1_2; // cos(45 degrees): half of PF2e's 90-degree cone.
+    const minCol = this.colAt(origin.x - lengthPixels);
+    const maxCol = this.colAt(origin.x + lengthPixels);
+    const minRow = this.rowAt(origin.y - lengthPixels);
+    const maxRow = this.rowAt(origin.y + lengthPixels);
+
+    const cells: Cell[] = [];
+    for (let row = minRow; row <= maxRow; row += 1) {
+      for (let col = minCol; col <= maxCol; col += 1) {
+        const centre = this.cellCentre(col, row);
+        const toX = centre.x - origin.x;
+        const toY = centre.y - origin.y;
+        const distance = Math.hypot(toX, toY);
+        if (distance > lengthPixels + EPSILON_FEET) {
+          continue;
+        }
+        if (distance === 0) {
+          cells.push({ col, row }); // the origin's own cell: always in the cone.
+          continue;
+        }
+        const cos = (toX * unitX + toY * unitY) / distance;
+        if (cos >= halfAngleCos - EPSILON_FEET) {
+          cells.push({ col, row });
+        }
+      }
+    }
+    return cells;
+  }
+
+  /** The cell whose span contains a scene-pixel x coordinate. */
+  private colAt(x: number): number {
+    return Math.floor((x - this.grid.offsetX) / this.grid.size);
+  }
+
+  /** The cell whose span contains a scene-pixel y coordinate. */
+  private rowAt(y: number): number {
+    return Math.floor((y - this.grid.offsetY) / this.grid.size);
+  }
+
+  /** A cell's centre, in scene pixels. */
+  private cellCentre(col: number, row: number): Point {
+    return {
+      x: this.grid.offsetX + (col + 0.5) * this.grid.size,
+      y: this.grid.offsetY + (row + 0.5) * this.grid.size,
+    };
   }
 
   /** Squares `radiusFeet` could possibly reach, rounded up: the scan's bounding box. */

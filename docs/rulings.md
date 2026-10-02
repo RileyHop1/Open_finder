@@ -556,3 +556,31 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/squareGrid.test.ts`, "burst" and
   "emanation". Clear the **(confirm)** here and in `grid.md` when the pages can
   be checked.
+
+### Cone and line coverage: a centre-point test, not a diagonal count
+- **Rules text:** **(confirm)**. The Archives of Nethys pages could not be
+  reached from the environment this was written in (2026-10-02), so this is
+  from memory of Player Core and unverified.
+- **The ambiguity:** the rules say a cone or line affects "all squares"
+  within its drawn shape, but do not spell out the test for a square that the
+  shape only partly overlaps -- whether any overlap counts, a majority of the
+  square's area must be covered, or only the square's centre matters.
+- **Our reading:** `GridStrategy.cone` and `line` test whether a cell's
+  **centre point** falls inside the shape (the angle-and-distance test for a
+  cone, the perpendicular-distance-and-projection test for a line), in real
+  pixel space -- never `distanceBetween`'s diagonal count, which answers a
+  different question (how far apart two tokens are, not which squares a drawn
+  shape covers).
+- **Alternative reading:** an overlap-area test (any square the shape touches
+  at all, or more than half of), which several other VTTs use and which looks
+  more generous at a template's edge.
+- **Why:** a centre-point test is the simplest rule that is still "a square is
+  either affected or it is not," with no area-fraction threshold to pick, and
+  it matches how `cellsUnder` already treats a footprint's own coverage (by its
+  covered cells, not by partial overlap).
+- **Override:** the GM confirms every template's targets by hand regardless
+  (`docs/grid.md`, "Templates"); a borderline square is the GM's call either
+  way, since templates never auto-apply.
+- **Golden test:** `systems/pf2e/src/rules/squareGrid.test.ts`, "line" and
+  "cone". Clear the **(confirm)** here and in `grid.md` when the pages can be
+  checked.
