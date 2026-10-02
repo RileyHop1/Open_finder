@@ -25,20 +25,25 @@
  *
  * Every change comes back as an event too, so the table is told what happened
  * (a chat card) and the GM can undo it by hand, as CLAUDE.md requires of every
- * automated change. Persistent damage and the dying chain are separate rules
- * (A.7, A.8); how many actions a turn has is `actionCapacity`.
+ * automated change. At the end of a turn the persistent damage that is due comes
+ * back in `persistentDue`, to be rolled by the server (`persistentDamage.ts`); the
+ * dying chain is `dyingChain.ts`, and how many actions a turn has is `actionCapacity`.
  */
 
 import type { TurnState } from '@hearthtable/core';
 
 import type { AppliedCondition } from '../content/character.js';
+import type { PersistentDamage } from '../content/persistentDamage.js';
 import { actionCapacity } from './actionCapacity.js';
+import { persistentDamageDue } from './persistentDamage.js';
 
 /** One combatant, as the turn rules see it: its id, the conditions it bears, and what it has used. */
 export interface TurnParticipant {
   readonly combatantId: string;
   readonly conditions: readonly AppliedCondition[];
   readonly turn: TurnState;
+  /** Persistent damage it bears; absent means none. Only read at the end of its own turn. */
+  readonly persistentDamage?: readonly PersistentDamage[];
 }
 
 /** The new values for one combatant, written back only when something changed. */
@@ -79,6 +84,12 @@ export interface TurnResult {
   /** Only the participants that changed, in the order they were given. */
   readonly changes: TurnChange[];
   readonly events: TurnEvent[];
+  /**
+   * Persistent damage that is due now (the end of its bearer's turn): the server
+   * rolls it, applies it, and resolves the flat checks (`persistentDamage.ts`).
+   * Empty at the start of a turn, and for a bearer with none.
+   */
+  readonly persistentDue: { combatantId: string; entries: PersistentDamage[] }[];
 }
 
 const FRESH_TURN: TurnState = { actionsSpent: 0, reactionUsed: false, attacksMade: 0 };
@@ -193,7 +204,7 @@ export function startOfTurn(
     }
   }
 
-  return { changes, events };
+  return { changes, events, persistentDue: [] };
 }
 
 /** What ends a turn: see the file comment. */
@@ -246,5 +257,12 @@ export function endOfTurn(
     }
   }
 
-  return { changes, events };
+  const active = participants.find((p) => p.combatantId === activeCombatantId);
+  const due = persistentDamageDue(active?.persistentDamage ?? []);
+  return {
+    changes,
+    events,
+    persistentDue:
+      due.length === 0 ? [] : [{ combatantId: activeCombatantId, entries: due }],
+  };
 }

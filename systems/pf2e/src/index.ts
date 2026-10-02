@@ -246,6 +246,18 @@ export {
 } from './content/persistentDamage.js';
 
 export {
+  ASSISTED_FLAT_CHECK_DC,
+  FLAT_CHECK_DC,
+  addPersistentDamage,
+  endsPersistentDamage,
+  flatCheckDc,
+  persistentDamageDue,
+  resolvePersistentDamage,
+  type PersistentDamageEvent,
+  type PersistentDamageResult,
+} from './rules/persistentDamage.js';
+
+export {
   damageWhileDying,
   deathThreshold,
   dyingStateOf,
