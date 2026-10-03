@@ -12,12 +12,15 @@
 
 import type {
   BaseDocument,
+  ChatCheckMessage,
   Combat,
   Combatant,
   DocumentPermissions,
+  Seat,
+  Token,
 } from '@hearthtable/core';
-import type { Seat, Token } from '@hearthtable/core';
 import {
+  actorSchema,
   baseDocumentSchema,
   combatantSchema,
   combatSchema,
@@ -25,7 +28,10 @@ import {
   sceneSchema,
   tokenSchema,
 } from '@hearthtable/core';
+import type { RandomSource } from '@hearthtable/dice';
+import { placeCombatant, sortByInitiative } from '@hearthtable/pf2e';
 
+import { rollActorCheck } from './checks.js';
 import { OperationRejected } from './rejection.js';
 import type { WorldStore } from './worldStore.js';
 
@@ -294,4 +300,111 @@ export function cascadeCombatDeletion(
   }
   result.changed.push(...changed.values());
   return result;
+}
+
+/** A combat that exists and has not ended: the only kind whose initiative may change. */
+function loadOpenCombat(store: WorldStore, combatId: string): Combat {
+  const combat = loadCombat(store, combatId);
+  if (combat.status === 'ended') {
+    throw new OperationRejected('that combat has ended');
+  }
+  return combat;
+}
+
+/** `combatant` with `initiative` written (absent when `undefined`), stored and returned. */
+function withInitiative(
+  store: WorldStore,
+  combatant: Combatant,
+  initiative: number | undefined,
+): Combatant {
+  const { initiative: _old, ...rest } = combatant;
+  const updated: Combatant = {
+    ...rest,
+    ...(initiative === undefined ? {} : { initiative }),
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+  return updated;
+}
+
+/**
+ * Rolls a combatant's initiative with its actor's Perception (or the `statistic`
+ * asked for) and stores the total. The roll is a chat check, kept from players when
+ * the combatant is hidden. Rolling again replaces the number, so the GM can re-roll.
+ */
+export function rollInitiative(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  payload: { combatantId: string; statistic?: string | undefined },
+): { combatant: Combatant; message: ChatCheckMessage } {
+  requireGM(seat);
+  const combatant = loadCombatant(store, payload.combatantId);
+  loadOpenCombat(store, combatant.combatId);
+  const message = rollActorCheck(
+    store,
+    seat,
+    rng,
+    { actorId: combatant.actorId, statistic: payload.statistic ?? 'perception' },
+    { gmOnly: combatant.hidden },
+  );
+  return {
+    combatant: withInitiative(store, combatant, message.roll.total),
+    message,
+  };
+}
+
+/** Sets a combatant's initiative to exactly `initiative`, or clears it (`null`): the GM's override. */
+export function setInitiative(
+  store: WorldStore,
+  seat: Seat,
+  payload: { combatantId: string; initiative: number | null },
+): Combatant {
+  requireGM(seat);
+  const combatant = loadCombatant(store, payload.combatantId);
+  loadOpenCombat(store, combatant.combatId);
+  return withInitiative(store, combatant, payload.initiative ?? undefined);
+}
+
+/**
+ * Moves a combatant immediately before `beforeId` (last when absent) by choosing
+ * initiative numbers (`placeCombatant`), and returns the combatants whose number
+ * changed. A place that cannot be reached by number (among the unrolled, or the
+ * gap is used up) is refused with what to do instead; nothing is misordered quietly.
+ */
+export function moveCombatant(
+  store: WorldStore,
+  seat: Seat,
+  payload: { combatantId: string; beforeId?: string | undefined },
+): Combatant[] {
+  requireGM(seat);
+  const mover = loadCombatant(store, payload.combatantId);
+  loadOpenCombat(store, mover.combatId);
+  const all = combatantsOf(store, mover.combatId);
+  if (payload.beforeId !== undefined && !all.some((c) => c.id === payload.beforeId)) {
+    throw new OperationRejected('that combatant is not in this combat');
+  }
+
+  const sorted = sortByInitiative(
+    all.map((combatant) => ({
+      id: combatant.id,
+      initiative: combatant.initiative,
+      defeated: combatant.defeated,
+      isCharacter:
+        actorSchema.safeParse(store.getDocument(combatant.actorId)).data?.kind ===
+        'character',
+      createdAt: combatant.createdAt,
+    })),
+  );
+  const changes = placeCombatant(sorted, mover.id, payload.beforeId);
+  if (changes === undefined) {
+    throw new OperationRejected(
+      'cannot place it there by number: roll its initiative, or set it directly',
+    );
+  }
+  const byId = new Map(all.map((combatant) => [combatant.id, combatant]));
+  return changes.flatMap((change) => {
+    const target = byId.get(change.id);
+    return target === undefined ? [] : [withInitiative(store, target, change.initiative)];
+  });
 }

@@ -60,7 +60,10 @@ import {
   addCombatant,
   cascadeCombatDeletion,
   createCombat,
+  moveCombatant,
   removeCombatant,
+  rollInitiative,
+  setInitiative,
 } from './combat.js';
 import type { CompendiumIndex } from './compendium.js';
 import {
@@ -505,6 +508,26 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const { deleted, changed } = removeCombatant(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: changed, deleted: [deleted] };
+    }
+    case 'combat.rollInitiative': {
+      const seat = requireSeat(store, socket);
+      const { combatant, message } = rollInitiative(
+        store,
+        seat,
+        cryptoRandomSource,
+        operation.payload,
+      );
+      return { seatId: seat.id, seats: [], documents: [combatant, message] };
+    }
+    case 'combat.setInitiative': {
+      const seat = requireSeat(store, socket);
+      const combatant = setInitiative(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [combatant] };
+    }
+    case 'combat.moveCombatant': {
+      const seat = requireSeat(store, socket);
+      const changed = moveCombatant(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: changed };
     }
     default:
       return assertNever(operation);
