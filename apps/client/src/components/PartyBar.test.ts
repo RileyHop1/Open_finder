@@ -39,8 +39,8 @@ function member(
   };
 }
 
-const mountBar = (members: Actor[], selectedId?: string) =>
-  mount(PartyBar, { props: { members, selectedId, worldId: WORLD } });
+const mountBar = (members: Actor[], selectedId?: string, activeActorId?: string) =>
+  mount(PartyBar, { props: { members, selectedId, worldId: WORLD, activeActorId } });
 
 describe('PartyBar', () => {
   it('says so when there is no party', () => {
@@ -128,6 +128,23 @@ describe('PartyBar', () => {
 
     await buttons[0]?.trigger('click');
     expect(wrapper.emitted('select')).toEqual([[anna.id]]);
+  });
+
+  it('marks the acting member’s turn in text, absent for everyone else', () => {
+    const [anna, bram] = [member('Anna'), member('Bram')];
+    const wrapper = mountBar([anna, bram], undefined, anna.id);
+    const buttons = wrapper.findAll('button.party-member');
+    expect(buttons.map((b) => b.attributes('aria-current'))).toEqual(['true', undefined]);
+    expect(buttons[0]?.text()).toContain('Current turn');
+    expect(buttons[1]?.text()).not.toContain('Current turn');
+  });
+
+  it('marks nobody’s turn with no active combatant', () => {
+    const wrapper = mountBar([member('Anna')]);
+    expect(
+      wrapper.find('button.party-member').attributes('aria-current'),
+    ).toBeUndefined();
+    expect(wrapper.text()).not.toContain('Current turn');
   });
 
   it('is built of real buttons, so Enter and Space work and each is at least 44px tall', () => {

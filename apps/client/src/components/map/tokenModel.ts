@@ -40,6 +40,8 @@ export interface TokenView {
   readonly movable: boolean;
   /** The token the keyboard and the next move act on. */
   readonly selected: boolean;
+  /** Whose combatant is acting right now. Never true outside an active combat. */
+  readonly onTurn: boolean;
 }
 
 /** Whether `seat` may move a token of `actor` (ADR 0017: owners and the GM; the actor is undefined when this seat cannot see it). */
@@ -66,6 +68,8 @@ export interface TokenViewOptions {
   readonly selectedId?: string | undefined;
   /** Whether this seat may move a token of this actor. Defaults to no. */
   readonly canMove?: ((actorId: string) => boolean) | undefined;
+  /** The active combatant's token, if any; drives `onTurn`. */
+  readonly activeTokenId?: string | undefined;
 }
 
 export function tokenViews(
@@ -91,13 +95,22 @@ export function tokenViews(
       openable: actor !== undefined,
       movable: options.canMove?.(token.actorId) ?? false,
       selected: token.id === options.selectedId,
+      onTurn: token.id === options.activeTokenId,
     };
   });
 }
 
 /** The words a list or a screen reader gets for a token: its label, and "hidden" when that is true (never colour or fading alone). */
-export function describeToken(view: Pick<TokenView, 'label' | 'hidden'>): string {
-  return view.hidden ? `${view.label} (hidden)` : view.label;
+export function describeToken(
+  view: Pick<TokenView, 'label' | 'hidden' | 'onTurn'>,
+): string {
+  const suffix = [
+    view.hidden ? 'hidden' : undefined,
+    view.onTurn ? 'current turn' : undefined,
+  ]
+    .filter((word) => word !== undefined)
+    .join(', ');
+  return suffix === '' ? view.label : `${view.label} (${suffix})`;
 }
 
 /** The topmost token whose circle contains `point` (scene pixels): later tokens draw over earlier ones, so the last match wins. */

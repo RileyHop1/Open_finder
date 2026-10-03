@@ -83,9 +83,19 @@ describe('tokenViews', () => {
 });
 
 describe('describeToken', () => {
-  it('says "hidden" in words', () => {
-    expect(describeToken({ label: 'Goblin', hidden: true })).toBe('Goblin (hidden)');
-    expect(describeToken({ label: 'Goblin', hidden: false })).toBe('Goblin');
+  it('says "hidden" and "current turn" in words', () => {
+    expect(describeToken({ label: 'Goblin', hidden: true, onTurn: false })).toBe(
+      'Goblin (hidden)',
+    );
+    expect(describeToken({ label: 'Goblin', hidden: false, onTurn: false })).toBe(
+      'Goblin',
+    );
+    expect(describeToken({ label: 'Goblin', hidden: false, onTurn: true })).toBe(
+      'Goblin (current turn)',
+    );
+    expect(describeToken({ label: 'Goblin', hidden: true, onTurn: true })).toBe(
+      'Goblin (hidden, current turn)',
+    );
   });
 });
 
@@ -106,7 +116,23 @@ describe('tokenViews selection and movement', () => {
 
   it('moves and selects nothing by default, and carries the size in squares', () => {
     const [view] = tokenViews([makeToken({ size: 3 })], 100, () => hero);
-    expect(view).toMatchObject({ selected: false, movable: false, size: 3 });
+    expect(view).toMatchObject({
+      selected: false,
+      movable: false,
+      size: 3,
+      onTurn: false,
+    });
+  });
+
+  it('marks the active combatant’s token, never any other', () => {
+    const [acting, other] = [makeToken({ name: 'Acting' }), makeToken({ name: 'Other' })];
+    const views = tokenViews([acting, other], 100, () => hero, {
+      activeTokenId: acting.id,
+    });
+    expect(views.map((v) => [v.label, v.onTurn])).toEqual([
+      ['Acting', true],
+      ['Other', false],
+    ]);
   });
 });
 
