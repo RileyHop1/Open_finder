@@ -40,6 +40,18 @@ templates.ts` uses, so the client's picture and the server's own idea of the
 template never disagree), under the tokens like the action bar's range
 highlight. A `TemplateList.vue` panel lists each by shape, feet, and label,
 with a "Remove" button for the GM or the placing seat -- the only route to
-remove one, which makes it keyboard-reachable for free. Placing a new
-template, with a preview and rotation, is **C.9b**, a follow-up PR under the
-same checklist item.
+remove one, which makes it keyboard-reachable for free.
+
+**Implemented in M5 C.9b**, closing out C.9. A "Template" toggle (button, or
+`T`) puts the map into placement mode: click the map for a burst's or
+cone's/line's origin (snapped to a cell; a line's is not, matching the
+server's own snapping), or click a token for an emanation's source --
+`templatePlacement.ts` builds the eventual `template.place` payload only
+once enough is chosen (an origin, plus an aim for a cone or line). A cone
+or line's aim either follows the pointer (drag to rotate) or one of eight
+compass buttons, the keyboard route to the same rotation
+(`templatePlacement.ts`'s `compassAim`). While pending, the same preview
+cells (`templateCells.ts`, reused from C.9a) shade the map and a live
+"Catches" line lists the tokens they would catch, so nothing is placed
+blind. Nothing is sent to the server until "Place template" or Enter;
+Escape cancels the whole tool.

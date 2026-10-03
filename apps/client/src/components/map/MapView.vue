@@ -64,7 +64,7 @@
  * Escape puts it away. It is local to this screen. The keyboard equivalent is in
  * the token list, which says how far each token is from the selected one.
  */
-import type { Cell } from '@hearthtable/core';
+import { TEMPLATE_SHAPES, type Cell, type TemplateShape } from '@hearthtable/core';
 import type { Application } from 'pixi.js';
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 
@@ -89,6 +89,12 @@ import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
 import ExitMenu from './ExitMenu.vue';
 import { ACTOR_DRAG_TYPE, type Covered, viewCentre } from './placement.js';
 import { cellsFor } from './templateCells.js';
+import {
+  COMPASS_DIRECTIONS,
+  type CompassDirection,
+  compassAim,
+  placePayload,
+} from './templatePlacement.js';
 import {
   arrivalPoint,
   type ExitView,
@@ -248,7 +254,7 @@ const portraits = new Map<string, ImageBitmap>();
 const fetchingPortraits = new Set<string>();
 
 /** The cells every placed template on this scene covers (M5 C.9a), under the tokens. */
-const templateCells = computed<Cell[]>(() => {
+const placedTemplateCells = computed<Cell[]>(() => {
   const scene = scenes.shownScene;
   if (scene === undefined) {
     return [];
@@ -258,6 +264,12 @@ const templateCells = computed<Cell[]>(() => {
     cellsFor(grid, template, scenes.shownTokens),
   );
 });
+
+/** The template layer: placed templates plus the pending one being placed (M5 C.9b), same shading for both. */
+const templateCells = computed<Cell[]>(() => [
+  ...placedTemplateCells.value,
+  ...templatePreviewCells.value,
+]);
 
 function drawTokens(): void {
   view?.setTokens(views.value, portraits, scenes.shownScene?.grid.size ?? 100);
@@ -361,6 +373,28 @@ function onPointerDown(event: PointerEvent): void {
     }
     return;
   }
+  if (placingTemplate.value && event.button === 0) {
+    const scenePoint = screenToScene(
+      camera ?? { x: 0, y: 0, zoom: 1 },
+      viewportSize(),
+      point,
+    );
+    if (templateShape.value === 'emanation') {
+      const source = tokenAt(views.value, scenePoint);
+      if (source !== undefined) {
+        templateTokenId.value = source.id;
+      }
+    } else {
+      const scene = scenes.shownScene;
+      if (scene !== undefined) {
+        templateOrigin.value =
+          templateShape.value === 'line'
+            ? scenePoint
+            : gridForScene(scene).snap(scenePoint, 1);
+      }
+    }
+    return;
+  }
   const hit = tokenAt(
     views.value,
     screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
@@ -413,6 +447,17 @@ function onPointerMove(event: PointerEvent): void {
   const point = sample(event);
   if (rulerOn.value) {
     rulerCursor.value = rulerAt(point);
+  }
+  if (
+    placingTemplate.value &&
+    (templateShape.value === 'cone' || templateShape.value === 'line') &&
+    templateOrigin.value !== undefined
+  ) {
+    templateAim.value = screenToScene(
+      camera ?? { x: 0, y: 0, zoom: 1 },
+      viewportSize(),
+      point,
+    );
   }
   const current = held;
   if (current === undefined) {
@@ -523,6 +568,133 @@ function rulerAt(point: Point): Point | undefined {
         scene,
         screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
       );
+}
+
+/**
+ * Placing an area template (M5 C.9b): a shape, its size, and, while the tool
+ * is on, the origin (click, or the source token for an emanation) and, for a
+ * cone or line, where it aims -- set by hovering (it follows the pointer, as
+ * the ruler's cursor does) or by one of the eight compass buttons, the
+ * keyboard route to the same rotation. Nothing is sent until "Place
+ * template" or Enter: the preview is purely local.
+ */
+const placingTemplate = ref(false);
+const templateShape = ref<TemplateShape>('burst');
+const templateFeet = ref(20);
+const templateWidthFeet = ref(5);
+const templateLabel = ref('');
+const templateOrigin = ref<Point>();
+const templateAim = ref<Point>();
+/** Empty while none is chosen: the placeholder `<option>` needs a real string value. */
+const templateTokenId = ref('');
+
+function clearTemplatePlacement(): void {
+  templateOrigin.value = undefined;
+  templateAim.value = undefined;
+  templateTokenId.value = '';
+}
+
+function setPlacingTemplate(on: boolean): void {
+  placingTemplate.value = on;
+  clearTemplatePlacement();
+  if (on) {
+    setRuler(false);
+  }
+  announcement.value = on
+    ? 'Placing a template. Click the map for its origin (or pick a token for an emanation), Escape to stop.'
+    : 'Template placement off.';
+}
+
+/** The pending template as `templateCells.ts` and `templatePlacement.ts` need it. */
+const pendingTemplate = computed(() => ({
+  shape: templateShape.value,
+  origin: templateOrigin.value,
+  aim: templateAim.value,
+  feet: templateFeet.value,
+  widthFeet: templateWidthFeet.value,
+  tokenId: templateTokenId.value === '' ? undefined : templateTokenId.value,
+  label: templateLabel.value.trim() === '' ? undefined : templateLabel.value.trim(),
+}));
+
+/** The cells the pending template would cover, previewed live as it is positioned. */
+const templatePreviewCells = computed<Cell[]>(() => {
+  const scene = scenes.shownScene;
+  const pending = pendingTemplate.value;
+  if (scene === undefined) {
+    return [];
+  }
+  const origin =
+    pending.shape === 'emanation'
+      ? views.value.find((view) => view.id === pending.tokenId)
+      : pending.origin;
+  if (origin === undefined) {
+    return [];
+  }
+  if (
+    (pending.shape === 'cone' || pending.shape === 'line') &&
+    pending.aim === undefined
+  ) {
+    return [];
+  }
+  return cellsFor(
+    gridForScene(scene),
+    {
+      shape: pending.shape,
+      x: origin.x,
+      y: origin.y,
+      toX: pending.aim?.x,
+      toY: pending.aim?.y,
+      feet: pending.feet,
+      widthFeet: pending.widthFeet,
+      tokenId: pending.tokenId,
+    },
+    views.value,
+  );
+});
+
+/** Tokens caught by the live preview, visible to this seat -- the final chat message also splits out hidden ones for the GM. */
+const templateCaught = computed(() => {
+  const scene = scenes.shownScene;
+  const cells = templatePreviewCells.value;
+  if (scene === undefined || cells.length === 0) {
+    return [];
+  }
+  const grid = gridForScene(scene);
+  const covered = new Set(cells.map((cell) => `${cell.col},${cell.row}`));
+  return views.value.filter((view) =>
+    grid
+      .cellsUnder({ center: { x: view.x, y: view.y }, size: view.size })
+      .some((cell) => covered.has(`${cell.col},${cell.row}`)),
+  );
+});
+
+/** The `template.place` payload for the pending template, or undefined when it is not yet placeable. */
+const templatePayload = computed(() => {
+  const scene = scenes.shownScene;
+  return scene === undefined ? undefined : placePayload(scene.id, pendingTemplate.value);
+});
+
+function rotateTemplate(direction: CompassDirection): void {
+  const scene = scenes.shownScene;
+  const origin = templateOrigin.value;
+  if (scene === undefined || origin === undefined) {
+    return;
+  }
+  templateAim.value = compassAim(scene.grid, origin, templateFeet.value, direction);
+}
+
+async function confirmTemplate(): Promise<void> {
+  const payload = templatePayload.value;
+  if (payload === undefined) {
+    return;
+  }
+  const accepted = await scenes.send('template.place', payload);
+  announcement.value = accepted
+    ? 'Template placed.'
+    : (scenes.error ?? 'Template refused.');
+  if (accepted) {
+    clearTemplatePlacement();
+  }
 }
 
 /** How far each other token is from the selected one, for the keyboard list. */
@@ -899,6 +1071,11 @@ function onKeyDown(event: KeyboardEvent): void {
     setRuler(!rulerOn.value);
     return;
   }
+  if (event.key.toLowerCase() === 't' && !event.shiftKey && lobby.mySeat !== undefined) {
+    event.preventDefault();
+    setPlacingTemplate(!placingTemplate.value);
+    return;
+  }
   // End turn (GM only): a combat not yet active makes this a no-op on the
   // store side, so nothing here needs to know whether one is running.
   if (event.key.toLowerCase() === 'n' && event.shiftKey && lobby.mySeat?.isGM === true) {
@@ -914,6 +1091,11 @@ function onKeyDown(event: KeyboardEvent): void {
   if (rulerOn.value && event.key === 'Escape') {
     event.preventDefault();
     setRuler(false);
+    return;
+  }
+  if (placingTemplate.value && event.key === 'Escape') {
+    event.preventDefault();
+    setPlacingTemplate(false);
     return;
   }
   const direction = ARROW_DIRECTIONS[event.key];
@@ -1125,6 +1307,15 @@ onBeforeUnmount(() => {
         >
           Ruler
         </button>
+        <button
+          v-if="lobby.mySeat !== undefined"
+          type="button"
+          title="Place an area template (T)"
+          :aria-pressed="placingTemplate"
+          @click="setPlacingTemplate(!placingTemplate)"
+        >
+          Template
+        </button>
       </div>
     </div>
     <p v-else class="map-empty">
@@ -1169,6 +1360,78 @@ onBeforeUnmount(() => {
       :is-gm="lobby.mySeat?.isGM === true"
       @remove="removeTemplate"
     />
+    <form
+      v-if="placingTemplate"
+      class="template-placement"
+      aria-label="Place an area template"
+      @pointerdown.stop
+      @submit.prevent="confirmTemplate"
+    >
+      <label for="template-shape">Shape</label>
+      <select id="template-shape" v-model="templateShape">
+        <option v-for="shape in TEMPLATE_SHAPES" :key="shape" :value="shape">
+          {{ shape }}
+        </option>
+      </select>
+
+      <label for="template-feet">{{
+        templateShape === 'line' ? 'Length (ft)' : 'Feet'
+      }}</label>
+      <input
+        id="template-feet"
+        v-model.number="templateFeet"
+        type="number"
+        min="5"
+        step="5"
+      />
+
+      <template v-if="templateShape === 'line'">
+        <label for="template-width">Width (ft)</label>
+        <input
+          id="template-width"
+          v-model.number="templateWidthFeet"
+          type="number"
+          min="5"
+          step="5"
+        />
+      </template>
+
+      <label for="template-label">Label</label>
+      <input id="template-label" v-model="templateLabel" type="text" autocomplete="off" />
+
+      <template v-if="templateShape === 'emanation'">
+        <label for="template-token">Source token</label>
+        <select id="template-token" v-model="templateTokenId">
+          <option value="" disabled>Choose…</option>
+          <option v-for="tokenView in views" :key="tokenView.id" :value="tokenView.id">
+            {{ tokenView.label }}
+          </option>
+        </select>
+      </template>
+
+      <fieldset v-if="templateShape === 'cone' || templateShape === 'line'">
+        <legend>Aim (drag on the map, or pick a direction)</legend>
+        <button
+          v-for="direction in COMPASS_DIRECTIONS"
+          :key="direction"
+          type="button"
+          :disabled="templateOrigin === undefined"
+          @click="rotateTemplate(direction)"
+        >
+          {{ direction }}
+        </button>
+      </fieldset>
+
+      <p v-if="templateCaught.length > 0">
+        Catches: {{ templateCaught.map((view) => view.label).join(', ') }}
+      </p>
+      <p v-else-if="templatePreviewCells.length > 0">Catches: no creatures.</p>
+
+      <button type="submit" :disabled="templatePayload === undefined">
+        Place template
+      </button>
+      <button type="button" @click="setPlacingTemplate(false)">Cancel</button>
+    </form>
     <p class="visually-hidden" role="status">{{ announcement }}</p>
     <p v-if="scenes.error" class="map-note map-error" role="alert">{{ scenes.error }}</p>
     <p v-if="imageError" class="map-note" role="status">
@@ -1259,6 +1522,42 @@ onBeforeUnmount(() => {
   background: var(--color-surface);
   color: var(--color-text);
   transform: translateX(-50%);
+}
+
+.template-placement {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-2));
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.template-placement fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.template-placement input[type='number'],
+.template-placement input[type='text'] {
+  width: 7rem;
+}
+
+.template-placement input,
+.template-placement select,
+.template-placement button {
+  min-height: var(--touch-target-min);
 }
 
 .exit-confirm p {
