@@ -62,6 +62,8 @@ import {
   endCombat,
   joinCombat,
   moveCombatant,
+  nextTurn,
+  previousTurn,
   removeCombatant,
   rollInitiative,
   setInitiative,
@@ -549,6 +551,16 @@ function dispatch(
     case 'combat.end': {
       const seat = requireSeat(store, socket);
       const { documents } = endCombat(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'combat.nextTurn': {
+      const seat = requireSeat(store, socket);
+      const { documents } = nextTurn(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'combat.previousTurn': {
+      const seat = requireSeat(store, socket);
+      const { documents } = previousTurn(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents };
     }
     default:

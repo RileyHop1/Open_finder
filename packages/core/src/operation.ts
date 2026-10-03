@@ -571,6 +571,22 @@ export const combatEndOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * End the active combatant's turn and begin the next one's: the end-of-turn rules
+ * for the one leaving, then the start-of-turn rules for the one arriving, in a
+ * single transaction. The round counts up when the order wraps. GM only.
+ */
+export const combatNextTurnOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.nextTurn'),
+  payload: z.object({ combatId: idSchema }),
+});
+
+/** Step the turn back one place (the GM's undo for a mis-click). It moves the pointer and the round only; it does not undo what the boundary rules changed. GM only. */
+export const combatPreviousTurnOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.previousTurn'),
+  payload: z.object({ combatId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -616,6 +632,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatMoveCombatantOperationSchema,
   combatStartOperationSchema,
   combatEndOperationSchema,
+  combatNextTurnOperationSchema,
+  combatPreviousTurnOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

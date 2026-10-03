@@ -204,7 +204,7 @@ The server derives them and a client never sets them, as for a token
   is set, and `observer` otherwise. The GM always reads everything.
 
 `combat.create`, `combat.addCombatant`, `combat.removeCombatant`, `combat.rollInitiative`,
-`combat.setInitiative`, `combat.moveCombatant`, `combat.start` and `combat.end` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
+`combat.setInitiative`, `combat.moveCombatant`, `combat.start`, `combat.end`, `combat.nextTurn` and `combat.previousTurn` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
 removes its combats with all their combatants (`cascadeCombatDeletion`). Conditions anchored to a combatant that goes end with it, and a combat whose active combatant went loses that pointer.
 
 ## Starting and ending
@@ -215,8 +215,12 @@ visible combatants to readable, sets round 1 with the top of the order active, a
 runs that combatant's start-of-turn rules ([Turn boundaries](#turn-boundaries)). The
 table is told what those rules did in a chat line. `combat.end` clears the turn
 pointer and any out-of-turn grants, ends conditions anchored to a combatant's turn,
-and leaves the combat as a record. Stepping the turn (`nextTurn`, `previousTurn`)
-follows in B.3c.
+and leaves the combat as a record. `combat.nextTurn` runs the
+end-of-turn rules for the combatant leaving and the start-of-turn rules for the one
+arriving in one transaction, and the round counts up when the order wraps.
+`combat.previousTurn` only moves the pointer and the round back: it does **not**
+undo what the boundary rules changed, because a condition that ended or an action
+that was spent cannot be known to be wanted back, so the GM sets those by hand.
 
 ## Example
 ```ts
