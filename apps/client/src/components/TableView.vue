@@ -157,8 +157,16 @@ const actionBar = computed(() => {
     view: actionBarView(actor, combatant),
     label: token.name ?? actor.name,
     gm: seat.isGM,
+    canUndo: combatant !== undefined && combat.canUndoSpend(combatant.id),
   };
 });
+
+/** Spends `cost` on `combatantId` and, once accepted, records it for `barUndo` to find. */
+async function spendAndRecord(combatantId: string, cost: number): Promise<void> {
+  if (await combat.spendAction(combatantId, cost)) {
+    combat.recordSpend(combatantId, cost);
+  }
+}
 
 /** A strike rolled from the action bar: always rolls; spends 1 action only while a combat is active. */
 function barStrike(
@@ -175,7 +183,7 @@ function barStrike(
     attackNumber,
   });
   if (bar.combatantId !== undefined) {
-    void combat.spendAction(bar.combatantId, 1);
+    void spendAndRecord(bar.combatantId, 1);
   }
 }
 
@@ -183,7 +191,7 @@ function barStrike(
 function barBasicAction(_slug: string, cost: number): void {
   const combatantId = actionBar.value?.combatantId;
   if (combatantId !== undefined) {
-    void combat.spendAction(combatantId, cost);
+    void spendAndRecord(combatantId, cost);
   }
 }
 
@@ -193,8 +201,16 @@ function barFreeform(label: string, cost: number): void {
   if (bar?.combatantId === undefined) {
     return;
   }
-  void combat.spendAction(bar.combatantId, cost);
+  void spendAndRecord(bar.combatantId, cost);
   void documents.send('chat.sendMessage', { text: `${bar.label} -- ${label}` });
+}
+
+/** "Undo last action": gives back whatever the bar's most recent recorded spend cost. */
+function barUndo(): void {
+  const combatantId = actionBar.value?.combatantId;
+  if (combatantId !== undefined) {
+    void combat.undoLastSpend(combatantId);
+  }
 }
 
 const selectedId = ref<string>();
@@ -504,9 +520,11 @@ async function handleCreate(): Promise<void> {
           :view="actionBar.view"
           :label="actionBar.label"
           :gm="actionBar.gm"
+          :can-undo="actionBar.canUndo"
           @strike="barStrike"
           @basic-action="barBasicAction"
           @freeform="barFreeform"
+          @undo="barUndo"
         />
 
         <Transition name="drawer">

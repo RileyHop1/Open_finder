@@ -410,3 +410,55 @@ describe('spending actions and the reaction', () => {
     });
   });
 });
+
+describe('the action bar’s per-turn undo cache', () => {
+  it('has nothing to undo until a spend is recorded', async () => {
+    const { store, fast } = await table();
+    expect(store.canUndoSpend(fast.id)).toBe(false);
+    expect(await store.undoLastSpend(fast.id)).toBe(false);
+    expect(emitOperation).not.toHaveBeenCalled();
+  });
+
+  it('undoes the most recent recorded spend by giving the actions back', async () => {
+    const { store, fast } = await table();
+    store.recordSpend(fast.id, 1);
+    store.recordSpend(fast.id, 2);
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    expect(await store.undoLastSpend(fast.id)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.spendAction',
+      payload: { combatantId: fast.id, actions: -2 },
+    });
+    // One spend is still left to undo.
+    expect(store.canUndoSpend(fast.id)).toBe(true);
+
+    expect(await store.undoLastSpend(fast.id)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[1]?.[1]).toMatchObject({
+      payload: { combatantId: fast.id, actions: -1 },
+    });
+    expect(store.canUndoSpend(fast.id)).toBe(false);
+  });
+
+  it('puts the spend back if the server refuses the undo', async () => {
+    const { store, fast } = await table();
+    store.recordSpend(fast.id, 1);
+    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'no' });
+
+    expect(await store.undoLastSpend(fast.id)).toBe(false);
+    expect(store.canUndoSpend(fast.id)).toBe(true);
+  });
+
+  it('clears a combatant’s cache the moment the active combatant changes, not before', async () => {
+    const { store, combat, fast, slow } = await table();
+    store.recordSpend(fast.id, 1);
+    expect(store.canUndoSpend(fast.id)).toBe(true);
+
+    // Still mid-turn: an unrelated broadcast must not clear it.
+    await broadcast([{ ...slow, defeated: false }]);
+    expect(store.canUndoSpend(fast.id)).toBe(true);
+
+    await broadcast([{ ...combat, activeCombatantId: slow.id }]);
+    expect(store.canUndoSpend(fast.id)).toBe(false);
+  });
+});

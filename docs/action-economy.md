@@ -38,8 +38,19 @@ cost picker for whatever the table asks for that the system doesn't model;
 spending it names it in a chat message. The bar itself is shown only for a
 token this seat controls (the GM, any; a player, one they own) — see
 `docs/combat.md` for where that check lives. Still open, as follow-up PRs
-under the same C.5 item: a per-turn undo cache, range highlighting, and
-movement spending actions.
+under the same C.5 item: range highlighting and movement spending actions.
+
+**Implemented in M5 C.5b**: "Undo last action" on the bar
+(`stores/combat.ts`'s `turnLog`, a per-combatant stack kept only in the
+browser, never sent or saved). Every bar spend — a strike's action cost, a
+basic action, the freeform entry — is recorded once the server accepts it;
+undoing pops the most recent one and gives those actions back
+(`combat.spendAction` with a negative count, same op `ActionTray`'s own
+undo already used). The stack is cleared, not kept, the moment the active
+combatant changes (`combat.nextTurn`/`previousTurn`), so a spend from a
+turn that already ended is never undoable from here — consistent with
+`combat.previousTurn` not undoing boundary-rule effects either; the GM sets
+those by hand.
 
 ## A turn
 - **3 actions**, spent in any combination.

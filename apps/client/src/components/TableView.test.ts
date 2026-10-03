@@ -376,12 +376,24 @@ describe('the turn bar', () => {
 
     await wrapper.get('.token-list button').trigger('click');
     expect(wrapper.find('.action-bar').exists()).toBe(true);
+    expect(wrapper.find('.undo').exists()).toBe(false);
 
     await wrapper.find('.basics button').trigger('click');
+    await flushPromises();
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
       type: 'combat.spendAction',
       payload: { combatantId: combatant.id, actions: 1 },
     });
+
+    // The spend was recorded once accepted, so "Undo last action" now shows.
+    expect(wrapper.find('.undo').exists()).toBe(true);
+    await wrapper.find('.undo').trigger('click');
+    expect(vi.mocked(emitOperation).mock.calls[1]?.[1]).toMatchObject({
+      type: 'combat.spendAction',
+      payload: { combatantId: combatant.id, actions: -1 },
+    });
+    await flushPromises();
+    expect(wrapper.find('.undo').exists()).toBe(false);
   });
 
   it('hides the action bar for a token a player does not own', async () => {

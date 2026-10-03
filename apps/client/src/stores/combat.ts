@@ -16,7 +16,7 @@ import type { Broadcast, Combat, Combatant } from '@hearthtable/core';
 import { actorSchema, combatantSchema, combatSchema } from '@hearthtable/core';
 import { sortByInitiative } from '@hearthtable/pf2e';
 import { defineStore } from 'pinia';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 
 import { listCombatants, listCombats } from '../api/documents.js';
 import { useConnectionStore } from './connection.js';
@@ -90,6 +90,53 @@ export const useCombatStore = defineStore('combat', () => {
       activeCombat.value.activeCombatantId !== undefined &&
       activeCombatant.value === undefined,
   );
+
+  /**
+   * This turn's action-bar spends, per combatant, purely client state (never
+   * sent, never saved): what "undo last action" undoes. Cleared, not kept,
+   * the moment the active combatant changes -- a spend from a turn that has
+   * already ended is not this session's to undo (the GM sets those by hand,
+   * same as `combat.previousTurn`'s own boundary rule).
+   */
+  const turnLog = reactive(new Map<string, number[]>());
+
+  watch(
+    () => activeCombat.value?.activeCombatantId,
+    (_current, previous) => {
+      if (previous !== undefined) {
+        turnLog.delete(previous);
+      }
+    },
+  );
+
+  /** Records a cost just spent via the action bar, for `undoLastSpend` to find. */
+  function recordSpend(combatantId: string, cost: number): void {
+    turnLog.set(combatantId, [...(turnLog.get(combatantId) ?? []), cost]);
+  }
+
+  /** Whether `combatantId` has a recorded spend this turn left to undo. */
+  function canUndoSpend(combatantId: string): boolean {
+    return (turnLog.get(combatantId)?.length ?? 0) > 0;
+  }
+
+  /**
+   * Undoes the most recent recorded spend by giving the actions back
+   * (negative `combat.spendAction`). No-op (false) with nothing recorded; on
+   * the server refusing, the cost is put back so nothing is silently lost.
+   */
+  async function undoLastSpend(combatantId: string): Promise<boolean> {
+    const log = turnLog.get(combatantId);
+    const cost = log?.at(-1);
+    if (log === undefined || cost === undefined) {
+      return false;
+    }
+    turnLog.set(combatantId, log.slice(0, -1));
+    const accepted = await spendAction(combatantId, -cost);
+    if (!accepted) {
+      recordSpend(combatantId, cost);
+    }
+    return accepted;
+  }
 
   async function load(forWorldId: string): Promise<void> {
     worldId = forWorldId;
@@ -275,5 +322,8 @@ export const useCombatStore = defineStore('combat', () => {
     setMovementGrant,
     spendAction,
     setReaction,
+    recordSpend,
+    canUndoSpend,
+    undoLastSpend,
   };
 });
