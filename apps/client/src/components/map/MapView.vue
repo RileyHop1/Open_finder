@@ -112,7 +112,7 @@ import { createSceneView, maxTextureSize, type SceneView } from './sceneView.js'
 
 const props = defineProps<{ worldId: string }>();
 
-const emit = defineEmits<{ openActor: [actorId: string] }>();
+const emit = defineEmits<{ openActor: [actorId: string]; nextTurn: [] }>();
 
 const scenes = useScenesStore();
 const documents = useDocumentsStore();
@@ -809,6 +809,13 @@ function onKeyDown(event: KeyboardEvent): void {
   if (event.key.toLowerCase() === 'm' && !event.shiftKey) {
     event.preventDefault();
     setRuler(!rulerOn.value);
+    return;
+  }
+  // End turn (GM only): a combat not yet active makes this a no-op on the
+  // store side, so nothing here needs to know whether one is running.
+  if (event.key.toLowerCase() === 'n' && event.shiftKey && lobby.mySeat?.isGM === true) {
+    event.preventDefault();
+    emit('nextTurn');
     return;
   }
   if (rulerOn.value && event.key === 'Backspace') {

@@ -7,6 +7,12 @@
  *
  * It shows only what this seat can read. A creature the table cannot see taking
  * its turn appears as one line, "Someone is acting".
+ *
+ * **The GM's switch** (CLAUDE.md: combat only happens when the GM starts it)
+ * lives here too, as `showControls`: with no active combat it is the only way
+ * onto the wire ("Start combat"); once one is running it is Previous/Next
+ * turn and End combat. A player is never passed `showControls`, so these
+ * buttons do not exist for them, not merely hidden.
  */
 import type { TurnBarItem } from './turnBarModel.js';
 
@@ -14,15 +20,36 @@ defineProps<{
   items: readonly TurnBarItem[];
   round: number;
   unseenActing: boolean;
+  /** Whether a combat is running (round/items apply) or there is none yet to show. */
+  active: boolean;
+  /** Whether this seat is the GM: shows the start/end/turn buttons. */
+  showControls: boolean;
 }>();
-const emit = defineEmits<{ focus: [tokenId: string] }>();
+const emit = defineEmits<{
+  focus: [tokenId: string];
+  start: [];
+  end: [];
+  next: [];
+  previous: [];
+}>();
 </script>
 
 <template>
   <section class="turn-bar" aria-label="Turn order" data-testid="turn-bar">
-    <p class="round">Round {{ round }}</p>
-    <p v-if="unseenActing" class="unseen" role="status">Someone is acting</p>
-    <ol>
+    <p v-if="!active && showControls" class="round">No combat is running.</p>
+    <button v-if="!active && showControls" type="button" @click="emit('start')">
+      Start combat
+    </button>
+    <template v-if="active">
+      <p class="round">Round {{ round }}</p>
+      <p v-if="unseenActing" class="unseen" role="status">Someone is acting</p>
+      <template v-if="showControls">
+        <button type="button" @click="emit('previous')">Previous turn</button>
+        <button type="button" @click="emit('next')">Next turn</button>
+        <button type="button" @click="emit('end')">End combat</button>
+      </template>
+    </template>
+    <ol v-if="active">
       <li
         v-for="item in items"
         :key="item.id"
