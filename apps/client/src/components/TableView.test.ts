@@ -133,6 +133,25 @@ describe('layout', () => {
     expect(documentsApi.listActors).toHaveBeenCalledWith(WORLD);
   });
 
+  it('resizes the map pane from the keyboard, clamped to its bounds', async () => {
+    const wrapper = await mountTable();
+    const handle = wrapper.get('.map-resize-handle');
+    expect(handle.attributes('role')).toBe('separator');
+    expect(handle.attributes('aria-orientation')).toBe('horizontal');
+    const heightOf = () => (wrapper.get('#map-pane').element as HTMLElement).style.height;
+
+    const before = Number.parseInt(heightOf(), 10);
+    await handle.trigger('keydown', { key: 'ArrowUp' });
+    expect(Number.parseInt(heightOf(), 10)).toBe(before + 24);
+    await handle.trigger('keydown', { key: 'ArrowDown' });
+    expect(heightOf()).toBe(`${before}px`);
+
+    await handle.trigger('keydown', { key: 'Home' });
+    expect(heightOf()).toBe('320px');
+    await handle.trigger('keydown', { key: 'End' });
+    expect(heightOf()).toBe(`${Math.round(window.innerHeight * 0.85)}px`);
+  });
+
   it('says who you are playing as, and releases the seat from there', async () => {
     const wrapper = await mountTable();
     expect(wrapper.find('.playing-as').text()).toContain('Valeros');
