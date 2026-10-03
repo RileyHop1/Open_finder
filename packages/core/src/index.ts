@@ -130,6 +130,7 @@ export {
   combatEndOperationSchema,
   combatNextTurnOperationSchema,
   combatPreviousTurnOperationSchema,
+  combatSetMovementRulingOperationSchema,
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,
   sceneUpdateOperationSchema,

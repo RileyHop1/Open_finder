@@ -30,14 +30,17 @@ as it does today.
   when added. The GM can remove any combatant, or set any initiative, before the
   first turn.
 - **On: movement follows the turn.** A player can move a token only on its
-  combatant's turn. The server refuses any other move (and the live drag preview),
-  and the client says why ("It is not Valeria's turn"), in text, never colour alone.
+  combatant's turn. The server refuses any other move (`requireTurnToMove`, shared by `token.move` and
+  the live drag preview, which is dropped silently) with "it is not this token's
+  turn: ask the GM to let it move". The server never names whose turn it is, since
+  that may be a hidden creature; the client may name it when it can read that
+  combatant. The reason is always in text, never colour alone.
   **The GM is never blocked.** A token that is not a combatant (a bystander, a
   hidden creature not yet added) is not gated.
 - **A special ruling lifts it.** The GM can switch on **free movement** for the whole
   combat (a chase, a cutscene), or **let one token move** out of turn once (a
-  reaction Stride, a ruling at the table). A single grant clears when that token's
-  next turn ends. Both are the GM's, both are shown on the tracker so nobody is
+  reaction Stride, a ruling at the table). A single grant (`combat.setMovementRuling`)
+  clears when that token's next turn ends, or when the GM takes it back. Both are the GM's, both are shown on the tracker so nobody is
   surprised, and the keyboard and menu routes are the same as for any GM tool.
 - **Actions are still only warned about.** Overspending a turn's actions is shown
   and never blocked ([action-economy.md](action-economy.md)); movement is the one
@@ -204,7 +207,7 @@ The server derives them and a client never sets them, as for a token
   is set, and `observer` otherwise. The GM always reads everything.
 
 `combat.create`, `combat.addCombatant`, `combat.removeCombatant`, `combat.rollInitiative`,
-`combat.setInitiative`, `combat.moveCombatant`, `combat.start`, `combat.end`, `combat.nextTurn` and `combat.previousTurn` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
+`combat.setInitiative`, `combat.moveCombatant`, `combat.start`, `combat.end`, `combat.nextTurn`, `combat.previousTurn` and `combat.setMovementRuling` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
 removes its combats with all their combatants (`cascadeCombatDeletion`). Conditions anchored to a combatant that goes end with it, and a combat whose active combatant went loses that pointer.
 
 ## Starting and ending

@@ -39,6 +39,7 @@ import {
 } from '@hearthtable/pf2e';
 import type { z } from 'zod';
 
+import { requireTurnToMove } from './combat.js';
 import type { CompendiumIndex } from './compendium.js';
 import { OperationRejected } from './rejection.js';
 import type { WorldStore } from './worldStore.js';
@@ -271,6 +272,7 @@ export function loadMovableToken(
   if (!actor.success || resolvePermission(seat, actor.data) !== 'owner') {
     throw new OperationRejected('you do not have permission to move this token');
   }
+  requireTurnToMove(store, seat, token);
   const scene = sceneSchema.safeParse(store.getDocument(token.sceneId));
   if (!scene.success) {
     throw new OperationRejected(`no scene found with id ${token.sceneId}`);
@@ -289,8 +291,8 @@ export function loadMovableToken(
  * a player cannot see is reported as not found, the same message as a missing
  * one, so a rejection never confirms that a hidden token exists.
  *
- * Movement is free for now: no speed limit, no turn check (those arrive with
- * combat). Last write wins: two seats moving the same token leave it where the
+ * Movement has no speed limit. While a combat is active a player's token moves only
+ * on its combatant's turn (`requireTurnToMove`). Last write wins: two seats moving the same token leave it where the
  * later one dropped it (ADR 0005, decision 5). A move that lands where the token
  * already is writes nothing and returns `undefined`.
  */
