@@ -9,6 +9,10 @@
 import {
   type Actor,
   actorSchema,
+  type Combat,
+  combatSchema,
+  type Combatant,
+  combatantSchema,
   type Party,
   partySchema,
   type Scene,
@@ -56,4 +60,14 @@ export function listScenes(worldId: string): Promise<Scene[]> {
 /** Every token in `worldId` this seat can read: a player gets none that are hidden or off the party's scene. */
 export function listTokens(worldId: string): Promise<Token[]> {
   return fetchDocuments(worldId, 'token', tokenSchema);
+}
+
+/** Every combat in `worldId` this seat can read: a player gets none while one is only set up. */
+export function listCombats(worldId: string): Promise<Combat[]> {
+  return fetchDocuments(worldId, 'combat', combatSchema);
+}
+
+/** Every combatant in `worldId` this seat can read: a hidden creature's is left out. */
+export function listCombatants(worldId: string): Promise<Combatant[]> {
+  return fetchDocuments(worldId, 'combatant', combatantSchema);
 }

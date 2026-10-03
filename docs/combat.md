@@ -112,6 +112,12 @@ bar.
 - It is HTML over the canvas, not drawn in it, so it does not touch the canvas
   budget (the perf check, D.1, covers it anyway).
 
+**Implemented in C.1a** (`apps/client/src/components/TurnBar.vue`, fed by
+`stores/combat.ts`): the row, the active label, round number, defeated and
+unseen-acting placeholder, and clicking a portrait to focus its token on the
+map (`MapView.focusToken`). The GM's reorder and the start/end/next-turn
+controls are C.1b and C.2.
+
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a
 `Combatant`, a document of its own, so a hidden monster is simply a document a
