@@ -32,8 +32,15 @@ const props = withDefaults(
     /** Feet from the selected token, by token id. */
     distances?: Readonly<Record<string, number>>;
     targeting?: boolean;
+    /** Tokens flanked by the acting token right now (M5 C.10), melee only -- a live hint, never the final word. */
+    flankedTokenIds?: ReadonlySet<string>;
   }>(),
-  { exits: () => [], distances: () => ({}), targeting: false },
+  {
+    exits: () => [],
+    distances: () => ({}),
+    targeting: false,
+    flankedTokenIds: () => new Set(),
+  },
 );
 const emit = defineEmits<{
   select: [tokenId: string];
@@ -42,12 +49,14 @@ const emit = defineEmits<{
   exit: [exitId: string];
 }>();
 
-/** A token's row: its name, and how far it is from the selected token when one is selected. */
+/** A token's row: its name, how far it is from the selected token when one is selected, and whether it is flanked while targeting. */
 function rowText(view: TokenView): string {
   const feet = props.distances[view.id];
-  return feet === undefined
-    ? describeToken(view)
-    : `${describeToken(view)}, ${feet} ft away`;
+  const base =
+    feet === undefined ? describeToken(view) : `${describeToken(view)}, ${feet} ft away`;
+  return props.targeting && props.flankedTokenIds.has(view.id)
+    ? `${base} (flanked)`
+    : base;
 }
 </script>
 

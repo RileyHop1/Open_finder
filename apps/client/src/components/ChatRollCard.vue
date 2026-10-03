@@ -79,6 +79,13 @@ const degree = computed(() =>
     : DEGREE_LABELS[props.message.roll.degree],
 );
 
+/** " (flanking)" when the attack's DC was lowered by flanking (M5 C.10), with its own leading space. */
+const flankingLabel = computed(() =>
+  props.message.kind === 'strikeAttack' && props.message.flanking === true
+    ? ' (flanking)'
+    : undefined,
+);
+
 const damage = computed(() =>
   Object.entries(props.message.roll.damage ?? {}).map(
     ([type, amount]) => `${amount} ${type}`,
@@ -105,6 +112,7 @@ function whyNotApplied(modifier: { suppressedBy?: string | undefined }): string 
       Total <strong class="total">{{ message.roll.total }}</strong>
       <template v-if="dcLabel">{{ dcLabel }}</template>
       <template v-if="degree"> — {{ degree }}</template>
+      <template v-if="flankingLabel">{{ flankingLabel }}</template>
     </p>
     <p v-if="damage.length > 0" class="damage">{{ damage.join(', ') }}</p>
     <p v-if="message.roll.natural !== undefined" class="natural">

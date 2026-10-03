@@ -11,6 +11,7 @@
  */
 import { onMounted, ref } from 'vue';
 
+import { isPrivateNotice } from './chatNotice.js';
 import ChatRollCard from './ChatRollCard.vue';
 import { useChatStore } from '../stores/chat.js';
 import { useLobbyStore } from '../stores/lobby.js';
@@ -60,6 +61,12 @@ async function handleSubmit(): Promise<void> {
             {{ entry.kind === 'roll' ? `Rolling ${entry.expression}…` : entry.text }}
           </span>
         </template>
+        <p
+          v-else-if="entry.kind === 'text' && isPrivateNotice(entry)"
+          class="chat-notice"
+        >
+          <span class="notice-label">Notice</span> {{ entry.text }}
+        </p>
         <template v-else-if="entry.kind === 'text'">
           <span class="sender">{{ seatName(entry.seatId) }}:</span>
           <span>{{ entry.text }}</span>
@@ -145,6 +152,18 @@ async function handleSubmit(): Promise<void> {
 .pending {
   color: var(--color-text-muted);
   font-style: italic;
+}
+
+.chat-notice {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+}
+
+.notice-label {
+  font-weight: 700;
+  margin-right: var(--space-1);
 }
 
 .roll-breakdown summary {

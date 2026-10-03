@@ -88,6 +88,7 @@ import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
 import ExitMenu from './ExitMenu.vue';
 import { ACTOR_DRAG_TYPE, type Covered, viewCentre } from './placement.js';
+import { wouldFlank } from './flankingPreview.js';
 import { cellsFor } from './templateCells.js';
 import {
   COMPASS_DIRECTIONS,
@@ -130,6 +131,13 @@ const props = defineProps<{
    * enemy never steals the acting token's own selection and action bar away.
    */
   targeting?: boolean;
+  /**
+   * Whether the pending strike is melee (M5 C.10): only then is the live
+   * flanking preview shown, since "a ranged or thrown strike never flanks"
+   * (`docs/grid.md`). Undefined (the attack bar's strike isn't known to be
+   * either) also shows nothing, never a wrong hint.
+   */
+  meleeTargeting?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -211,6 +219,29 @@ const views = computed(() =>
 );
 
 const selectedView = computed(() => views.value.find((view) => view.selected));
+
+/** Which tokens the acting token would flank right now (M5 C.10), while a melee strike is pending. */
+const flankedTokenIds = computed<ReadonlySet<string>>(() => {
+  const attackerActorId = selectedView.value?.actorId;
+  const scene = scenes.shownScene;
+  if (
+    !props.targeting ||
+    props.meleeTargeting !== true ||
+    attackerActorId === undefined ||
+    scene === undefined
+  ) {
+    return new Set();
+  }
+  const grid = gridForScene(scene);
+  const sideOf = (actorId: string): 'party' | 'other' =>
+    documents.party?.memberIds.includes(actorId) === true ? 'party' : 'other';
+  const ids = scenes.shownTokens
+    .filter((token) =>
+      wouldFlank(grid, sideOf, attackerActorId, token, scenes.shownTokens),
+    )
+    .map((token) => token.id);
+  return new Set(ids);
+});
 
 // A token that goes away (deleted, hidden, the scene changed) cannot stay selected.
 watch(views, (current) => {
@@ -1349,6 +1380,7 @@ onBeforeUnmount(() => {
       :exits="exits"
       :distances="distances"
       :targeting="targeting"
+      :flanked-token-ids="flankedTokenIds"
       @exit="askExit"
       @select="selectFromList"
       @target="(tokenId) => emit('pickTarget', tokenId)"

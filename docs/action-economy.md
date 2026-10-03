@@ -111,6 +111,20 @@ see is "a hidden creature". The reaction itself is never spent for the player.
 Triggers we cannot detect are simply not surfaced. A missing prompt is acceptable;
 a wrong automatic reaction is not.
 
+**Implemented in M5 C.10.** The prompt is an ordinary chat message, so it needed a
+distinct, inline rendering to actually read as a notice rather than a line of
+dialogue — as written, its `seatId` is the *mover's* seat (whoever triggered it),
+not the reactor's, so the chat log's usual "Name: text" would misattribute it.
+`apps/client/src/components/chatNotice.ts`'s `isPrivateNotice` detects it
+structurally (a `text` message naming specific seats, never by matching its
+wording — the only other private aside, a template's hidden-catch line, names no
+one), and `ChatLog.vue` renders it as a bordered "Notice: ..." line with no sender
+name, still an ordinary row in the same always-visible log, never a popup.
+Wiring a direct "spend reaction" button onto this specific notice is **out of
+scope**: the prompt carries no structured link to a combatant, and adding one is a
+schema/server change, not a client-only item. The existing `ActionTray.vue`
+"Spend reaction" toggle remains the manual follow-through.
+
 ## Exploration and downtime
 Outside encounter mode there is no three-action economy. Encounter mode is the
 GM's switch: it exists only while a combat is active, and movement is

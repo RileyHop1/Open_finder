@@ -49,11 +49,17 @@ const state = reactive<{
 });
 const lobby = reactive<{ mySeat: Seat | undefined }>({ mySeat: undefined });
 vi.mock('../../stores/lobby.js', () => ({ useLobbyStore: () => lobby }));
-const docs = reactive<{ actors: Actor[] }>({ actors: [] });
+const docs = reactive<{ actors: Actor[]; party: { memberIds: string[] } | undefined }>({
+  actors: [],
+  party: undefined,
+});
 vi.mock('../../stores/scenes.js', () => ({ useScenesStore: () => state }));
 vi.mock('../../stores/documents.js', () => ({
   useDocumentsStore: () => ({
     actorById: (id: string) => docs.actors.find((actor) => actor.id === id),
+    get party() {
+      return docs.party;
+    },
   }),
 }));
 const addCombatant = vi.fn<(tokenId: string, hidden: boolean) => Promise<boolean>>();
@@ -158,6 +164,7 @@ beforeEach(() => {
   combat.combatantByToken = () => undefined;
   lobby.mySeat = undefined;
   docs.actors = [];
+  docs.party = undefined;
   vi.mocked(sceneViewModule.createSceneView).mockReturnValue(view);
   vi.mocked(sceneViewModule.maxTextureSize).mockReturnValue(8192);
   vi.mocked(mapImage.loadMapBitmap).mockResolvedValue({
@@ -929,6 +936,113 @@ describe('picking a target (C.6)', () => {
     // Back out of targeting mode: the acting token is still shown selected.
     await wrapper.setProps({ targeting: false });
     expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('true');
+  });
+});
+
+describe('a live flanking preview while targeting (M5 C.10)', () => {
+  const world = crypto.randomUUID();
+  const GM: Seat = {
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'GM',
+    isGM: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+
+  const makeActor = (name: string): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    system: {},
+  });
+
+  const makeToken = (sceneId: string, actorId: string, x: number, y: number): Token =>
+    tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: world,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId,
+      actorId,
+      x,
+      y,
+    });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  /**
+   * A hero (150, 250) and an ally (350, 250) of the party, flanking a goblin
+   * (250, 250) of the other side; a second goblin far away is not flanked.
+   * Scene 2000x1000, 100px squares, fitted at 0.5: screen (149,149) is scene
+   * (250,250), where the hero's row sits first in the token list.
+   */
+  async function setup() {
+    lobby.mySeat = GM;
+    const hero = makeActor('Hero');
+    const ally = makeActor('Ally');
+    const goblin = makeActor('Goblin');
+    const farGoblin = makeActor('Far goblin');
+    docs.actors = [hero, ally, goblin, farGoblin];
+    docs.party = { memberIds: [hero.id, ally.id] };
+    const scene = makeScene();
+    state.shownScene = scene;
+    const heroToken = makeToken(scene.id, hero.id, 150, 250);
+    const allyToken = makeToken(scene.id, ally.id, 350, 250);
+    const goblinToken = makeToken(scene.id, goblin.id, 250, 250);
+    const farGoblinToken = makeToken(scene.id, farGoblin.id, 1750, 950);
+    state.shownTokens = [heroToken, allyToken, goblinToken, farGoblinToken];
+    const wrapper = mountView();
+    await ready(wrapper);
+    // Select the hero as the acting token before targeting starts (mirrors TableView.vue's flow).
+    await wrapper.get('.token-list li:first-child button').trigger('click');
+    return { wrapper, goblinToken, farGoblinToken };
+  }
+
+  it('labels a flanked target, and not one too far away, only while targeting a melee strike', async () => {
+    const { wrapper } = await setup();
+    await wrapper.setProps({ targeting: true, meleeTargeting: true });
+
+    const rows = wrapper
+      .findAll('.token-list li > button:first-child')
+      .map((b) => b.text());
+    expect(
+      rows.some((text) => text.includes('Goblin') && text.includes('(flanked)')),
+    ).toBe(true);
+    expect(
+      rows.some((text) => text.includes('Far goblin') && text.includes('(flanked)')),
+    ).toBe(false);
+  });
+
+  it('shows no flanking hint for a ranged strike', async () => {
+    const { wrapper } = await setup();
+    await wrapper.setProps({ targeting: true, meleeTargeting: false });
+
+    const rows = wrapper
+      .findAll('.token-list li > button:first-child')
+      .map((b) => b.text());
+    expect(rows.some((text) => text.includes('(flanked)'))).toBe(false);
+  });
+
+  it('shows no flanking hint outside of targeting mode', async () => {
+    const { wrapper } = await setup();
+
+    const rows = wrapper
+      .findAll('.token-list li > button:first-child')
+      .map((b) => b.text());
+    expect(rows.some((text) => text.includes('(flanked)'))).toBe(false);
   });
 });
 

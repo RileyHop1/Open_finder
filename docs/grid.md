@@ -162,6 +162,18 @@ only against the flankers, so it is not a condition on the target.
   penalty is a circumstance one and does not stack, and the card then does not say
   flanking. A GM who disagrees overrides the roll's `dc`.
 
+**Implemented in M5 C.10.** `ChatRollCard.vue` shows "(flanking)" inline next to a
+`strikeAttack` card's degree of success when the field is set. While a melee strike
+is waiting on a target (C.6), `apps/client/src/components/map/flankingPreview.ts`'s
+`wouldFlank` -- the same algorithm as `isFlanking` above, minus its `WorldStore`
+dependency -- previews which tokens the acting creature's side would flank right
+now, shown as "(flanked)" in the token list. It is a **hint**, not the final
+answer: it skips the `canAct` filter (an unconscious, dying, dead, paralyzed, or
+petrified ally still "flanks" in the preview), so the chat card after the roll is
+always authoritative. Shown only for a melee strike -- never a ranged one, since
+"a ranged or thrown strike never flanks" above -- and the preview is simply absent
+when the acting strike's range isn't known (never shown wrong).
+
 ## Difficult terrain
 - **Difficult terrain** costs an extra 5 feet per square entered.
 - **Greater difficult terrain** costs an extra 10.
