@@ -66,6 +66,15 @@ is available" — and **never spends it automatically**. Auto-spending a reactio
 takes a real tactical decision away from the player, which is the opposite of
 what this project is for.
 
+**What is surfaced today** (`apps/server/src/reactions.ts`): when a token moves out of
+a square that a creature with **Reactive Strike** threatens, in an active combat on a
+gridded scene, that creature's owners and the GM get a chat line ("Ada can use Reactive
+Strike: Goblin moved out of their reach."). It is only offered to a character carrying the
+Reactive Strike feature that is on the other side from the mover (party versus everyone
+else), able to act, and with its reaction unused. Reach is natural reach, and a monster
+is not offered it (a creature entry has no abilities list yet). A mover the table cannot
+see is "a hidden creature". The reaction itself is never spent for the player.
+
 Triggers we cannot detect are simply not surfaced. A missing prompt is acceptable;
 a wrong automatic reaction is not.
 
