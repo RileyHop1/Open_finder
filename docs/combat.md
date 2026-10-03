@@ -184,6 +184,18 @@ are not highlighted — a visible gap, not a guessed number.
 `sceneView.ts`'s `setHighlightedCells` (the drawing) do the work; the
 feature is purely visual and binds nothing the server enforces.
 
+**Implemented in C.6: picking a target.** Clicking a strike's attack button
+(from the bar or the sheet's `StrikesPanel`) does not roll at once -- it
+waits, showing a text banner, for a target to be picked on the map or in the
+keyboard token list, or for Escape to skip it and swing without one (a
+decision the client makes, not the server; `targetTokenId` has always been
+optional on `actor.rollStrike`, B.5). The pick sends `targetTokenId` with
+the roll, whose target's AC becomes the DC as B.5 already does; the chat
+card now also names who it was against, next to the DC. While a strike
+waits on a target, clicking a token aims at it instead of changing the map's
+own selection (`MapView`'s `targeting` prop), so aiming at an enemy never
+swaps away the acting token's own action bar.
+
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a
 `Combatant`, a document of its own, so a hidden monster is simply a document a

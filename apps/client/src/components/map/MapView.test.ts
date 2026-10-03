@@ -792,6 +792,112 @@ describe('selecting and moving tokens', () => {
   });
 });
 
+describe('picking a target (C.6)', () => {
+  const world = crypto.randomUUID();
+  const GM: Seat = {
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'GM',
+    isGM: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+
+  const makeActor = (name: string): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    system: {},
+  });
+
+  const makeToken = (sceneId: string, actorId: string): Token =>
+    tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: world,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId,
+      actorId,
+      x: 250,
+      y: 250,
+    });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  async function setup(targeting: boolean) {
+    lobby.mySeat = GM;
+    const goblin = makeActor('Goblin');
+    docs.actors = [goblin];
+    const scene = makeScene();
+    state.shownScene = scene;
+    const token = makeToken(scene.id, goblin.id);
+    state.shownTokens = [token];
+    const wrapper = mountView({ targeting });
+    await ready(wrapper);
+    return { wrapper, token, surface: wrapper.get('.map-surface') };
+  }
+
+  it('picks a target instead of selecting, from a click on the map', async () => {
+    const { wrapper, token, surface } = await setup(true);
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 0,
+      clientX: 149,
+      clientY: 149,
+    });
+    await pointer(surface, 'pointerup', { pointerId: 1, clientX: 149, clientY: 149 });
+
+    expect(wrapper.emitted('pickTarget')).toEqual([[token.id]]);
+    expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('false');
+  });
+
+  it('selects as usual, and emits nothing, when not targeting', async () => {
+    const { wrapper, surface } = await setup(false);
+    await pointer(surface, 'pointerdown', {
+      pointerId: 1,
+      button: 0,
+      clientX: 149,
+      clientY: 149,
+    });
+    await pointer(surface, 'pointerup', { pointerId: 1, clientX: 149, clientY: 149 });
+
+    expect(wrapper.emitted('pickTarget')).toBeUndefined();
+    expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('true');
+  });
+
+  it('offers the same pick from the token list, labelled as a target', async () => {
+    const { wrapper, token } = await setup(true);
+    const row = wrapper.get('.token-list button');
+    expect(row.text()).toContain('Target');
+    await row.trigger('click');
+    expect(wrapper.emitted('pickTarget')).toEqual([[token.id]]);
+  });
+
+  it('does not clear the acting token’s own selection on Escape while targeting', async () => {
+    const { wrapper, token, surface } = await setup(false);
+    await wrapper.get('.token-list button').trigger('click');
+    await wrapper.setProps({ targeting: true });
+    await surface.trigger('keydown', { key: 'Escape' });
+    expect(wrapper.vm.selectedId).toBe(token.id);
+
+    // Back out of targeting mode: the acting token is still shown selected.
+    await wrapper.setProps({ targeting: false });
+    expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('true');
+  });
+});
+
 describe('dragging tokens', () => {
   const world = crypto.randomUUID();
   const seat = (isGM: boolean): Seat => ({

@@ -116,9 +116,19 @@ const props = defineProps<{
   worldId: string;
   /** The action bar's range highlight (TableView.vue): shaded red, under the tokens. */
   highlightedCells?: readonly Cell[] | undefined;
+  /**
+   * While a strike is waiting on a target (TableView.vue), a token click here
+   * or in the list below picks it instead of selecting it -- so aiming at an
+   * enemy never steals the acting token's own selection and action bar away.
+   */
+  targeting?: boolean;
 }>();
 
-const emit = defineEmits<{ openActor: [actorId: string]; nextTurn: [] }>();
+const emit = defineEmits<{
+  openActor: [actorId: string];
+  nextTurn: [];
+  pickTarget: [tokenId: string];
+}>();
 
 const scenes = useScenesStore();
 const documents = useDocumentsStore();
@@ -341,6 +351,10 @@ function onPointerDown(event: PointerEvent): void {
     screenToScene(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), point),
   );
   if (hit !== undefined) {
+    if (props.targeting) {
+      emit('pickTarget', hit.id);
+      return;
+    }
     // A token is selected, not panned. If this seat may move it, it is also picked up.
     selectedId.value = hit.id;
     const scene = scenes.shownScene;
@@ -894,7 +908,10 @@ function onKeyDown(event: KeyboardEvent): void {
     event.preventDefault();
     return;
   }
-  if (event.key === 'Escape' && selectedId.value !== undefined) {
+  // While a strike is waiting on a target, Escape is the table's to skip
+  // targeting with (TableView.vue) -- not this seat's to clear the acting
+  // token's own selection and lose the action bar along with it.
+  if (event.key === 'Escape' && selectedId.value !== undefined && !props.targeting) {
     selectedId.value = undefined;
     announcement.value = 'Selection cleared.';
     event.preventDefault();
@@ -1111,8 +1128,10 @@ onBeforeUnmount(() => {
       :views="views"
       :exits="exits"
       :distances="distances"
+      :targeting="targeting"
       @exit="askExit"
       @select="selectFromList"
+      @target="(tokenId) => emit('pickTarget', tokenId)"
       @open="(actorId) => emit('openActor', actorId)"
     />
     <p class="visually-hidden" role="status">{{ announcement }}</p>

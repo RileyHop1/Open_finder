@@ -177,7 +177,49 @@ async function spendAndRecord(combatantId: string, cost: number): Promise<void> 
   }
 }
 
-/** A strike rolled from the action bar: always rolls; spends 1 action only while a combat is active. */
+/**
+ * A strike waiting on a target (C.6): set by either strike button, cleared
+ * once the roll fires -- with a target picked on the map or the token list,
+ * or without one if the player presses Escape to skip it.
+ */
+const pendingStrike = ref<{
+  readonly actorId: string;
+  readonly target: { itemId: string } | { strikeKey: string };
+  readonly attackNumber: 1 | 2 | 3;
+  readonly dc?: number;
+  readonly combatantId?: string;
+}>();
+
+/** Fires the pending strike, rolls, and spends the action bar's cost if it has one. */
+function fireStrike(targetTokenId: string | undefined): void {
+  const pending = pendingStrike.value;
+  if (pending === undefined) {
+    return;
+  }
+  void documents.send('actor.rollStrike', {
+    actorId: pending.actorId,
+    ...pending.target,
+    attackNumber: pending.attackNumber,
+    ...(pending.dc === undefined ? {} : { dc: pending.dc }),
+    ...(targetTokenId === undefined ? {} : { targetTokenId }),
+  });
+  if (pending.combatantId !== undefined) {
+    void spendAndRecord(pending.combatantId, 1);
+  }
+  pendingStrike.value = undefined;
+}
+
+/** A token picked on the map or the token list while a strike is pending. */
+function confirmTarget(tokenId: string): void {
+  fireStrike(tokenId);
+}
+
+/** Escape while a strike is pending: swing without naming a target. */
+function swingWithoutTarget(): void {
+  fireStrike(undefined);
+}
+
+/** A strike rolled from the action bar: waits on a target instead of firing immediately. */
 function barStrike(
   target: { itemId: string } | { strikeKey: string },
   attackNumber: 1 | 2 | 3,
@@ -186,14 +228,12 @@ function barStrike(
   if (bar === undefined) {
     return;
   }
-  void documents.send('actor.rollStrike', {
+  pendingStrike.value = {
     actorId: bar.actorId,
-    ...target,
+    target,
     attackNumber,
-  });
-  if (bar.combatantId !== undefined) {
-    void spendAndRecord(bar.combatantId, 1);
-  }
+    ...(bar.combatantId === undefined ? {} : { combatantId: bar.combatantId }),
+  };
 }
 
 /** A basic action from the bar: only ever spends (no roll), and only while a combat is active. */
@@ -219,6 +259,13 @@ function barUndo(): void {
   const combatantId = actionBar.value?.combatantId;
   if (combatantId !== undefined) {
     void combat.undoLastSpend(combatantId);
+  }
+}
+
+/** Escape anywhere on the screen skips a pending strike's target. */
+function onTableKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && pendingStrike.value !== undefined) {
+    swingWithoutTarget();
   }
 }
 
@@ -288,6 +335,19 @@ function roll(type: string, payload: Record<string, unknown>): void {
 /** A strike is named by its weapon's item id on a character and by its stat-block key on a monster. */
 function strikeTarget(id: string): { itemId: string } | { strikeKey: string } {
   return selected.value?.kind === 'npc' ? { strikeKey: id } : { itemId: id };
+}
+
+/** A strike rolled from the sheet: also waits on a target, carrying the typed-in DC along if there is one. */
+function sheetAttack(id: string, attackNumber: 1 | 2 | 3): void {
+  if (selectedId.value === undefined) {
+    return;
+  }
+  pendingStrike.value = {
+    actorId: selectedId.value,
+    target: strikeTarget(id),
+    attackNumber,
+    ...('dc' in dcPayload.value ? { dc: dcPayload.value.dc } : {}),
+  };
 }
 
 /** Condition changes are server logic (merging a second source, clearing what a condition supersedes), so they are sent and shown when the broadcast returns. */
@@ -458,7 +518,7 @@ async function handleCreate(): Promise<void> {
 </script>
 
 <template>
-  <div class="table">
+  <div class="table" @keydown="onTableKeydown">
     <div class="skip-links">
       <a href="#party-bar">Skip to party bar</a>
       <a href="#map-pane">Skip to map</a>
@@ -567,10 +627,17 @@ async function handleCreate(): Promise<void> {
             ref="mapView"
             :world-id="worldId"
             :highlighted-cells="mapHighlight"
+            :targeting="pendingStrike !== undefined"
             @open-actor="openSheetOf"
             @next-turn="combat.nextTurn"
+            @pick-target="confirmTarget"
           />
         </section>
+
+        <p v-if="pendingStrike !== undefined" class="targeting-banner" role="status">
+          Choose a target on the map or the token list, or press Escape to swing without
+          one.
+        </p>
 
         <div
           class="map-resize-handle"
@@ -739,14 +806,7 @@ async function handleCreate(): Promise<void> {
                 v-if="selected.kind === 'character' || selected.kind === 'npc'"
                 :actor="selected"
                 :rollable="canEdit"
-                @attack="
-                  (id, attackNumber) =>
-                    roll('actor.rollStrike', {
-                      ...strikeTarget(id),
-                      attackNumber,
-                      ...dcPayload,
-                    })
-                "
+                @attack="sheetAttack"
                 @damage="
                   (id, critical) =>
                     roll('actor.rollDamage', { ...strikeTarget(id), critical })
@@ -990,6 +1050,13 @@ button[aria-pressed='true'] {
   right: 0;
   left: auto;
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
+}
+
+.targeting-banner {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
 }
 
 .preview-banner {

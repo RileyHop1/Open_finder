@@ -881,10 +881,15 @@ describe('a monster’s sheet', () => {
     });
   });
 
-  it('rolls a strike by its stat-block key, never an item id', async () => {
+  it('waits for a target, then rolls a strike by its stat-block key, never an item id', async () => {
     const { wrapper, monster } = await openMonster();
     vi.mocked(emitOperation).mockClear();
     await wrapper.get('button[aria-label^="Roll Vine 1st attack"]').trigger('click');
+    // The roll waits on a target (C.6): nothing is sent yet.
+    expect(vi.mocked(emitOperation)).not.toHaveBeenCalled();
+    expect(wrapper.find('.targeting-banner').text()).toContain('Choose a target');
+
+    await wrapper.trigger('keydown', { key: 'Escape' });
     await wrapper.get('button[aria-label="Roll Vine damage"]').trigger('click');
     const [attack, damage] = vi.mocked(emitOperation).mock.calls.map((call) => call[1]);
     expect(attack).toMatchObject({
@@ -892,10 +897,71 @@ describe('a monster’s sheet', () => {
       payload: { actorId: monster.id, strikeKey: 'strike:vine', attackNumber: 1 },
     });
     expect(attack?.payload).not.toHaveProperty('itemId');
+    expect(attack?.payload).not.toHaveProperty('targetTokenId');
     expect(damage).toMatchObject({
       type: 'actor.rollDamage',
       payload: { actorId: monster.id, strikeKey: 'strike:vine', critical: false },
     });
+    expect(wrapper.find('.targeting-banner').exists()).toBe(false);
+  });
+
+  it('rolls the strike against the token picked from the list, instead of skipping it', async () => {
+    mySeat = gm;
+    const monster = makeNpc({ worldId: WORLD });
+    const scene = sceneSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'scene',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      name: 'Bog',
+      kind: 'battle',
+    });
+    const enemyActor = makeActor('Goblin');
+    const enemyToken = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: enemyActor.id,
+      x: 0,
+      y: 0,
+    });
+    vi.mocked(documentsApi.listActors).mockResolvedValue([monster, enemyActor]);
+    vi.mocked(documentsApi.listScenes).mockResolvedValue([scene]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue({
+      ...makeParty([]),
+      sceneId: scene.id,
+    });
+    vi.mocked(documentsApi.listTokens).mockResolvedValue([enemyToken]);
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    const wrapper = await mountTable();
+    await wrapper.get('.roster button').trigger('click');
+    vi.mocked(emitOperation).mockClear();
+    await wrapper.get('button[aria-label^="Roll Vine 1st attack"]').trigger('click');
+
+    const targetRow = wrapper
+      .findAll('.token-list button')
+      .find((button) => button.text().includes('Goblin'));
+    await targetRow?.trigger('click');
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.rollStrike',
+      payload: {
+        actorId: monster.id,
+        strikeKey: 'strike:vine',
+        attackNumber: 1,
+        targetTokenId: enemyToken.id,
+      },
+    });
+    expect(wrapper.find('.targeting-banner').exists()).toBe(false);
   });
 
   it('sets hit points directly as the GM’s override', async () => {
