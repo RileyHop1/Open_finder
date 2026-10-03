@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { Seat } from '@hearthtable/core';
-import { actorSchema } from '@hearthtable/core';
+import { actorSchema, combatantSchema } from '@hearthtable/core';
 import type { CharacterData, ConditionEntry } from '@hearthtable/pf2e';
 import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -219,6 +219,78 @@ describe('setConditionOnActor -- the GM override', () => {
     const { owner, actorId } = ownedCharacter();
     expect(() => set(owner, actorId, 'nonsense', 1)).toThrow(/unknown condition/);
     expect(() => set(makeSeat(), actorId, 'prone')).toThrow(/do not have permission/);
+  });
+});
+
+describe('condition durations from a client', () => {
+  const withDuration = (
+    seat: Seat,
+    actorId: string,
+    duration: Record<string, unknown>,
+    mode: 'add' | 'set' = 'add',
+  ) =>
+    (mode === 'add' ? addConditionToActor : setConditionOnActor)(store, seat, imported, {
+      actorId,
+      slug: 'frightened',
+      value: 2,
+      duration,
+    });
+
+  it('stores a rounds duration on an added condition', () => {
+    const { owner, actorId } = ownedCharacter();
+    withDuration(owner, actorId, { type: 'rounds', remaining: 3 });
+    expect(sheetOf(actorId).conditions).toEqual([
+      { slug: 'frightened', value: 2, duration: { type: 'rounds', remaining: 3 } },
+    ]);
+  });
+
+  it('replaces the duration when the GM sets the condition', () => {
+    const { owner, actorId } = ownedCharacter();
+    withDuration(owner, actorId, { type: 'rounds', remaining: 3 });
+    withDuration(owner, actorId, { type: 'days', remaining: 1 }, 'set');
+    expect(sheetOf(actorId).conditions[0]?.duration).toEqual({
+      type: 'days',
+      remaining: 1,
+    });
+  });
+
+  it('refuses a duration the game system does not know', () => {
+    const { owner, actorId } = ownedCharacter();
+    expect(() => withDuration(owner, actorId, { type: 'forever' })).toThrow(
+      /valid condition duration/,
+    );
+    expect(() => withDuration(owner, actorId, { type: 'rounds', remaining: 0 })).toThrow(
+      /valid condition duration/,
+    );
+  });
+
+  it('anchors to a combatant that exists, and refuses one that does not', () => {
+    const { owner, actorId } = ownedCharacter();
+    const combatantId = crypto.randomUUID();
+    expect(() =>
+      withDuration(owner, actorId, { type: 'turn', combatantId, boundary: 'end' }),
+    ).toThrow(/no combatant found/);
+
+    store.putDocument(
+      combatantSchema.parse({
+        id: combatantId,
+        worldId: store.world.id,
+        type: 'combatant',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        combatId: crypto.randomUUID(),
+        tokenId: crypto.randomUUID(),
+        actorId,
+      }),
+    );
+    withDuration(owner, actorId, { type: 'turn', combatantId, boundary: 'end' });
+    expect(sheetOf(actorId).conditions[0]?.duration).toEqual({
+      type: 'turn',
+      combatantId,
+      boundary: 'end',
+    });
   });
 });
 

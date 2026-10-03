@@ -223,6 +223,14 @@ const conditionSlugSchema = z
 export const MAX_CONDITION_VALUE = 99;
 
 /**
+ * When a condition ends, as the game system defines it (`systems/pf2e`'s
+ * `conditionDurationSchema`: until a combatant's turn, a count of rounds, ...).
+ * Core is system-agnostic, so it carries the object and the server checks its
+ * shape; absent means "until removed".
+ */
+const conditionDurationPayloadSchema = z.record(z.string(), z.unknown());
+
+/**
  * Apply a condition to a character the ordinary way: a second source of a
  * valued condition keeps the *higher* value, never the sum, and the condition
  * clears whatever it supersedes. `value` is for valued conditions and is
@@ -234,6 +242,7 @@ export const actorAddConditionOperationSchema = clientOperationSchema.extend({
     actorId: idSchema,
     slug: conditionSlugSchema,
     value: z.number().int().min(1).max(MAX_CONDITION_VALUE).optional(),
+    duration: conditionDurationPayloadSchema.optional(),
   }),
 });
 
@@ -248,6 +257,7 @@ export const actorSetConditionOperationSchema = clientOperationSchema.extend({
     actorId: idSchema,
     slug: conditionSlugSchema,
     value: z.number().int().min(0).max(MAX_CONDITION_VALUE).optional(),
+    duration: conditionDurationPayloadSchema.optional(),
   }),
 });
 
