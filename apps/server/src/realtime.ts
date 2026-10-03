@@ -43,7 +43,11 @@ import type {
   ServerToClientEvents,
   SyncAck,
 } from '@hearthtable/core';
-import { canReadDocument, clientOperationUnionSchema } from '@hearthtable/core';
+import {
+  canReadDocument,
+  clientOperationUnionSchema,
+  tokenSchema,
+} from '@hearthtable/core';
 import { cryptoRandomSource, evaluate, parse } from '@hearthtable/dice';
 import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
@@ -58,6 +62,7 @@ import {
 import { rollActorCheck } from './checks.js';
 import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import { settlePersistentDamage } from './persistentDamage.js';
+import { promptReactions } from './reactions.js';
 import {
   cascadeCombatDeletion,
   createCombat,
@@ -411,11 +416,18 @@ function dispatch(
     }
     case 'token.move': {
       const seat = requireSeat(store, socket);
+      const before = tokenSchema.safeParse(
+        store.getDocument(operation.payload.tokenId),
+      ).data;
       const token = moveToken(store, seat, operation.payload);
+      const prompts =
+        token === undefined || before === undefined
+          ? []
+          : promptReactions(store, seat, before, token);
       return {
         seatId: seat.id,
         seats: [],
-        documents: token === undefined ? [] : [token],
+        documents: token === undefined ? [] : [token, ...prompts],
       };
     }
     case 'token.delete': {

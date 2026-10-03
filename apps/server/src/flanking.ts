@@ -23,7 +23,7 @@ import { gridFor } from './tokens.js';
 import type { WorldStore } from './worldStore.js';
 
 /** Conditions that keep a creature from flanking: it cannot act, so it threatens nothing. */
-const CANNOT_FLANK = ['unconscious', 'dying', 'dead', 'paralyzed', 'petrified'];
+const CANNOT_ACT = ['unconscious', 'dying', 'dead', 'paralyzed', 'petrified'];
 
 function conditionSlugs(actor: Actor): string[] {
   const data =
@@ -35,7 +35,22 @@ function conditionSlugs(actor: Actor): string[] {
   return data?.conditions.map((condition) => condition.slug) ?? [];
 }
 
-function footprintOf(token: Token): Footprint {
+/** Whether `actor` is a character or monster that is in a state to act, so it can flank or react. */
+export function canAct(actor: Actor): boolean {
+  return (
+    (actor.kind === 'character' || actor.kind === 'npc') &&
+    !conditionSlugs(actor).some((slug) => CANNOT_ACT.includes(slug))
+  );
+}
+
+/** Which side an actor is on: a party member's token is the party's, everything else the other. */
+export function sideResolver(store: WorldStore): (actorId: string) => 'party' | 'other' {
+  const [rawParty] = store.listDocuments('party');
+  const members = new Set(partySchema.safeParse(rawParty).data?.memberIds ?? []);
+  return (actorId) => (members.has(actorId) ? 'party' : 'other');
+}
+
+export function footprintOf(token: Token): Footprint {
   return { center: { x: token.x, y: token.y }, size: token.size };
 }
 
@@ -59,10 +74,7 @@ export function isFlanking(
     return false;
   }
   const grid = gridFor(scene.data);
-  const [rawParty] = store.listDocuments('party');
-  const members = new Set(partySchema.safeParse(rawParty).data?.memberIds ?? []);
-  const sideOf = (actorId: string): 'party' | 'other' =>
-    members.has(actorId) ? 'party' : 'other';
+  const sideOf = sideResolver(store);
   const side = sideOf(attackerActorId);
   if (sideOf(target.actorId) === side) {
     return false;
@@ -83,11 +95,7 @@ export function isFlanking(
       return false;
     }
     const actor = actorSchema.safeParse(store.getDocument(token.actorId));
-    return (
-      actor.success &&
-      (actor.data.kind === 'character' || actor.data.kind === 'npc') &&
-      !conditionSlugs(actor.data).some((slug) => CANNOT_FLANK.includes(slug))
-    );
+    return actor.success && canAct(actor.data);
   });
 
   return attackers.some((attacker) =>
