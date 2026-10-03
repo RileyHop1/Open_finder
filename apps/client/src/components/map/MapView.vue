@@ -68,6 +68,7 @@ import type { Application } from 'pixi.js';
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 
 import { assetUrl } from '../../api/assets.js';
+import { useCombatStore } from '../../stores/combat.js';
 import { useDocumentsStore } from '../../stores/documents.js';
 import { useLobbyStore } from '../../stores/lobby.js';
 import { useScenesStore } from '../../stores/scenes.js';
@@ -116,6 +117,7 @@ const emit = defineEmits<{ openActor: [actorId: string]; nextTurn: [] }>();
 
 const scenes = useScenesStore();
 const documents = useDocumentsStore();
+const combat = useCombatStore();
 const lobby = useLobbyStore();
 const selectedId = ref<string>();
 /** What was last done to a token, in words, for a screen reader's live region. */
@@ -546,6 +548,14 @@ const menuToken = computed(() =>
   views.value.find((view) => view.id === menu.value?.tokenId),
 );
 
+/** Whether the menu's token can be offered "Add to combat": a combat is running and it has not joined yet. */
+const menuTokenCanJoinCombat = computed(
+  () =>
+    combat.activeCombat?.status === 'active' &&
+    menu.value !== undefined &&
+    combat.combatantByToken(menu.value.tokenId) === undefined,
+);
+
 /** How big the menu is allowed to be, so it can be kept inside the map when it opens near an edge. */
 const MENU_ROOM = { width: 220, height: 180 };
 
@@ -648,6 +658,15 @@ async function tokenChange(
     (await scenes.send('token.update', { tokenId: token.id, changes }))
   ) {
     announcement.value = said(token);
+  }
+}
+
+/** Joins the menu's token to the active combat, hidden exactly as the token already is. */
+async function addTokenToCombat(): Promise<void> {
+  const token = menuToken.value;
+  closeMenu();
+  if (token !== undefined && (await combat.addCombatant(token.id, token.hidden))) {
+    announcement.value = `${token.label} joined the fight.`;
   }
 }
 
@@ -969,6 +988,7 @@ onBeforeUnmount(() => {
         :token="menuToken"
         :x="menu.x"
         :y="menu.y"
+        :can-join-combat="menuTokenCanJoinCombat"
         @close="closeMenu"
         @toggle-hidden="
           tokenChange({ hidden: !menuToken.hidden }, (token) =>
@@ -978,6 +998,7 @@ onBeforeUnmount(() => {
           )
         "
         @remove="removeToken"
+        @add-to-combat="addTokenToCombat"
         @update="(changes) => tokenChange(changes, (token) => `${token.label} updated.`)"
       />
       <output

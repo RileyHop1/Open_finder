@@ -163,4 +163,46 @@ describe('TurnBar -- the GM’s controls', () => {
     expect(running.emitted('next')).toHaveLength(1);
     expect(running.emitted('end')).toHaveLength(1);
   });
+
+  it('offers the GM a per-combatant initiative override, absent for a player', async () => {
+    const target = item();
+    const gm = mount(TurnBar, {
+      props: {
+        active: true,
+        showControls: true,
+        unseenActing: false,
+        items: [target],
+        round: 1,
+      },
+    });
+    await gm.get('form.override input').setValue('14');
+    await gm.get('form.override').trigger('submit');
+    expect(gm.emitted('setInitiative')).toEqual([[target.id, 14]]);
+
+    const player = mount(TurnBar, {
+      props: {
+        active: true,
+        showControls: false,
+        unseenActing: false,
+        items: [target],
+        round: 1,
+      },
+    });
+    expect(player.find('form.override').exists()).toBe(false);
+  });
+
+  it('does not emit an override for an empty or non-numeric field', async () => {
+    const target = item();
+    const wrapper = mount(TurnBar, {
+      props: {
+        active: true,
+        showControls: true,
+        unseenActing: false,
+        items: [target],
+        round: 1,
+      },
+    });
+    await wrapper.get('form.override').trigger('submit');
+    expect(wrapper.emitted('setInitiative')).toBeUndefined();
+  });
 });

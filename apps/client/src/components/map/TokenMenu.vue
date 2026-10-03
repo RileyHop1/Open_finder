@@ -24,12 +24,15 @@ const props = defineProps<{
   /** Where to open, in pixels from the map's top left corner. */
   x: number;
   y: number;
+  /** Whether a combat is running that this token could join. Absent (or already joined) hides the item. */
+  canJoinCombat?: boolean;
 }>();
 
 const emit = defineEmits<{
   close: [];
   toggleHidden: [];
   remove: [];
+  addToCombat: [];
   /** Only the fields that changed; `name: null` goes back to the character's own name. */
   update: [changes: { name?: string | null; size?: number }];
 }>();
@@ -113,6 +116,11 @@ function save(): void {
       </li>
       <li role="none">
         <button type="button" role="menuitem" @click="startEditing">Name and size</button>
+      </li>
+      <li v-if="canJoinCombat === true" role="none">
+        <button type="button" role="menuitem" @click="emit('addToCombat')">
+          Add to combat
+        </button>
       </li>
       <li role="none">
         <button type="button" role="menuitem" @click="emit('remove')">

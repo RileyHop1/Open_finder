@@ -160,7 +160,17 @@ async function table() {
   await documents.load(WORLD);
   await scenes.load(WORLD);
   await store.load(WORLD);
-  return { store, scene, combat: active, fast, slow, hero, goblin };
+  return {
+    store,
+    scene,
+    combat: active,
+    fast,
+    slow,
+    hero,
+    goblin,
+    heroToken,
+    goblinToken,
+  };
 }
 
 describe('activeCombat and order', () => {
@@ -303,5 +313,46 @@ describe('the GM’s controls', () => {
     expect(await store.nextTurn()).toBe(false);
     expect(await store.previousTurn()).toBe(false);
     expect(emitOperation).not.toHaveBeenCalled();
+  });
+});
+
+describe('adding combatants and overriding initiative', () => {
+  it('finds a combatant by its token, or not', async () => {
+    const { store, fast, heroToken, goblinToken } = await table();
+    expect(store.combatantByToken(heroToken.id)?.id).toBe(fast.id);
+    expect(store.combatantByToken(goblinToken.id)).toBeDefined();
+    expect(store.combatantByToken(crypto.randomUUID())).toBeUndefined();
+  });
+
+  it('sends combat.addCombatant with the active combat’s id, token and hidden flag', async () => {
+    const { store, combat } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const tokenId = crypto.randomUUID();
+
+    expect(await store.addCombatant(tokenId, true)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.addCombatant',
+      payload: { combatId: combat.id, tokenId, hidden: true },
+    });
+  });
+
+  it('is a no-op for addCombatant with no active combat', async () => {
+    const store = useCombatStore();
+    const connection = useConnectionStore();
+    connection.connect();
+    await store.load(WORLD);
+    expect(await store.addCombatant(crypto.randomUUID(), false)).toBe(false);
+    expect(emitOperation).not.toHaveBeenCalled();
+  });
+
+  it('sends combat.setInitiative for a combatant', async () => {
+    const { store, fast } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    expect(await store.setInitiative(fast.id, 18)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.setInitiative',
+      payload: { combatantId: fast.id, initiative: 18 },
+    });
   });
 });

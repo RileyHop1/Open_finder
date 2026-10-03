@@ -63,6 +63,14 @@ drag a combatant to a new place in the turn bar, or use the keyboard route (a
 "Move earlier" and "Move later" on each combatant, and a "Move before..." menu), or
 set a number directly. A player cannot reorder.
 
+**Joining after the start (C.2):** the GM's token menu offers **Add to combat**
+for a token not yet in the running combat (a hidden token joining an ambush, a
+monster placed mid-fight); the server rolls its initiative at once
+(`combat.addCombatant` → `joinCombat`). The turn bar's drag-and-drop reorder is
+not built yet (still noted above); what exists today is the **direct override**:
+each combatant in the bar has a "Set initiative" number field for the GM, which
+sends `combat.setInitiative` straight to the wire.
+
 A reorder does not store a separate order. The order stays derived from initiative
 ([Turn order](#turn-order)), so a move **gives the combatant an initiative between
 its new neighbours** (the midpoint, so 14.5 between a 15 and a 14, and one above or
