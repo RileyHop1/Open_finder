@@ -13,6 +13,7 @@
 import type {
   BaseDocument,
   ChatCheckMessage,
+  ChatTextMessage,
   Combat,
   Combatant,
   DocumentPermissions,
@@ -29,7 +30,20 @@ import {
   tokenSchema,
 } from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
-import { placeCombatant, sortByInitiative } from '@hearthtable/pf2e';
+import type {
+  AppliedCondition,
+  TurnEvent,
+  TurnParticipant,
+  TurnResult,
+} from '@hearthtable/pf2e';
+import {
+  characterDataSchema,
+  nextCombatant,
+  npcDataSchema,
+  placeCombatant,
+  sortByInitiative,
+  startOfTurn,
+} from '@hearthtable/pf2e';
 
 import { rollActorCheck } from './checks.js';
 import { OperationRejected } from './rejection.js';
@@ -385,17 +399,7 @@ export function moveCombatant(
     throw new OperationRejected('that combatant is not in this combat');
   }
 
-  const sorted = sortByInitiative(
-    all.map((combatant) => ({
-      id: combatant.id,
-      initiative: combatant.initiative,
-      defeated: combatant.defeated,
-      isCharacter:
-        actorSchema.safeParse(store.getDocument(combatant.actorId)).data?.kind ===
-        'character',
-      createdAt: combatant.createdAt,
-    })),
-  );
+  const sorted = sortByInitiative(entriesOf(store, all));
   const changes = placeCombatant(sorted, mover.id, payload.beforeId);
   if (changes === undefined) {
     throw new OperationRejected(
@@ -407,4 +411,270 @@ export function moveCombatant(
     const target = byId.get(change.id);
     return target === undefined ? [] : [withInitiative(store, target, change.initiative)];
   });
+}
+
+/** The combatants as the initiative order sees them: a player character wins a tie, then who joined first. */
+function entriesOf(store: WorldStore, combatants: readonly Combatant[]) {
+  return combatants.map((combatant) => ({
+    id: combatant.id,
+    initiative: combatant.initiative,
+    defeated: combatant.defeated,
+    isCharacter:
+      actorSchema.safeParse(store.getDocument(combatant.actorId)).data?.kind ===
+      'character',
+    createdAt: combatant.createdAt,
+  }));
+}
+
+/** The combatants as the turn rules see them: what each bears and has used. Actors with no creature or character data bear nothing. */
+function participantsOf(
+  store: WorldStore,
+  combatants: readonly Combatant[],
+): TurnParticipant[] {
+  return combatants.map((combatant) => {
+    const actor = actorSchema.safeParse(store.getDocument(combatant.actorId));
+    const data = !actor.success
+      ? undefined
+      : actor.data.kind === 'npc'
+        ? npcDataSchema.safeParse(actor.data.system).data
+        : actor.data.kind === 'character'
+          ? characterDataSchema.safeParse(actor.data.system).data
+          : undefined;
+    return {
+      combatantId: combatant.id,
+      conditions: data?.conditions ?? [],
+      turn: combatant.turn,
+      persistentDamage: data?.persistentDamage ?? [],
+    };
+  });
+}
+
+/** Writes a turn rule's changes back, and returns the combatants and actors it touched. */
+function applyTurnResult(store: WorldStore, result: TurnResult): BaseDocument[] {
+  const changed = new Map<string, BaseDocument>();
+  for (const change of result.changes) {
+    const combatant = loadCombatant(store, change.combatantId);
+    const updated: Combatant = {
+      ...combatant,
+      turn: change.turn,
+      updatedAt: new Date().toISOString(),
+    };
+    store.putDocument(updated);
+    changed.set(updated.id, updated);
+    const actor = baseDocumentSchema
+      .loose()
+      .safeParse(store.getDocument(combatant.actorId));
+    const system = actor.success
+      ? (actor.data as { system?: { conditions?: AppliedCondition[] } }).system
+      : undefined;
+    if (
+      actor.success &&
+      system !== undefined &&
+      JSON.stringify(system.conditions) !== JSON.stringify(change.conditions)
+    ) {
+      const edited = {
+        ...actor.data,
+        system: { ...system, conditions: change.conditions },
+        updatedAt: new Date().toISOString(),
+      };
+      store.putDocument(edited);
+      changed.set(edited.id, edited);
+    }
+  }
+  return [...changed.values()];
+}
+
+/** A plain chat line saying what a turn boundary did, or `undefined` when it did nothing. */
+export function turnEventMessage(
+  store: WorldStore,
+  seat: Seat,
+  combatants: readonly Combatant[],
+  events: readonly TurnEvent[],
+): ChatTextMessage | undefined {
+  const nameOf = (combatantId: string): string => {
+    const combatant = combatants.find((c) => c.id === combatantId);
+    const actor = actorSchema.safeParse(
+      combatant === undefined ? undefined : store.getDocument(combatant.actorId),
+    );
+    return actor.success ? actor.data.name : 'Someone';
+  };
+  const lines = events.map((event) => {
+    const who = nameOf(event.combatantId);
+    switch (event.kind) {
+      case 'expired':
+        return `${event.slug} ends on ${who}.`;
+      case 'ticked':
+        return `${event.slug} on ${who}: ${event.remaining} round(s) left.`;
+      case 'actionsLost':
+        return `${who} loses ${event.count} action(s) to ${event.slug}.`;
+      case 'reduced':
+        return event.to === 0
+          ? `${event.slug} ends on ${who}.`
+          : `${event.slug} on ${who} drops from ${event.from} to ${event.to}.`;
+    }
+  });
+  if (lines.length === 0) {
+    return undefined;
+  }
+  const now = new Date().toISOString();
+  const message: ChatTextMessage = {
+    id: crypto.randomUUID(),
+    worldId: store.world.id,
+    type: 'chatMessage',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: now,
+    updatedAt: now,
+    seatId: seat.id,
+    kind: 'text',
+    text: lines.join(' '),
+  };
+  store.putDocument(message);
+  return message;
+}
+
+export interface CombatChange {
+  /** Every document the operation changed or made: the combat, its combatants, actors whose conditions changed, and chat. */
+  readonly documents: BaseDocument[];
+}
+
+/**
+ * Begins a pending combat, all in one transaction. Everyone with no initiative
+ * rolls Perception (a number the GM already set is kept; one that cannot roll, a
+ * hazard, stays unrolled for the GM to set). The combat and every combatant not
+ * marked hidden become readable. The top of the order takes round 1's first turn,
+ * and `startOfTurn` runs for it. A combat nobody can take a turn in is refused.
+ */
+export function startCombat(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  payload: { combatId: string },
+): CombatChange {
+  requireGM(seat);
+  const combat = loadCombat(store, payload.combatId);
+  if (combat.status !== 'pending') {
+    throw new OperationRejected(
+      combat.status === 'active'
+        ? 'that combat has already started'
+        : 'that combat has ended',
+    );
+  }
+  const documents = new Map<string, BaseDocument>();
+  const keep = (document: BaseDocument): void => {
+    documents.set(document.id, document);
+  };
+
+  for (const combatant of combatantsOf(store, combat.id)) {
+    if (combatant.initiative === undefined) {
+      try {
+        const rolled = rollInitiative(store, seat, rng, { combatantId: combatant.id });
+        keep(rolled.message);
+      } catch (error) {
+        if (!(error instanceof OperationRejected)) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  const combatants = combatantsOf(store, combat.id);
+  const first = nextCombatant(
+    sortByInitiative(entriesOf(store, combatants)),
+    undefined,
+  ).combatant;
+  if (first === undefined) {
+    throw new OperationRejected(
+      'nobody can take a turn: add a combatant or set an initiative',
+    );
+  }
+  for (const combatant of combatants) {
+    const readable: Combatant = {
+      ...combatant,
+      permissions: combatantPermissions('active', combatant.hidden),
+      updatedAt: new Date().toISOString(),
+    };
+    store.putDocument(readable);
+    keep(readable);
+  }
+  const started: Combat = {
+    ...combat,
+    status: 'active',
+    round: 1,
+    activeCombatantId: first.id,
+    permissions: combatPermissions('active'),
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(started);
+  keep(started);
+
+  const turn = startOfTurn(
+    participantsOf(store, combatantsOf(store, combat.id)),
+    first.id,
+  );
+  for (const document of applyTurnResult(store, turn)) {
+    keep(document);
+  }
+  const message = turnEventMessage(store, seat, combatants, turn.events);
+  if (message !== undefined) {
+    keep(message);
+  }
+  return { documents: [...documents.values()] };
+}
+
+/**
+ * Ends a combat: the turn pointer and every out-of-turn grant clear, and every
+ * condition anchored to one of its combatants' turns ends with it. A combat that
+ * had begun stays readable as a record; one that never began stays hidden, so
+ * players never learn of a fight that was called off. Frees the one-combat rule.
+ */
+export function endCombat(
+  store: WorldStore,
+  seat: Seat,
+  payload: { combatId: string },
+): CombatChange {
+  requireGM(seat);
+  const combat = loadOpenCombat(store, payload.combatId);
+  const documents = new Map<string, BaseDocument>();
+  for (const combatant of combatantsOf(store, combat.id)) {
+    if (combatant.movementGrant) {
+      const cleared: Combatant = {
+        ...combatant,
+        movementGrant: false,
+        updatedAt: new Date().toISOString(),
+      };
+      store.putDocument(cleared);
+      documents.set(cleared.id, cleared);
+    }
+    for (const actor of clearAnchoredConditions(store, combatant.id)) {
+      documents.set(actor.id, actor);
+    }
+  }
+  const { activeCombatantId: _active, ...rest } = combat;
+  const ended: Combat = {
+    ...rest,
+    status: 'ended',
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(ended);
+  documents.set(ended.id, ended);
+  return { documents: [...documents.values()] };
+}
+
+/**
+ * `addCombatant`, and when the combat is already running, rolls the newcomer's
+ * initiative at once so it takes its place in the order.
+ */
+export function joinCombat(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  payload: { combatId: string; tokenId: string; hidden?: boolean | undefined },
+): CombatChange {
+  const combatant = addCombatant(store, seat, payload);
+  if (loadCombat(store, payload.combatId).status !== 'active') {
+    return { documents: [combatant] };
+  }
+  const rolled = rollInitiative(store, seat, rng, { combatantId: combatant.id });
+  return { documents: [rolled.combatant, rolled.message] };
 }

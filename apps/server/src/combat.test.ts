@@ -6,6 +6,7 @@ import type { Actor, BaseDocument, Combatant, Seat, Token } from '@hearthtable/c
 import {
   actorSchema,
   combatantSchema,
+  canReadDocument,
   combatSchema,
   sceneSchema,
 } from '@hearthtable/core';
@@ -19,10 +20,13 @@ import {
   combatantPermissions,
   combatPermissions,
   createCombat,
+  endCombat,
+  joinCombat,
   moveCombatant,
   removeCombatant,
   rollInitiative,
   setInitiative,
+  startCombat,
 } from './combat.js';
 import { addPartyMember } from './party.js';
 import { createScene, deleteScene } from './scenes.js';
@@ -512,5 +516,164 @@ describe('moveCombatant', () => {
     expect(() => moveCombatant(store, seat, { combatantId: byName('A').id })).toThrow(
       'has ended',
     );
+  });
+});
+
+/** Sets the conditions an actor bears. */
+function bear(actorId: string, conditions: unknown[]): void {
+  const actor = actorSchema.parse(store.getDocument(actorId));
+  save({ ...actor, system: { ...(actor.system as object), conditions } } as BaseDocument);
+}
+
+const conditionsOf = (actorId: string): { slug: string }[] =>
+  (
+    actorSchema.parse(store.getDocument(actorId)).system as {
+      conditions: { slug: string }[];
+    }
+  ).conditions;
+
+describe('startCombat', () => {
+  it('rolls the unrolled, keeps a preset number, and gives round 1 to the top of the order', () => {
+    const { seat, combat, byName, stored } = fight('A', 'B');
+    setInitiative(store, seat, { combatantId: byName('A').id, initiative: 1000 });
+    const { documents } = startCombat(store, seat, fixed(10), { combatId: combat.id });
+
+    expect(stored(byName('A').id).initiative).toBe(1000);
+    expect(stored(byName('B').id).initiative).toBeGreaterThanOrEqual(10);
+    expect(combatSchema.parse(store.getDocument(combat.id))).toMatchObject({
+      status: 'active',
+      round: 1,
+      activeCombatantId: byName('A').id,
+    });
+    expect(documents.map((doc) => doc.id)).toContain(combat.id);
+  });
+
+  it('makes the combat and its visible combatants readable, but not a hidden one', () => {
+    const { seat, combat, byName } = fight('A', 'B');
+    const hidden = {
+      ...byName('B'),
+      hidden: true,
+      permissions: combatantPermissions('pending', true),
+    };
+    save(hidden);
+    startCombat(store, seat, fixed(10), { combatId: combat.id });
+
+    const viewer = player();
+    expect(canReadDocument(viewer, store.getDocument(combat.id) as BaseDocument)).toBe(
+      true,
+    );
+    expect(
+      canReadDocument(viewer, store.getDocument(byName('A').id) as BaseDocument),
+    ).toBe(true);
+    expect(
+      canReadDocument(viewer, store.getDocument(byName('B').id) as BaseDocument),
+    ).toBe(false);
+  });
+
+  it("applies the first combatant's start of turn: stunned costs actions, and the table is told", () => {
+    const { seat, combat, byName, stored } = fight('A', 'B');
+    setInitiative(store, seat, { combatantId: byName('A').id, initiative: 1000 });
+    bear(byName('A').actorId, [{ slug: 'stunned', value: 1 }]);
+    const { documents } = startCombat(store, seat, fixed(10), { combatId: combat.id });
+
+    expect(stored(byName('A').id).turn.actionsSpent).toBe(1);
+    expect(conditionsOf(byName('A').actorId)).toEqual([]);
+    const text = documents.find((doc) => (doc as { kind?: string }).kind === 'text') as {
+      text?: string;
+    };
+    expect(text.text).toContain('loses 1 action(s) to stunned');
+  });
+
+  it('leaves a combatant that cannot roll unrolled, rather than refusing the start', () => {
+    const { seat, scene, put } = setup();
+    put('Valeria');
+    const trap = createActor(store, seat, { kind: 'hazard', name: 'Trap' });
+    placeToken(store, { scene, actor: trap, size: 1, x: 100, y: 100 });
+    const { combat, combatants } = createCombat(store, seat, { sceneId: scene.id });
+    startCombat(store, seat, fixed(10), { combatId: combat.id });
+    const rolled = combatants.map((c) => combatantSchema.parse(store.getDocument(c.id)));
+    expect(rolled.filter((c) => c.initiative === undefined)).toHaveLength(1);
+  });
+
+  it('refuses an empty combat', () => {
+    const { seat, scene } = setup();
+    const { combat } = createCombat(store, seat, { sceneId: scene.id });
+    expect(() => startCombat(store, seat, fixed(10), { combatId: combat.id })).toThrow(
+      'nobody can take a turn',
+    );
+  });
+
+  it('refuses a started or ended combat, and a non-GM', () => {
+    const { seat, combat } = fight('A');
+    expect(() =>
+      startCombat(store, player(), fixed(10), { combatId: combat.id }),
+    ).toThrow('only the GM');
+    startCombat(store, seat, fixed(10), { combatId: combat.id });
+    expect(() => startCombat(store, seat, fixed(10), { combatId: combat.id })).toThrow(
+      'already started',
+    );
+    endCombat(store, seat, { combatId: combat.id });
+    expect(() => startCombat(store, seat, fixed(10), { combatId: combat.id })).toThrow(
+      'has ended',
+    );
+  });
+});
+
+describe('endCombat', () => {
+  it('clears the pointer and grants, ends turn-anchored conditions, and frees the one-combat rule', () => {
+    const { seat, combat, byName, stored } = fight('A', 'B');
+    startCombat(store, seat, fixed(10), { combatId: combat.id });
+    const a = byName('A');
+    save({ ...stored(a.id), movementGrant: true } as BaseDocument);
+    bear(byName('B').actorId, [
+      { slug: 'grabbed', duration: { type: 'turn', combatantId: a.id, boundary: 'end' } },
+      { slug: 'frightened', value: 1 },
+    ]);
+
+    const { documents } = endCombat(store, seat, { combatId: combat.id });
+    const ended = combatSchema.parse(store.getDocument(combat.id));
+    expect(ended.status).toBe('ended');
+    expect(ended.activeCombatantId).toBeUndefined();
+    expect(stored(a.id).movementGrant).toBe(false);
+    expect(conditionsOf(byName('B').actorId).map((c) => c.slug)).toEqual(['frightened']);
+    expect(documents.map((doc) => doc.id)).toContain(combat.id);
+    expect(canReadDocument(player(), ended)).toBe(true);
+    expect(() => createCombat(store, seat, { sceneId: ended.sceneId })).not.toThrow();
+  });
+
+  it('keeps a combat that never began hidden, and is the GM only', () => {
+    const { seat, combat } = fight('A');
+    expect(() => endCombat(store, player(), { combatId: combat.id })).toThrow(
+      'only the GM',
+    );
+    endCombat(store, seat, { combatId: combat.id });
+    const ended = combatSchema.parse(store.getDocument(combat.id));
+    expect(ended.status).toBe('ended');
+    expect(canReadDocument(player(), ended)).toBe(false);
+    expect(() => endCombat(store, seat, { combatId: combat.id })).toThrow('has ended');
+  });
+});
+
+describe('joinCombat', () => {
+  it('only adds to a pending combat, but rolls at once in a running one', () => {
+    const { seat, scene, put } = setup();
+    put('Valeria');
+    const { combat } = createCombat(store, seat, { sceneId: scene.id });
+    const early = put('Early');
+    const pending = joinCombat(store, seat, fixed(10), {
+      combatId: combat.id,
+      tokenId: early.token.id,
+    });
+    expect(pending.documents).toHaveLength(1);
+    expect((pending.documents[0] as Combatant).initiative).toBeUndefined();
+
+    startCombat(store, seat, fixed(10), { combatId: combat.id });
+    const late = put('Late');
+    const running = joinCombat(store, seat, fixed(10), {
+      combatId: combat.id,
+      tokenId: late.token.id,
+    });
+    expect(running.documents).toHaveLength(2);
+    expect((running.documents[0] as Combatant).initiative).toBeGreaterThanOrEqual(10);
   });
 });

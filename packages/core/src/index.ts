@@ -126,6 +126,8 @@ export {
   combatRollInitiativeOperationSchema,
   combatSetInitiativeOperationSchema,
   combatMoveCombatantOperationSchema,
+  combatStartOperationSchema,
+  combatEndOperationSchema,
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,
   sceneUpdateOperationSchema,
