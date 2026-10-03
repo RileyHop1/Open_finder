@@ -227,9 +227,13 @@ memory of Player Core, and not checked against the Archives of Nethys. See
   stabilised, revived, wounded raised, dead), so the table is told and the GM can
   undo it. `dyingStateOf` and `withDyingState` read and write the four conditions
   through the same `setCondition` / `removeCondition` the GM's override uses.
-- The server applies it (damage to 0, the recovery check at the start of a turn,
-  healing) in milestone 5's server stack (B.6); this page is what that stack
-  implements.
+- The server applies it. `actor.applyDamage` and `actor.heal`
+  (`apps/server/src/hitPoints.ts`) run the chain in the same operation as the hit
+  point change: a character dropped to 0 is knocked out, damage at 0 raises dying,
+  enough left over kills (the character gets a **`dead`** condition, see
+  [rulings.md](rulings.md)), and healing above 0 revives. A monster only loses
+  hit points; at 0 it is marked defeated in an active combat. The recovery check at
+  the start of a turn follows in B.6b.
 
 These interact and a wrong step is a dead character, so the **GM override** is the
 whole answer to a disagreement: set or remove `dying`, `wounded`, `doomed`, and

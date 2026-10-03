@@ -370,6 +370,21 @@ ruling from silently drifting.
   transition, a whole sequence, and the adapter. Clear the **(confirm)** here and in
   `conditions.md` when the pages can be checked.
 
+### Death is a `dead` condition
+- **Rules text:** **(confirm)** the death thresholds are in "The dying chain"
+  above. How a table records that someone has died is not a rule.
+- **Our reading:** when the chain says a character dies (dying reached 4 minus
+  doomed, or massive damage), the server adds a valueless **`dead`** condition
+  ([conditions.md](conditions.md)). A dead character cannot be healed
+  (`actor.heal` refuses); damage no longer runs the chain.
+- **The alternative:** a boolean on the actor. Rejected: a second place to look,
+  invisible to the conditions list and the party bar that already show state, and a
+  schema change for a flag the conditions system can carry. A condition the GM
+  clears by hand is also exactly the revive path.
+- **Override:** the GM adds or removes `dead` like any condition; nothing else
+  depends on it being set.
+- **Golden test:** `apps/server/src/hitPoints.test.ts`.
+
 ### Stunned, slowed, and quickened
 - **Rules text:** a turn has three actions. *Quickened* grants an extra action that
   can be used only for certain things. *Slowed N* loses you N actions, and *stunned N*
