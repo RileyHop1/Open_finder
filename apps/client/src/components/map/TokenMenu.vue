@@ -19,20 +19,26 @@ import { nextTick, onMounted, ref, useTemplateRef } from 'vue';
 
 import type { TokenView } from './tokenModel.js';
 
-const props = defineProps<{
-  token: TokenView;
-  /** Where to open, in pixels from the map's top left corner. */
-  x: number;
-  y: number;
-  /** Whether a combat is running that this token could join. Absent (or already joined) hides the item. */
-  canJoinCombat?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    token: TokenView;
+    /** Where to open, in pixels from the map's top left corner. */
+    x: number;
+    y: number;
+    /** Whether a combat is running that this token could join. Absent (or already joined) hides the item. */
+    canJoinCombat?: boolean;
+    /** Whether this token already has an out-of-turn movement grant. Absent (no active combat) hides the item. */
+    movementGranted?: boolean | undefined;
+  }>(),
+  { movementGranted: undefined },
+);
 
 const emit = defineEmits<{
   close: [];
   toggleHidden: [];
   remove: [];
   addToCombat: [];
+  toggleMovementGrant: [];
   /** Only the fields that changed; `name: null` goes back to the character's own name. */
   update: [changes: { name?: string | null; size?: number }];
 }>();
@@ -120,6 +126,11 @@ function save(): void {
       <li v-if="canJoinCombat === true" role="none">
         <button type="button" role="menuitem" @click="emit('addToCombat')">
           Add to combat
+        </button>
+      </li>
+      <li v-if="movementGranted !== undefined" role="none">
+        <button type="button" role="menuitem" @click="emit('toggleMovementGrant')">
+          {{ movementGranted ? 'Revoke movement' : 'Let this token move' }}
         </button>
       </li>
       <li role="none">

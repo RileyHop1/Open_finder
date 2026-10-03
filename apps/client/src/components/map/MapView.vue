@@ -556,6 +556,14 @@ const menuTokenCanJoinCombat = computed(
     combat.combatantByToken(menu.value.tokenId) === undefined,
 );
 
+/** The menu's token's movement grant, or undefined with no active combat (hides the item). */
+const menuTokenMovementGrant = computed(() => {
+  if (combat.activeCombat?.status !== 'active' || menu.value === undefined) {
+    return undefined;
+  }
+  return combat.combatantByToken(menu.value.tokenId)?.movementGrant ?? false;
+});
+
 /** How big the menu is allowed to be, so it can be kept inside the map when it opens near an edge. */
 const MENU_ROOM = { width: 220, height: 180 };
 
@@ -667,6 +675,22 @@ async function addTokenToCombat(): Promise<void> {
   closeMenu();
   if (token !== undefined && (await combat.addCombatant(token.id, token.hidden))) {
     announcement.value = `${token.label} joined the fight.`;
+  }
+}
+
+/** Grants, or revokes, the menu's token's out-of-turn move. */
+async function toggleMovementGrant(): Promise<void> {
+  const token = menuToken.value;
+  const combatant = token === undefined ? undefined : combat.combatantByToken(token.id);
+  closeMenu();
+  if (token === undefined || combatant === undefined) {
+    return;
+  }
+  const allowed = !combatant.movementGrant;
+  if (await combat.setMovementGrant(combatant.id, allowed)) {
+    announcement.value = allowed
+      ? `${token.label} can move out of turn.`
+      : `${token.label}'s grant was revoked.`;
   }
 }
 
@@ -989,6 +1013,7 @@ onBeforeUnmount(() => {
         :x="menu.x"
         :y="menu.y"
         :can-join-combat="menuTokenCanJoinCombat"
+        :movement-granted="menuTokenMovementGrant"
         @close="closeMenu"
         @toggle-hidden="
           tokenChange({ hidden: !menuToken.hidden }, (token) =>
@@ -999,6 +1024,7 @@ onBeforeUnmount(() => {
         "
         @remove="removeToken"
         @add-to-combat="addTokenToCombat"
+        @toggle-movement-grant="toggleMovementGrant"
         @update="(changes) => tokenChange(changes, (token) => `${token.label} updated.`)"
       />
       <output

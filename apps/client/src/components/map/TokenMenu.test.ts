@@ -29,13 +29,14 @@ afterEach(() => {
   }
 });
 
-function mountMenu(token = view(), canJoinCombat?: boolean) {
+function mountMenu(token = view(), canJoinCombat?: boolean, movementGranted?: boolean) {
   const wrapper = mount(TokenMenu, {
     props: {
       token,
       x: 10,
       y: 20,
       ...(canJoinCombat === undefined ? {} : { canJoinCombat }),
+      ...(movementGranted === undefined ? {} : { movementGranted }),
     },
     attachTo: document.body,
   });
@@ -74,6 +75,20 @@ describe('the menu', () => {
     const wrapper = mountMenu(view(), true);
     await item(wrapper, 'Add to combat')?.trigger('click');
     expect(wrapper.emitted('addToCombat')).toHaveLength(1);
+  });
+
+  it('offers the movement-grant item only with an active combat, label flips on the grant', async () => {
+    expect(
+      item(mountMenu(view(), undefined, undefined), 'Let this token move'),
+    ).toBeUndefined();
+    expect(
+      item(mountMenu(view(), undefined, false), 'Let this token move'),
+    ).toBeDefined();
+    expect(item(mountMenu(view(), undefined, true), 'Revoke movement')).toBeDefined();
+
+    const wrapper = mountMenu(view(), undefined, false);
+    await item(wrapper, 'Let this token move')?.trigger('click');
+    expect(wrapper.emitted('toggleMovementGrant')).toHaveLength(1);
   });
 
   it('moves between items with the arrow keys, wrapping, and with Home and End', async () => {

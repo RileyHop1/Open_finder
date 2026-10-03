@@ -19,7 +19,12 @@ function item(fields: Partial<TurnBarItem> = {}): TurnBarItem {
   };
 }
 
-const baseProps = { active: true, showControls: false, unseenActing: false };
+const baseProps = {
+  active: true,
+  showControls: false,
+  unseenActing: false,
+  freeMovement: false,
+};
 
 describe('TurnBar -- combatants', () => {
   it('lists combatants in order, with the round and who is acting', () => {
@@ -84,6 +89,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const wrapper = mount(TurnBar, {
       props: {
         active: false,
+        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [],
@@ -98,6 +104,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const wrapper = mount(TurnBar, {
       props: {
         active: true,
+        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [],
@@ -112,6 +119,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const noCombat = mount(TurnBar, {
       props: {
         active: false,
+        freeMovement: false,
         showControls: false,
         unseenActing: false,
         items: [],
@@ -123,6 +131,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const running = mount(TurnBar, {
       props: {
         active: true,
+        freeMovement: false,
         showControls: false,
         unseenActing: false,
         items: [item()],
@@ -137,6 +146,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const start = mount(TurnBar, {
       props: {
         active: false,
+        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [],
@@ -149,6 +159,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const running = mount(TurnBar, {
       props: {
         active: true,
+        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [],
@@ -169,6 +180,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const gm = mount(TurnBar, {
       props: {
         active: true,
+        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [target],
@@ -182,6 +194,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const player = mount(TurnBar, {
       props: {
         active: true,
+        freeMovement: false,
         showControls: false,
         unseenActing: false,
         items: [target],
@@ -196,6 +209,7 @@ describe('TurnBar -- the GM’s controls', () => {
     const wrapper = mount(TurnBar, {
       props: {
         active: true,
+        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [target],
@@ -204,5 +218,36 @@ describe('TurnBar -- the GM’s controls', () => {
     });
     await wrapper.get('form.override').trigger('submit');
     expect(wrapper.emitted('setInitiative')).toBeUndefined();
+  });
+
+  it('shows the free-movement checkbox for the GM, reflecting the prop, and emits on change', async () => {
+    const wrapper = mount(TurnBar, {
+      props: {
+        active: true,
+        freeMovement: true,
+        showControls: true,
+        unseenActing: false,
+        items: [],
+        round: 1,
+      },
+    });
+    const checkbox = wrapper.get('input[type="checkbox"]');
+    expect((checkbox.element as HTMLInputElement).checked).toBe(true);
+    await checkbox.setValue(false);
+    expect(wrapper.emitted('setFreeMovement')).toEqual([[false]]);
+  });
+
+  it('has no free-movement checkbox for a player', () => {
+    const wrapper = mount(TurnBar, {
+      props: {
+        active: true,
+        freeMovement: false,
+        showControls: false,
+        unseenActing: false,
+        items: [],
+        round: 1,
+      },
+    });
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false);
   });
 });

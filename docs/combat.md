@@ -48,6 +48,8 @@ as it does today.
   reaction Stride, a ruling at the table). A single grant (`combat.setMovementRuling`)
   clears when that token's next turn ends, or when the GM takes it back. Both are the GM's, both are shown on the tracker so nobody is
   surprised, and the keyboard and menu routes are the same as for any GM tool.
+  **Implemented in C.2b:** a Free movement checkbox in the turn bar, and a
+  "Let this token move" / "Revoke movement" item in the token menu.
 - **Actions are still only warned about.** Overspending a turn's actions is shown
   and never blocked ([action-economy.md](action-economy.md)); movement is the one
   thing the tracker enforces, because it has the GM's override above.

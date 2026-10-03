@@ -27,6 +27,8 @@ defineProps<{
   active: boolean;
   /** Whether this seat is the GM: shows the start/end/turn buttons. */
   showControls: boolean;
+  /** The combat's free-movement ruling: lifts the turn rule for everyone. */
+  freeMovement: boolean;
 }>();
 const emit = defineEmits<{
   focus: [tokenId: string];
@@ -35,6 +37,7 @@ const emit = defineEmits<{
   next: [];
   previous: [];
   setInitiative: [combatantId: string, initiative: number];
+  setFreeMovement: [on: boolean];
 }>();
 
 /** The override field's own draft per combatant, kept apart from the rolled value until submitted. */
@@ -61,6 +64,14 @@ function submitOverride(combatantId: string): void {
         <button type="button" @click="emit('previous')">Previous turn</button>
         <button type="button" @click="emit('next')">Next turn</button>
         <button type="button" @click="emit('end')">End combat</button>
+        <label class="free-movement">
+          <input
+            type="checkbox"
+            :checked="freeMovement"
+            @change="emit('setFreeMovement', ($event.target as HTMLInputElement).checked)"
+          />
+          Free movement
+        </label>
       </template>
     </template>
     <ol v-if="active">
