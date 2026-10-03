@@ -495,6 +495,33 @@ export const tokenDeleteOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Set up a combat on a scene. GM only. The server makes it `pending`, adds the
+ * party's tokens and every visible token on the scene as combatants without an
+ * initiative (hidden tokens do not join; `combat.addCombatant` adds them), and
+ * allows only one unfinished combat per world (ADR 0018).
+ */
+export const combatCreateOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.create'),
+  payload: z.object({ sceneId: idSchema }),
+});
+
+/** Add a token to a combat that has not ended. GM only. `hidden` keeps it out of the players' view of the order. */
+export const combatAddCombatantOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.addCombatant'),
+  payload: z.object({
+    combatId: idSchema,
+    tokenId: idSchema,
+    hidden: z.boolean().optional(),
+  }),
+});
+
+/** Take a combatant out of its combat, and end any condition that was anchored to its turn. GM only. */
+export const combatRemoveCombatantOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.removeCombatant'),
+  payload: z.object({ combatantId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -532,6 +559,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   tokenUpdateOperationSchema,
   tokenDeleteOperationSchema,
   tokenMoveOperationSchema,
+  combatCreateOperationSchema,
+  combatAddCombatantOperationSchema,
+  combatRemoveCombatantOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

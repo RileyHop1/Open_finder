@@ -56,6 +56,7 @@ import {
   updateActor,
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
+import { addCombatant, createCombat, removeCombatant } from './combat.js';
 import type { CompendiumIndex } from './compendium.js';
 import {
   addConditionToActor,
@@ -471,6 +472,21 @@ function dispatch(
         seats: [],
         documents: scene === undefined ? [] : [scene],
       };
+    }
+    case 'combat.create': {
+      const seat = requireSeat(store, socket);
+      const { combat, combatants } = createCombat(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [combat, ...combatants] };
+    }
+    case 'combat.addCombatant': {
+      const seat = requireSeat(store, socket);
+      const combatant = addCombatant(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [combatant] };
+    }
+    case 'combat.removeCombatant': {
+      const seat = requireSeat(store, socket);
+      const { deleted, changed } = removeCombatant(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: changed, deleted: [deleted] };
     }
     default:
       return assertNever(operation);
