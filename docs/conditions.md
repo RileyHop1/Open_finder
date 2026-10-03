@@ -262,8 +262,20 @@ computes locally and sends a field change -- there is no dedicated operation
 for it.) `PartyBar.vue` reads `dying`/`wounded`/`doomed`/`unconscious`/`dead`
 with `dyingStateOf` and shows them in a dedicated status line that is never
 folded behind the generic badge list's "+N more", since this is the one state
-a table must never miss. The recovery-check prompt and a dedicated override
-widget are **C.8b**, a follow-up PR under the same checklist item.
+a table must never miss.
+
+**Implemented in M5 C.8b**, closing out C.8. A new `DyingPanel.vue` sits
+right beside the HP controls on the sheet -- a dedicated, prominent place for
+the override this section asks for, rather than the full `ConditionsPanel`
+list. It appears once any of the five is set, shows the same status text as
+the party bar (`describeDyingChain`, shared by both), and lets an owner or
+the GM set a valued slug (`dying`/`wounded`/`doomed`) directly or remove any
+of the five by hand -- reviving a `dead` character included -- via the same
+`actor.setCondition`/`removeCondition` operations `ConditionsPanel` already
+uses. A "Roll recovery check" button, shown to the GM only for a dying
+character that is not dead, sends `actor.rollRecovery`: the manual re-roll
+on the automatic check, which already reaches the table as an ordinary chat
+card (`statistic: 'recovery'`) and needed no new client rendering.
 
 ## Persistent damage
 Persistent damage hurts its bearer again at the **end of their turn** until a flat

@@ -1334,6 +1334,28 @@ describe('editing a character', () => {
     });
   });
 
+  it('rolls a recovery check for a dying character, GM only (M5 C.8b)', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const base = makeActor('Anna');
+    const hero = {
+      ...base,
+      system: {
+        ...(base.system as object),
+        conditions: [{ slug: 'dying', value: 1 }],
+      },
+    };
+    const wrapper = await openHero(hero);
+
+    await wrapper.find('button.roll-recovery').trigger('click');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.rollRecovery',
+      payload: { actorId: hero.id },
+    });
+  });
+
   describe('managing the party', () => {
     it('is offered to the GM and sends party.addMember for the chosen character', async () => {
       mySeat = seat({ isGM: true });
