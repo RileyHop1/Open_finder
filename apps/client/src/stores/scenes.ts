@@ -30,12 +30,12 @@
  * their connection mid-drag cannot leave a ghost behind.
  */
 
-import type { Broadcast, Scene, Token } from '@hearthtable/core';
-import { sceneSchema, tokenSchema } from '@hearthtable/core';
+import type { Broadcast, Scene, Template, Token } from '@hearthtable/core';
+import { sceneSchema, templateSchema, tokenSchema } from '@hearthtable/core';
 import { defineStore } from 'pinia';
 import { computed, onScopeDispose, ref, watch } from 'vue';
 
-import { listScenes, listTokens } from '../api/documents.js';
+import { listScenes, listTemplates, listTokens } from '../api/documents.js';
 import { useConnectionStore } from './connection.js';
 import { useDocumentsStore } from './documents.js';
 
@@ -55,6 +55,7 @@ export const useScenesStore = defineStore('scenes', () => {
 
   const confirmedScenes = ref<Scene[]>([]);
   const confirmedTokens = ref<Token[]>([]);
+  const confirmedTemplates = ref<Template[]>([]);
   const pendingMoves = ref<PendingMove[]>([]);
   const drags = ref<Record<string, { x: number; y: number }>>({});
   const localDrags = ref<Record<string, { x: number; y: number }>>({});
@@ -107,6 +108,12 @@ export const useScenesStore = defineStore('scenes', () => {
     tokens.value.filter((token) => token.sceneId === shownSceneId.value),
   );
 
+  const templates = computed(() => confirmedTemplates.value);
+
+  const shownTemplates = computed(() =>
+    templates.value.filter((template) => template.sceneId === shownSceneId.value),
+  );
+
   function forgetDrag(tokenId: string): void {
     const timer = dragTimers.get(tokenId);
     if (timer !== undefined) {
@@ -130,12 +137,14 @@ export const useScenesStore = defineStore('scenes', () => {
   async function load(forWorldId: string): Promise<void> {
     worldId = forWorldId;
     try {
-      const [loadedScenes, loadedTokens] = await Promise.all([
+      const [loadedScenes, loadedTokens, loadedTemplates] = await Promise.all([
         listScenes(forWorldId),
         listTokens(forWorldId),
+        listTemplates(forWorldId),
       ]);
       confirmedScenes.value = loadedScenes;
       confirmedTokens.value = loadedTokens;
+      confirmedTemplates.value = loadedTemplates;
       forgetAllDrags();
       error.value = undefined;
     } catch (caught) {
@@ -152,6 +161,9 @@ export const useScenesStore = defineStore('scenes', () => {
     for (const tombstone of broadcast.deleted) {
       confirmedScenes.value = confirmedScenes.value.filter((s) => s.id !== tombstone.id);
       confirmedTokens.value = confirmedTokens.value.filter((t) => t.id !== tombstone.id);
+      confirmedTemplates.value = confirmedTemplates.value.filter(
+        (t) => t.id !== tombstone.id,
+      );
       pendingMoves.value = pendingMoves.value.filter(
         (move) => move.tokenId !== tombstone.id,
       );
@@ -178,6 +190,17 @@ export const useScenesStore = defineStore('scenes', () => {
               : confirmedTokens.value.map((t, i) => (i === index ? token.data : t));
           // The settled token is the truth now; a preview of it is stale.
           forgetDrag(token.data.id);
+        }
+      } else if (document.type === 'template') {
+        const template = templateSchema.safeParse(document);
+        if (template.success) {
+          const index = confirmedTemplates.value.findIndex(
+            (t) => t.id === template.data.id,
+          );
+          confirmedTemplates.value =
+            index === -1
+              ? [...confirmedTemplates.value, template.data]
+              : confirmedTemplates.value.map((t, i) => (i === index ? template.data : t));
         }
       }
     }
@@ -299,10 +322,12 @@ export const useScenesStore = defineStore('scenes', () => {
   return {
     scenes,
     tokens,
+    templates,
     partySceneId,
     shownSceneId,
     shownScene,
     shownTokens,
+    shownTemplates,
     isPreviewing,
     error,
     load,

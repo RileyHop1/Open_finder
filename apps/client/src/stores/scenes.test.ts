@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import type { BaseDocument, Party, Scene, Token } from '@hearthtable/core';
-import { partySchema, sceneSchema, tokenSchema } from '@hearthtable/core';
+import type { BaseDocument, Party, Scene, Template, Token } from '@hearthtable/core';
+import { partySchema, sceneSchema, templateSchema, tokenSchema } from '@hearthtable/core';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
@@ -43,6 +43,17 @@ const makeToken = (sceneId: string): Token =>
     y: 250,
   });
 
+const makeTemplate = (sceneId: string): Template =>
+  templateSchema.parse({
+    ...base('template'),
+    sceneId,
+    shape: 'burst',
+    x: 250,
+    y: 250,
+    feet: 20,
+    placedBy: crypto.randomUUID(),
+  });
+
 const makeParty = (sceneId?: string): Party =>
   partySchema.parse({
     ...base('party'),
@@ -82,6 +93,7 @@ beforeEach(() => {
   vi.mocked(documentsApi.getParty).mockResolvedValue(undefined);
   vi.mocked(documentsApi.listScenes).mockResolvedValue([]);
   vi.mocked(documentsApi.listTokens).mockResolvedValue([]);
+  vi.mocked(documentsApi.listTemplates).mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -103,13 +115,15 @@ async function broadcast(
   await nextTick();
 }
 
-/** A table with the party on the Bog, two scenes, and a token on each. */
+/** A table with the party on the Bog, two scenes, a token on each, and a template on the Bog. */
 async function table() {
   const [bog, keep] = [makeScene('Bog'), makeScene('Keep')];
   const [onBog, onKeep] = [makeToken(bog.id), makeToken(keep.id)];
+  const template = makeTemplate(bog.id);
   vi.mocked(documentsApi.getParty).mockResolvedValue(makeParty(bog.id));
   vi.mocked(documentsApi.listScenes).mockResolvedValue([bog, keep]);
   vi.mocked(documentsApi.listTokens).mockResolvedValue([onBog, onKeep]);
+  vi.mocked(documentsApi.listTemplates).mockResolvedValue([template]);
 
   const connection = useConnectionStore();
   connection.connect();
@@ -117,7 +131,7 @@ async function table() {
   const store = useScenesStore();
   await documents.load(WORLD);
   await store.load(WORLD);
-  return { store, documents, connection, bog, keep, onBog, onKeep };
+  return { store, documents, connection, bog, keep, onBog, onKeep, template };
 }
 
 describe('load and the shown scene', () => {
@@ -197,6 +211,27 @@ describe('broadcasts', () => {
     expect(store.shownTokens).toEqual([]);
     await broadcast('op-del2', [], [tombstone(bog)]);
     expect(store.scenes.map((s) => s.name)).toEqual(['Keep']);
+  });
+
+  it('loads and shows templates on the shown scene only (M5 C.9a)', async () => {
+    const { store, template } = await table();
+    expect(store.shownTemplates.map((t) => t.id)).toEqual([template.id]);
+  });
+
+  it('adds, updates, and removes templates', async () => {
+    const { store, template, bog } = await table();
+    const fresh = makeTemplate(bog.id);
+    await broadcast('op-t1', [fresh]);
+    expect(store.shownTemplates.map((t) => t.id)).toEqual([template.id, fresh.id]);
+
+    const relabelled = { ...template, label: 'Fireball' };
+    await broadcast('op-t2', [relabelled]);
+    expect(store.shownTemplates.find((t) => t.id === template.id)?.label).toBe(
+      'Fireball',
+    );
+
+    await broadcast('op-t3', [], [tombstone(template)]);
+    expect(store.shownTemplates.map((t) => t.id)).toEqual([fresh.id]);
   });
 });
 
