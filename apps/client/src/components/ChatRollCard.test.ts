@@ -156,6 +156,16 @@ describe('a strike attack', () => {
     const wrapper = render({ ...attack, dc: 18 });
     expect(wrapper.find('.result').text()).toBe('Total 12 vs DC 18');
   });
+
+  it('says it was flanking when the DC was lowered by it (M5 C.10)', () => {
+    const wrapper = render({ ...attack, dc: 18, targetName: 'Goblin', flanking: true });
+    expect(wrapper.find('.result').text()).toBe('Total 12 vs Goblin (DC 18) (flanking)');
+  });
+
+  it('says nothing about flanking when it did not apply', () => {
+    const wrapper = render({ ...attack, dc: 18 });
+    expect(wrapper.find('.result').text()).not.toContain('flanking');
+  });
 });
 
 describe('strike damage', () => {

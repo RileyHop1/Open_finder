@@ -137,6 +137,40 @@ describe('ChatLog', () => {
     expect(wrapper.text()).toContain('Rolling for initiative.');
   });
 
+  it('renders a private notice (M5 C.10) distinctly, with no sender name', async () => {
+    const seatId = crypto.randomUUID();
+    const message = makeTextMessage({
+      permissions: { default: 'none', seats: { [seatId]: 'observer' } },
+      text: 'Ada can use Reactive Strike: a goblin moved out of their reach.',
+    });
+    vi.mocked(chatApi.listChatMessages).mockResolvedValue([message]);
+
+    const wrapper = mountChatLog();
+    await flushPromises();
+
+    const notice = wrapper.get('.chat-notice');
+    expect(notice.text()).toContain('Notice');
+    expect(notice.text()).toContain('Ada can use Reactive Strike');
+    expect(wrapper.find('.sender').exists()).toBe(false);
+  });
+
+  it('renders a GM-only aside the ordinary way, since it names no specific seat', async () => {
+    const seat = makeSeat({ name: 'Riley' });
+    const message = makeTextMessage({
+      seatId: seat.id,
+      permissions: { default: 'none', seats: {} },
+      text: 'Also caught, unseen: a hidden goblin.',
+    });
+    vi.mocked(chatApi.listChatMessages).mockResolvedValue([message]);
+    vi.mocked(useLobbyStore).mockReturnValue({ seats: [seat] } as never);
+
+    const wrapper = mountChatLog();
+    await flushPromises();
+
+    expect(wrapper.find('.chat-notice').exists()).toBe(false);
+    expect(wrapper.get('.sender').text()).toBe('Riley:');
+  });
+
   it('renders a sheet check as a card naming the character, the roller, and the result', async () => {
     const seat = makeSeat({ name: 'Riley' });
     const now = new Date().toISOString();

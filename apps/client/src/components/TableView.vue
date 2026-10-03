@@ -199,7 +199,22 @@ const pendingStrike = ref<{
   readonly attackNumber: 1 | 2 | 3;
   readonly dc?: number;
   readonly combatantId?: string;
+  /** Melee or ranged (M5 C.10's flanking preview needs it); undefined when the action bar isn't available to say. */
+  readonly ranged?: boolean;
 }>();
+
+/** Whether `target`'s strike is ranged, from the action bar's own strikes list -- undefined when the bar isn't shown (e.g. outside combat), never guessed. */
+function isRangedStrike(
+  target: { itemId: string } | { strikeKey: string },
+): boolean | undefined {
+  return actionBar.value?.view.strikes.find((strike) =>
+    'itemId' in target && 'itemId' in strike.target
+      ? strike.target.itemId === target.itemId
+      : 'strikeKey' in target && 'strikeKey' in strike.target
+        ? strike.target.strikeKey === target.strikeKey
+        : false,
+  )?.ranged;
+}
 
 /** Fires the pending strike, rolls, and spends the action bar's cost if it has one. */
 function fireStrike(targetTokenId: string | undefined): void {
@@ -239,11 +254,13 @@ function barStrike(
   if (bar === undefined) {
     return;
   }
+  const ranged = isRangedStrike(target);
   pendingStrike.value = {
     actorId: bar.actorId,
     target,
     attackNumber,
     ...(bar.combatantId === undefined ? {} : { combatantId: bar.combatantId }),
+    ...(ranged === undefined ? {} : { ranged }),
   };
 }
 
@@ -353,11 +370,14 @@ function sheetAttack(id: string, attackNumber: 1 | 2 | 3): void {
   if (selectedId.value === undefined) {
     return;
   }
+  const target = strikeTarget(id);
+  const ranged = isRangedStrike(target);
   pendingStrike.value = {
     actorId: selectedId.value,
-    target: strikeTarget(id),
+    target,
     attackNumber,
     ...('dc' in dcPayload.value ? { dc: dcPayload.value.dc } : {}),
+    ...(ranged === undefined ? {} : { ranged }),
   };
 }
 
@@ -662,6 +682,7 @@ async function handleCreate(): Promise<void> {
             :world-id="worldId"
             :highlighted-cells="mapHighlight"
             :targeting="pendingStrike !== undefined"
+            :melee-targeting="pendingStrike?.ranged === false"
             @open-actor="openSheetOf"
             @next-turn="combat.nextTurn"
             @pick-target="confirmTarget"
