@@ -26,6 +26,21 @@ actions over" in text, and the server (`combat.spendAction`, B.4) still never
 refuses it. Spend/undo and the reaction toggle are for the combatant's actor's
 owner or the GM; hidden entirely while no combat is active.
 
+**Implemented in M5 C.5a**: `apps/client/src/components/ActionBar.vue`, across
+the bottom of the map for whatever token is selected, strikes and basic
+actions alike. A strike (its three MAP variants precomputed from
+`prepareCharacter`/`prepareNpc`, the same numbers `StrikesPanel.vue` shows)
+always rolls on click and, while a combat is active, also spends 1 action. A
+basic action (`BASIC_ACTIONS`, `systems/pf2e/src/content/basicActions.ts`)
+only ever spends, and the whole basics list is hidden with no combatant to
+spend against. The GM alone gets "Other action", a free-text entry with a
+cost picker for whatever the table asks for that the system doesn't model;
+spending it names it in a chat message. The bar itself is shown only for a
+token this seat controls (the GM, any; a player, one they own) — see
+`docs/combat.md` for where that check lives. Still open, as follow-up PRs
+under the same C.5 item: a per-turn undo cache, range highlighting, and
+movement spending actions.
+
 ## A turn
 - **3 actions**, spent in any combination.
 - **1 reaction**, refreshed at the start of your turn.

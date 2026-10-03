@@ -14,8 +14,12 @@
  * It reads numbers from `prepareCharacter`, the same function the sheet uses,
  * so the bar and the sheet cannot disagree. NPC members, which have no
  * character sheet yet, show their name alone.
+ *
+ * Each card also names which player seats own it (never the GM, who can edit
+ * everything but owns nothing here), so a table can see at a glance whose
+ * character is whose.
  */
-import type { Actor } from '@hearthtable/core';
+import type { Actor, Seat } from '@hearthtable/core';
 import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
@@ -27,6 +31,8 @@ const props = defineProps<{
   worldId: string;
   /** The combatant whose turn it is, if any (absent outside an active combat). */
   activeActorId?: string | undefined;
+  /** The world's seats, to label who owns each card. Omitted, no labels show. */
+  seats?: readonly Seat[] | undefined;
 }>();
 const emit = defineEmits<{ select: [actorId: string] }>();
 
@@ -42,6 +48,7 @@ interface Card {
   readonly badges: string[];
   readonly extraBadges: number;
   readonly onTurn: boolean;
+  readonly ownerNames: string[];
 }
 
 /** "12 / 20 (+5 temp) · at 0": printed in full so the bar is never the only way to read it. */
@@ -87,6 +94,9 @@ const cards = computed<Card[]>(() =>
       badges: badges.slice(0, MAX_BADGES),
       extraBadges: Math.max(0, badges.length - MAX_BADGES),
       onTurn: actor.id === props.activeActorId,
+      ownerNames: (props.seats ?? [])
+        .filter((seat) => !seat.isGM && actor.permissions.seats[seat.id] === 'owner')
+        .map((seat) => seat.name),
     };
   }),
 );
@@ -110,6 +120,9 @@ const cards = computed<Card[]>(() =>
 
         <span class="details">
           <span class="name">{{ card.actor.name }}</span>
+          <span v-if="card.ownerNames.length > 0" class="owner"
+            >· {{ card.ownerNames.join(', ') }}</span
+          >
           <span v-if="card.onTurn" class="status">Current turn</span>
           <template v-if="card.hp">
             <span class="hp-bar" aria-hidden="true">
@@ -158,6 +171,10 @@ const cards = computed<Card[]>(() =>
 .status {
   font-size: 0.85em;
   font-style: italic;
+}
+.owner {
+  font-size: 0.8em;
+  color: var(--color-text-muted);
 }
 
 .portrait {

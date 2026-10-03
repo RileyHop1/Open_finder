@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { Actor } from '@hearthtable/core';
+import type { Actor, Seat } from '@hearthtable/core';
 import { newCharacterData } from '@hearthtable/pf2e';
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
@@ -39,8 +39,25 @@ function member(
   };
 }
 
-const mountBar = (members: Actor[], selectedId?: string, activeActorId?: string) =>
-  mount(PartyBar, { props: { members, selectedId, worldId: WORLD, activeActorId } });
+const mountBar = (
+  members: Actor[],
+  selectedId?: string,
+  activeActorId?: string,
+  seats?: Seat[],
+) =>
+  mount(PartyBar, {
+    props: { members, selectedId, worldId: WORLD, activeActorId, seats },
+  });
+
+const seat = (name: string, isGM = false): Seat => ({
+  id: crypto.randomUUID(),
+  worldId: WORLD,
+  schemaVersion: 1,
+  name,
+  isGM,
+  createdAt: NOW,
+  updatedAt: NOW,
+});
 
 describe('PartyBar', () => {
   it('says so when there is no party', () => {
@@ -145,6 +162,38 @@ describe('PartyBar', () => {
       wrapper.find('button.party-member').attributes('aria-current'),
     ).toBeUndefined();
     expect(wrapper.text()).not.toContain('Current turn');
+  });
+
+  it('labels a card with the seat(s) that own it, never the GM, and nothing when unowned', () => {
+    const riley = seat('Riley');
+    const sam = seat('Sam');
+    const gm = seat('The GM', true);
+    const shared = member(
+      'Shared',
+      { current: 20 },
+      {
+        permissions: {
+          default: 'observer',
+          seats: { [riley.id]: 'owner', [sam.id]: 'owner' },
+        },
+      },
+    );
+    const solo = member(
+      'Solo',
+      { current: 20 },
+      {
+        permissions: {
+          default: 'observer',
+          seats: { [riley.id]: 'owner', [gm.id]: 'owner' },
+        },
+      },
+    );
+    const npc = member('Nobody', { current: 20 });
+    const wrapper = mountBar([shared, solo, npc], undefined, undefined, [riley, sam, gm]);
+    const owners = wrapper.findAll('.owner');
+    expect(owners[0]?.text()).toBe('· Riley, Sam');
+    expect(owners[1]?.text()).toBe('· Riley');
+    expect(owners).toHaveLength(2);
   });
 
   it('is built of real buttons, so Enter and Space work and each is at least 44px tall', () => {

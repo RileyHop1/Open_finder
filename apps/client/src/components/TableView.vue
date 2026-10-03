@@ -31,6 +31,8 @@ import { useCombatStore } from '../stores/combat.js';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
+import ActionBar from './ActionBar.vue';
+import { actionBarView } from './actionBarModel.js';
 import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
 import ChatLog from './ChatLog.vue';
@@ -123,6 +125,76 @@ function setTrayReaction(used: boolean): void {
   if (combatantId !== undefined) {
     void combat.setReaction(combatantId, used);
   }
+}
+
+/**
+ * The action bar: the map-selected token's strikes and basic actions, across
+ * the bottom of the map. Selecting a token is still unrestricted (it also
+ * drives the ruler and the keyboard token list, for any token), so the bar
+ * itself checks ownership -- the GM, any token; a player, only one of an
+ * actor they own -- the same way `ActionTray`'s controls do.
+ */
+const actionBar = computed(() => {
+  const tokenId = mapView.value?.selectedId;
+  const token =
+    tokenId === undefined ? undefined : scenes.shownTokens.find((t) => t.id === tokenId);
+  if (token === undefined) {
+    return undefined;
+  }
+  const actor = documents.actorById(token.actorId);
+  const seat = lobby.mySeat;
+  if (actor === undefined || seat === undefined) {
+    return undefined;
+  }
+  const owns = seat.isGM || resolvePermission(seat, actor) === 'owner';
+  if (!owns) {
+    return undefined;
+  }
+  const combatant = combat.combatantByToken(token.id);
+  return {
+    actorId: actor.id,
+    combatantId: combatant?.id,
+    view: actionBarView(actor, combatant),
+    label: token.name ?? actor.name,
+    gm: seat.isGM,
+  };
+});
+
+/** A strike rolled from the action bar: always rolls; spends 1 action only while a combat is active. */
+function barStrike(
+  target: { itemId: string } | { strikeKey: string },
+  attackNumber: 1 | 2 | 3,
+): void {
+  const bar = actionBar.value;
+  if (bar === undefined) {
+    return;
+  }
+  void documents.send('actor.rollStrike', {
+    actorId: bar.actorId,
+    ...target,
+    attackNumber,
+  });
+  if (bar.combatantId !== undefined) {
+    void combat.spendAction(bar.combatantId, 1);
+  }
+}
+
+/** A basic action from the bar: only ever spends (no roll), and only while a combat is active. */
+function barBasicAction(_slug: string, cost: number): void {
+  const combatantId = actionBar.value?.combatantId;
+  if (combatantId !== undefined) {
+    void combat.spendAction(combatantId, cost);
+  }
+}
+
+/** The GM's freeform action: spends its chosen cost and announces what it was in chat. */
+function barFreeform(label: string, cost: number): void {
+  const bar = actionBar.value;
+  if (bar?.combatantId === undefined) {
+    return;
+  }
+  void combat.spendAction(bar.combatantId, cost);
+  void documents.send('chat.sendMessage', { text: `${bar.label} -- ${label}` });
 }
 
 const selectedId = ref<string>();
@@ -340,6 +412,7 @@ async function handleCreate(): Promise<void> {
         :selected-id="selectedId"
         :world-id="worldId"
         :active-actor-id="combat.activeCombatant?.actorId"
+        :seats="lobby.seats"
         @select="openSheetOf"
       />
       <PartyManager
@@ -425,6 +498,16 @@ async function handleCreate(): Promise<void> {
             @next-turn="combat.nextTurn"
           />
         </section>
+
+        <ActionBar
+          v-if="actionBar !== undefined"
+          :view="actionBar.view"
+          :label="actionBar.label"
+          :gm="actionBar.gm"
+          @strike="barStrike"
+          @basic-action="barBasicAction"
+          @freeform="barFreeform"
+        />
 
         <Transition name="drawer">
           <section

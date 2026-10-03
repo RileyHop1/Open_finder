@@ -138,6 +138,34 @@ unseen-acting placeholder, and clicking a portrait to focus its token on the
 map (`MapView.focusToken`). The GM's reorder and the start/end/next-turn
 controls are C.1b and C.2.
 
+## The action bar
+Across the bottom of the map, for whatever token is **selected**, not only on
+that token's own turn: strikes and basic actions, both spending via
+`combat.spendAction`.
+
+- **Who it shows for:** selecting a token is unrestricted (the ruler and the
+  keyboard token list both already rely on selecting anyone), but the bar
+  itself is only built for a token this seat **controls** — the GM, any
+  token (monsters included); a player, only one whose actor they own. This
+  is the same ownership test `ActionTray`'s controls use
+  (`resolvePermission(seat, actor) === 'owner'`, or `seat.isGM`), checked in
+  `TableView.vue`'s `actionBar` computed, not in `MapView`'s selection logic.
+- **Strikes** always roll on click; while a combat is active they also spend
+  1 action. Outside combat (or for a token with no combatant yet) they still
+  roll, just without the spend — the same as the sheet's `StrikesPanel`.
+- **Basic actions** (Stride, Step, Interact, Delay, Ready, Take Cover, Seek —
+  `BASIC_ACTIONS`, a hand-picked list, not imported; see `docs/rulings.md`)
+  only ever spend, so the list is hidden entirely with no combatant to spend
+  against.
+- **"Other action"**, GM only: a free-text description plus a ◆/◆◆/◆◆◆ cost
+  picker, for whatever the table asks for that the system doesn't model.
+  Spending it posts a chat line naming it, so the table sees what happened.
+
+**Implemented in C.5a** (`apps/client/src/components/ActionBar.vue`,
+`actionBarModel.ts`). Still open under the same checklist item: a per-turn
+undo cache that is cleared (not persisted) on End Turn, range highlighting
+for the selected action, and movement spending actions.
+
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a
 `Combatant`, a document of its own, so a hidden monster is simply a document a
