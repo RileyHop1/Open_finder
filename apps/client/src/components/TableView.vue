@@ -52,6 +52,7 @@ import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
 import NpcSheet from './sheet/NpcSheet.vue';
 import ConditionsPanel from './sheet/ConditionsPanel.vue';
+import DyingPanel from './sheet/DyingPanel.vue';
 import PortraitPicker from './sheet/PortraitPicker.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
 import InventoryPanel from './sheet/InventoryPanel.vue';
@@ -413,6 +414,12 @@ function hpDamage(amount: number, critical: boolean): void {
 function hpHeal(amount: number): void {
   if (selectedId.value !== undefined) {
     void documents.send('actor.heal', { actorId: selectedId.value, amount });
+  }
+}
+
+function rollRecovery(): void {
+  if (selectedId.value !== undefined) {
+    void documents.send('actor.rollRecovery', { actorId: selectedId.value });
   }
 }
 
@@ -811,6 +818,17 @@ async function handleCreate(): Promise<void> {
                 @change="saveChanges"
                 @damage="hpDamage"
                 @heal="hpHeal"
+              />
+              <DyingPanel
+                v-if="selected.kind === 'character' || selected.kind === 'npc'"
+                :actor="selected"
+                :editable="canEdit"
+                :is-gm="lobby.mySeat?.isGM === true"
+                @set="
+                  (slug, value) => sendCondition('actor.setCondition', { slug, value })
+                "
+                @remove="(slug) => sendCondition('actor.removeCondition', { slug })"
+                @roll-recovery="rollRecovery"
               />
               <NpcSheet
                 v-if="selected.kind === 'npc'"

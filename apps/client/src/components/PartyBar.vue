@@ -19,20 +19,17 @@
  * everything but owns nothing here), so a table can see at a glance whose
  * character is whose.
  *
- * Dying, wounded, doomed, unconscious and dead (M5 C.8a) are read the same
- * way the sheet does (`dyingStateOf`) and shown in a dedicated, always-on
- * status line -- never folded behind the generic badge list's "+N more",
- * since this is the one state a table must never miss.
+ * Dying, wounded, doomed, unconscious and dead (M5 C.8a) are described by
+ * `describeDyingChain` (shared with the sheet's override panel, M5 C.8b) and
+ * shown in a dedicated, always-on status line -- never folded behind the
+ * generic badge list's "+N more", since this is the one state a table must
+ * never miss.
  */
 import type { Actor, Seat } from '@hearthtable/core';
-import {
-  characterDataSchema,
-  dyingStateOf,
-  prepareCharacter,
-  type AppliedCondition,
-} from '@hearthtable/pf2e';
+import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
+import { describeDyingChain } from './sheet/dyingChain.js';
 import { titleCase } from './sheet/format.js';
 
 const props = defineProps<{
@@ -64,28 +61,6 @@ interface Card {
   readonly ownerNames: string[];
   /** "Dead", or "Unconscious, dying 2, wounded 1" -- omitted entirely when none apply. */
   readonly dyingStatus: string | undefined;
-}
-
-/** The dying-chain state in words, or undefined when nothing is set. */
-function dyingStatusText(conditions: readonly AppliedCondition[]): string | undefined {
-  if (conditions.some((c) => c.slug === 'dead')) {
-    return 'Dead';
-  }
-  const dying = dyingStateOf(conditions);
-  const parts: string[] = [];
-  if (dying.unconscious) {
-    parts.push('Unconscious');
-  }
-  if (dying.dying > 0) {
-    parts.push(`dying ${dying.dying}`);
-  }
-  if (dying.wounded > 0) {
-    parts.push(`wounded ${dying.wounded}`);
-  }
-  if (dying.doomed > 0) {
-    parts.push(`doomed ${dying.doomed}`);
-  }
-  return parts.length === 0 ? undefined : parts.join(', ');
 }
 
 /** "12 / 20 (+5 temp) · at 0": printed in full so the bar is never the only way to read it. */
@@ -136,7 +111,7 @@ const cards = computed<Card[]>(() =>
       ownerNames: (props.seats ?? [])
         .filter((seat) => !seat.isGM && actor.permissions.seats[seat.id] === 'owner')
         .map((seat) => seat.name),
-      dyingStatus: dyingStatusText(conditions),
+      dyingStatus: describeDyingChain(conditions),
     };
   }),
 );
