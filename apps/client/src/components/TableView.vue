@@ -41,6 +41,7 @@ import MapView from './map/MapView.vue';
 import { gridForScene } from './map/mapGrid.js';
 import { startActorDrag } from './map/placement.js';
 import { cellsInRange } from './map/rangeHighlight.js';
+import { useMapPaneResize } from './useMapPaneResize.js';
 import MonsterPicker from './scenes/MonsterPicker.vue';
 import SceneManager from './scenes/SceneManager.vue';
 import TurnBar from './TurnBar.vue';
@@ -399,6 +400,19 @@ onMounted(() => {
   void combat.load(props.worldId);
 });
 
+/**
+ * The map pane's height, resizable by the GM or a player: the turn bar, the
+ * action tray, and the action bar all sit around the map now, and a fixed
+ * height could starve one of them off screen.
+ */
+const {
+  height: mapPaneHeight,
+  startResize,
+  onKey: onResizeKey,
+  maxHeightNow: maxMapPaneHeightNow,
+  MIN_MAP_PANE_HEIGHT,
+} = useMapPaneResize();
+
 // A deleted character cannot stay selected.
 watch(
   () => documents.actors,
@@ -547,6 +561,7 @@ async function handleCreate(): Promise<void> {
           aria-label="Map"
           tabindex="-1"
           data-testid="map-pane"
+          :style="{ height: `${Math.round(mapPaneHeight)}px` }"
         >
           <MapView
             ref="mapView"
@@ -556,6 +571,20 @@ async function handleCreate(): Promise<void> {
             @next-turn="combat.nextTurn"
           />
         </section>
+
+        <div
+          class="map-resize-handle"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize the map. Arrow keys resize, Home and End jump to the smallest and largest size."
+          aria-controls="map-pane"
+          :aria-valuenow="Math.round(mapPaneHeight)"
+          :aria-valuemin="MIN_MAP_PANE_HEIGHT"
+          :aria-valuemax="Math.round(maxMapPaneHeightNow())"
+          tabindex="0"
+          @pointerdown="startResize"
+          @keydown="onResizeKey"
+        ></div>
 
         <ActionBar
           v-if="actionBar !== undefined"
@@ -913,11 +942,32 @@ button[aria-pressed='true'] {
 }
 
 .map-pane {
+  /* The inline style sets the real height (resizable); this is only a pre-JS fallback. */
   height: calc(100vh - 14rem);
   min-height: 24rem;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 4px;
+}
+
+/* A thin grip with a taller invisible hit area, so it's easy to grab without looking huge. */
+.map-resize-handle {
+  position: relative;
+  flex: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+  cursor: ns-resize;
+  touch-action: none;
+}
+.map-resize-handle::before {
+  content: '';
+  position: absolute;
+  inset: -10px 0;
+}
+.map-resize-handle:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 2px;
 }
 
 .sheet-pane {
