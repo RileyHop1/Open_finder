@@ -38,9 +38,11 @@ import type {
 } from '@hearthtable/pf2e';
 import {
   characterDataSchema,
+  endOfTurn,
   nextCombatant,
   npcDataSchema,
   placeCombatant,
+  previousCombatant,
   sortByInitiative,
   startOfTurn,
 } from '@hearthtable/pf2e';
@@ -677,4 +679,116 @@ export function joinCombat(
   }
   const rolled = rollInitiative(store, seat, rng, { combatantId: combatant.id });
   return { documents: [rolled.combatant, rolled.message] };
+}
+
+/** An active combat, or a rejection saying why the turn cannot move. */
+function loadActiveCombat(store: WorldStore, combatId: string): Combat {
+  const combat = loadCombat(store, combatId);
+  if (combat.status !== 'active') {
+    throw new OperationRejected(
+      combat.status === 'pending'
+        ? 'that combat has not started'
+        : 'that combat has ended',
+    );
+  }
+  return combat;
+}
+
+/**
+ * Passes the turn on, all in one transaction: the end-of-turn rules for the
+ * combatant leaving (frightened drops, "until the end of its turn" conditions
+ * end), its one-off movement grant is spent, then the start-of-turn rules for the
+ * one arriving. The round counts up when the order wraps. Defeated combatants and
+ * those with no initiative are skipped. If the active combatant is gone (its token
+ * was deleted) the turn simply goes to the top of the order without a new round.
+ * Persistent damage that falls due is not rolled yet (B.7).
+ */
+export function nextTurn(
+  store: WorldStore,
+  seat: Seat,
+  payload: { combatId: string },
+): CombatChange {
+  requireGM(seat);
+  const combat = loadActiveCombat(store, payload.combatId);
+  const leaving = combat.activeCombatantId;
+  const sorted = sortByInitiative(entriesOf(store, combatantsOf(store, combat.id)));
+  const step = nextCombatant(sorted, leaving);
+  if (step.combatant === undefined) {
+    throw new OperationRejected(
+      'nobody can take a turn: set an initiative or add a combatant',
+    );
+  }
+
+  const documents = new Map<string, BaseDocument>();
+  const keep = (document: BaseDocument): void => {
+    documents.set(document.id, document);
+  };
+  const events: TurnEvent[] = [];
+  const known = combatantsOf(store, combat.id);
+  if (leaving !== undefined && known.some((c) => c.id === leaving)) {
+    const ending = endOfTurn(participantsOf(store, known), leaving);
+    applyTurnResult(store, ending).forEach(keep);
+    events.push(...ending.events);
+    const spent = loadCombatant(store, leaving);
+    if (spent.movementGrant) {
+      const cleared: Combatant = {
+        ...spent,
+        movementGrant: false,
+        updatedAt: new Date().toISOString(),
+      };
+      store.putDocument(cleared);
+      keep(cleared);
+    }
+  }
+
+  const arriving = step.combatant.id;
+  const starting = startOfTurn(
+    participantsOf(store, combatantsOf(store, combat.id)),
+    arriving,
+  );
+  applyTurnResult(store, starting).forEach(keep);
+  events.push(...starting.events);
+
+  const moved: Combat = {
+    ...combat,
+    round: combat.round + (step.wrapped && leaving !== undefined ? 1 : 0),
+    activeCombatantId: arriving,
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(moved);
+  keep(moved);
+  const message = turnEventMessage(store, seat, known, events);
+  if (message !== undefined) {
+    keep(message);
+  }
+  return { documents: [...documents.values()] };
+}
+
+/**
+ * Steps the turn back one place and the round back when the order wraps, for a
+ * mis-clicked "next turn". It moves the pointer and the round only: what the
+ * boundary rules changed (a condition that ended, actions spent) is not undone,
+ * so the GM sets those by hand. Refused at the very start of round 1.
+ */
+export function previousTurn(
+  store: WorldStore,
+  seat: Seat,
+  payload: { combatId: string },
+): CombatChange {
+  requireGM(seat);
+  const combat = loadActiveCombat(store, payload.combatId);
+  const sorted = sortByInitiative(entriesOf(store, combatantsOf(store, combat.id)));
+  const step = previousCombatant(sorted, combat.activeCombatantId);
+  const round = combat.round - (step.wrapped ? 1 : 0);
+  if (step.combatant === undefined || round < 1) {
+    throw new OperationRejected('this is already the first turn of the first round');
+  }
+  const moved: Combat = {
+    ...combat,
+    round,
+    activeCombatantId: step.combatant.id,
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(moved);
+  return { documents: [moved] };
 }

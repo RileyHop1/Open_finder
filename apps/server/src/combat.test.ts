@@ -23,6 +23,8 @@ import {
   endCombat,
   joinCombat,
   moveCombatant,
+  nextTurn,
+  previousTurn,
   removeCombatant,
   rollInitiative,
   setInitiative,
@@ -495,12 +497,19 @@ describe('moveCombatant', () => {
   });
 
   it('refuses a place among the unrolled, a stranger, a non-GM and an ended combat', () => {
-    const { seat, combat, byName } = fight('A', 'B', 'C');
+    const { seat, combat, byName, stored } = fight('A', 'B', 'C', 'D');
     setInitiative(store, seat, { combatantId: byName('A').id, initiative: 20 });
+    // Unrolled combatants sort by when they joined, so make that order certain: B, C, D.
+    ['B', 'C', 'D'].forEach((name, index) => {
+      save({
+        ...stored(byName(name).id),
+        createdAt: `2026-10-01T00:00:0${index}.000Z`,
+      });
+    });
     expect(() =>
       moveCombatant(store, seat, {
         combatantId: byName('A').id,
-        beforeId: byName('C').id,
+        beforeId: byName('D').id,
       }),
     ).toThrow('cannot place it there');
     expect(() =>
@@ -675,5 +684,124 @@ describe('joinCombat', () => {
     });
     expect(running.documents).toHaveLength(2);
     expect((running.documents[0] as Combatant).initiative).toBeGreaterThanOrEqual(10);
+  });
+});
+
+/** A started two-combatant fight: A (initiative 20) is active in round 1, B (10) is next. */
+function running() {
+  const f = fight('A', 'B');
+  setInitiative(store, f.seat, { combatantId: f.byName('A').id, initiative: 20 });
+  setInitiative(store, f.seat, { combatantId: f.byName('B').id, initiative: 10 });
+  startCombat(store, f.seat, fixed(10), { combatId: f.combat.id });
+  const now = () => combatSchema.parse(store.getDocument(f.combat.id));
+  return { ...f, now };
+}
+
+describe('nextTurn', () => {
+  it('passes the turn down the order and counts a new round when it wraps', () => {
+    const { seat, combat, byName, now } = running();
+    nextTurn(store, seat, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 1, activeCombatantId: byName('B').id });
+    nextTurn(store, seat, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 2, activeCombatantId: byName('A').id });
+  });
+
+  it("runs the leaving combatant's end of turn and the arriving one's start, and says so", () => {
+    const { seat, combat, byName, stored } = running();
+    bear(byName('A').actorId, [{ slug: 'frightened', value: 2 }]);
+    bear(byName('B').actorId, [{ slug: 'stunned', value: 1 }]);
+    save({
+      ...stored(byName('B').id),
+      turn: { actionsSpent: 2, reactionUsed: true, attacksMade: 2 },
+    } as BaseDocument);
+
+    const { documents } = nextTurn(store, seat, { combatId: combat.id });
+    expect(conditionsOf(byName('A').actorId)).toEqual([{ slug: 'frightened', value: 1 }]);
+    expect(conditionsOf(byName('B').actorId)).toEqual([]);
+    expect(stored(byName('B').id).turn).toEqual({
+      actionsSpent: 1,
+      reactionUsed: false,
+      attacksMade: 0,
+    });
+    const text = documents.find(
+      (doc) => (doc as { kind?: string }).kind === 'text',
+    ) as unknown as {
+      text: string;
+    };
+    expect(text.text).toContain('frightened on A drops from 2 to 1');
+    expect(text.text).toContain('loses 1 action(s) to stunned');
+  });
+
+  it("spends the leaving combatant's one-off movement grant", () => {
+    const { seat, combat, byName, stored } = running();
+    save({ ...stored(byName('A').id), movementGrant: true } as BaseDocument);
+    nextTurn(store, seat, { combatId: combat.id });
+    expect(stored(byName('A').id).movementGrant).toBe(false);
+  });
+
+  it('skips a defeated combatant', () => {
+    const { seat, combat, byName, stored, now } = running();
+    save({ ...stored(byName('B').id), defeated: true } as BaseDocument);
+    nextTurn(store, seat, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 2, activeCombatantId: byName('A').id });
+  });
+
+  it('goes to the top of the order without a new round when the active combatant is gone', () => {
+    const { seat, combat, byName, now } = running();
+    store.deleteDocument(byName('A').tokenId);
+    cascadeCombatDeletion(store, [{ id: byName('A').tokenId } as BaseDocument]);
+    expect(now().activeCombatantId).toBeUndefined();
+    nextTurn(store, seat, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 1, activeCombatantId: byName('B').id });
+  });
+
+  it('is refused for a pending combat', () => {
+    const { seat, combat } = fight('A');
+    expect(() => nextTurn(store, seat, { combatId: combat.id })).toThrow(
+      'has not started',
+    );
+    expect(() => previousTurn(store, seat, { combatId: combat.id })).toThrow(
+      'has not started',
+    );
+  });
+
+  it('is refused for an ended combat and a non-GM', () => {
+    const { seat, combat } = running();
+    expect(() => nextTurn(store, player(), { combatId: combat.id })).toThrow(
+      'only the GM',
+    );
+    endCombat(store, seat, { combatId: combat.id });
+    expect(() => nextTurn(store, seat, { combatId: combat.id })).toThrow('has ended');
+  });
+});
+
+describe('previousTurn', () => {
+  it('steps back, and back a round when it wraps, without undoing conditions', () => {
+    const { seat, combat, byName, now } = running();
+    nextTurn(store, seat, { combatId: combat.id });
+    nextTurn(store, seat, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 2, activeCombatantId: byName('A').id });
+    previousTurn(store, seat, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 1, activeCombatantId: byName('B').id });
+    previousTurn(store, seat, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 1, activeCombatantId: byName('A').id });
+  });
+
+  it('does not undo what a boundary changed', () => {
+    const { seat, combat, byName } = running();
+    bear(byName('A').actorId, [{ slug: 'frightened', value: 2 }]);
+    nextTurn(store, seat, { combatId: combat.id });
+    previousTurn(store, seat, { combatId: combat.id });
+    expect(conditionsOf(byName('A').actorId)).toEqual([{ slug: 'frightened', value: 1 }]);
+  });
+
+  it('is refused at the first turn of round 1, and for a non-GM', () => {
+    const { seat, combat } = running();
+    expect(() => previousTurn(store, seat, { combatId: combat.id })).toThrow(
+      'first turn',
+    );
+    expect(() => previousTurn(store, player(), { combatId: combat.id })).toThrow(
+      'only the GM',
+    );
   });
 });
