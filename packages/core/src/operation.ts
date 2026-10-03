@@ -587,6 +587,28 @@ export const combatPreviousTurnOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * The GM's movement rulings for a combat: `freeMovement` lifts the turn rule for
+ * everyone (a chase, a cutscene), and `grant` lets one combatant's token move out
+ * of turn (or takes that back). At least one is required. GM only. While a combat
+ * is active a player's token otherwise moves only on its combatant's turn.
+ */
+export const combatSetMovementRulingOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.setMovementRuling'),
+  payload: z
+    .object({
+      combatId: idSchema,
+      freeMovement: z.boolean().optional(),
+      grant: z.object({ combatantId: idSchema, allowed: z.boolean() }).optional(),
+    })
+    .refine(
+      (payload) => payload.freeMovement !== undefined || payload.grant !== undefined,
+      {
+        message: 'a movement ruling must set freeMovement or a grant',
+      },
+    ),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -634,6 +656,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatEndOperationSchema,
   combatNextTurnOperationSchema,
   combatPreviousTurnOperationSchema,
+  combatSetMovementRulingOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

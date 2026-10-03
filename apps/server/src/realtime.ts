@@ -67,6 +67,7 @@ import {
   removeCombatant,
   rollInitiative,
   setInitiative,
+  setMovementRuling,
   startCombat,
 } from './combat.js';
 import type { CompendiumIndex } from './compendium.js';
@@ -561,6 +562,11 @@ function dispatch(
     case 'combat.previousTurn': {
       const seat = requireSeat(store, socket);
       const { documents } = previousTurn(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'combat.setMovementRuling': {
+      const seat = requireSeat(store, socket);
+      const { documents } = setMovementRuling(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents };
     }
     default:

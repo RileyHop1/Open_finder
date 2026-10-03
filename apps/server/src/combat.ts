@@ -792,3 +792,80 @@ export function previousTurn(
   store.putDocument(moved);
   return { documents: [moved] };
 }
+
+/**
+ * Turn-based movement (docs/combat.md, "Turn-based mode is the GM's switch"): while
+ * a combat is `active`, a player's token moves only on its combatant's turn. It is
+ * allowed anyway for the GM (never blocked), for a token that is not in the combat
+ * or whose scene has no active combat, while the GM's `freeMovement` is on, and for a
+ * combatant holding a `movementGrant`. Anything else is refused. The refusal never
+ * names whose turn it is, since that may be a hidden creature.
+ */
+export function requireTurnToMove(store: WorldStore, seat: Seat, token: Token): void {
+  if (seat.isGM) {
+    return;
+  }
+  const combat = store
+    .listDocuments('combat')
+    .flatMap((raw) => {
+      const parsed = combatSchema.safeParse(raw);
+      return parsed.success ? [parsed.data] : [];
+    })
+    .find((entry) => entry.status === 'active' && entry.sceneId === token.sceneId);
+  if (combat === undefined || combat.freeMovement) {
+    return;
+  }
+  const combatant = combatantsOf(store, combat.id).find(
+    (entry) => entry.tokenId === token.id,
+  );
+  if (
+    combatant === undefined ||
+    combatant.movementGrant ||
+    combat.activeCombatantId === combatant.id
+  ) {
+    return;
+  }
+  throw new OperationRejected("it is not this token's turn: ask the GM to let it move");
+}
+
+/**
+ * Sets the GM's movement rulings: the combat-wide `freeMovement` switch and/or one
+ * combatant's out-of-turn `movementGrant`. A grant lasts until that combatant's turn
+ * next ends (`nextTurn` spends it), or until the GM takes it back.
+ */
+export function setMovementRuling(
+  store: WorldStore,
+  seat: Seat,
+  payload: {
+    combatId: string;
+    freeMovement?: boolean | undefined;
+    grant?: { combatantId: string; allowed: boolean } | undefined;
+  },
+): CombatChange {
+  requireGM(seat);
+  const combat = loadOpenCombat(store, payload.combatId);
+  const documents: BaseDocument[] = [];
+  if (payload.grant !== undefined) {
+    const combatant = loadCombatant(store, payload.grant.combatantId);
+    if (combatant.combatId !== combat.id) {
+      throw new OperationRejected('that combatant is not in this combat');
+    }
+    const granted: Combatant = {
+      ...combatant,
+      movementGrant: payload.grant.allowed,
+      updatedAt: new Date().toISOString(),
+    };
+    store.putDocument(granted);
+    documents.push(granted);
+  }
+  if (payload.freeMovement !== undefined) {
+    const ruled: Combat = {
+      ...combat,
+      freeMovement: payload.freeMovement,
+      updatedAt: new Date().toISOString(),
+    };
+    store.putDocument(ruled);
+    documents.push(ruled);
+  }
+  return { documents };
+}
