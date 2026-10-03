@@ -26,6 +26,7 @@ import type { RandomSource } from '@hearthtable/dice';
 import { evaluateDamage } from '@hearthtable/dice/pure';
 import type { EvaluateDamageResult } from '@hearthtable/dice/pure';
 import {
+  addCondition,
   characterDataSchema,
   npcDataSchema,
   prepareCharacter,
@@ -37,6 +38,7 @@ import type { PreparedStrike } from '@hearthtable/pf2e';
 
 import { preparedStatistics } from './checks.js';
 import { countAttack, trackedAttack } from './combat.js';
+import { isFlanking } from './flanking.js';
 import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
@@ -48,6 +50,8 @@ import type { WorldStore } from './worldStore.js';
  */
 interface ResolvedStrike {
   readonly name: string;
+  /** A ranged strike never flanks. */
+  readonly ranged: boolean;
   readonly id: { itemId: string } | { strikeKey: string };
   readonly attacks: readonly [Statistic, Statistic, Statistic];
   readonly damageModifiers: Statistic;
@@ -69,6 +73,7 @@ function characterStrike(actor: Actor, itemId: string): ResolvedStrike {
   }
   return {
     name: strike.name,
+    ranged: strike.ranged,
     id: { itemId },
     attacks: strike.attacks,
     damageModifiers: strike.damageModifiers,
@@ -88,6 +93,7 @@ function monsterStrike(actor: Actor, strikeKey: string): ResolvedStrike {
   }
   return {
     name: strike.name,
+    ranged: strike.ranged,
     id: { strikeKey },
     attacks: strike.attacks,
     damageModifiers: strike.damageModifiers,
@@ -156,6 +162,8 @@ interface StrikeTargetInfo {
   readonly actorPublic: boolean;
   readonly tokenId: string;
   readonly name: string;
+  /** The attacker was flanking and the target was not already off-guard, so `armorClass` is already two lower. */
+  readonly flanked: boolean;
 }
 
 const isPublic = (document: { permissions: { default: string } }): boolean =>
@@ -169,6 +177,7 @@ function strikeTargetOf(
   store: WorldStore,
   seat: Seat,
   tokenId: string,
+  attacker: { actorId: string; ranged: boolean },
 ): StrikeTargetInfo {
   const token = tokenSchema.safeParse(store.getDocument(tokenId));
   if (!token.success || !canReadDocument(seat, token.data)) {
@@ -178,16 +187,38 @@ function strikeTargetOf(
   if (!actor.success || (actor.data.kind !== 'character' && actor.data.kind !== 'npc')) {
     throw new OperationRejected('that target has no armor class');
   }
-  const armorClass = preparedStatistics(actor.data)['ac'];
-  if (armorClass === undefined) {
+  const plain = preparedStatistics(actor.data)['ac'];
+  if (plain === undefined) {
     throw new OperationRejected('that target has no armor class');
   }
+  // Flanking makes the target off-guard against this attack. Off-guard is a circumstance
+  // penalty, so a target that is already off-guard gains nothing and is not "flanked".
+  const flanking = isFlanking(store, attacker.actorId, token.data, {
+    ranged: attacker.ranged,
+  });
+  const offGuard = flanking
+    ? preparedStatistics(withOffGuard(actor.data))['ac']
+    : undefined;
+  const flanked = offGuard !== undefined && offGuard.total < plain.total;
   return {
-    armorClass: armorClass.total,
+    armorClass: (flanked ? offGuard : plain).total,
     tokenPublic: isPublic(token.data),
     actorPublic: isPublic(actor.data),
     tokenId: token.data.id,
     name: token.data.name ?? actor.data.name,
+    flanked,
+  };
+}
+
+/** `actor` with the off-guard condition added (a copy; nothing is stored). */
+function withOffGuard(actor: Actor): Actor {
+  const data =
+    actor.kind === 'npc'
+      ? npcDataSchema.parse(actor.system)
+      : characterDataSchema.parse(actor.system);
+  return {
+    ...actor,
+    system: { ...data, conditions: addCondition(data.conditions, { slug: 'off-guard' }) },
   };
 }
 
@@ -216,7 +247,10 @@ export function rollActorStrike(
   const target =
     payload.targetTokenId === undefined
       ? undefined
-      : strikeTargetOf(store, seat, payload.targetTokenId);
+      : strikeTargetOf(store, seat, payload.targetTokenId, {
+          actorId: actor.id,
+          ranged: strike.ranged,
+        });
   const dc = payload.dc ?? target?.armorClass;
   const { roll } = rollCheck({
     statistic: breakdown,
@@ -232,6 +266,7 @@ export function rollActorStrike(
     kind: 'strikeAttack',
     attackNumber: payload.attackNumber,
     ...(shownDc === undefined ? {} : { dc: shownDc }),
+    ...(target?.flanked === true ? { flanking: true } : {}),
     ...(target?.tokenPublic === true
       ? { targetTokenId: target.tokenId, targetName: target.name }
       : {}),

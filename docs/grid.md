@@ -144,9 +144,23 @@ threaten it; the target is **off-guard** to both. (`systems/pf2e/src/rules/flank
 
 The app **detects and applies** flanking automatically, because it is pure
 geometry and getting it right every round by hand is exactly the tedium this
-project exists to remove. It surfaces *why* — the off-guard condition names
-flanking as its source (see `docs/conditions.md`), so a player can see where the
-penalty came from and a GM can remove it if they disagree.
+project exists to remove. It is worked out **when a strike is rolled at a target**
+(`actor.rollStrike` with a `targetTokenId`, `apps/server/src/flanking.ts`), from where
+every token stands at that moment, and nothing is stored: off-guard from flanking is
+only against the flankers, so it is not a condition on the target.
+
+- **Who flanks:** the attacker, and any other token on its side whose actor is not
+  unconscious, dying, dead, paralyzed or petrified. A party member's token is on the
+  party's side; every other token is on the other.
+- **Melee only, gridded scenes only.** A ranged or thrown strike never flanks, and a
+  gridless scene has no squares to threaten, so nothing flanks there.
+- **Reach** is each token's natural reach (its size in squares times the grid's
+  distance). A reach weapon would extend it; that is not modelled yet.
+- **The effect:** the target is off-guard against this attack, so the DC the card
+  shows is **2 lower**, and the card says it was **flanking** (`flanking: true` on the
+  `strikeAttack` message). A target that is already off-guard gains nothing, since the
+  penalty is a circumstance one and does not stack, and the card then does not say
+  flanking. A GM who disagrees overrides the roll's `dc`.
 
 ## Difficult terrain
 - **Difficult terrain** costs an extra 5 feet per square entered.

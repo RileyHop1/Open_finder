@@ -622,7 +622,16 @@ ruling from silently drifting.
   can create, instead of a table of eight directions that does not extend to them,
   and a centre-based test is the simplest thing that is still symmetric. A borderline
   call is one the GM can see (off-guard names flanking as its source) and remove.
-- **Override:** the GM removes the off-guard condition by hand, or sets it when the
-  app does not (`setCondition`).
-- **Golden test:** `systems/pf2e/src/rules/flanking.test.ts`. Clear the **(confirm)**
+- **How it is applied (B.8):** at roll time, per strike, never stored. Off-guard from
+  flanking is only against the flankers, so a condition on the target would be wrong
+  for everyone else. The DC the card shows is the target's Armor Class with off-guard
+  added (two lower, circumstance, so no stacking), and the card says it was
+  flanking. Sides are the party and everyone else; a creature that cannot act does not
+  flank; a ranged strike or a gridless scene never does; reach is natural reach only
+  (a reach weapon is not modelled yet). All of these are simplifications the GM can
+  override by giving the roll's `dc` directly.
+- **Override:** the GM gives `dc` on the roll, or removes the condition by hand,
+  or sets it when the app does not (`setCondition`).
+- **Golden test:** `systems/pf2e/src/rules/flanking.test.ts` (the geometry) and the
+  `flanking a target` block in `apps/server/src/strikeRolls.test.ts` (the effect). Clear the **(confirm)**
   here and in `grid.md` when the pages can be checked.
