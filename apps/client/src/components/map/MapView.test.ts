@@ -55,14 +55,20 @@ vi.mock('../../stores/documents.js', () => ({
   }),
 }));
 const addCombatant = vi.fn<(tokenId: string, hidden: boolean) => Promise<boolean>>();
+const setMovementGrant =
+  vi.fn<(combatantId: string, allowed: boolean) => Promise<boolean>>();
 const combat = reactive<{
   activeCombat: { status: string } | undefined;
-  combatantByToken: (tokenId: string) => unknown;
+  combatantByToken: (
+    tokenId: string,
+  ) => { id: string; movementGrant: boolean } | undefined;
   addCombatant: typeof addCombatant;
+  setMovementGrant: typeof setMovementGrant;
 }>({
   activeCombat: undefined,
   combatantByToken: () => undefined,
   addCombatant,
+  setMovementGrant,
 });
 vi.mock('../../stores/combat.js', () => ({ useCombatStore: () => combat }));
 vi.mock('./mapImage.js');
@@ -138,6 +144,7 @@ beforeEach(() => {
   placeToken.mockResolvedValue(true);
   send.mockResolvedValue(true);
   addCombatant.mockResolvedValue(true);
+  setMovementGrant.mockResolvedValue(true);
   combat.activeCombat = undefined;
   combat.combatantByToken = () => undefined;
   lobby.mySeat = undefined;
@@ -1219,6 +1226,20 @@ describe('the token menu', () => {
     await flushPromises();
     expect(addCombatant).toHaveBeenCalledWith(token.id, true);
     expect(status(wrapper)).toBe('Valeros joined the fight.');
+  });
+
+  it('offers to let a token move once a combat is active, and toggles the grant', async () => {
+    const { wrapper, token, surface } = await setup(seat(true));
+    combat.activeCombat = { status: 'active' };
+    combat.combatantByToken = () => ({ id: 'combatant-1', movementGrant: false });
+    await rightClick(surface, 149, 149);
+    const grant = wrapper
+      .findAll('.token-menu [role="menuitem"]')
+      .find((b) => b.text() === 'Let this token move');
+    await grant?.trigger('click');
+    await flushPromises();
+    expect(setMovementGrant).toHaveBeenCalledWith('combatant-1', true);
+    expect(status(wrapper)).toBe(`${token.name ?? 'Valeros'} can move out of turn.`);
   });
 
   it('removes a token with token.delete', async () => {

@@ -356,3 +356,35 @@ describe('adding combatants and overriding initiative', () => {
     });
   });
 });
+
+describe('movement rulings', () => {
+  it('sends combat.setMovementRuling with freeMovement', async () => {
+    const { store, combat } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    expect(await store.setFreeMovement(true)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.setMovementRuling',
+      payload: { combatId: combat.id, freeMovement: true },
+    });
+  });
+
+  it('sends combat.setMovementRuling with a grant', async () => {
+    const { store, combat, fast } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    expect(await store.setMovementGrant(fast.id, true)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.setMovementRuling',
+      payload: { combatId: combat.id, grant: { combatantId: fast.id, allowed: true } },
+    });
+  });
+
+  it('is a no-op for both with no active combat', async () => {
+    const store = useCombatStore();
+    const connection = useConnectionStore();
+    connection.connect();
+    await store.load(WORLD);
+    expect(await store.setFreeMovement(true)).toBe(false);
+    expect(await store.setMovementGrant(crypto.randomUUID(), true)).toBe(false);
+    expect(emitOperation).not.toHaveBeenCalled();
+  });
+});

@@ -70,6 +70,7 @@ const turnBar = computed(() => {
     return {
       active: true,
       round: active.round,
+      freeMovement: active.freeMovement,
       items: turnBarItems(
         combat.order,
         active.activeCombatantId,
@@ -79,7 +80,7 @@ const turnBar = computed(() => {
       ),
     };
   }
-  return isGM ? { active: false, round: 0, items: [] } : undefined;
+  return isGM ? { active: false, round: 0, freeMovement: false, items: [] } : undefined;
 });
 
 const selectedId = ref<string>();
@@ -335,12 +336,14 @@ async function handleCreate(): Promise<void> {
           :items="turnBar.items"
           :round="turnBar.round"
           :active="turnBar.active"
+          :free-movement="turnBar.freeMovement"
           :unseen-acting="combat.activeIsUnseen"
           :show-controls="lobby.mySeat?.isGM === true"
           @focus="(tokenId) => mapView?.focusToken(tokenId)"
           @start="combat.startCombat"
           @end="combat.endCombat"
           @next="combat.nextTurn"
+          @set-free-movement="combat.setFreeMovement"
           @set-initiative="
             (combatantId, initiative) => combat.setInitiative(combatantId, initiative)
           "

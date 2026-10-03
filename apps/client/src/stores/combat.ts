@@ -227,6 +227,22 @@ export const useCombatStore = defineStore('combat', () => {
     return send('combat.setInitiative', { combatantId, initiative });
   }
 
+  /** Switches free movement for the whole combat on or off. No-op (false) with no active combat. */
+  function setFreeMovement(on: boolean): Promise<boolean> {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? Promise.resolve(false)
+      : send('combat.setMovementRuling', { combatId, freeMovement: on });
+  }
+
+  /** Grants, or revokes, one combatant's out-of-turn move. No-op (false) with no active combat. */
+  function setMovementGrant(combatantId: string, allowed: boolean): Promise<boolean> {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? Promise.resolve(false)
+      : send('combat.setMovementRuling', { combatId, grant: { combatantId, allowed } });
+  }
+
   return {
     activeCombat,
     order,
@@ -241,5 +257,7 @@ export const useCombatStore = defineStore('combat', () => {
     previousTurn,
     addCombatant,
     setInitiative,
+    setFreeMovement,
+    setMovementGrant,
   };
 });
