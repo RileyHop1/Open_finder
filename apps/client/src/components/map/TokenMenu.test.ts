@@ -29,9 +29,14 @@ afterEach(() => {
   }
 });
 
-function mountMenu(token = view()) {
+function mountMenu(token = view(), canJoinCombat?: boolean) {
   const wrapper = mount(TokenMenu, {
-    props: { token, x: 10, y: 20 },
+    props: {
+      token,
+      x: 10,
+      y: 20,
+      ...(canJoinCombat === undefined ? {} : { canJoinCombat }),
+    },
     attachTo: document.body,
   });
   mounted.push(wrapper);
@@ -60,6 +65,15 @@ describe('the menu', () => {
     await item(wrapper, 'Remove from map')?.trigger('click');
     expect(wrapper.emitted('toggleHidden')).toHaveLength(1);
     expect(wrapper.emitted('remove')).toHaveLength(1);
+  });
+
+  it('offers "Add to combat" only when it can join, and asks for it', async () => {
+    expect(item(mountMenu(view(), false), 'Add to combat')).toBeUndefined();
+    expect(item(mountMenu(view(), true), 'Add to combat')).toBeDefined();
+
+    const wrapper = mountMenu(view(), true);
+    await item(wrapper, 'Add to combat')?.trigger('click');
+    expect(wrapper.emitted('addToCombat')).toHaveLength(1);
   });
 
   it('moves between items with the arrow keys, wrapping, and with Home and End', async () => {

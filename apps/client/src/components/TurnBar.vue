@@ -11,9 +11,12 @@
  * **The GM's switch** (CLAUDE.md: combat only happens when the GM starts it)
  * lives here too, as `showControls`: with no active combat it is the only way
  * onto the wire ("Start combat"); once one is running it is Previous/Next
- * turn and End combat. A player is never passed `showControls`, so these
- * buttons do not exist for them, not merely hidden.
+ * turn and End combat, plus a direct initiative override per combatant (the
+ * manual path every automated roll gets). A player is never passed
+ * `showControls`, so these buttons do not exist for them, not merely hidden.
  */
+import { reactive } from 'vue';
+
 import type { TurnBarItem } from './turnBarModel.js';
 
 defineProps<{
@@ -31,7 +34,18 @@ const emit = defineEmits<{
   end: [];
   next: [];
   previous: [];
+  setInitiative: [combatantId: string, initiative: number];
 }>();
+
+/** The override field's own draft per combatant, kept apart from the rolled value until submitted. */
+const overrides = reactive<Record<string, number | undefined>>({});
+
+function submitOverride(combatantId: string): void {
+  const value = overrides[combatantId];
+  if (value !== undefined && Number.isFinite(value)) {
+    emit('setInitiative', combatantId, value);
+  }
+}
 </script>
 
 <template>
@@ -78,6 +92,21 @@ const emit = defineEmits<{
           <span v-if="item.active" class="status">Taking their turn</span>
           <span v-if="item.defeated" class="status">(defeated)</span>
         </button>
+        <form
+          v-if="showControls"
+          class="override"
+          :aria-label="`Set ${item.label}'s initiative`"
+          @submit.prevent="submitOverride(item.id)"
+        >
+          <label :for="`initiative-${item.id}`">Set initiative</label>
+          <input
+            :id="`initiative-${item.id}`"
+            v-model.number="overrides[item.id]"
+            type="number"
+            step="1"
+          />
+          <button type="submit">Set</button>
+        </form>
       </li>
     </ol>
   </section>
@@ -140,5 +169,21 @@ li button:disabled {
 .status {
   font-size: 0.8em;
   font-style: italic;
+}
+.override {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75em;
+}
+.override input {
+  width: 3.5rem;
+}
+.override label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 </style>

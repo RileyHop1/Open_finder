@@ -70,6 +70,14 @@ export const useCombatStore = defineStore('combat', () => {
     });
   });
 
+  /** This combat's combatant for `tokenId`, or undefined if it has not joined. */
+  function combatantByToken(tokenId: string): Combatant | undefined {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? undefined
+      : combatants.value.find((c) => c.combatId === combatId && c.tokenId === tokenId);
+  }
+
   /** Whose turn it is, when this seat can read that combatant. */
   const activeCombatant = computed(() =>
     order.value.find((c) => c.id === activeCombat.value?.activeCombatantId),
@@ -202,9 +210,27 @@ export const useCombatStore = defineStore('combat', () => {
       : send('combat.previousTurn', { combatId });
   }
 
+  /**
+   * Joins `tokenId` to the active combat (the GM's "Add to combat"), `hidden` as
+   * the token already is. The server rolls its initiative at once if the combat
+   * is active. No-op (false) if there is no active combat.
+   */
+  function addCombatant(tokenId: string, hidden: boolean): Promise<boolean> {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? Promise.resolve(false)
+      : send('combat.addCombatant', { combatId, tokenId, hidden });
+  }
+
+  /** Sets a combatant's initiative directly: the GM's override. */
+  function setInitiative(combatantId: string, initiative: number): Promise<boolean> {
+    return send('combat.setInitiative', { combatantId, initiative });
+  }
+
   return {
     activeCombat,
     order,
+    combatantByToken,
     activeCombatant,
     activeIsUnseen,
     error,
@@ -213,5 +239,7 @@ export const useCombatStore = defineStore('combat', () => {
     endCombat,
     nextTurn,
     previousTurn,
+    addCombatant,
+    setInitiative,
   };
 });

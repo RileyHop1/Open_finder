@@ -341,6 +341,9 @@ async function handleCreate(): Promise<void> {
           @start="combat.startCombat"
           @end="combat.endCombat"
           @next="combat.nextTurn"
+          @set-initiative="
+            (combatantId, initiative) => combat.setInitiative(combatantId, initiative)
+          "
           @previous="combat.previousTurn"
         />
 

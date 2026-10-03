@@ -54,6 +54,17 @@ vi.mock('../../stores/documents.js', () => ({
     actorById: (id: string) => docs.actors.find((actor) => actor.id === id),
   }),
 }));
+const addCombatant = vi.fn<(tokenId: string, hidden: boolean) => Promise<boolean>>();
+const combat = reactive<{
+  activeCombat: { status: string } | undefined;
+  combatantByToken: (tokenId: string) => unknown;
+  addCombatant: typeof addCombatant;
+}>({
+  activeCombat: undefined,
+  combatantByToken: () => undefined,
+  addCombatant,
+});
+vi.mock('../../stores/combat.js', () => ({ useCombatStore: () => combat }));
 vi.mock('./mapImage.js');
 vi.mock('./sceneView.js');
 vi.mock('pixi.js', () => ({}));
@@ -126,6 +137,9 @@ beforeEach(() => {
   moveToken.mockResolvedValue(true);
   placeToken.mockResolvedValue(true);
   send.mockResolvedValue(true);
+  addCombatant.mockResolvedValue(true);
+  combat.activeCombat = undefined;
+  combat.combatantByToken = () => undefined;
   lobby.mySeat = undefined;
   docs.actors = [];
   vi.mocked(sceneViewModule.createSceneView).mockReturnValue(view);
@@ -1184,6 +1198,27 @@ describe('the token menu', () => {
       changes: { hidden: false },
     });
     expect(status(wrapper)).toBe('Valeros shown to the players.');
+  });
+
+  it('offers "Add to combat" only with a combat the token has not joined, and sends it', async () => {
+    const { wrapper, token, surface } = await setup(seat(true), true);
+    await rightClick(surface, 149, 149);
+    expect(
+      wrapper
+        .findAll('.token-menu [role="menuitem"]')
+        .find((b) => b.text() === 'Add to combat'),
+    ).toBeUndefined();
+    await wrapper.get('[role="menu"]').trigger('keydown', { key: 'Escape' });
+
+    combat.activeCombat = { status: 'active' };
+    await rightClick(surface, 149, 149);
+    const add = wrapper
+      .findAll('.token-menu [role="menuitem"]')
+      .find((b) => b.text() === 'Add to combat');
+    await add?.trigger('click');
+    await flushPromises();
+    expect(addCombatant).toHaveBeenCalledWith(token.id, true);
+    expect(status(wrapper)).toBe('Valeros joined the fight.');
   });
 
   it('removes a token with token.delete', async () => {
