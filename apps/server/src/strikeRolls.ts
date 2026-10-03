@@ -17,6 +17,7 @@ import type {
   Actor,
   ChatStrikeAttackMessage,
   ChatStrikeDamageMessage,
+  Combatant,
   Seat,
   Statistic,
 } from '@hearthtable/core';
@@ -34,6 +35,7 @@ import {
 } from '@hearthtable/pf2e';
 import type { PreparedStrike } from '@hearthtable/pf2e';
 
+import { countAttack, trackedAttack } from './combat.js';
 import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
@@ -151,11 +153,16 @@ export function rollActorStrike(
   rng: RandomSource,
   payload: StrikeTarget & {
     actorId: string;
-    attackNumber: 1 | 2 | 3;
+    attackNumber: 1 | 2 | 3 | undefined;
     dc?: number | undefined;
   },
 ): ChatStrikeAttackMessage {
   const { actor, strike } = strikeFor(store, seat, payload.actorId, payload);
+  if (payload.attackNumber === undefined) {
+    throw new OperationRejected(
+      'attackNumber is required when there is no active combat to count the turn',
+    );
+  }
   const breakdown = strike.attacks[payload.attackNumber - 1];
   if (breakdown === undefined) {
     throw new OperationRejected('attackNumber must be 1, 2, or 3');
@@ -175,6 +182,36 @@ export function rollActorStrike(
   };
   store.putDocument(message);
   return message;
+}
+
+/**
+ * `rollActorStrike` with the attack number taken from the combat tracker when the
+ * caller does not give one: the attacker's attacks this turn plus one, in an active
+ * combat the actor is in once. The attack is then counted, and the updated combatant
+ * returned. A number the caller gives is an override and counts nothing. Outside an
+ * active combat there is no tracker and the number is required.
+ */
+export function rollTrackedStrike(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  payload: StrikeTarget & {
+    actorId: string;
+    attackNumber?: 1 | 2 | 3 | undefined;
+    dc?: number | undefined;
+  },
+): { message: ChatStrikeAttackMessage; combatant?: Combatant } {
+  const tracked =
+    payload.attackNumber === undefined
+      ? trackedAttack(store, payload.actorId)
+      : undefined;
+  const message = rollActorStrike(store, seat, rng, {
+    ...payload,
+    attackNumber: payload.attackNumber ?? tracked?.attackNumber,
+  });
+  return tracked === undefined
+    ? { message }
+    : { message, combatant: countAttack(store, tracked.combatant) };
 }
 
 /** Rolls the weapon `payload.itemId`'s damage: doubled and with `deadly`/`fatal` applied if `critical`. */

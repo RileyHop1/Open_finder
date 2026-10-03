@@ -68,6 +68,7 @@ import {
   rollInitiative,
   setInitiative,
   setMovementRuling,
+  spendAction,
   startCombat,
 } from './combat.js';
 import type { CompendiumIndex } from './compendium.js';
@@ -78,7 +79,7 @@ import {
 } from './conditions.js';
 import { emptyCompendium } from './compendium.js';
 import { addItem, removeItem, updateItem } from './items.js';
-import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
+import { rollActorDamage, rollTrackedStrike } from './strikeRolls.js';
 import { addPartyMember, removePartyMember, reorderParty } from './party.js';
 import {
   activateScene,
@@ -432,8 +433,17 @@ function dispatch(
     }
     case 'actor.rollStrike': {
       const seat = requireSeat(store, socket);
-      const message = rollActorStrike(store, seat, cryptoRandomSource, operation.payload);
-      return { seatId: seat.id, seats: [], documents: [message] };
+      const { message, combatant } = rollTrackedStrike(
+        store,
+        seat,
+        cryptoRandomSource,
+        operation.payload,
+      );
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: combatant === undefined ? [message] : [message, combatant],
+      };
     }
     case 'actor.rollDamage': {
       const seat = requireSeat(store, socket);
@@ -567,6 +577,11 @@ function dispatch(
     case 'combat.setMovementRuling': {
       const seat = requireSeat(store, socket);
       const { documents } = setMovementRuling(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'combat.spendAction': {
+      const seat = requireSeat(store, socket);
+      const { documents } = spendAction(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents };
     }
     default:

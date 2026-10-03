@@ -55,7 +55,7 @@ subtly wrong.
 - MAP is an **untyped penalty** in the modifier system (ADR 0008), so it stacks
   with everything and is never suppressed.
 
-The tracker maintains the per-turn attack count; the strike UI shows the three
+The tracker maintains the per-turn attack count (`attacksMade` on the combatant): while a combat is active, `actor.rollStrike` without an `attackNumber` takes it from there and counts the attack, and an `attackNumber` that is given is the override and counts nothing; the strike UI shows the three
 variants (no MAP, second, third) as separate clickable entries with their totals
 already computed, so a player never does the arithmetic. This is the single
 clearest example of "the rules are handled for you" in the whole app.
