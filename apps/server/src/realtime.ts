@@ -56,7 +56,7 @@ import {
   updateActor,
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
-import { applyDamageToActor, healActor } from './hitPoints.js';
+import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import {
   cascadeCombatDeletion,
   createCombat,
@@ -65,6 +65,7 @@ import {
   moveCombatant,
   nextTurn,
   previousTurn,
+  recoverActive,
   removeCombatant,
   rollInitiative,
   setInitiative,
@@ -567,8 +568,19 @@ function dispatch(
     }
     case 'combat.nextTurn': {
       const seat = requireSeat(store, socket);
-      const { documents } = nextTurn(store, seat, operation.payload);
-      return { seatId: seat.id, seats: [], documents };
+      const turn = nextTurn(store, seat, operation.payload);
+      const recovery = recoverActive(
+        store,
+        seat,
+        cryptoRandomSource,
+        compendium.conditions(),
+        operation.payload,
+      );
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: [...turn.documents, ...recovery.documents],
+      };
     }
     case 'combat.previousTurn': {
       const seat = requireSeat(store, socket);
@@ -590,6 +602,17 @@ function dispatch(
       const { documents } = applyDamageToActor(
         store,
         seat,
+        compendium.conditions(),
+        operation.payload,
+      );
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'actor.rollRecovery': {
+      const seat = requireSeat(store, socket);
+      const { documents } = rollRecovery(
+        store,
+        seat,
+        cryptoRandomSource,
         compendium.conditions(),
         operation.payload,
       );

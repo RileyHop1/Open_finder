@@ -18,11 +18,14 @@
 import type {
   Actor,
   BaseDocument,
+  ChatCheckMessage,
   ChatTextMessage,
   Combatant,
+  DocumentPermissions,
   Seat,
 } from '@hearthtable/core';
 import { actorSchema, combatantSchema, combatSchema } from '@hearthtable/core';
+import type { RandomSource } from '@hearthtable/dice';
 import type {
   AppliedCondition,
   ConditionDefinitions,
@@ -40,6 +43,9 @@ import {
   npcDataSchema,
   prepareCharacter,
   prepareNpc,
+  recoveryCheck,
+  recoveryDc,
+  rollCheck,
   setCondition,
   withDyingState,
 } from '@hearthtable/pf2e';
@@ -61,17 +67,22 @@ function loadActor(store: WorldStore, seat: Seat, actorId: string): Actor {
   return actorSchema.parse(raw);
 }
 
-/** A chat line from `seat`, readable by everyone only when the actor is. */
-function say(store: WorldStore, seat: Seat, actor: Actor, text: string): ChatTextMessage {
+/** Chat about `actor` is readable by everyone only when the actor is. */
+function chatPermissions(actor: Actor): DocumentPermissions {
   const visible =
     actor.permissions.default !== 'none' && actor.permissions.default !== 'limited';
+  return { default: visible ? 'observer' : 'none', seats: {} };
+}
+
+/** A chat line from `seat`, readable by everyone only when the actor is. */
+function say(store: WorldStore, seat: Seat, actor: Actor, text: string): ChatTextMessage {
   const now = new Date().toISOString();
   const message: ChatTextMessage = {
     id: crypto.randomUUID(),
     worldId: store.world.id,
     type: 'chatMessage',
     schemaVersion: 1,
-    permissions: { default: visible ? 'observer' : 'none', seats: {} },
+    permissions: chatPermissions(actor),
     createdAt: now,
     updatedAt: now,
     seatId: seat.id,
@@ -297,6 +308,79 @@ export function healActor(
   return {
     documents: [
       changed,
+      ...(lines.length === 0 ? [] : [say(store, seat, actor, lines.join(' '))]),
+    ],
+  };
+}
+
+/**
+ * A dying character's recovery check: a flat check (no bonus) against DC 10 plus
+ * dying, whose degree moves dying by -2, -1, +1 or +2 (`recoveryCheck`). Dying
+ * reaching 0 leaves the character stable and wounded; reaching the death threshold
+ * kills. Posts the roll as a `check` chat card and a line saying what it did, both
+ * kept from players when the actor is not public. A character who is not dying is
+ * refused: there is nothing to recover from.
+ */
+export function rollRecovery(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  definitions: ConditionDefinitions,
+  payload: { actorId: string },
+): HitPointChange {
+  if (!seat.isGM) {
+    throw new OperationRejected('only the GM can roll a recovery check');
+  }
+  const actor = loadActor(store, seat, payload.actorId);
+  if (actor.kind !== 'character') {
+    throw new OperationRejected(`a ${actor.kind} does not make recovery checks`);
+  }
+  const data = characterDataSchema.parse(actor.system);
+  const state = dyingStateOf(data.conditions);
+  if (state.dying === 0 || data.conditions.some((condition) => condition.slug === DEAD)) {
+    throw new OperationRejected(`${actor.name} is not dying`);
+  }
+
+  const dc = recoveryDc(state.dying);
+  const flat = { total: 0, modifiers: [] };
+  const { roll } = rollCheck({ statistic: flat, rng, dc });
+  const degree = roll.degree;
+  if (degree === undefined) {
+    throw new Error(
+      'internal error: a recovery check was rolled with a DC but has no degree',
+    );
+  }
+  const result = recoveryCheck(state, degree);
+  const changed = editCharacter(store, seat, actor.id, (sheet) => ({
+    ...sheet,
+    conditions: conditionsAfter(sheet.conditions, result, definitions),
+  }));
+
+  const now = new Date().toISOString();
+  const card: ChatCheckMessage = {
+    id: crypto.randomUUID(),
+    worldId: store.world.id,
+    type: 'chatMessage',
+    schemaVersion: 1,
+    permissions: chatPermissions(actor),
+    createdAt: now,
+    updatedAt: now,
+    seatId: seat.id,
+    kind: 'check',
+    actorId: actor.id,
+    actorName: actor.name,
+    statistic: 'recovery',
+    label: 'Recovery check',
+    dc,
+    breakdown: flat,
+    roll,
+  };
+  store.putDocument(card);
+  const lines = describeChain(actor.name, result);
+  return {
+    documents: [
+      changed,
+      card,
       ...(lines.length === 0 ? [] : [say(store, seat, actor, lines.join(' '))]),
     ],
   };

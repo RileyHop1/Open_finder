@@ -14,8 +14,14 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createActor, updateActor } from './actors.js';
-import { createCombat, startCombat } from './combat.js';
-import { applyDamageToActor, healActor } from './hitPoints.js';
+import {
+  createCombat,
+  nextTurn,
+  recoverActive,
+  setInitiative,
+  startCombat,
+} from './combat.js';
+import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import { createScene } from './scenes.js';
 import { placeToken } from './tokens.js';
 import { createWorld, type WorldStore } from './worldStore.js';
@@ -319,5 +325,117 @@ describe('a monster', () => {
     );
     expect(data.hp.current).toBe(13);
     expect(data.conditions).toEqual([]);
+  });
+});
+
+describe('rollRecovery', () => {
+  const gm = () => makeSeat({ name: 'GM', isGM: true });
+  const dyingHero = (value: number, extra: unknown[] = []) =>
+    hero({
+      current: 0,
+      conditions: [{ slug: 'dying', value }, { slug: 'unconscious' }, ...extra],
+    });
+  const recover = (actorId: string, face: number) =>
+    rollRecovery(store, gm(), fixed(face), definitions, { actorId });
+
+  it('stabilises on a success: dying ends, wounded rises, the character stays unconscious', () => {
+    const { actorId } = dyingHero(1);
+    const { documents } = recover(actorId, 11);
+    expect(valueOf(actorId, 'dying')).toBe(0);
+    expect(valueOf(actorId, 'wounded')).toBe(1);
+    expect(slugs(actorId)).toContain('unconscious');
+    expect(JSON.stringify(documents)).toContain('Ada is stable.');
+  });
+
+  it('raises dying on a failure, and kills at the death threshold', () => {
+    const { actorId } = dyingHero(2);
+    recover(actorId, 10);
+    expect(valueOf(actorId, 'dying')).toBe(3);
+    recover(actorId, 10);
+    expect(slugs(actorId)).toContain('dead');
+  });
+
+  it('moves dying by two on a critical, either way', () => {
+    const good = dyingHero(2);
+    recover(good.actorId, 20);
+    expect(valueOf(good.actorId, 'dying')).toBe(0);
+    const bad = dyingHero(1);
+    recover(bad.actorId, 1);
+    expect(valueOf(bad.actorId, 'dying')).toBe(3);
+  });
+
+  it('posts a flat check card against DC 10 plus dying, kept from players when the actor is not public', () => {
+    const { actorId } = dyingHero(2);
+    const sheet = actorSchema.parse(store.getDocument(actorId));
+    store.putDocument({ ...sheet, permissions: { default: 'none', seats: {} } });
+    const { documents } = recover(actorId, 12);
+    const card = documents.find((d) => (d as { kind?: string }).kind === 'check');
+    expect(card).toMatchObject({ statistic: 'recovery', dc: 12 });
+    expect(card?.permissions.default).toBe('none');
+  });
+
+  it('is GM only, and refuses a character who is not dying, and a dead one', () => {
+    const { owner, actorId } = dyingHero(1);
+    expect(() => rollRecovery(store, owner, fixed(11), definitions, { actorId })).toThrow(
+      'only the GM',
+    );
+    const healthy = hero();
+    expect(() => recover(healthy.actorId, 11)).toThrow('not dying');
+    const dead = dyingHero(1, [{ slug: 'dead' }]);
+    expect(() => recover(dead.actorId, 11)).toThrow('not dying');
+  });
+});
+
+describe('the recovery check at the start of a turn', () => {
+  function dyingInCombat() {
+    const gm = makeSeat({ name: 'GM', isGM: true });
+    const scene = createScene(store, gm, { name: 'Crypt', kind: 'battle' });
+    const fighter = hero();
+    const downed = hero({
+      current: 0,
+      conditions: [{ slug: 'dying', value: 1 }, { slug: 'unconscious' }],
+    });
+    const tokenFor = (actorId: string) => {
+      const actor = actorSchema.parse(store.getDocument(actorId));
+      return placeToken(store, { scene, actor, size: 1, x: 350, y: 450 });
+    };
+    tokenFor(fighter.actorId);
+    tokenFor(downed.actorId);
+    const { combat, combatants } = createCombat(store, gm, { sceneId: scene.id });
+    const of = (actorId: string) => combatants.find((c) => c.actorId === actorId)!;
+    return { gm, combat, fighter, downed, of };
+  }
+
+  it('rolls for a dying character whose turn is arriving, after nextTurn', () => {
+    const { gm, combat, fighter, downed, of } = dyingInCombat();
+    setInitiative(store, gm, { combatantId: of(fighter.actorId).id, initiative: 20 });
+    setInitiative(store, gm, { combatantId: of(downed.actorId).id, initiative: 10 });
+    startCombat(store, gm, fixed(10), { combatId: combat.id });
+
+    nextTurn(store, gm, { combatId: combat.id });
+    const { documents } = recoverActive(store, gm, fixed(11), definitions, {
+      combatId: combat.id,
+    });
+    expect(documents.some((d) => (d as { kind?: string }).kind === 'check')).toBe(true);
+    expect(valueOf(downed.actorId, 'dying')).toBe(0);
+  });
+
+  it('rolls nothing for a combatant who is not dying', () => {
+    const { gm, combat, fighter, downed, of } = dyingInCombat();
+    setInitiative(store, gm, { combatantId: of(fighter.actorId).id, initiative: 20 });
+    setInitiative(store, gm, { combatantId: of(downed.actorId).id, initiative: 10 });
+    startCombat(store, gm, fixed(10), { combatId: combat.id });
+    expect(
+      recoverActive(store, gm, fixed(11), definitions, { combatId: combat.id }).documents,
+    ).toEqual([]);
+  });
+
+  it('rolls when the combat starts on a dying character', () => {
+    const { gm, combat, fighter, downed, of } = dyingInCombat();
+    setInitiative(store, gm, { combatantId: of(downed.actorId).id, initiative: 20 });
+    setInitiative(store, gm, { combatantId: of(fighter.actorId).id, initiative: 10 });
+    startCombat(store, gm, fixed(10), { combatId: combat.id });
+    recoverActive(store, gm, fixed(11), definitions, { combatId: combat.id });
+    expect(valueOf(downed.actorId, 'dying')).toBe(0);
   });
 });
