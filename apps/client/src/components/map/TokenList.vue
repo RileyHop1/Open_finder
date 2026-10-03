@@ -18,6 +18,9 @@
  * The GM's exits are listed here too, after the tokens, each a button that asks
  * to move the party through it: the keyboard route to what a click on the exit's
  * marker does.
+ *
+ * While a strike is waiting on a target, the same row button aims at that token
+ * instead of selecting it -- the keyboard route to targeting from the map.
  */
 import { describeExit, type ExitView } from './exitModel.js';
 import { describeToken, type TokenView } from './tokenModel.js';
@@ -28,11 +31,13 @@ const props = withDefaults(
     exits?: readonly ExitView[];
     /** Feet from the selected token, by token id. */
     distances?: Readonly<Record<string, number>>;
+    targeting?: boolean;
   }>(),
-  { exits: () => [], distances: () => ({}) },
+  { exits: () => [], distances: () => ({}), targeting: false },
 );
 const emit = defineEmits<{
   select: [tokenId: string];
+  target: [tokenId: string];
   open: [actorId: string];
   exit: [exitId: string];
 }>();
@@ -56,11 +61,17 @@ function rowText(view: TokenView): string {
       <li v-for="view in views" :key="view.id">
         <button
           type="button"
-          :aria-pressed="view.selected"
-          :title="view.movable ? 'Select, then the arrow keys move it' : 'Select'"
-          @click="emit('select', view.id)"
+          :aria-pressed="!targeting && view.selected"
+          :title="
+            targeting
+              ? `Target ${describeToken(view)}`
+              : view.movable
+                ? 'Select, then the arrow keys move it'
+                : 'Select'
+          "
+          @click="targeting ? emit('target', view.id) : emit('select', view.id)"
         >
-          {{ rowText(view) }}
+          {{ targeting ? `Target ${rowText(view)}` : rowText(view) }}
         </button>
         <button
           v-if="view.openable"

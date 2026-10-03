@@ -146,6 +146,16 @@ describe('a strike attack', () => {
     expect(wrapper.find('.modifiers').text()).toContain('−5 Multiple Attack Penalty');
     expect(wrapper.find('.result').text()).toBe('Total 12');
   });
+
+  it('names who it was against, next to the DC, when a target was picked', () => {
+    const wrapper = render({ ...attack, dc: 18, targetName: 'Goblin' });
+    expect(wrapper.find('.result').text()).toBe('Total 12 vs Goblin (DC 18)');
+  });
+
+  it('falls back to a bare DC when no target was named (an untargeted swing, or a hidden one)', () => {
+    const wrapper = render({ ...attack, dc: 18 });
+    expect(wrapper.find('.result').text()).toBe('Total 12 vs DC 18');
+  });
 });
 
 describe('strike damage', () => {

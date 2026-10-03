@@ -61,6 +61,18 @@ const dc = computed(() =>
   props.message.kind === 'strikeDamage' ? undefined : props.message.dc,
 );
 
+/** " vs DC 18", or " vs Goblin (DC 18)" when the attack named its target -- with its own leading space, so it is never a whitespace-only text node Vue's compiler could trim. */
+const dcLabel = computed(() => {
+  if (dc.value === undefined) {
+    return undefined;
+  }
+  const targetName =
+    props.message.kind === 'strikeAttack' ? props.message.targetName : undefined;
+  return targetName === undefined
+    ? ` vs DC ${dc.value}`
+    : ` vs ${targetName} (DC ${dc.value})`;
+});
+
 const degree = computed(() =>
   props.message.roll.degree === undefined
     ? undefined
@@ -91,7 +103,7 @@ function whyNotApplied(modifier: { suppressedBy?: string | undefined }): string 
 
     <p class="result">
       Total <strong class="total">{{ message.roll.total }}</strong>
-      <template v-if="dc !== undefined"> vs DC {{ dc }}</template>
+      <template v-if="dcLabel">{{ dcLabel }}</template>
       <template v-if="degree"> — {{ degree }}</template>
     </p>
     <p v-if="damage.length > 0" class="damage">{{ damage.join(', ') }}</p>
