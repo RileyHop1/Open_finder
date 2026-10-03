@@ -25,6 +25,7 @@ import {
   baseDocumentSchema,
   combatantSchema,
   combatSchema,
+  MAX_COUNTER,
   partySchema,
   sceneSchema,
   tokenSchema,
@@ -38,6 +39,7 @@ import type {
 } from '@hearthtable/pf2e';
 import {
   characterDataSchema,
+  actionCapacity,
   endOfTurn,
   nextCombatant,
   npcDataSchema,
@@ -49,6 +51,7 @@ import {
 
 import { rollActorCheck } from './checks.js';
 import { OperationRejected } from './rejection.js';
+import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
 
 /** The permissions a combat has: readable by every seat once it has begun, the GM's alone before. */
@@ -866,6 +869,121 @@ export function setMovementRuling(
     };
     store.putDocument(ruled);
     documents.push(ruled);
+  }
+  return { documents };
+}
+
+/** The one combatant of `actorId` in an active combat, if there is exactly one: whose turn the tracker counts for it. */
+function trackedCombatant(store: WorldStore, actorId: string): Combatant | undefined {
+  const active = new Set(
+    store.listDocuments('combat').flatMap((raw) => {
+      const parsed = combatSchema.safeParse(raw);
+      return parsed.success && parsed.data.status === 'active' ? [parsed.data.id] : [];
+    }),
+  );
+  const matches = store.listDocuments('combatant').flatMap((raw) => {
+    const parsed = combatantSchema.safeParse(raw);
+    return parsed.success &&
+      parsed.data.actorId === actorId &&
+      active.has(parsed.data.combatId)
+      ? [parsed.data]
+      : [];
+  });
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+/**
+ * The attack number the tracker supplies for `actorId`'s next strike: this turn's
+ * attacks so far plus one, capped at 3 (the third and later share a penalty). Only
+ * while the actor is in an active combat, and in it exactly once; otherwise
+ * `undefined`, and the caller must say which attack it is.
+ */
+export function trackedAttack(
+  store: WorldStore,
+  actorId: string,
+): { combatant: Combatant; attackNumber: 1 | 2 | 3 } | undefined {
+  const combatant = trackedCombatant(store, actorId);
+  if (combatant === undefined) {
+    return undefined;
+  }
+  const next = Math.min(combatant.turn.attacksMade + 1, 3);
+  return { combatant, attackNumber: next === 1 ? 1 : next === 2 ? 2 : 3 };
+}
+
+/** Counts one attack against the combatant's turn, after the strike was rolled. */
+export function countAttack(store: WorldStore, combatant: Combatant): Combatant {
+  const fresh = loadCombatant(store, combatant.id);
+  const counted: Combatant = {
+    ...fresh,
+    turn: {
+      ...fresh.turn,
+      attacksMade: Math.min(fresh.turn.attacksMade + 1, MAX_COUNTER),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(counted);
+  return counted;
+}
+
+/**
+ * Spends or gives back actions and the reaction on a combatant's turn. The
+ * combatant's actor's owner or the GM may; it does not have to be that combatant's
+ * turn (reactions are not), and an overspend is **never blocked**: the table is told
+ * in chat ("Ada has spent 4 of 3 actions"), kept from players when the combatant is
+ * hidden. The count is clamped to the schema's sanity bound, not to the capacity.
+ */
+export function spendAction(
+  store: WorldStore,
+  seat: Seat,
+  payload: {
+    combatantId: string;
+    actions?: number | undefined;
+    reaction?: boolean | undefined;
+  },
+): CombatChange {
+  const combatant = loadCombatant(store, payload.combatantId);
+  loadActiveCombat(store, combatant.combatId);
+  const { raw } = loadOwnedDocument(store, seat, combatant.actorId, 'actor', 'combatant');
+  const before = combatant.turn;
+  const actionsSpent = Math.min(
+    Math.max(before.actionsSpent + (payload.actions ?? 0), 0),
+    MAX_COUNTER,
+  );
+  const reactionUsed = payload.reaction ?? before.reactionUsed;
+  const updated: Combatant = {
+    ...combatant,
+    turn: { ...before, actionsSpent, reactionUsed },
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+
+  const documents: BaseDocument[] = [updated];
+  const [participant] = participantsOf(store, [updated]);
+  const capacity = actionCapacity(participant?.conditions ?? []).total;
+  const name = actorSchema.safeParse(raw).data?.name ?? 'Someone';
+  const warnings: string[] = [];
+  if (actionsSpent > capacity && actionsSpent > before.actionsSpent) {
+    warnings.push(`${name} has spent ${actionsSpent} of ${capacity} actions.`);
+  }
+  if (payload.reaction === true && before.reactionUsed) {
+    warnings.push(`${name} has already used a reaction.`);
+  }
+  if (warnings.length > 0) {
+    const now = new Date().toISOString();
+    const message: ChatTextMessage = {
+      id: crypto.randomUUID(),
+      worldId: store.world.id,
+      type: 'chatMessage',
+      schemaVersion: 1,
+      permissions: { default: combatant.hidden ? 'none' : 'observer', seats: {} },
+      createdAt: now,
+      updatedAt: now,
+      seatId: seat.id,
+      kind: 'text',
+      text: warnings.join(' '),
+    };
+    store.putDocument(message);
+    documents.push(message);
   }
   return { documents };
 }

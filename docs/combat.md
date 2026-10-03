@@ -207,7 +207,7 @@ The server derives them and a client never sets them, as for a token
   is set, and `observer` otherwise. The GM always reads everything.
 
 `combat.create`, `combat.addCombatant`, `combat.removeCombatant`, `combat.rollInitiative`,
-`combat.setInitiative`, `combat.moveCombatant`, `combat.start`, `combat.end`, `combat.nextTurn`, `combat.previousTurn` and `combat.setMovementRuling` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
+`combat.setInitiative`, `combat.moveCombatant`, `combat.start`, `combat.end`, `combat.nextTurn`, `combat.previousTurn`, `combat.setMovementRuling` and `combat.spendAction` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
 removes its combats with all their combatants (`cascadeCombatDeletion`). Conditions anchored to a combatant that goes end with it, and a combat whose active combatant went loses that pointer.
 
 ## Starting and ending

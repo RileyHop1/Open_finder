@@ -293,11 +293,12 @@ const STRIKE_TARGET_MESSAGE = 'give exactly one of itemId and strikeKey';
 
 /**
  * Roll a strike's attack for an equipped weapon (`itemId`) or a monster's
- * strike (`strikeKey`). `attackNumber` is the 1st,
- * 2nd, or 3rd attack this turn, which sets the Multiple Attack Penalty (the
- * server does not track turns until the combat tracker, milestone 5, so the
- * roller says which attack this is). `dc` adds a degree of success. Owner or
- * GM only.
+ * strike (`strikeKey`). `attackNumber` is the 1st, 2nd, or 3rd attack this
+ * turn, which sets the Multiple Attack Penalty. Left out, the server takes it
+ * from the combat tracker (the attacker's count this turn plus one) and counts the
+ * attack; given, it is the GM's or player's override and the tracker counts
+ * nothing. Outside an active combat there is no tracker, so it is required.
+ * `dc` adds a degree of success. Owner or GM only.
  */
 export const actorRollStrikeOperationSchema = clientOperationSchema.extend({
   type: z.literal('actor.rollStrike'),
@@ -305,7 +306,7 @@ export const actorRollStrikeOperationSchema = clientOperationSchema.extend({
     .object({
       actorId: idSchema,
       ...strikeTargetShape,
-      attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+      attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
       dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
     })
     .refine(hasOneStrikeTarget, { message: STRIKE_TARGET_MESSAGE }),
@@ -609,6 +610,29 @@ export const combatSetMovementRulingOperationSchema = clientOperationSchema.exte
 });
 
 /**
+ * Spend (or give back) a combatant's actions and reaction this turn. Owner of the
+ * combatant's actor, or GM. `actions` adds to the actions spent (negative gives
+ * them back, never below 0); `reaction` sets whether the reaction is used. It never
+ * refuses an overspend or an off-turn spend: the table is warned in chat instead
+ * (docs/action-economy.md). Only for an active combat.
+ */
+export const combatSpendActionOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.spendAction'),
+  payload: z
+    .object({
+      combatantId: idSchema,
+      actions: z.number().int().min(-3).max(3).optional(),
+      reaction: z.boolean().optional(),
+    })
+    .refine(
+      (payload) => payload.actions !== undefined || payload.reaction !== undefined,
+      {
+        message: 'spend some actions or the reaction',
+      },
+    ),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -657,6 +681,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatNextTurnOperationSchema,
   combatPreviousTurnOperationSchema,
   combatSetMovementRulingOperationSchema,
+  combatSpendActionOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
