@@ -162,9 +162,14 @@ that token's own turn: strikes and basic actions, both spending via
   Spending it posts a chat line naming it, so the table sees what happened.
 
 **Implemented in C.5a** (`apps/client/src/components/ActionBar.vue`,
-`actionBarModel.ts`). Still open under the same checklist item: a per-turn
-undo cache that is cleared (not persisted) on End Turn, range highlighting
-for the selected action, and movement spending actions.
+`actionBarModel.ts`). Still open under the same checklist item: range
+highlighting for the selected action, and movement spending actions.
+
+**Implemented in C.5b**: "Undo last action" on the bar, backed by a
+per-combatant stack of this turn's recorded spends
+(`stores/combat.ts`'s `turnLog`) that lives only in the browser. It is
+cleared the moment the active combatant changes, never kept past the turn
+it was recorded on.
 
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a

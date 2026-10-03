@@ -19,11 +19,14 @@ defineProps<{
   label: string;
   /** Whether this seat is the GM: only the GM gets "Other action". */
   gm: boolean;
+  /** Whether this turn has a recorded spend left to undo. */
+  canUndo: boolean;
 }>();
 const emit = defineEmits<{
   strike: [target: { itemId: string } | { strikeKey: string }, attackNumber: 1 | 2 | 3];
   basicAction: [slug: string, cost: number];
   freeform: [label: string, cost: number];
+  undo: [];
 }>();
 
 const freeformLabel = ref('');
@@ -63,6 +66,15 @@ function submitFreeform(): void {
         </button>
       </li>
     </ul>
+
+    <button
+      v-if="view.canAct && canUndo"
+      type="button"
+      class="undo"
+      @click="emit('undo')"
+    >
+      Undo last action
+    </button>
 
     <form v-if="gm && view.canAct" class="freeform" @submit.prevent="submitFreeform">
       <label for="freeform-label">Other action</label>
