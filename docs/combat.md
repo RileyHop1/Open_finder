@@ -203,8 +203,8 @@ The server derives them and a client never sets them, as for a token
 - A **combatant** is `none` while its combat is pending or its own `hidden` flag
   is set, and `observer` otherwise. The GM always reads everything.
 
-`combat.create`, `combat.addCombatant` and `combat.removeCombatant` are the
-operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
+`combat.create`, `combat.addCombatant`, `combat.removeCombatant`, `combat.rollInitiative`,
+`combat.setInitiative` and `combat.moveCombatant` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
 removes its combats with all their combatants (`cascadeCombatDeletion`). Conditions anchored to a combatant that goes end with it, and a combat whose active combatant went loses that pointer.
 
 ## Example

@@ -10,6 +10,7 @@
 import { z } from 'zod';
 
 import { actorKindSchema } from './actor.js';
+import { MAX_INITIATIVE } from './combat.js';
 import { baseDocumentSchema } from './document.js';
 import { idSchema, timestampSchema } from './record.js';
 import { MAX_SCENE_PIXELS, sceneGridChangesSchema, sceneKindSchema } from './scene.js';
@@ -522,6 +523,38 @@ export const combatRemoveCombatantOperationSchema = clientOperationSchema.extend
 });
 
 /**
+ * Roll a combatant's initiative: Perception unless `statistic` names another
+ * rollable one (a skill such as `skill:stealth`). GM only. The roll is a `check`
+ * chat message, readable only by the GM when the combatant is hidden.
+ */
+export const combatRollInitiativeOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.rollInitiative'),
+  payload: z.object({
+    combatantId: idSchema,
+    statistic: z.string().min(1).max(80).optional(),
+  }),
+});
+
+/** Set a combatant's initiative directly (the GM's override), or clear it with `null` so it goes back to unrolled. GM only. */
+export const combatSetInitiativeOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.setInitiative'),
+  payload: z.object({
+    combatantId: idSchema,
+    initiative: z.number().min(-MAX_INITIATIVE).max(MAX_INITIATIVE).nullable(),
+  }),
+});
+
+/**
+ * Reorder: put a combatant immediately before another, or last when `beforeId`
+ * is absent. The server picks the initiative numbers that make the order come out
+ * that way. GM only.
+ */
+export const combatMoveCombatantOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.moveCombatant'),
+  payload: z.object({ combatantId: idSchema, beforeId: idSchema.optional() }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -562,6 +595,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatCreateOperationSchema,
   combatAddCombatantOperationSchema,
   combatRemoveCombatantOperationSchema,
+  combatRollInitiativeOperationSchema,
+  combatSetInitiativeOperationSchema,
+  combatMoveCombatantOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

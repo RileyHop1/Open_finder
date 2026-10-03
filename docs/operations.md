@@ -62,6 +62,9 @@ connection, never from the payload; a client that could self-report its own
 | `combat.create` | `{ sceneId }` | **GM only.** Makes a `pending` combat on the scene and enrols the party's tokens and every token that is not hidden, each with no initiative yet; a hidden token stays out. Only one unfinished (`pending` or `active`) combat may exist. A pending combat and its combatants are `none` to players ([combat.md](combat.md)) |
 | `combat.addCombatant` | `{ combatId, tokenId, hidden? }` | **GM only.** Adds a token that is on the combat's scene to a combat that has not ended; a token joins once. `hidden` keeps it out of the players' view of the order |
 | `combat.removeCombatant` | `{ combatantId }` | **GM only.** Removes the combatant and ends every condition anchored to its turn (`duration.type: 'turn'`) on any actor; those actors ride in the same broadcast. The combatant whose turn it is cannot be removed: step the turn first |
+| `combat.rollInitiative` | `{ combatantId, statistic? }` | **GM only.** Rolls Perception (or another rollable statistic, such as `skill:stealth`) for the combatant's actor and stores the total as its initiative; rolling again replaces it. The roll is a `check` chat message, readable only by the GM when the combatant is hidden. Refused once the combat has ended |
+| `combat.setInitiative` | `{ combatantId, initiative }` | **GM only.** The override: sets the number exactly (fractions allowed, within +/-1000), or `null` to make the combatant unrolled again |
+| `combat.moveCombatant` | `{ combatantId, beforeId? }` | **GM only.** Puts the combatant immediately before another, or last when `beforeId` is absent, by choosing initiative numbers (`placeCombatant`, [combat.md](combat.md)); the combatants whose number changed ride in the broadcast. A place that cannot be reached by number (among the unrolled, or no gap left) is refused with what to do instead |
 
 ### The `pin` on `seat.claim`
 

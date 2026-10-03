@@ -58,12 +58,14 @@ function preparedStatistics(actor: Actor): Readonly<Record<string, Statistic>> {
  * `seat` (who must own it) and stores the result as a `check` chat message,
  * visible to the whole table. An unknown or unrollable statistic, or an actor
  * with no character sheet, is rejected before anything is rolled or stored.
+ * `options.gmOnly` keeps the message from players (a hidden combatant's initiative).
  */
 export function rollActorCheck(
   store: WorldStore,
   seat: Seat,
   rng: RandomSource,
   payload: { actorId: string; statistic: string; dc?: number | undefined },
+  options: { gmOnly?: boolean } = {},
 ): ChatCheckMessage {
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
   const actor: Actor = actorSchema.parse(raw);
@@ -86,7 +88,7 @@ export function rollActorCheck(
     worldId: store.world.id,
     type: 'chatMessage',
     schemaVersion: 1,
-    permissions: { default: 'observer', seats: {} },
+    permissions: { default: options.gmOnly === true ? 'none' : 'observer', seats: {} },
     createdAt: now,
     updatedAt: now,
     seatId: seat.id,
