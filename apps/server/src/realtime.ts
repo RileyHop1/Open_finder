@@ -57,13 +57,15 @@ import {
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
 import {
-  addCombatant,
   cascadeCombatDeletion,
   createCombat,
+  endCombat,
+  joinCombat,
   moveCombatant,
   removeCombatant,
   rollInitiative,
   setInitiative,
+  startCombat,
 } from './combat.js';
 import type { CompendiumIndex } from './compendium.js';
 import {
@@ -501,8 +503,13 @@ function dispatch(
     }
     case 'combat.addCombatant': {
       const seat = requireSeat(store, socket);
-      const combatant = addCombatant(store, seat, operation.payload);
-      return { seatId: seat.id, seats: [], documents: [combatant] };
+      const { documents } = joinCombat(
+        store,
+        seat,
+        cryptoRandomSource,
+        operation.payload,
+      );
+      return { seatId: seat.id, seats: [], documents };
     }
     case 'combat.removeCombatant': {
       const seat = requireSeat(store, socket);
@@ -528,6 +535,21 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const changed = moveCombatant(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: changed };
+    }
+    case 'combat.start': {
+      const seat = requireSeat(store, socket);
+      const { documents } = startCombat(
+        store,
+        seat,
+        cryptoRandomSource,
+        operation.payload,
+      );
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'combat.end': {
+      const seat = requireSeat(store, socket);
+      const { documents } = endCombat(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents };
     }
     default:
       return assertNever(operation);

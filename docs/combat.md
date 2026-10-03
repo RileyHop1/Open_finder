@@ -204,8 +204,19 @@ The server derives them and a client never sets them, as for a token
   is set, and `observer` otherwise. The GM always reads everything.
 
 `combat.create`, `combat.addCombatant`, `combat.removeCombatant`, `combat.rollInitiative`,
-`combat.setInitiative` and `combat.moveCombatant` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
+`combat.setInitiative`, `combat.moveCombatant`, `combat.start` and `combat.end` are the operations so far ([operations.md](operations.md)). Deleting a token or an actor removes the combatants of those tokens, and deleting a scene
 removes its combats with all their combatants (`cascadeCombatDeletion`). Conditions anchored to a combatant that goes end with it, and a combat whose active combatant went loses that pointer.
+
+## Starting and ending
+`combat.start` is the only thing that begins a combat, and it is the GM's: until
+then the combat is `pending`, hidden from players, and nothing constrains
+movement. It rolls everyone who has no initiative, flips the combat and its
+visible combatants to readable, sets round 1 with the top of the order active, and
+runs that combatant's start-of-turn rules ([Turn boundaries](#turn-boundaries)). The
+table is told what those rules did in a chat line. `combat.end` clears the turn
+pointer and any out-of-turn grants, ends conditions anchored to a combatant's turn,
+and leaves the combat as a record. Stepping the turn (`nextTurn`, `previousTurn`)
+follows in B.3c.
 
 ## Example
 ```ts

@@ -555,6 +555,22 @@ export const combatMoveCombatantOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Begin a pending combat: roll initiative for everyone who has none, make the
+ * combat readable to the table, and give the first turn to the top of the order
+ * (round 1). GM only. Nothing else starts a combat (ADR 0018).
+ */
+export const combatStartOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.start'),
+  payload: z.object({ combatId: idSchema }),
+});
+
+/** End a combat: the turn pointer and any out-of-turn grants clear, conditions anchored to a turn end, and the combat stays as a record. GM only. */
+export const combatEndOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.end'),
+  payload: z.object({ combatId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -598,6 +614,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatRollInitiativeOperationSchema,
   combatSetInitiativeOperationSchema,
   combatMoveCombatantOperationSchema,
+  combatStartOperationSchema,
+  combatEndOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
