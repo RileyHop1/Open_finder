@@ -565,9 +565,9 @@ ruling from silently drifting.
 - **Why:** one snap rule, shared with every other point this app already
   snaps, is simpler than branching on origin kind for a case the rules text
   cannot currently confirm needs it.
-- **Override:** none needed yet -- nothing places a template on the wire until
-  milestone 5's server stack (B.10). Revisit this entry once that PR shows
-  whether callers actually need an unsnapped origin.
+- **Override:** `template.place` snaps a burst's or cone's origin as above, so a
+  GM who wants a different square places it there. Revisit this entry if play
+  shows callers need an unsnapped origin.
 - **Golden test:** `systems/pf2e/src/rules/squareGrid.test.ts`, "burst" and
   "emanation". Clear the **(confirm)** here and in `grid.md` when the pages can
   be checked.

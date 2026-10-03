@@ -40,6 +40,7 @@ lands.
 | [party.md](party.md) | `Party` -- ordered members, the party level, and the scene it is in (milestones 3-4) |
 | [scene.md](scene.md) | `Scene` -- a map, its grid, and exits to other scenes (milestone 4) |
 | [token.md](token.md) | `Token` -- one actor's marker on a scene (milestone 4) |
+| [template.md](template.md) | `Template` -- an area effect placed on a scene (milestone 5) |
 | [combat.md](combat.md) | `Combat` and `Combatant` -- an encounter, and one token's place in it (milestone 5) |
 | [assets.md](assets.md) | Content-addressed image uploads and how they are served (milestone 3) |
 

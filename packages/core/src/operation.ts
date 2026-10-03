@@ -15,6 +15,7 @@ import { baseDocumentSchema } from './document.js';
 import { idSchema, timestampSchema } from './record.js';
 import { MAX_SCENE_PIXELS, sceneGridChangesSchema, sceneKindSchema } from './scene.js';
 import { seatSchema } from './seat.js';
+import { MAX_TEMPLATE_FEET, templateShapeSchema } from './template.js';
 import { MAX_TOKEN_SIZE } from './token.js';
 
 /**
@@ -500,6 +501,40 @@ export const tokenDeleteOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Put an area template on a scene. Any seat may (players cast too). `at` is the
+ * origin; a cone or line also needs `to`, the point it aims at, and an emanation
+ * needs `tokenId`, the token it comes from. The server needs a gridded scene,
+ * snaps the origin, and lists the creatures caught in chat; it applies nothing.
+ */
+export const templatePlaceOperationSchema = clientOperationSchema.extend({
+  type: z.literal('template.place'),
+  payload: z.object({
+    sceneId: idSchema,
+    shape: templateShapeSchema,
+    at: z.object({
+      x: z.number().min(0).max(MAX_SCENE_PIXELS),
+      y: z.number().min(0).max(MAX_SCENE_PIXELS),
+    }),
+    to: z
+      .object({
+        x: z.number().min(0).max(MAX_SCENE_PIXELS),
+        y: z.number().min(0).max(MAX_SCENE_PIXELS),
+      })
+      .optional(),
+    feet: z.number().int().min(5).max(MAX_TEMPLATE_FEET),
+    widthFeet: z.number().int().min(1).max(MAX_TEMPLATE_FEET).optional(),
+    tokenId: idSchema.optional(),
+    label: z.string().trim().min(1).max(100).optional(),
+  }),
+});
+
+/** Take a template off its scene. The GM, or the seat that placed it; not an error if it is already gone. */
+export const templateRemoveOperationSchema = clientOperationSchema.extend({
+  type: z.literal('template.remove'),
+  payload: z.object({ templateId: idSchema }),
+});
+
+/**
  * Set up a combat on a scene. GM only. The server makes it `pending`, adds the
  * party's tokens and every visible token on the scene as combatants without an
  * initiative (hidden tokens do not join; `combat.addCombatant` adds them), and
@@ -716,6 +751,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   tokenUpdateOperationSchema,
   tokenDeleteOperationSchema,
   tokenMoveOperationSchema,
+  templatePlaceOperationSchema,
+  templateRemoveOperationSchema,
   combatCreateOperationSchema,
   combatAddCombatantOperationSchema,
   combatRemoveCombatantOperationSchema,

@@ -139,6 +139,17 @@ export function deleteScene(
     }
   }
 
+  for (const raw of store.listDocuments('template')) {
+    const template = baseDocumentSchema.loose().safeParse(raw);
+    if (
+      template.success &&
+      (template.data as { sceneId?: unknown }).sceneId === scene.id
+    ) {
+      deleted.push(baseDocumentSchema.parse(template.data));
+      store.deleteDocument(template.data.id);
+    }
+  }
+
   const changed: BaseDocument[] = [];
   const party: Party | undefined = clearPartyScene(store, scene.id);
   if (party !== undefined) {

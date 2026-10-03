@@ -77,6 +77,15 @@ export {
 export { MAX_TOKEN_SIZE, tokenSchema, type Token } from './token.js';
 
 export {
+  MAX_TEMPLATE_FEET,
+  TEMPLATE_SHAPES,
+  templateSchema,
+  templateShapeSchema,
+  type Template,
+  type TemplateShape,
+} from './template.js';
+
+export {
   COMBAT_STATUSES,
   MAX_COUNTER,
   MAX_INITIATIVE,
@@ -120,6 +129,8 @@ export {
   tokenDeleteOperationSchema,
   tokenMoveOperationSchema,
   tokenUpdateOperationSchema,
+  templatePlaceOperationSchema,
+  templateRemoveOperationSchema,
   combatCreateOperationSchema,
   combatAddCombatantOperationSchema,
   combatRemoveCombatantOperationSchema,

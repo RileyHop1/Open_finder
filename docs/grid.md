@@ -178,6 +178,10 @@ Templates highlight affected squares and list the creatures caught, but **do not
 auto-apply** effects — the GM confirms targets. Autotargeting an area spell is
 the kind of automation that is wrong just often enough to be infuriating.
 
+Placing one is `template.place` ([template.md](template.md)): it needs a gridded
+scene, and the creatures caught are every token on the scene with a square in the
+template's cells, named in chat (hidden ones only to the GM).
+
 ### Burst and emanation
 Both return cells in row-major order, and both return an empty array on a
 gridless scene (there are no cells; the client draws the circle directly from
