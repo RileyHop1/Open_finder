@@ -68,7 +68,7 @@ function loadActor(store: WorldStore, seat: Seat, actorId: string): Actor {
 }
 
 /** Chat about `actor` is readable by everyone only when the actor is. */
-function chatPermissions(actor: Actor): DocumentPermissions {
+export function chatPermissions(actor: Actor): DocumentPermissions {
   const visible =
     actor.permissions.default !== 'none' && actor.permissions.default !== 'limited';
   return { default: visible ? 'observer' : 'none', seats: {} };

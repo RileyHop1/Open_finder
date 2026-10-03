@@ -543,6 +543,8 @@ export function turnEventMessage(
 export interface CombatChange {
   /** Every document the operation changed or made: the combat, its combatants, actors whose conditions changed, and chat. */
   readonly documents: BaseDocument[];
+  /** `combat.nextTurn` only: the combatant whose turn just ended, who owes end-of-turn persistent damage. */
+  readonly endedTurnOf?: string | undefined;
 }
 
 /**
@@ -730,7 +732,8 @@ export function nextTurn(
   };
   const events: TurnEvent[] = [];
   const known = combatantsOf(store, combat.id);
-  if (leaving !== undefined && known.some((c) => c.id === leaving)) {
+  const endedTurn = leaving !== undefined && known.some((c) => c.id === leaving);
+  if (leaving !== undefined && endedTurn) {
     const ending = endOfTurn(participantsOf(store, known), leaving);
     applyTurnResult(store, ending).forEach(keep);
     events.push(...ending.events);
@@ -766,7 +769,10 @@ export function nextTurn(
   if (message !== undefined) {
     keep(message);
   }
-  return { documents: [...documents.values()] };
+  return {
+    documents: [...documents.values()],
+    ...(endedTurn && leaving !== undefined ? { endedTurnOf: leaving } : {}),
+  };
 }
 
 /**
