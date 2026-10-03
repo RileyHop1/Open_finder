@@ -10,13 +10,16 @@ import {
 } from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
 import type { CharacterData, Pf2eEntry, WeaponEntry } from '@hearthtable/pf2e';
-import { characterDataSchema } from '@hearthtable/pf2e';
+import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createActor, updateActor } from './actors.js';
 import type { CompendiumIndex } from './compendium.js';
 import { addItem, updateItem } from './items.js';
+import { setPartyScene } from './party.js';
+import { createScene } from './scenes.js';
 import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
+import { placeToken } from './tokens.js';
 import { createWorld, type WorldStore } from './worldStore.js';
 
 let worldsRoot: string;
@@ -206,5 +209,120 @@ describe('rollActorDamage', () => {
       rollActorDamage(store, makeSeat(), fixed(5), { actorId, itemId, critical: false }),
     ).toThrow(/do not have permission/);
     expect(store.listDocuments('chatMessage')).toEqual([]);
+  });
+});
+
+describe('striking a token', () => {
+  /** The swordsman, a party scene, and `kind` of target on it, with the given visibility. */
+  function aimAt(
+    options: {
+      tokenHidden?: boolean;
+      actorPublic?: boolean;
+      kind?: 'character' | 'hazard';
+    } = {},
+  ) {
+    const attacker = swordsman();
+    const gm = makeSeat({ name: 'GM', isGM: true });
+    const scene = createScene(store, gm, { name: 'Crypt', kind: 'battle' });
+    setPartyScene(store, scene.id);
+    const target = createActor(store, gm, {
+      kind: options.kind ?? 'character',
+      name: 'Dummy',
+    });
+    store.putDocument({
+      ...target,
+      permissions: {
+        default: options.actorPublic === false ? 'none' : 'observer',
+        seats: {},
+      },
+    });
+    const token = placeToken(store, {
+      scene,
+      actor: target,
+      size: 1,
+      x: 350,
+      y: 450,
+      hidden: options.tokenHidden ?? false,
+    });
+    const armorClass = (): number => {
+      const sheet = characterDataSchema.parse(
+        actorSchema.parse(store.getDocument(target.id)).system,
+      );
+      return prepareCharacter(sheet).statistics['ac']?.total ?? 0;
+    };
+    return { ...attacker, gm, token, armorClass };
+  }
+
+  it("uses the target's Armor Class as the DC, shows it, and names the target", () => {
+    const { owner, actorId, itemId, token, armorClass } = aimAt();
+    const message = rollActorStrike(store, owner, fixed(10), {
+      actorId,
+      itemId,
+      attackNumber: 1,
+      targetTokenId: token.id,
+    });
+    expect(message.dc).toBe(armorClass());
+    expect(message.roll.degree).toBeDefined();
+    expect(message).toMatchObject({ targetTokenId: token.id, targetName: 'Dummy' });
+  });
+
+  it('lets an explicit dc override the target', () => {
+    const { owner, actorId, itemId, token } = aimAt();
+    const message = rollActorStrike(store, owner, fixed(10), {
+      actorId,
+      itemId,
+      attackNumber: 1,
+      dc: 30,
+      targetTokenId: token.id,
+    });
+    expect(message.dc).toBe(30);
+    expect(message.roll.degree).toBe('criticalFailure');
+  });
+
+  it("keeps a monster's Armor Class off the card when its actor is not public, but still gives the degree", () => {
+    const { owner, actorId, itemId, token } = aimAt({ actorPublic: false });
+    const message = rollActorStrike(store, owner, fixed(10), {
+      actorId,
+      itemId,
+      attackNumber: 1,
+      targetTokenId: token.id,
+    });
+    expect(message.dc).toBeUndefined();
+    expect(message.roll.degree).toBeDefined();
+    expect(message.targetName).toBe('Dummy');
+  });
+
+  it('never names a hidden token: the GM can strike it, and the card shows only the degree', () => {
+    const { gm, actorId, itemId, token } = aimAt({ tokenHidden: true });
+    const message = rollActorStrike(store, gm, fixed(10), {
+      actorId,
+      itemId,
+      attackNumber: 1,
+      targetTokenId: token.id,
+    });
+    expect(message.targetTokenId).toBeUndefined();
+    expect(message.targetName).toBeUndefined();
+    expect(message.roll.degree).toBeDefined();
+  });
+
+  it('reports a token the seat cannot see as not found, and a target with no Armor Class', () => {
+    const { owner, actorId, itemId, token } = aimAt({ tokenHidden: true });
+    expect(() =>
+      rollActorStrike(store, owner, fixed(10), {
+        actorId,
+        itemId,
+        attackNumber: 1,
+        targetTokenId: token.id,
+      }),
+    ).toThrow('no token found');
+    const trap = aimAt({ kind: 'hazard' });
+    expect(() =>
+      rollActorStrike(store, trap.owner, fixed(10), {
+        actorId: trap.actorId,
+        itemId: trap.itemId,
+        attackNumber: 1,
+        targetTokenId: trap.token.id,
+      }),
+    ).toThrow('no armor class');
   });
 });

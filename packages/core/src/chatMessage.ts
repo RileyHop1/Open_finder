@@ -172,6 +172,13 @@ export const chatStrikeAttackMessageSchema = chatStrikeBaseSchema.extend({
   kind: z.literal('strikeAttack'),
   attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   dc: z.number().int().optional(),
+  /**
+   * The token struck, and the name it was struck as. Only recorded when the target
+   * is visible to the whole table, so a card never reveals a hidden creature; the
+   * degree of success on `roll` is shown either way.
+   */
+  targetTokenId: idSchema.optional(),
+  targetName: z.string().min(1).optional(),
   breakdown: statisticSchema,
   roll: rollResultSchema,
 });

@@ -39,7 +39,7 @@ function labelFor(statistic: string): string {
 }
 
 /** The actor's prepared statistics: a character from its sheet, a monster from its creature. Anything else is rejected. */
-function preparedStatistics(actor: Actor): Readonly<Record<string, Statistic>> {
+export function preparedStatistics(actor: Actor): Readonly<Record<string, Statistic>> {
   if (actor.kind === 'character') {
     return prepareCharacter(characterDataSchema.parse(actor.system)).statistics;
   }

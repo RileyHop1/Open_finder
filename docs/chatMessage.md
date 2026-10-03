@@ -105,7 +105,7 @@ and the `roll`.
 
 | Kind | Extra fields | `breakdown` is | `roll` |
 | --- | --- | --- | --- |
-| `strikeAttack` | `attackNumber` 1, 2, or 3; `dc?` | The attack bonus, **including the Multiple Attack Penalty** as its own modifier line | `1d20+total`, `natural` always, `degree` with a DC |
+| `strikeAttack` | `attackNumber` 1, 2, or 3; `dc?`; `targetTokenId?`, `targetName?` (only for a target visible to everyone) | The attack bonus, **including the Multiple Attack Penalty** as its own modifier line | `1d20+total`, `natural` always, `degree` with a DC |
 | `strikeDamage` | `critical` | The flat damage modifier added to the weapon's dice, each source named | The damage roll; `roll.damage` totals by damage type. A critical doubles it and applies `deadly`/`fatal` |
 
 `apps/server/src/strikeRolls.ts` builds both from the strike `prepareCharacter`

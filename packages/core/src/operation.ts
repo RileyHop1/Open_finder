@@ -298,7 +298,9 @@ const STRIKE_TARGET_MESSAGE = 'give exactly one of itemId and strikeKey';
  * from the combat tracker (the attacker's count this turn plus one) and counts the
  * attack; given, it is the GM's or player's override and the tracker counts
  * nothing. Outside an active combat there is no tracker, so it is required.
- * `dc` adds a degree of success. Owner or GM only.
+ * `dc` adds a degree of success. `targetTokenId` names a token to strike: its actor's
+ * Armor Class becomes the DC (an explicit `dc` still wins, as the override), and the
+ * card names the target. Owner or GM only.
  */
 export const actorRollStrikeOperationSchema = clientOperationSchema.extend({
   type: z.literal('actor.rollStrike'),
@@ -308,6 +310,7 @@ export const actorRollStrikeOperationSchema = clientOperationSchema.extend({
       ...strikeTargetShape,
       attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
       dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
+      targetTokenId: idSchema.optional(),
     })
     .refine(hasOneStrikeTarget, { message: STRIKE_TARGET_MESSAGE }),
 });

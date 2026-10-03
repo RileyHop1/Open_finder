@@ -21,7 +21,7 @@ import type {
   Seat,
   Statistic,
 } from '@hearthtable/core';
-import { actorSchema } from '@hearthtable/core';
+import { actorSchema, canReadDocument, tokenSchema } from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
 import { evaluateDamage } from '@hearthtable/dice/pure';
 import type { EvaluateDamageResult } from '@hearthtable/dice/pure';
@@ -35,6 +35,7 @@ import {
 } from '@hearthtable/pf2e';
 import type { PreparedStrike } from '@hearthtable/pf2e';
 
+import { preparedStatistics } from './checks.js';
 import { countAttack, trackedAttack } from './combat.js';
 import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
@@ -146,6 +147,50 @@ function messageBase(
   };
 }
 
+/** What striking a token needs: its Armor Class, and how much of it the table may be told. */
+interface StrikeTargetInfo {
+  readonly armorClass: number;
+  /** The token is visible to everyone, so the card may name it. */
+  readonly tokenPublic: boolean;
+  /** The actor is readable by everyone, so the card may show its Armor Class. */
+  readonly actorPublic: boolean;
+  readonly tokenId: string;
+  readonly name: string;
+}
+
+const isPublic = (document: { permissions: { default: string } }): boolean =>
+  document.permissions.default === 'observer' || document.permissions.default === 'owner';
+
+/**
+ * The token struck: one `seat` can read (a hidden one is "not found", so a rejection
+ * never confirms it exists), whose actor is a character or monster with an Armor Class.
+ */
+function strikeTargetOf(
+  store: WorldStore,
+  seat: Seat,
+  tokenId: string,
+): StrikeTargetInfo {
+  const token = tokenSchema.safeParse(store.getDocument(tokenId));
+  if (!token.success || !canReadDocument(seat, token.data)) {
+    throw new OperationRejected(`no token found with id ${tokenId}`);
+  }
+  const actor = actorSchema.safeParse(store.getDocument(token.data.actorId));
+  if (!actor.success || (actor.data.kind !== 'character' && actor.data.kind !== 'npc')) {
+    throw new OperationRejected('that target has no armor class');
+  }
+  const armorClass = preparedStatistics(actor.data)['ac'];
+  if (armorClass === undefined) {
+    throw new OperationRejected('that target has no armor class');
+  }
+  return {
+    armorClass: armorClass.total,
+    tokenPublic: isPublic(token.data),
+    actorPublic: isPublic(actor.data),
+    tokenId: token.data.id,
+    name: token.data.name ?? actor.data.name,
+  };
+}
+
 /** Rolls the `attackNumber`th attack of a turn with the weapon `payload.itemId`, against `payload.dc` if given. */
 export function rollActorStrike(
   store: WorldStore,
@@ -155,6 +200,7 @@ export function rollActorStrike(
     actorId: string;
     attackNumber: 1 | 2 | 3 | undefined;
     dc?: number | undefined;
+    targetTokenId?: string | undefined;
   },
 ): ChatStrikeAttackMessage {
   const { actor, strike } = strikeFor(store, seat, payload.actorId, payload);
@@ -167,16 +213,28 @@ export function rollActorStrike(
   if (breakdown === undefined) {
     throw new OperationRejected('attackNumber must be 1, 2, or 3');
   }
+  const target =
+    payload.targetTokenId === undefined
+      ? undefined
+      : strikeTargetOf(store, seat, payload.targetTokenId);
+  const dc = payload.dc ?? target?.armorClass;
   const { roll } = rollCheck({
     statistic: breakdown,
     rng,
-    ...(payload.dc === undefined ? {} : { dc: payload.dc }),
+    ...(dc === undefined ? {} : { dc }),
   });
+  // A DC the caller gave is theirs to show; one worked out from a target's Armor Class is shown
+  // only when that actor is public, so a card never gives away a monster's AC.
+  const shownDc =
+    payload.dc ?? (target?.actorPublic === true ? target.armorClass : undefined);
   const message: ChatStrikeAttackMessage = {
     ...messageBase(store, seat, actor, strike),
     kind: 'strikeAttack',
     attackNumber: payload.attackNumber,
-    ...(payload.dc === undefined ? {} : { dc: payload.dc }),
+    ...(shownDc === undefined ? {} : { dc: shownDc }),
+    ...(target?.tokenPublic === true
+      ? { targetTokenId: target.tokenId, targetName: target.name }
+      : {}),
     breakdown,
     roll,
   };
@@ -199,6 +257,7 @@ export function rollTrackedStrike(
     actorId: string;
     attackNumber?: 1 | 2 | 3 | undefined;
     dc?: number | undefined;
+    targetTokenId?: string | undefined;
   },
 ): { message: ChatStrikeAttackMessage; combatant?: Combatant } {
   const tracked =
