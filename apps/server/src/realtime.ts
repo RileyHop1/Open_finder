@@ -56,7 +56,12 @@ import {
   updateActor,
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
-import { addCombatant, createCombat, removeCombatant } from './combat.js';
+import {
+  addCombatant,
+  cascadeCombatDeletion,
+  createCombat,
+  removeCombatant,
+} from './combat.js';
 import type { CompendiumIndex } from './compendium.js';
 import {
   addConditionToActor,
@@ -374,11 +379,12 @@ function dispatch(
     case 'actor.delete': {
       const seat = requireSeat(store, socket);
       const { tombstone, party, tokens } = deleteActor(store, seat, operation.payload);
+      const cascade = cascadeCombatDeletion(store, tokens);
       return {
         seatId: seat.id,
         seats: [],
-        documents: party === undefined ? [] : [party],
-        deleted: [tombstone, ...tokens],
+        documents: [...(party === undefined ? [] : [party]), ...cascade.changed],
+        deleted: [tombstone, ...tokens, ...cascade.deleted],
       };
     }
     case 'token.create': {
@@ -403,7 +409,13 @@ function dispatch(
     case 'token.delete': {
       const seat = requireSeat(store, socket);
       const tombstone = deleteToken(store, seat, operation.payload);
-      return { seatId: seat.id, seats: [], documents: [], deleted: [tombstone] };
+      const cascade = cascadeCombatDeletion(store, [tombstone]);
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: cascade.changed,
+        deleted: [tombstone, ...cascade.deleted],
+      };
     }
     case 'actor.rollCheck': {
       const seat = requireSeat(store, socket);
@@ -452,7 +464,13 @@ function dispatch(
     case 'scene.delete': {
       const seat = requireSeat(store, socket);
       const { deleted, changed } = deleteScene(store, seat, operation.payload);
-      return { seatId: seat.id, seats: [], documents: changed, deleted };
+      const cascade = cascadeCombatDeletion(store, deleted);
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: [...changed, ...cascade.changed],
+        deleted: [...deleted, ...cascade.deleted],
+      };
     }
     case 'scene.activate': {
       const seat = requireSeat(store, socket);
