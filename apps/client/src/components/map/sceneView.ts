@@ -23,7 +23,7 @@ import type * as Pixi from 'pixi.js';
 import { type Camera, gridAlpha, type Size, worldTransform } from './camera.js';
 import { type ExitView, exitRadius } from './exitModel.js';
 import { FALLBACK_MAX_TEXTURE_SIZE } from './mapImage.js';
-import type { TokenView } from './tokenModel.js';
+import { describeToken, type TokenView } from './tokenModel.js';
 
 export interface SceneView {
   /** Replaces what is drawn with `scene`, using `background` (already shrunk to fit the GPU) as its picture. */
@@ -182,9 +182,18 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
           .stroke({ width: 3, color: 0xffc857, alpha: 0.8 }),
       );
     }
+    // The combatant whose turn it is gets its own ring, a second colour so it
+    // never collides with (and reads independently of) the selection ring.
+    if (view.onTurn) {
+      node.addChild(
+        new pixi.Graphics()
+          .circle(0, 0, radius + Math.max(14, radius * 0.2))
+          .stroke({ width: 3, color: 0x5fb86a, alpha: 0.9 }),
+      );
+    }
 
     const name = new pixi.Text({
-      text: view.hidden ? `${view.label} (hidden)` : view.label,
+      text: describeToken(view),
       style: {
         fill: 0xffffff,
         fontSize,
@@ -294,6 +303,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
           view.initials,
           view.hidden,
           view.selected,
+          view.onTurn,
           cell,
           view.portrait,
           bitmap !== undefined,

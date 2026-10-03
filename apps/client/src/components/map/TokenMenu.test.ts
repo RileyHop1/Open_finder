@@ -19,6 +19,7 @@ const view = (overrides: Partial<TokenView> = {}): TokenView => ({
   openable: true,
   movable: true,
   selected: true,
+  onTurn: false,
   ...overrides,
 });
 

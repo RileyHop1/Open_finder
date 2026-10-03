@@ -182,6 +182,7 @@ const views = computed(() =>
     {
       selectedId: selectedId.value,
       canMove: (actorId) => canMoveToken(lobby.mySeat, documents.actorById(actorId)),
+      activeTokenId: combat.activeCombatant?.tokenId,
     },
   ),
 );

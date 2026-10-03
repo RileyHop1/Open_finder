@@ -297,6 +297,7 @@ async function handleCreate(): Promise<void> {
         :members="documents.members"
         :selected-id="selectedId"
         :world-id="worldId"
+        :active-actor-id="combat.activeCombatant?.actorId"
         @select="openSheetOf"
       />
       <PartyManager

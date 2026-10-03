@@ -24,6 +24,10 @@ as it does today.
   running. While a combat is active the bar also offers **Previous turn**,
   **Next turn**, and **End combat**, plus a **Shift+N** "end turn" hotkey on
   the map surface, GM only. None of this exists for a player.
+  **Implemented in C.3:** the acting combatant's token gets a second ring on
+  the map and "(current turn)" in its label; its party bar card (if it has
+  one) gets the same ring and a "Current turn" line. Both clear with no
+  active combat.
 - **Off (no active combat):** a token moves anywhere, with no speed limit and no
   turn check. There is no turn state, no action counting, and no Multiple Attack
   Penalty from the tracker (a strike still takes an explicit attack number, as

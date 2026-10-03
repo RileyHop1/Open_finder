@@ -59,6 +59,7 @@ const setMovementGrant =
   vi.fn<(combatantId: string, allowed: boolean) => Promise<boolean>>();
 const combat = reactive<{
   activeCombat: { status: string } | undefined;
+  activeCombatant: { tokenId: string } | undefined;
   combatantByToken: (
     tokenId: string,
   ) => { id: string; movementGrant: boolean } | undefined;
@@ -66,6 +67,7 @@ const combat = reactive<{
   setMovementGrant: typeof setMovementGrant;
 }>({
   activeCombat: undefined,
+  activeCombatant: undefined,
   combatantByToken: () => undefined,
   addCombatant,
   setMovementGrant,
@@ -146,6 +148,7 @@ beforeEach(() => {
   addCombatant.mockResolvedValue(true);
   setMovementGrant.mockResolvedValue(true);
   combat.activeCombat = undefined;
+  combat.activeCombatant = undefined;
   combat.combatantByToken = () => undefined;
   lobby.mySeat = undefined;
   docs.actors = [];
@@ -467,6 +470,24 @@ describe('tokens', () => {
       expect.objectContaining({ label: 'Valeros', diameter: 200, x: 250, y: 350 }),
     ]);
     expect(view.setTokens.mock.lastCall?.[2]).toBe(100);
+  });
+
+  it('marks the active combatant’s token on turn, and only that one', async () => {
+    const hero = makeActor('Valeros');
+    docs.actors = [hero];
+    const scene = makeScene();
+    state.shownScene = scene;
+    const [acting, other] = [
+      makeToken(scene.id, hero.id, { x: 1 }),
+      makeToken(scene.id, hero.id, { x: 2 }),
+    ];
+    state.shownTokens = [acting, other];
+    combat.activeCombatant = { tokenId: acting.id };
+    const wrapper = mountView();
+    await ready(wrapper);
+
+    const onTurns = view.setTokens.mock.lastCall?.[0] as { onTurn: boolean }[];
+    expect(onTurns.map((v) => v.onTurn)).toEqual([true, false]);
   });
 
   it('redraws just the tokens when one changes, not the map', async () => {

@@ -25,6 +25,8 @@ const props = defineProps<{
   members: readonly Actor[];
   selectedId?: string | undefined;
   worldId: string;
+  /** The combatant whose turn it is, if any (absent outside an active combat). */
+  activeActorId?: string | undefined;
 }>();
 const emit = defineEmits<{ select: [actorId: string] }>();
 
@@ -39,6 +41,7 @@ interface Card {
     { current: number; max: number; temp: number; percent: number } | undefined;
   readonly badges: string[];
   readonly extraBadges: number;
+  readonly onTurn: boolean;
 }
 
 /** "12 / 20 (+5 temp) · at 0": printed in full so the bar is never the only way to read it. */
@@ -83,6 +86,7 @@ const cards = computed<Card[]>(() =>
             },
       badges: badges.slice(0, MAX_BADGES),
       extraBadges: Math.max(0, badges.length - MAX_BADGES),
+      onTurn: actor.id === props.activeActorId,
     };
   }),
 );
@@ -94,7 +98,9 @@ const cards = computed<Card[]>(() =>
       <button
         type="button"
         class="party-member"
+        :class="{ 'on-turn': card.onTurn }"
         :aria-pressed="card.actor.id === selectedId"
+        :aria-current="card.onTurn ? 'true' : undefined"
         @click="emit('select', card.actor.id)"
       >
         <img v-if="card.portraitUrl" class="portrait" :src="card.portraitUrl" alt="" />
@@ -104,6 +110,7 @@ const cards = computed<Card[]>(() =>
 
         <span class="details">
           <span class="name">{{ card.actor.name }}</span>
+          <span v-if="card.onTurn" class="status">Current turn</span>
           <template v-if="card.hp">
             <span class="hp-bar" aria-hidden="true">
               <span class="hp-fill" :style="{ width: `${card.hp.percent}%` }"></span>
@@ -143,6 +150,14 @@ const cards = computed<Card[]>(() =>
   min-height: var(--touch-target-min);
   padding: var(--space-2);
   text-align: left;
+  border: 2px solid transparent;
+}
+.party-member.on-turn {
+  border-color: #5fb86a;
+}
+.status {
+  font-size: 0.85em;
+  font-style: italic;
 }
 
 .portrait {
