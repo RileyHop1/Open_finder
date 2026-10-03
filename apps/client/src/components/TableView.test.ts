@@ -321,6 +321,93 @@ describe('the turn bar', () => {
       payload: { combatantId: combatant.id, actions: 1 },
     });
   });
+
+  it('shows the action bar for a token the GM selects, and spends an action for a basic action', async () => {
+    const scene = sceneWithParty();
+    const actor = makeActor('Ada');
+    const token = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: actor.id,
+      x: 0,
+      y: 0,
+    });
+    const combatant = combatantSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'combatant',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      combatId: crypto.randomUUID(),
+      tokenId: token.id,
+      actorId: actor.id,
+    });
+    vi.mocked(documentsApi.listActors).mockResolvedValue([actor]);
+    vi.mocked(documentsApi.listTokens).mockResolvedValue([token]);
+    vi.mocked(documentsApi.listCombatants).mockResolvedValue([combatant]);
+    vi.mocked(documentsApi.listCombats).mockResolvedValue([
+      {
+        id: combatant.combatId,
+        worldId: WORLD,
+        type: 'combat',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        status: 'active',
+        round: 1,
+        freeMovement: false,
+      },
+    ]);
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    const wrapper = await mountTable();
+    expect(wrapper.find('.action-bar').exists()).toBe(false);
+
+    await wrapper.get('.token-list button').trigger('click');
+    expect(wrapper.find('.action-bar').exists()).toBe(true);
+
+    await wrapper.find('.basics button').trigger('click');
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.spendAction',
+      payload: { combatantId: combatant.id, actions: 1 },
+    });
+  });
+
+  it('hides the action bar for a token a player does not own', async () => {
+    const scene = sceneWithParty();
+    const actor = makeActor('Ada');
+    const token = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: actor.id,
+      x: 0,
+      y: 0,
+    });
+    vi.mocked(documentsApi.listActors).mockResolvedValue([actor]);
+    vi.mocked(documentsApi.listTokens).mockResolvedValue([token]);
+    mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
+
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    expect(wrapper.find('.action-bar').exists()).toBe(false);
+  });
 });
 
 describe('map and character drawer', () => {

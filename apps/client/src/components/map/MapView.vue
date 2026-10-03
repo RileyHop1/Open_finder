@@ -781,7 +781,7 @@ function focusToken(tokenId: string): void {
   selectFromList(tokenId);
 }
 
-defineExpose({ placeAtCentre, focusToken });
+defineExpose({ placeAtCentre, focusToken, selectedId });
 
 /** Whether a drag carries a character from the roster, and this seat may place it (the GM). */
 function isActorDrag(event: DragEvent): boolean {
