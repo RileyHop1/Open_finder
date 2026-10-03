@@ -192,6 +192,18 @@ describe('spawnImporter -- with a real child process', () => {
       timeoutMs,
     })();
 
+  it('names a missing working folder instead of reporting a bare ENOENT', async () => {
+    const outcome = await spawnImporter({
+      command: node,
+      args: ['-e', ''],
+      cwd: join(process.cwd(), 'no-such-folder'),
+      env: process.env,
+      timeoutMs: 20_000,
+    })();
+    expect(outcome.ok).toBe(false);
+    expect(outcome.ok ? '' : outcome.detail).toContain('importer folder was not found');
+  });
+
   it('succeeds when the process exits 0', async () => {
     expect(await run('console.log("done")')).toEqual({ ok: true });
   });

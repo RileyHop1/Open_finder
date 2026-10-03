@@ -16,6 +16,7 @@
  */
 
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createActiveWorldManager } from './activeWorld.js';
 import { createApp } from './app.js';
@@ -27,7 +28,11 @@ import { attachRealtime } from './realtime.js';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3000;
 
-const worldsRoot = process.env.HEARTHTABLE_WORLDS_ROOT ?? join(process.cwd(), 'worlds');
+// Defaults hang off the repo root, not `process.cwd()`: `pnpm --filter` runs
+// the server from `apps/server`, where `systems/pf2e` does not exist.
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
+const worldsRoot = process.env.HEARTHTABLE_WORLDS_ROOT ?? join(repoRoot, 'worlds');
 const host = process.env.HEARTHTABLE_HOST ?? DEFAULT_HOST;
 const port =
   process.env.HEARTHTABLE_PORT === undefined
@@ -36,7 +41,7 @@ const port =
 const staticDir = process.env.HEARTHTABLE_STATIC_DIR;
 const compendiumDir =
   process.env.HEARTHTABLE_COMPENDIUM_DIR ??
-  join(process.cwd(), 'systems', 'pf2e', '.data', 'imported');
+  join(repoRoot, 'systems', 'pf2e', '.data', 'imported');
 
 assertNotAllInterfaces(host);
 
@@ -48,7 +53,7 @@ const compendium = createReloadableCompendium(compendiumDir);
 // Its working directory is the pf2e package (where `tsx` resolves from); how
 // this is bundled for a double-click install is ADR 0010's open question.
 const importerDir =
-  process.env.HEARTHTABLE_IMPORTER_DIR ?? join(process.cwd(), 'systems', 'pf2e');
+  process.env.HEARTHTABLE_IMPORTER_DIR ?? join(repoRoot, 'systems', 'pf2e');
 const contentImport = createContentImporter({
   reload: () => compendium.reload(),
   run: spawnImporter({

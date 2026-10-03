@@ -47,6 +47,8 @@ writes, and the same place the server reads), or wherever
 `HEARTHTABLE_COMPENDIUM_DIR` points; the upstream download is a sibling
 `upstream/` folder. Both are git-ignored (ADR 0003).
 `HEARTHTABLE_IMPORTER_DIR` overrides where the importer's package is found.
+These defaults are relative to the repository root, not the folder the server
+was started from, so `pnpm --filter` and a root start behave the same.
 
 ## Reloading
 `createReloadableCompendium` wraps `loadCompendium`. The app and the realtime

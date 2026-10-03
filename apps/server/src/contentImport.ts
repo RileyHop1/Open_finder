@@ -16,6 +16,7 @@
  */
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 import type { CompendiumStatus } from './compendium.js';
 
@@ -160,6 +161,17 @@ export function spawnImporter(
           lines.splice(0, lines.length - 200);
         }
       };
+
+      // Node reports a missing `cwd` as `spawn <command> ENOENT`, which reads
+      // as "node is missing"; say what is actually wrong.
+      if (!existsSync(options.cwd)) {
+        resolve({
+          ok: false,
+          message: 'The import could not start.',
+          detail: `The importer folder was not found at ${options.cwd}. Set HEARTHTABLE_IMPORTER_DIR to the systems/pf2e folder.`,
+        });
+        return;
+      }
 
       let timedOut = false;
       const child = spawn(options.command, [...options.args], {
