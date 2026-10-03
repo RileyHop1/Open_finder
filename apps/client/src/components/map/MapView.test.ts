@@ -1948,3 +1948,170 @@ describe('distances in the token list', () => {
     expect(buttons()).toEqual(['Anna', 'Ben, 20 ft away']);
   });
 });
+
+describe('placing a template (M5 C.9b)', () => {
+  const world = crypto.randomUUID();
+  const who: Seat = {
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'S',
+    isGM: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+    lobby.mySeat = who;
+  });
+
+  /** Scene 2000 x 1000, 100 px squares, fitted at 0.5: scene (250, 250) is screen (149, 149). */
+  async function setup() {
+    state.shownScene = makeScene();
+    const wrapper = mountView();
+    await ready(wrapper);
+    return { wrapper, surface: wrapper.get('.map-surface') };
+  }
+
+  const press = (surface: { element: Element }, x: number, y: number) =>
+    pointer(surface, 'pointerdown', { pointerId: 1, button: 0, clientX: x, clientY: y });
+  const move = (surface: { element: Element }, x: number, y: number) =>
+    pointer(surface, 'pointermove', { pointerId: 1, clientX: x, clientY: y });
+  const status = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('p[role="status"].visually-hidden').text();
+  const templateButton = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('.map-zoom button[title^="Place an area template"]');
+
+  const makeActor = (name: string): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: { default: 'observer', seats: {} },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    system: {},
+  });
+
+  const makeToken = (sceneId: string, actorId: string) =>
+    tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: world,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId,
+      actorId,
+      x: 250,
+      y: 250,
+    });
+
+  it('turns on with T or the button, saying so, and off again', async () => {
+    const { wrapper, surface } = await setup();
+    expect(templateButton(wrapper).attributes('aria-pressed')).toBe('false');
+
+    await surface.trigger('keydown', { key: 't' });
+    expect(templateButton(wrapper).attributes('aria-pressed')).toBe('true');
+    expect(status(wrapper)).toContain('Placing a template');
+    expect(wrapper.find('form.template-placement').exists()).toBe(true);
+
+    await surface.trigger('keydown', { key: 'T' });
+    expect(templateButton(wrapper).attributes('aria-pressed')).toBe('false');
+    expect(wrapper.find('form.template-placement').exists()).toBe(false);
+
+    await templateButton(wrapper).trigger('click');
+    expect(wrapper.find('form.template-placement').exists()).toBe(true);
+  });
+
+  it('places a burst at the clicked, snapped origin', async () => {
+    const { wrapper, surface } = await setup();
+    await surface.trigger('keydown', { key: 't' });
+    await press(surface, 149, 149);
+
+    await wrapper.get('button[type="submit"]').trigger('click');
+    expect(send).toHaveBeenCalledWith('template.place', {
+      sceneId: state.shownScene?.id,
+      shape: 'burst',
+      at: { x: 250, y: 250 },
+      feet: 20,
+    });
+  });
+
+  it('a cone or line needs an aim too, set by a compass button, before it can be placed', async () => {
+    const { wrapper, surface } = await setup();
+    await surface.trigger('keydown', { key: 't' });
+    await wrapper.get('#template-shape').setValue('cone');
+    await press(surface, 149, 149);
+
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+    await wrapper.get('fieldset button[title], fieldset button').trigger('click');
+    // Any compass button sets an aim; the east one is first in the row.
+    await wrapper
+      .findAll('fieldset button')
+      .find((b) => b.text() === 'E')
+      ?.trigger('click');
+
+    await wrapper.get('button[type="submit"]').trigger('click');
+    const sent = vi.mocked(send).mock.calls.find((call) => call[0] === 'template.place');
+    expect(sent?.[1]).toMatchObject({ shape: 'cone', at: { x: 250, y: 250 } });
+    expect((sent?.[1] as { to: { x: number } }).to.x).toBeGreaterThan(250);
+  });
+
+  it('dragging the pointer after the origin aims a cone or line, without a compass button', async () => {
+    const { wrapper, surface } = await setup();
+    await surface.trigger('keydown', { key: 't' });
+    await wrapper.get('#template-shape').setValue('line');
+    await press(surface, 149, 149);
+    await move(surface, 399, 149);
+
+    await wrapper.get('button[type="submit"]').trigger('click');
+    expect(send).toHaveBeenCalledWith('template.place', {
+      sceneId: state.shownScene?.id,
+      shape: 'line',
+      at: { x: 250, y: 250 },
+      to: { x: 750, y: 250 },
+      feet: 20,
+      widthFeet: 5,
+    });
+  });
+
+  it('Escape cancels placement and turns the tool off', async () => {
+    const { wrapper, surface } = await setup();
+    await surface.trigger('keydown', { key: 't' });
+    await press(surface, 149, 149);
+
+    await surface.trigger('keydown', { key: 'Escape' });
+    expect(templateButton(wrapper).attributes('aria-pressed')).toBe('false');
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('an emanation is placed from a clicked token, needing no map origin', async () => {
+    const hero = makeActor('Valeros');
+    docs.actors = [hero];
+    const { wrapper, surface } = await setup();
+    const scene = state.shownScene;
+    if (scene === undefined) {
+      throw new Error('scene not set');
+    }
+    state.shownTokens = [makeToken(scene.id, hero.id)];
+    await flushPromises();
+
+    await surface.trigger('keydown', { key: 't' });
+    await wrapper.get('#template-shape').setValue('emanation');
+    await press(surface, 149, 149);
+
+    await wrapper.get('button[type="submit"]').trigger('click');
+    expect(send).toHaveBeenCalledWith('template.place', {
+      sceneId: scene.id,
+      shape: 'emanation',
+      at: { x: 0, y: 0 },
+      feet: 20,
+      tokenId: state.shownTokens[0]?.id,
+    });
+  });
+});
