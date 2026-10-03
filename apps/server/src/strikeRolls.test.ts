@@ -7,6 +7,7 @@ import {
   actorSchema,
   chatStrikeAttackMessageSchema,
   chatStrikeDamageMessageSchema,
+  sceneSchema,
 } from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
 import type { CharacterData, Pf2eEntry, WeaponEntry } from '@hearthtable/pf2e';
@@ -16,9 +17,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createActor, updateActor } from './actors.js';
 import type { CompendiumIndex } from './compendium.js';
 import { addItem, updateItem } from './items.js';
-import { setPartyScene } from './party.js';
-import { createScene } from './scenes.js';
+import { addPartyMember, setPartyScene } from './party.js';
+import { createScene, updateScene } from './scenes.js';
 import { rollActorDamage, rollActorStrike } from './strikeRolls.js';
+import { isFlanking } from './flanking.js';
 import { placeToken } from './tokens.js';
 import { createWorld, type WorldStore } from './worldStore.js';
 
@@ -324,5 +326,122 @@ describe('striking a token', () => {
         targetTokenId: trap.token.id,
       }),
     ).toThrow('no armor class');
+  });
+});
+
+describe('flanking a target', () => {
+  type At = { x: number; y: number };
+  const TARGET: At = { x: 250, y: 250 };
+
+  /**
+   * A party swordsman at the target's west, a party ally at `allyAt` (default: its east),
+   * and a target on the other side, all on a gridded scene the party is in.
+   */
+  function flankTable(
+    options: {
+      allyAt?: At;
+      allyConditions?: unknown[];
+      targetConditions?: unknown[];
+      gridless?: boolean;
+    } = {},
+  ) {
+    const attacker = swordsman();
+    const gm = makeSeat({ name: 'GM', isGM: true });
+    const scene = createScene(store, gm, { name: 'Crypt', kind: 'battle' });
+    if (options.gridless === true) {
+      updateScene(store, gm, { sceneId: scene.id, changes: { grid: { type: 'none' } } });
+    }
+    setPartyScene(store, scene.id);
+    const put = (actorId: string, at: At) =>
+      placeToken(store, {
+        scene: sceneSchemaOf(scene.id),
+        actor: actorSchema.parse(store.getDocument(actorId)),
+        size: 1,
+        ...at,
+      });
+    const withConditions = (actorId: string, conditions: unknown[] | undefined) => {
+      if (conditions === undefined) {
+        return;
+      }
+      const stored = actorSchema.parse(store.getDocument(actorId));
+      store.putDocument({
+        ...stored,
+        system: { ...stored.system, conditions },
+      } as typeof stored);
+    };
+    addPartyMember(store, gm, { actorId: attacker.actorId });
+    put(attacker.actorId, { x: 150, y: 250 });
+
+    const ally = createActor(store, gm, { kind: 'character', name: 'Ben' });
+    addPartyMember(store, gm, { actorId: ally.id });
+    withConditions(ally.id, options.allyConditions);
+    put(ally.id, options.allyAt ?? { x: 350, y: 250 });
+
+    const dummy = createActor(store, gm, { kind: 'character', name: 'Dummy' });
+    store.putDocument({ ...dummy, permissions: { default: 'observer', seats: {} } });
+    withConditions(dummy.id, options.targetConditions);
+    const token = put(dummy.id, TARGET);
+    const armorClass = (): number =>
+      prepareCharacter(sheetOf(dummy.id)).statistics['ac']?.total ?? 0;
+    const strike = () =>
+      rollActorStrike(store, attacker.owner, fixed(10), {
+        actorId: attacker.actorId,
+        itemId: attacker.itemId,
+        attackNumber: 1,
+        targetTokenId: token.id,
+      });
+    return { strike, armorClass, ally, dummy, token, attacker };
+  }
+
+  function sceneSchemaOf(sceneId: string) {
+    return sceneSchema.parse(store.getDocument(sceneId));
+  }
+
+  it('makes the target off-guard against the strike when two allies hold opposite sides', () => {
+    const { strike, armorClass } = flankTable();
+    const message = strike();
+    expect(message.flanking).toBe(true);
+    expect(message.dc).toBe(armorClass() - 2);
+  });
+
+  const doesNothing = (name: string, options: Parameters<typeof flankTable>[0]): void => {
+    it(`does nothing when ${name}`, () => {
+      const { strike, armorClass } = flankTable(options);
+      const message = strike();
+      expect(message.flanking).toBeUndefined();
+      expect(message.dc).toBe(armorClass());
+    });
+  };
+  doesNothing('the second ally is not opposite', { allyAt: { x: 250, y: 150 } });
+  doesNothing('the second ally is out of reach', { allyAt: { x: 450, y: 250 } });
+  doesNothing('the second ally cannot act', {
+    allyConditions: [{ slug: 'unconscious' }],
+  });
+
+  it('adds nothing to a target who is already off-guard, since the penalty does not stack', () => {
+    const { strike, armorClass } = flankTable({
+      targetConditions: [{ slug: 'off-guard' }],
+    });
+    const message = strike();
+    expect(message.flanking).toBeUndefined();
+    expect(message.dc).toBe(armorClass());
+  });
+
+  it('never flanks on a gridless scene', () => {
+    expect(flankTable({ gridless: true }).strike().flanking).toBeUndefined();
+  });
+
+  it('never flanks with a ranged strike', () => {
+    const { token, attacker } = flankTable();
+    expect(isFlanking(store, attacker.actorId, token, { ranged: false })).toBe(true);
+    expect(isFlanking(store, attacker.actorId, token, { ranged: true })).toBe(false);
+  });
+
+  it("never flanks a target on the attacker's own side", () => {
+    const { token, attacker } = flankTable();
+    const dummy = actorSchema.parse(store.getDocument(token.actorId));
+    const gm = makeSeat({ name: 'GM', isGM: true });
+    addPartyMember(store, gm, { actorId: dummy.id });
+    expect(isFlanking(store, attacker.actorId, token, { ranged: false })).toBe(false);
   });
 });

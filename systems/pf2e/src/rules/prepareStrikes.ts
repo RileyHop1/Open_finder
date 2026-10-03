@@ -37,6 +37,8 @@ export interface PreparedStrike {
   readonly itemId: string;
   readonly name: string;
   readonly attackAttribute: Attribute;
+  /** A ranged (or thrown) weapon: it never flanks, since flanking is a melee rule. */
+  readonly ranged: boolean;
   /** The attack for the 1st, 2nd, and 3rd attack of a turn. */
   readonly attacks: readonly [Statistic, Statistic, Statistic];
   /** What gets added to the weapon's dice: the attribute part, rule-element bonuses, and condition penalties. */
@@ -148,6 +150,7 @@ export function prepareStrikes(
       itemId: item.id,
       name: weapon.name,
       attackAttribute,
+      ranged: weapon.range !== undefined,
       attacks: [
         buildStrikeAttack({ ...attackInputs, attackNumber: 1 }),
         buildStrikeAttack({ ...attackInputs, attackNumber: 2 }),

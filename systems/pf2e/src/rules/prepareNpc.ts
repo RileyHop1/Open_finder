@@ -39,6 +39,8 @@ export interface PreparedNpcStrike {
   readonly key: string;
   readonly name: string;
   readonly attackAttribute: Attribute;
+  /** A ranged strike: it never flanks, since flanking is a melee rule. */
+  readonly ranged: boolean;
   /** The attack for the 1st, 2nd, and 3rd attack of a turn (Multiple Attack Penalty; `agile` halves its step). */
   readonly attacks: readonly [Statistic, Statistic, Statistic];
   /** What conditions add to the first damage component (enfeebled on a Strength strike). Zero total when none. */
@@ -190,6 +192,7 @@ export function prepareNpc(data: NpcData): PreparedNpc {
       key: count === 1 ? `strike:${base}` : `strike:${base}-${count}`,
       name: strike.name,
       attackAttribute,
+      ranged: isRanged(strike),
       attacks: [attackAt(1), attackAt(2), attackAt(3)],
       damageModifiers,
       damage: {

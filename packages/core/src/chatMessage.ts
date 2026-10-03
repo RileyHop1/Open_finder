@@ -179,6 +179,11 @@ export const chatStrikeAttackMessageSchema = chatStrikeBaseSchema.extend({
    */
   targetTokenId: idSchema.optional(),
   targetName: z.string().min(1).optional(),
+  /**
+   * The attacker was flanking the target, so the target was off-guard and `dc` is
+   * two lower (docs/grid.md, "Flanking"). Only set when flanking changed the DC.
+   */
+  flanking: z.boolean().optional(),
   breakdown: statisticSchema,
   roll: rollResultSchema,
 });
