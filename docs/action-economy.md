@@ -19,6 +19,13 @@ stated north-star goal) without making the software the final authority.
 The warning is not a modal. It is an inline marker on the turn's action tray, in
 text and icon, never color alone (see Accessibility).
 
+**Implemented in M5 C.4**: `apps/client/src/components/ActionTray.vue` shows
+the acting combatant's ◆◆◆ (filled by `actionsSpent`) and ↺, both with a text
+count, plus a quickened extra marked "restricted". An overspend shows "⚠ N
+actions over" in text, and the server (`combat.spendAction`, B.4) still never
+refuses it. Spend/undo and the reaction toggle are for the combatant's actor's
+owner or the GM; hidden entirely while no combat is active.
+
 ## A turn
 - **3 actions**, spent in any combination.
 - **1 reaction**, refreshed at the start of your turn.

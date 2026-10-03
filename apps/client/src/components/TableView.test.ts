@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Actor, Party, Scene, Seat } from '@hearthtable/core';
-import { sceneSchema } from '@hearthtable/core';
+import { combatantSchema, sceneSchema, tokenSchema } from '@hearthtable/core';
 import { newCharacterData } from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
@@ -259,6 +259,67 @@ describe('the turn bar', () => {
       expect.anything(),
       expect.objectContaining({ type: 'combat.nextTurn' }),
     );
+  });
+
+  it('shows the active combatant’s action tray, and spends an action for the GM', async () => {
+    const scene = sceneWithParty();
+    const actor = makeActor('Ada');
+    const token = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: actor.id,
+      x: 0,
+      y: 0,
+    });
+    const combatant = combatantSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'combatant',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      combatId: crypto.randomUUID(),
+      tokenId: token.id,
+      actorId: actor.id,
+      turn: { actionsSpent: 1, reactionUsed: false, attacksMade: 0 },
+    });
+    vi.mocked(documentsApi.listActors).mockResolvedValue([actor]);
+    vi.mocked(documentsApi.listTokens).mockResolvedValue([token]);
+    vi.mocked(documentsApi.listCombatants).mockResolvedValue([combatant]);
+    vi.mocked(documentsApi.listCombats).mockResolvedValue([
+      {
+        id: combatant.combatId,
+        worldId: WORLD,
+        type: 'combat',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        status: 'active',
+        round: 1,
+        freeMovement: false,
+        activeCombatantId: combatant.id,
+      },
+    ]);
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    const wrapper = await mountTable();
+    expect(wrapper.text()).toContain('1 of 3 actions spent');
+
+    await wrapper.find('.action-tray button').trigger('click');
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.spendAction',
+      payload: { combatantId: combatant.id, actions: 1 },
+    });
   });
 });
 

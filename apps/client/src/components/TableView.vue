@@ -31,6 +31,8 @@ import { useCombatStore } from '../stores/combat.js';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
+import ActionTray from './ActionTray.vue';
+import { actionTrayView } from './actionTrayModel.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import MapView from './map/MapView.vue';
@@ -82,6 +84,46 @@ const turnBar = computed(() => {
   }
   return isGM ? { active: false, round: 0, freeMovement: false, items: [] } : undefined;
 });
+
+/**
+ * The action tray: the acting combatant's ◆◆◆ and ↺, shown only while a combat
+ * is active and this seat can read the active combatant (`activeCombatant` is
+ * already filtered to that). Spend/undo controls are for the GM or the
+ * combatant's actor's owner only.
+ */
+const actionTray = computed(() => {
+  const combatant = combat.activeCombatant;
+  if (combatant === undefined) {
+    return undefined;
+  }
+  const actor = documents.actorById(combatant.actorId);
+  const token = scenes.shownTokens.find((t) => t.id === combatant.tokenId);
+  const seat = lobby.mySeat;
+  const canControl =
+    seat !== undefined &&
+    (seat.isGM || (actor !== undefined && resolvePermission(seat, actor) === 'owner'));
+  return {
+    combatantId: combatant.id,
+    view: actionTrayView(combatant, actor),
+    label: token?.name ?? actor?.name ?? 'Unknown',
+    canControl,
+  };
+});
+
+/** No-op once the active combatant has changed since the tray was rendered. */
+function spendTrayAction(actions: number): void {
+  const combatantId = actionTray.value?.combatantId;
+  if (combatantId !== undefined) {
+    void combat.spendAction(combatantId, actions);
+  }
+}
+
+function setTrayReaction(used: boolean): void {
+  const combatantId = actionTray.value?.combatantId;
+  if (combatantId !== undefined) {
+    void combat.setReaction(combatantId, used);
+  }
+}
 
 const selectedId = ref<string>();
 const selected = computed(() =>
@@ -349,6 +391,15 @@ async function handleCreate(): Promise<void> {
             (combatantId, initiative) => combat.setInitiative(combatantId, initiative)
           "
           @previous="combat.previousTurn"
+        />
+
+        <ActionTray
+          v-if="actionTray !== undefined"
+          :view="actionTray.view"
+          :label="actionTray.label"
+          :can-control="actionTray.canControl"
+          @spend="spendTrayAction"
+          @set-reaction="setTrayReaction"
         />
 
         <p v-if="scenes.isPreviewing" class="preview-banner" role="status">

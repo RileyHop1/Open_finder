@@ -388,3 +388,25 @@ describe('movement rulings', () => {
     expect(emitOperation).not.toHaveBeenCalled();
   });
 });
+
+describe('spending actions and the reaction', () => {
+  it('sends combat.spendAction with the action delta', async () => {
+    const { store, fast } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    expect(await store.spendAction(fast.id, 1)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.spendAction',
+      payload: { combatantId: fast.id, actions: 1 },
+    });
+  });
+
+  it('sends combat.spendAction with the reaction flag', async () => {
+    const { store, fast } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    expect(await store.setReaction(fast.id, true)).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.spendAction',
+      payload: { combatantId: fast.id, reaction: true },
+    });
+  });
+});

@@ -243,6 +243,20 @@ export const useCombatStore = defineStore('combat', () => {
       : send('combat.setMovementRuling', { combatId, grant: { combatantId, allowed } });
   }
 
+  /**
+   * Adds (or, negative, gives back) actions spent on `combatantId`'s turn. The
+   * server never refuses an overspend (docs/action-economy.md): it is warned
+   * about in the tray, not blocked here.
+   */
+  function spendAction(combatantId: string, actions: number): Promise<boolean> {
+    return send('combat.spendAction', { combatantId, actions });
+  }
+
+  /** Sets whether `combatantId`'s reaction is used this turn. */
+  function setReaction(combatantId: string, used: boolean): Promise<boolean> {
+    return send('combat.spendAction', { combatantId, reaction: used });
+  }
+
   return {
     activeCombat,
     order,
@@ -259,5 +273,7 @@ export const useCombatStore = defineStore('combat', () => {
     setInitiative,
     setFreeMovement,
     setMovementGrant,
+    spendAction,
+    setReaction,
   };
 });
