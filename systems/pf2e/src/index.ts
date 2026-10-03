@@ -245,6 +245,14 @@ export {
   type PersistentDamage,
 } from './content/persistentDamage.js';
 
+export { meleeReach, naturalReach, threatenedCells, threatens } from './rules/reach.js';
+
+export {
+  OPPOSITE_SIDES_TOLERANCE_DEGREES,
+  flanks,
+  onOppositeSides,
+} from './rules/flanking.js';
+
 export {
   ASSISTED_FLAT_CHECK_DC,
   FLAT_CHECK_DC,

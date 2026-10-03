@@ -110,13 +110,37 @@ local to the screen; nothing is sent.
 Default melee reach is 5 feet; reach weapons extend it, and larger creatures have
 larger natural reach. Reach is a property of the **attack**, not only the creature,
 so a Large creature wielding a reach weapon is not simply "10 feet."
+(`systems/pf2e/src/rules/reach.ts`.)
+
+- **`naturalReach(size)`**: 5 feet for Medium or smaller, then 10, 15, and 20 for
+  Large, Huge, and Gargantuan: five feet per square of `footprintForSize`.
+- **`meleeReach(size, hasReachTrait)`**: natural reach, plus 5 feet if the weapon
+  or strike has the `reach` trait. A Large creature with a reach weapon is **15**
+  feet (10 + 5). The caller reads the trait off the weapon.
+- **`threatenedCells(grid, attacker, reachFeet)`** is `GridStrategy.emanation`,
+  named for this use, and **`threatens`** asks whether those cells overlap the
+  target's own cells. A gridless scene has no cells, so nothing is threatened there.
 
 The threatened area is what flanking and Attack of Opportunity test against.
 
 ## Flanking
 Two allies flank a target when they are on **opposite sides** of it and both
-threaten it; the target is **off-guard** to both **(confirm the exact geometric
-test — opposite sides is defined by a line through the target's space)**.
+threaten it; the target is **off-guard** to both. (`systems/pf2e/src/rules/flanking.ts`.)
+
+- **`flanks(grid, target, allyA, allyB)`**: both allies threaten the target with
+  their own reach (`threatens`), and their centres are on opposite sides of it.
+  Symmetric in the two allies.
+- **`onOppositeSides(target, a, b)`**: the direction from `a` to the target and
+  from the target to `b` agree within **22.5 degrees**
+  (`OPPOSITE_SIDES_TOLERANCE_DEGREES`): a line from one ally through the target
+  continues, roughly, to the other. Allies straight across, or on opposite
+  diagonals, flank; one on the same side, at a right angle, or 45 degrees off the
+  line does not. It works at any distance, so a reach weapon can flank from two
+  squares away.
+- **(confirm)** the exact geometric test is a judgment call, and Archives of Nethys
+  is unreachable from the environment this was written in. Centres are used for every
+  footprint, a simplification for a larger ally. See [rulings.md](rulings.md),
+  "Flanking: opposite sides by a relaxed straight-line test".
 
 The app **detects and applies** flanking automatically, because it is pure
 geometry and getting it right every round by hand is exactly the tedium this
