@@ -57,6 +57,7 @@ import {
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
 import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
+import { settlePersistentDamage } from './persistentDamage.js';
 import {
   cascadeCombatDeletion,
   createCombat,
@@ -569,6 +570,18 @@ function dispatch(
     case 'combat.nextTurn': {
       const seat = requireSeat(store, socket);
       const turn = nextTurn(store, seat, operation.payload);
+      const persistent =
+        turn.endedTurnOf === undefined
+          ? { documents: [] }
+          : settlePersistentDamage(
+              store,
+              seat,
+              cryptoRandomSource,
+              compendium.conditions(),
+              {
+                combatantId: turn.endedTurnOf,
+              },
+            );
       const recovery = recoverActive(
         store,
         seat,
@@ -579,7 +592,7 @@ function dispatch(
       return {
         seatId: seat.id,
         seats: [],
-        documents: [...turn.documents, ...recovery.documents],
+        documents: [...turn.documents, ...persistent.documents, ...recovery.documents],
       };
     }
     case 'combat.previousTurn': {

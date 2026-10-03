@@ -193,7 +193,7 @@ ticked, reduced) so the table is told and the GM can undo it by hand. The server
   that lasts "until the end of" their turn ends. Their **persistent damage** is handed back as `persistentDue` for the server to roll and apply, then to resolve the DC 15 flat checks ([conditions.md](conditions.md), "Persistent damage").
 - Looks at **every** participant's conditions, because a goblin held "until the end
   of Valeria's turn" bears the condition but is anchored to Valeria.
-- Not here: rolling and applying persistent damage (B.7). The dying chain is `dyingChain.ts` ([conditions.md](conditions.md), "The dying chain"), applied by the server in B.6. How many actions a
+- Not here: rolling and applying persistent damage, which the server does right after (`persistentDamage.ts`, [conditions.md](conditions.md)). The dying chain is `dyingChain.ts` ([conditions.md](conditions.md), "The dying chain"), applied by the server in B.6. How many actions a
   turn has (3, plus quickened, minus slowed) is `actionCapacity`. When a combatant is removed, conditions anchored to
   it are the server's to clean up (B.1).
 

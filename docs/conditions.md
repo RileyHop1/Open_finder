@@ -258,13 +258,16 @@ needed migrating. **Every number is marked (confirm)**; see
   type keeps the worse, the higher average (a tie keeps the existing one). Different
   types stack.
 - At the end of the bearer's turn, `endOfTurn` returns what is due (`persistentDue`).
-  The server (B.7) rolls each entry's damage, applies it (resistances and immunities
-  are the damage layer's, and dropping to 0 HP runs the dying chain), then rolls a
+  `combat.nextTurn` settles it (`apps/server/src/persistentDamage.ts`): it rolls each
+  entry's damage, applies it through `actor.applyDamage`'s path (resistances and
+  immunities are the damage layer's, and dropping to 0 HP runs the dying chain), then rolls a
   **flat check, DC 15, or DC 10 if someone helps**. A flat check is a plain d20: it
   succeeds on a natural roll at or above the DC, with no degrees and no natural 20
   or natural 1 shift. Success ends that entry (`resolvePersistentDamage`).
-- Each step is an event (damaged, ended, still burning), so the table is told and the
-  GM can undo it. The GM can add, edit, or remove any entry by hand.
+- Each die is a chat message (the damage as a `roll`, the flat check as a `check`
+  with its DC) and a line says what ended and what is still burning, so the table is
+  told and the GM can undo it. All of it is kept from players when the actor is not
+  public. The GM can add, edit, or remove any entry by hand.
 
 ## Automation boundaries
 - The app **applies and tracks** conditions, and applies their modifiers.
