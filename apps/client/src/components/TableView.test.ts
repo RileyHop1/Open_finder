@@ -72,6 +72,7 @@ beforeEach(() => {
   vi.mocked(documentsApi.getParty).mockResolvedValue(undefined);
   vi.mocked(documentsApi.listScenes).mockResolvedValue([]);
   vi.mocked(documentsApi.listTokens).mockResolvedValue([]);
+  vi.mocked(documentsApi.listTemplates).mockResolvedValue([]);
   vi.mocked(documentsApi.listCombats).mockResolvedValue([]);
   vi.mocked(documentsApi.listCombatants).mockResolvedValue([]);
   vi.mocked(useLobbyStore).mockReturnValue({

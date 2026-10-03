@@ -31,3 +31,15 @@ see [operations.md](operations.md). A gridless scene is refused, since it has no
 squares to list creatures from. Placing posts a chat line naming the creatures
 caught that the table can see, and a second GM-only line naming hidden ones.
 Deleting a scene deletes its templates.
+
+**Implemented in M5 C.9a.** `scenes.ts` keeps a `shownTemplates` list the same
+way it keeps `shownTokens`, kept live by the same broadcast merge. `MapView.vue`
+renders every one as a translucent blue cell overlay (`templateCells.ts`,
+the same `burst`/`cone`/`line`/`emanation` grid math `apps/server/src/
+templates.ts` uses, so the client's picture and the server's own idea of the
+template never disagree), under the tokens like the action bar's range
+highlight. A `TemplateList.vue` panel lists each by shape, feet, and label,
+with a "Remove" button for the GM or the placing seat -- the only route to
+remove one, which makes it keyboard-reachable for free. Placing a new
+template, with a preview and rotation, is **C.9b**, a follow-up PR under the
+same checklist item.

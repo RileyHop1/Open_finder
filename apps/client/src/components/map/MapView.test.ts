@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import type { Actor, Scene, Seat, Token } from '@hearthtable/core';
-import { sceneSchema, tokenSchema } from '@hearthtable/core';
+import type { Actor, Scene, Seat, Template, Token } from '@hearthtable/core';
+import { sceneSchema, templateSchema, tokenSchema } from '@hearthtable/core';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, reactive } from 'vue';
@@ -25,6 +25,7 @@ const state = reactive<{
   scenes: Scene[];
   previewScene: typeof previewScene;
   shownTokens: Token[];
+  shownTemplates: Template[];
   error: string | undefined;
   placeToken: typeof placeToken;
   send: typeof send;
@@ -37,6 +38,7 @@ const state = reactive<{
   scenes: [],
   previewScene,
   shownTokens: [],
+  shownTemplates: [],
   error: undefined,
   placeToken,
   send,
@@ -107,6 +109,7 @@ const view = {
   setExits: vi.fn(),
   setRuler: vi.fn(),
   setHighlightedCells: vi.fn(),
+  setTemplateCells: vi.fn(),
   destroy: vi.fn(),
 };
 
@@ -127,6 +130,7 @@ function mountView(props: Record<string, unknown> = {}) {
 afterEach(() => {
   state.shownScene = undefined;
   state.shownTokens = [];
+  state.shownTemplates = [];
   for (const wrapper of mounted.splice(0)) {
     wrapper.unmount();
   }
@@ -141,6 +145,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   state.shownScene = undefined;
   state.shownTokens = [];
+  state.shownTemplates = [];
   state.scenes = [];
   state.error = undefined;
   moveToken.mockResolvedValue(true);
@@ -492,6 +497,35 @@ describe('tokens', () => {
     await wrapper.setProps({ highlightedCells: [] });
     await flushPromises();
     expect(view.setHighlightedCells).toHaveBeenLastCalledWith([], scene.grid);
+  });
+
+  it('draws the shown scene’s placed templates (M5 C.9a)', async () => {
+    const scene = makeScene();
+    state.shownScene = scene;
+    state.shownTemplates = [
+      templateSchema.parse({
+        id: crypto.randomUUID(),
+        worldId: crypto.randomUUID(),
+        type: 'template',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        shape: 'burst',
+        x: 250,
+        y: 250,
+        feet: 5,
+        placedBy: crypto.randomUUID(),
+      }),
+    ];
+    const wrapper = mountView();
+    await ready(wrapper);
+
+    expect(view.setTemplateCells).toHaveBeenLastCalledWith(
+      expect.arrayContaining([{ col: 2, row: 2 }]),
+      scene.grid,
+    );
   });
 
   it('marks the active combatant’s token on turn, and only that one', async () => {

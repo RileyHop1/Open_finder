@@ -88,6 +88,7 @@ import { loadMapBitmap } from './mapImage.js';
 import { afterResize, createMapInput, type PointerSample } from './mapInput.js';
 import ExitMenu from './ExitMenu.vue';
 import { ACTOR_DRAG_TYPE, type Covered, viewCentre } from './placement.js';
+import { cellsFor } from './templateCells.js';
 import {
   arrivalPoint,
   type ExitView,
@@ -105,6 +106,7 @@ import {
   tokenViews,
 } from './tokenModel.js';
 import { ARROW_DIRECTIONS, type Direction, dragTarget, stepToken } from './tokenStep.js';
+import TemplateList from './TemplateList.vue';
 import TokenList from './TokenList.vue';
 import TokenMenu from './TokenMenu.vue';
 
@@ -245,12 +247,25 @@ function selectFromList(tokenId: string): void {
 const portraits = new Map<string, ImageBitmap>();
 const fetchingPortraits = new Set<string>();
 
+/** The cells every placed template on this scene covers (M5 C.9a), under the tokens. */
+const templateCells = computed<Cell[]>(() => {
+  const scene = scenes.shownScene;
+  if (scene === undefined) {
+    return [];
+  }
+  const grid = gridForScene(scene);
+  return scenes.shownTemplates.flatMap((template) =>
+    cellsFor(grid, template, scenes.shownTokens),
+  );
+});
+
 function drawTokens(): void {
   view?.setTokens(views.value, portraits, scenes.shownScene?.grid.size ?? 100);
   view?.setExits(exits.value, scenes.shownScene?.grid.size ?? 100);
   view?.setRuler(rulerPath.value, scenes.shownScene?.grid.size ?? 100);
   if (scenes.shownScene !== undefined) {
     view?.setHighlightedCells(props.highlightedCells ?? [], scenes.shownScene.grid);
+    view?.setTemplateCells(templateCells.value, scenes.shownScene.grid);
   }
 }
 
@@ -725,6 +740,13 @@ async function removeToken(): Promise<void> {
   }
 }
 
+/** M5 C.9a: the GM or the placing seat may remove a template, from `TemplateList`. */
+async function removeTemplate(templateId: string): Promise<void> {
+  if (await scenes.send('template.remove', { templateId })) {
+    announcement.value = 'Template removed.';
+  }
+}
+
 function onContextMenu(event: MouseEvent): void {
   if (lobby.mySeat?.isGM !== true) {
     return;
@@ -976,7 +998,14 @@ function release(): void {
 
 // Tokens and the actors behind them change often (a drag preview, a rename): redraw only the tokens.
 watch(
-  [views, exits, rulerPath, () => scenes.shownScene?.grid, () => props.highlightedCells],
+  [
+    views,
+    exits,
+    rulerPath,
+    () => scenes.shownScene?.grid,
+    () => props.highlightedCells,
+    templateCells,
+  ],
   () => {
     drawTokens();
     loadPortraits();
@@ -1133,6 +1162,12 @@ onBeforeUnmount(() => {
       @select="selectFromList"
       @target="(tokenId) => emit('pickTarget', tokenId)"
       @open="(actorId) => emit('openActor', actorId)"
+    />
+    <TemplateList
+      :templates="scenes.shownTemplates"
+      :my-seat-id="lobby.mySeat?.id"
+      :is-gm="lobby.mySeat?.isGM === true"
+      @remove="removeTemplate"
     />
     <p class="visually-hidden" role="status">{{ announcement }}</p>
     <p v-if="scenes.error" class="map-note map-error" role="alert">{{ scenes.error }}</p>

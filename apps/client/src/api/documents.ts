@@ -17,6 +17,8 @@ import {
   partySchema,
   type Scene,
   sceneSchema,
+  type Template,
+  templateSchema,
   type Token,
   tokenSchema,
 } from '@hearthtable/core';
@@ -70,4 +72,9 @@ export function listCombats(worldId: string): Promise<Combat[]> {
 /** Every combatant in `worldId` this seat can read: a hidden creature's is left out. */
 export function listCombatants(worldId: string): Promise<Combatant[]> {
   return fetchDocuments(worldId, 'combatant', combatantSchema);
+}
+
+/** Every area template in `worldId` this seat can read: every seat sees every one. */
+export function listTemplates(worldId: string): Promise<Template[]> {
+  return fetchDocuments(worldId, 'template', templateSchema);
 }

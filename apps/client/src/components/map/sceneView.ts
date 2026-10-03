@@ -57,6 +57,12 @@ export interface SceneView {
    * portrait is never obscured. Local to this screen, never sent.
    */
   setHighlightedCells(cells: readonly Cell[], grid: SceneGrid): void;
+  /**
+   * Shades `cells` blue at low opacity (an empty array clears it): the area
+   * templates placed on this scene (M5 C.9), under the tokens like the range
+   * highlight. Local to this screen, never sent.
+   */
+  setTemplateCells(cells: readonly Cell[], grid: SceneGrid): void;
   destroy(): void;
 }
 
@@ -79,11 +85,19 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
   // Layered so a redraw of the map never lands on top of the tokens, and the
   // range highlight sits under them too.
   const mapLayer = new pixi.Container();
+  const templateLayer = new pixi.Container();
   const highlightLayer = new pixi.Container();
   const exitLayer = new pixi.Container();
   const tokenLayer = new pixi.Container();
   const rulerLayer = new pixi.Container();
-  world.addChild(mapLayer, highlightLayer, exitLayer, tokenLayer, rulerLayer);
+  world.addChild(
+    mapLayer,
+    templateLayer,
+    highlightLayer,
+    exitLayer,
+    tokenLayer,
+    rulerLayer,
+  );
   app.stage.addChild(world);
 
   /** The grid sprite and its cell size, so `setCamera` can fade it as the cells shrink (`gridAlpha`). */
@@ -271,6 +285,26 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
       }
       shade.fill({ color: 0xcc3333, alpha: 0.3 });
       highlightLayer.addChild(shade);
+    },
+
+    setTemplateCells(cells, grid) {
+      for (const child of templateLayer.removeChildren()) {
+        child.destroy({ children: true });
+      }
+      if (cells.length === 0) {
+        return;
+      }
+      const shade = new pixi.Graphics();
+      for (const cell of cells) {
+        shade.rect(
+          grid.offsetX + cell.col * grid.size,
+          grid.offsetY + cell.row * grid.size,
+          grid.size,
+          grid.size,
+        );
+      }
+      shade.fill({ color: 0x3366cc, alpha: 0.3 });
+      templateLayer.addChild(shade);
     },
 
     setExits(exits, cell) {
