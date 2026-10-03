@@ -9,13 +9,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createActor } from './actors.js';
 import {
   addCombatant,
+  cascadeCombatDeletion,
   combatantPermissions,
   combatPermissions,
   createCombat,
   removeCombatant,
 } from './combat.js';
 import { addPartyMember } from './party.js';
-import { createScene } from './scenes.js';
+import { createScene, deleteScene } from './scenes.js';
 import { placeToken } from './tokens.js';
 import { createWorld, type WorldStore } from './worldStore.js';
 
@@ -249,4 +250,94 @@ describe('permissions', () => {
     expect(combatantPermissions('active', false).default).toBe('observer');
     expect(combatantPermissions('active', true).default).toBe('none');
   });
+});
+
+describe('cascadeCombatDeletion', () => {
+  const envelope = (id: string): BaseDocument => baseDocumentSchemaFor(id);
+
+  function baseDocumentSchemaFor(id: string): BaseDocument {
+    return {
+      id,
+      worldId: store.world.id,
+      type: 'token',
+      schemaVersion: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+      permissions: { default: 'none', seats: {} },
+    };
+  }
+
+  it("removes a deleted token's combatant and ends conditions anchored to it", () => {
+    const { seat, scene, put } = setup();
+    const valeria = put('Valeria');
+    const goblin = put('Goblin');
+    const { combatants } = createCombat(store, seat, { sceneId: scene.id });
+    const mine = combatants.find((c) => c.tokenId === valeria.token.id)!;
+    const held = actorSchema.parse(store.getDocument(goblin.actor.id));
+    save({
+      ...held,
+      system: {
+        ...(held.system as object),
+        conditions: [
+          {
+            slug: 'grabbed',
+            duration: { type: 'turn', combatantId: mine.id, boundary: 'end' },
+          },
+        ],
+      },
+    } as BaseDocument);
+
+    store.deleteDocument(valeria.token.id);
+    const { deleted, changed } = cascadeCombatDeletion(store, [
+      envelope(valeria.token.id),
+    ]);
+    expect(deleted.map((doc) => doc.id)).toEqual([mine.id]);
+    expect(store.getDocument(mine.id)).toBeUndefined();
+    expect(changed.map((doc) => doc.id)).toEqual([goblin.actor.id]);
+    expect(combatantsLeft()).toHaveLength(1);
+  });
+
+  it('clears the active pointer when a surviving combat loses its active combatant', () => {
+    const { seat, scene, put } = setup();
+    put('Valeria');
+    put('Goblin');
+    const { combat, combatants } = createCombat(store, seat, { sceneId: scene.id });
+    const [first] = combatants;
+    save({ ...combat, status: 'active', activeCombatantId: first!.id } as BaseDocument);
+
+    store.deleteDocument(first!.tokenId);
+    const { changed } = cascadeCombatDeletion(store, [envelope(first!.tokenId)]);
+    expect(changed.map((doc) => doc.id)).toEqual([combat.id]);
+    expect(
+      combatSchema.parse(store.getDocument(combat.id)).activeCombatantId,
+    ).toBeUndefined();
+  });
+
+  it("deletes a deleted scene's combats and every combatant in them", () => {
+    const { seat, scene, put } = setup();
+    put('Valeria');
+    put('Goblin');
+    const { combat } = createCombat(store, seat, { sceneId: scene.id });
+    const { deleted: sceneDeleted } = deleteScene(store, seat, { sceneId: scene.id });
+    const { deleted } = cascadeCombatDeletion(store, sceneDeleted);
+    expect(deleted).toHaveLength(3);
+    expect(deleted.map((doc) => doc.id)).toContain(combat.id);
+    expect(store.listDocuments('combat')).toEqual([]);
+    expect(combatantsLeft()).toEqual([]);
+  });
+
+  it('leaves other combats and combatants alone', () => {
+    const { seat, scene, put } = setup();
+    put('Valeria');
+    createCombat(store, seat, { sceneId: scene.id });
+    expect(cascadeCombatDeletion(store, [envelope(crypto.randomUUID())])).toEqual({
+      deleted: [],
+      changed: [],
+    });
+    expect(combatantsLeft()).toHaveLength(1);
+  });
+
+  function combatantsLeft(): unknown[] {
+    return store.listDocuments('combatant');
+  }
 });

@@ -232,3 +232,66 @@ export function removeCombatant(
     changed: clearAnchoredConditions(store, combatant.id),
   };
 }
+
+export interface CombatCascade {
+  /** Bare envelopes of the combatants (and combats) that went with what was deleted. */
+  readonly deleted: BaseDocument[];
+  /** Documents changed along the way: actors whose anchored conditions ended, and a combat that lost its active combatant. */
+  readonly changed: BaseDocument[];
+}
+
+/**
+ * What else goes when tokens or scenes are deleted: a deleted token's combatants,
+ * and a deleted scene's combats with all their combatants, so nothing is left
+ * pointing at nothing. Conditions anchored to a combatant that goes end with it,
+ * and a surviving combat whose active combatant went loses that pointer. Not
+ * GM-checked: it follows a deletion that was (a token, a scene) or that the actor's
+ * owner may do. `deleted` lists the envelopes already removed; only their ids are read.
+ */
+export function cascadeCombatDeletion(
+  store: WorldStore,
+  deleted: readonly BaseDocument[],
+): CombatCascade {
+  const gone = new Set(deleted.map((document) => document.id));
+  const combats = store.listDocuments('combat').flatMap((raw) => {
+    const parsed = combatSchema.safeParse(raw);
+    return parsed.success ? [parsed.data] : [];
+  });
+  const doomed = new Set(
+    combats.filter((combat) => gone.has(combat.sceneId)).map((combat) => combat.id),
+  );
+
+  const removed = new Set<string>();
+  const result: CombatCascade = { deleted: [], changed: [] };
+  const changed = new Map<string, BaseDocument>();
+  for (const raw of store.listDocuments('combatant')) {
+    const combatant = combatantSchema.safeParse(raw);
+    if (
+      combatant.success &&
+      (gone.has(combatant.data.tokenId) || doomed.has(combatant.data.combatId))
+    ) {
+      store.deleteDocument(combatant.data.id);
+      removed.add(combatant.data.id);
+      result.deleted.push(baseDocumentSchema.parse(combatant.data));
+      for (const actor of clearAnchoredConditions(store, combatant.data.id)) {
+        changed.set(actor.id, actor);
+      }
+    }
+  }
+  for (const combat of combats) {
+    if (doomed.has(combat.id)) {
+      store.deleteDocument(combat.id);
+      result.deleted.push(baseDocumentSchema.parse(combat));
+    } else if (
+      combat.activeCombatantId !== undefined &&
+      removed.has(combat.activeCombatantId)
+    ) {
+      const { activeCombatantId: _active, ...rest } = combat;
+      const updated: Combat = { ...rest, updatedAt: new Date().toISOString() };
+      store.putDocument(updated);
+      changed.set(updated.id, updated);
+    }
+  }
+  result.changed.push(...changed.values());
+  return result;
+}
