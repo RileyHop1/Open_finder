@@ -106,14 +106,15 @@ const view = {
   setTokens: vi.fn(),
   setExits: vi.fn(),
   setRuler: vi.fn(),
+  setHighlightedCells: vi.fn(),
   destroy: vi.fn(),
 };
 
 const mounted: { unmount: () => void }[] = [];
 
-function mountView() {
+function mountView(props: Record<string, unknown> = {}) {
   const wrapper = mount(MapView, {
-    props: { worldId: 'world-1' },
+    props: { worldId: 'world-1', ...props },
     // Attached to the page so focus can be asserted.
     attachTo: document.body,
     global: { stubs: { MapCanvas: CanvasStub } },
@@ -470,6 +471,27 @@ describe('tokens', () => {
       expect.objectContaining({ label: 'Valeros', diameter: 200, x: 250, y: 350 }),
     ]);
     expect(view.setTokens.mock.lastCall?.[2]).toBe(100);
+  });
+
+  it('forwards the action bar’s range highlight to the scene, by the scene’s grid', async () => {
+    const scene = makeScene();
+    state.shownScene = scene;
+    const cells = [{ col: 2, row: 2 }];
+    const wrapper = mountView({ highlightedCells: cells });
+    await ready(wrapper);
+
+    expect(view.setHighlightedCells).toHaveBeenLastCalledWith(cells, scene.grid);
+  });
+
+  it('clears the highlight, rather than leaving the last one, once it goes away', async () => {
+    const scene = makeScene();
+    state.shownScene = scene;
+    const wrapper = mountView({ highlightedCells: [{ col: 2, row: 2 }] });
+    await ready(wrapper);
+
+    await wrapper.setProps({ highlightedCells: [] });
+    await flushPromises();
+    expect(view.setHighlightedCells).toHaveBeenLastCalledWith([], scene.grid);
   });
 
   it('marks the active combatant’s token on turn, and only that one', async () => {

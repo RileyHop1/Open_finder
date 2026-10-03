@@ -64,6 +64,7 @@
  * Escape puts it away. It is local to this screen. The keyboard equivalent is in
  * the token list, which says how far each token is from the selected one.
  */
+import type { Cell } from '@hearthtable/core';
 import type { Application } from 'pixi.js';
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 
@@ -111,7 +112,11 @@ import TokenMenu from './TokenMenu.vue';
 const PORTRAIT_TEXTURE_SIZE = 256;
 import { createSceneView, maxTextureSize, type SceneView } from './sceneView.js';
 
-const props = defineProps<{ worldId: string }>();
+const props = defineProps<{
+  worldId: string;
+  /** The action bar's range highlight (TableView.vue): shaded red, under the tokens. */
+  highlightedCells?: readonly Cell[] | undefined;
+}>();
 
 const emit = defineEmits<{ openActor: [actorId: string]; nextTurn: [] }>();
 
@@ -234,6 +239,9 @@ function drawTokens(): void {
   view?.setTokens(views.value, portraits, scenes.shownScene?.grid.size ?? 100);
   view?.setExits(exits.value, scenes.shownScene?.grid.size ?? 100);
   view?.setRuler(rulerPath.value, scenes.shownScene?.grid.size ?? 100);
+  if (scenes.shownScene !== undefined) {
+    view?.setHighlightedCells(props.highlightedCells ?? [], scenes.shownScene.grid);
+  }
 }
 
 function loadPortraits(): void {
@@ -950,10 +958,13 @@ function release(): void {
 }
 
 // Tokens and the actors behind them change often (a drag preview, a rename): redraw only the tokens.
-watch([views, exits, rulerPath, () => scenes.shownScene?.grid.size], () => {
-  drawTokens();
-  loadPortraits();
-});
+watch(
+  [views, exits, rulerPath, () => scenes.shownScene?.grid, () => props.highlightedCells],
+  () => {
+    drawTokens();
+    loadPortraits();
+  },
+);
 
 watch(drawKey, (key, previous) => {
   if (key === undefined) {

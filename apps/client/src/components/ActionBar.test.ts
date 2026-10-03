@@ -16,6 +16,9 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
           { label: '2nd', attackNumber: 2, total: 2 },
           { label: '3rd', attackNumber: 3, total: -3 },
         ],
+        ranged: false,
+        reach: false,
+        rangeFeet: undefined,
       },
     ],
     basics: [{ slug: 'stride', name: 'Stride', cost: 1 }],
@@ -101,5 +104,22 @@ describe('ActionBar', () => {
       props: { view: view({ canAct: false }), label: 'Ada', gm: false, canUndo: true },
     });
     expect(wrapper.find('.undo').exists()).toBe(false);
+  });
+
+  it('emits hoverStrike on mouseenter or focus, and unhoverStrike on mouseleave or blur', async () => {
+    const wrapper = mount(ActionBar, {
+      props: { view: view(), label: 'Ada', gm: false, canUndo: false },
+    });
+    const button = wrapper.find('button[aria-label="Sword 1st attack, +7"]');
+
+    await button.trigger('mouseenter');
+    expect(wrapper.emitted('hoverStrike')).toEqual([[view().strikes[0]]]);
+    await button.trigger('mouseleave');
+    expect(wrapper.emitted('unhoverStrike')).toHaveLength(1);
+
+    await button.trigger('focus');
+    expect(wrapper.emitted('hoverStrike')).toHaveLength(2);
+    await button.trigger('blur');
+    expect(wrapper.emitted('unhoverStrike')).toHaveLength(2);
   });
 });

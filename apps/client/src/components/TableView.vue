@@ -32,13 +32,15 @@ import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
 import ActionBar from './ActionBar.vue';
-import { actionBarView } from './actionBarModel.js';
+import { actionBarView, type ActionBarStrike } from './actionBarModel.js';
 import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import MapView from './map/MapView.vue';
+import { gridForScene } from './map/mapGrid.js';
 import { startActorDrag } from './map/placement.js';
+import { cellsInRange } from './map/rangeHighlight.js';
 import MonsterPicker from './scenes/MonsterPicker.vue';
 import SceneManager from './scenes/SceneManager.vue';
 import TurnBar from './TurnBar.vue';
@@ -127,6 +129,14 @@ function setTrayReaction(used: boolean): void {
   }
 }
 
+/** The map-selected token, if any -- shared by the action bar and its range highlight. */
+const selectedToken = computed(() => {
+  const tokenId = mapView.value?.selectedId;
+  return tokenId === undefined
+    ? undefined
+    : scenes.shownTokens.find((t) => t.id === tokenId);
+});
+
 /**
  * The action bar: the map-selected token's strikes and basic actions, across
  * the bottom of the map. Selecting a token is still unrestricted (it also
@@ -135,9 +145,7 @@ function setTrayReaction(used: boolean): void {
  * actor they own -- the same way `ActionTray`'s controls do.
  */
 const actionBar = computed(() => {
-  const tokenId = mapView.value?.selectedId;
-  const token =
-    tokenId === undefined ? undefined : scenes.shownTokens.find((t) => t.id === tokenId);
+  const token = selectedToken.value;
   if (token === undefined) {
     return undefined;
   }
@@ -211,6 +219,39 @@ function barUndo(): void {
   if (combatantId !== undefined) {
     void combat.undoLastSpend(combatantId);
   }
+}
+
+/** The strike whose range is shown on the map right now (hovered or focused in the bar). */
+const hoveredStrike = ref<ActionBarStrike>();
+
+/**
+ * The range highlight: every cell the hovered strike could reach from the
+ * selected token, shaded on the map. Empty with nothing hovered, no
+ * selected token, or an unknown range (a ranged NPC strike).
+ */
+const mapHighlight = computed(() => {
+  const strike = hoveredStrike.value;
+  const token = selectedToken.value;
+  const scene = scenes.shownScene;
+  if (strike === undefined || token === undefined || scene === undefined) {
+    return [];
+  }
+  const grid = gridForScene(scene);
+  const feet = strike.ranged
+    ? strike.rangeFeet
+    : token.size * scene.grid.distance + (strike.reach ? 5 : 0);
+  return cellsInRange(grid, { x: token.x, y: token.y }, token.size, {
+    ranged: strike.ranged,
+    feet,
+  });
+});
+
+function barHoverStrike(strike: ActionBarStrike): void {
+  hoveredStrike.value = strike;
+}
+
+function barUnhoverStrike(): void {
+  hoveredStrike.value = undefined;
 }
 
 const selectedId = ref<string>();
@@ -510,6 +551,7 @@ async function handleCreate(): Promise<void> {
           <MapView
             ref="mapView"
             :world-id="worldId"
+            :highlighted-cells="mapHighlight"
             @open-actor="openSheetOf"
             @next-turn="combat.nextTurn"
           />
@@ -525,6 +567,8 @@ async function handleCreate(): Promise<void> {
           @basic-action="barBasicAction"
           @freeform="barFreeform"
           @undo="barUndo"
+          @hover-strike="barHoverStrike"
+          @unhover-strike="barUnhoverStrike"
         />
 
         <Transition name="drawer">
