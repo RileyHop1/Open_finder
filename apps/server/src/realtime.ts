@@ -79,6 +79,7 @@ import {
   spendAction,
   startCombat,
 } from './combat.js';
+import { placeTemplate, removeTemplate } from './templates.js';
 import type { CompendiumIndex } from './compendium.js';
 import {
   addConditionToActor,
@@ -522,6 +523,21 @@ function dispatch(
         seatId: seat.id,
         seats: [],
         documents: scene === undefined ? [] : [scene],
+      };
+    }
+    case 'template.place': {
+      const seat = requireSeat(store, socket);
+      const { template, messages } = placeTemplate(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [template, ...messages] };
+    }
+    case 'template.remove': {
+      const seat = requireSeat(store, socket);
+      const removed = removeTemplate(store, seat, operation.payload);
+      return {
+        seatId: seat.id,
+        seats: [],
+        documents: [],
+        ...(removed === undefined ? {} : { deleted: [removed] }),
       };
     }
     case 'combat.create': {
