@@ -37,15 +37,22 @@ const SWORD: WeaponEntry = {
   hands: 1,
 };
 
+const REACH_SWORD: WeaponEntry = { ...SWORD, traits: ['reach'] };
+const BOW: WeaponEntry = { ...SWORD, kind: 'weapon', group: 'bow', range: 60 };
+
 /** Str +4, martial trained: +7 to hit, so the MAP variants are +7 / +2 / −3. */
-function makeCharacter(): Actor {
+function makeCharacter(weapons: WeaponEntry[] = [SWORD]): Actor {
   const base2 = newCharacterData();
-  const itemId = crypto.randomUUID();
   const data: CharacterData = {
     ...base2,
     attributes: { ...base2.attributes, str: 4 },
     ranks: { ...base2.ranks, weapons: { ...base2.ranks.weapons, martial: 'trained' } },
-    items: [{ id: itemId, entry: SWORD, equipped: true, quantity: 1 }],
+    items: weapons.map((entry) => ({
+      id: crypto.randomUUID(),
+      entry,
+      equipped: true,
+      quantity: 1,
+    })),
   };
   return actorSchema.parse({
     ...base('actor'),
@@ -83,6 +90,20 @@ describe('actionBarView', () => {
   it('names an NPC’s strike by its strike key, not an item id', () => {
     const view = actionBarView(makeNpc(), undefined);
     expect(view.strikes[0]?.target).toEqual({ strikeKey: 'strike:vine' });
+  });
+
+  it('carries whether a strike is melee or ranged, and a reach weapon’s trait', () => {
+    const view = actionBarView(makeCharacter([SWORD, REACH_SWORD, BOW]), undefined);
+    expect(view.strikes.map((s) => [s.ranged, s.reach, s.rangeFeet])).toEqual([
+      [false, false, undefined],
+      [false, true, undefined],
+      [true, false, 60],
+    ]);
+  });
+
+  it('leaves an NPC strike’s reach and range unknown: no weapon entry to read them from', () => {
+    const view = actionBarView(makeNpc(), undefined);
+    expect(view.strikes[0]).toMatchObject({ reach: false, rangeFeet: undefined });
   });
 
   it('lists the basic actions, and says whether there is a combatant to spend against', () => {

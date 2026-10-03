@@ -162,14 +162,27 @@ that token's own turn: strikes and basic actions, both spending via
   Spending it posts a chat line naming it, so the table sees what happened.
 
 **Implemented in C.5a** (`apps/client/src/components/ActionBar.vue`,
-`actionBarModel.ts`). Still open under the same checklist item: range
-highlighting for the selected action, and movement spending actions.
+`actionBarModel.ts`). Still open under the same checklist item: movement
+spending actions.
 
 **Implemented in C.5b**: "Undo last action" on the bar, backed by a
 per-combatant stack of this turn's recorded spends
 (`stores/combat.ts`'s `turnLog`) that lives only in the browser. It is
 cleared the moment the active combatant changes, never kept past the turn
 it was recorded on.
+
+**Implemented in C.5c: range highlighting.** Hovering or focusing a strike's
+attack button (never only on hover, so a keyboard user gets it too) shades
+every cell it could reach from the selected token red at 30% opacity, under
+the tokens; losing hover or focus clears it. A melee strike threatens like
+reach does (A.10's `threatenedCells`, the token's footprint size times the
+scene's grid distance, plus 5 feet for a weapon's `reach` trait); a ranged
+strike is a burst around the token's centre out to the weapon's `range`.
+Basic actions and NPC ranged strikes (no weapon entry to read a range from)
+are not highlighted — a visible gap, not a guessed number.
+`apps/client/src/components/map/rangeHighlight.ts` (the pure geometry) and
+`sceneView.ts`'s `setHighlightedCells` (the drawing) do the work; the
+feature is purely visual and binds nothing the server enforces.
 
 ## Two documents
 A `Combat` holds only where the encounter is in time. Each creature in it is a

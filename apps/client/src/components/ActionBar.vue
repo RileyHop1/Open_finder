@@ -8,7 +8,9 @@
  * spends, and is hidden with no combatant to spend against. The GM alone
  * gets "Other action", a free-text entry for whatever the table asks for
  * that the system doesn't model, spending its chosen cost and naming it in
- * chat.
+ * chat. Hovering or focusing a strike's attack button highlights its range
+ * on the map (never only on hover, so a keyboard user gets it from focus
+ * too); losing hover or focus clears it.
  */
 import { ref } from 'vue';
 
@@ -27,6 +29,8 @@ const emit = defineEmits<{
   basicAction: [slug: string, cost: number];
   freeform: [label: string, cost: number];
   undo: [];
+  hoverStrike: [strike: ActionBarView['strikes'][number]];
+  unhoverStrike: [];
 }>();
 
 const freeformLabel = ref('');
@@ -52,6 +56,10 @@ function submitFreeform(): void {
           type="button"
           :aria-label="`${strike.name} ${attack.label} attack, ${attack.total >= 0 ? '+' : ''}${attack.total}`"
           @click="emit('strike', strike.target, attack.attackNumber)"
+          @mouseenter="emit('hoverStrike', strike)"
+          @mouseleave="emit('unhoverStrike')"
+          @focus="emit('hoverStrike', strike)"
+          @blur="emit('unhoverStrike')"
         >
           {{ attack.label }} {{ attack.total >= 0 ? '+' : '' }}{{ attack.total }}
         </button>

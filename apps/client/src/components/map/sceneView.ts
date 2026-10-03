@@ -17,7 +17,7 @@
  * (the camera, the image limits) is pure and unit-tested.
  */
 
-import type { Point, Scene } from '@hearthtable/core';
+import type { Cell, Point, Scene, SceneGrid } from '@hearthtable/core';
 import type * as Pixi from 'pixi.js';
 
 import { type Camera, gridAlpha, type Size, worldTransform } from './camera.js';
@@ -51,6 +51,12 @@ export interface SceneView {
    * line with a dot at each, above the tokens. Local to this screen, never sent.
    */
   setRuler(points: readonly Point[], cell: number): void;
+  /**
+   * Shades `cells` red at low opacity (an empty array clears it): the action
+   * bar's range highlight while a strike is hovered, under the tokens so a
+   * portrait is never obscured. Local to this screen, never sent.
+   */
+  setHighlightedCells(cells: readonly Cell[], grid: SceneGrid): void;
   destroy(): void;
 }
 
@@ -70,12 +76,14 @@ const BACKDROP_COLOUR = 0x2b2722;
 
 export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): SceneView {
   const world = new pixi.Container();
-  // Two layers, so a redraw of the map never lands on top of the tokens.
+  // Layered so a redraw of the map never lands on top of the tokens, and the
+  // range highlight sits under them too.
   const mapLayer = new pixi.Container();
+  const highlightLayer = new pixi.Container();
   const exitLayer = new pixi.Container();
   const tokenLayer = new pixi.Container();
   const rulerLayer = new pixi.Container();
-  world.addChild(mapLayer, exitLayer, tokenLayer, rulerLayer);
+  world.addChild(mapLayer, highlightLayer, exitLayer, tokenLayer, rulerLayer);
   app.stage.addChild(world);
 
   /** The grid sprite and its cell size, so `setCamera` can fade it as the cells shrink (`gridAlpha`). */
@@ -243,6 +251,26 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
         line.circle(point.x, point.y, width * 1.6).fill(0xffc857);
       }
       rulerLayer.addChild(line);
+    },
+
+    setHighlightedCells(cells, grid) {
+      for (const child of highlightLayer.removeChildren()) {
+        child.destroy({ children: true });
+      }
+      if (cells.length === 0) {
+        return;
+      }
+      const shade = new pixi.Graphics();
+      for (const cell of cells) {
+        shade.rect(
+          grid.offsetX + cell.col * grid.size,
+          grid.offsetY + cell.row * grid.size,
+          grid.size,
+          grid.size,
+        );
+      }
+      shade.fill({ color: 0xcc3333, alpha: 0.3 });
+      highlightLayer.addChild(shade);
     },
 
     setExits(exits, cell) {
