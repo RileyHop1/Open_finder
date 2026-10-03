@@ -73,6 +73,7 @@ import { useLobbyStore } from '../../stores/lobby.js';
 import { useScenesStore } from '../../stores/scenes.js';
 import {
   type Camera,
+  constrainCamera,
   fitCamera,
   type Point,
   sceneToScreen,
@@ -719,7 +720,24 @@ function placeAtCentre(actorId: string, covered?: Covered): Promise<void> {
   );
 }
 
-defineExpose({ placeAtCentre });
+/**
+ * Selects `tokenId` and centres the camera on it (the turn bar's portraits), at the
+ * zoom the user has. A token this seat cannot see on this scene is ignored.
+ */
+function focusToken(tokenId: string): void {
+  const scene = scenes.shownScene;
+  const token = scenes.shownTokens.find((t) => t.id === tokenId);
+  if (scene === undefined || token === undefined || camera === undefined) {
+    return;
+  }
+  apply(
+    constrainCamera({ ...camera, x: token.x, y: token.y }, scene, viewportSize()),
+    false,
+  );
+  selectFromList(tokenId);
+}
+
+defineExpose({ placeAtCentre, focusToken });
 
 /** Whether a drag carries a character from the roster, and this seat may place it (the GM). */
 function isActorDrag(event: DragEvent): boolean {

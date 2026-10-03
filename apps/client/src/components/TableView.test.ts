@@ -72,6 +72,8 @@ beforeEach(() => {
   vi.mocked(documentsApi.getParty).mockResolvedValue(undefined);
   vi.mocked(documentsApi.listScenes).mockResolvedValue([]);
   vi.mocked(documentsApi.listTokens).mockResolvedValue([]);
+  vi.mocked(documentsApi.listCombats).mockResolvedValue([]);
+  vi.mocked(documentsApi.listCombatants).mockResolvedValue([]);
   vi.mocked(useLobbyStore).mockReturnValue({
     releaseSeat,
     get mySeat() {
@@ -136,6 +138,50 @@ describe('layout', () => {
     expect(wrapper.find('.playing-as').text()).toContain('Valeros');
     await wrapper.find('.playing-as button').trigger('click');
     expect(releaseSeat).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the turn bar', () => {
+  it('is absent while no combat is active, and shown with one', async () => {
+    const scene = sceneSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'scene',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      name: 'Bog',
+      kind: 'battle',
+    });
+    vi.mocked(documentsApi.listScenes).mockResolvedValue([scene]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue({
+      ...makeParty([]),
+      sceneId: scene.id,
+    });
+
+    const absent = await mountTable();
+    expect(absent.find('[data-testid="turn-bar"]').exists()).toBe(false);
+    absent.unmount();
+
+    vi.mocked(documentsApi.listCombats).mockResolvedValue([
+      {
+        id: crypto.randomUUID(),
+        worldId: WORLD,
+        type: 'combat',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        status: 'active',
+        round: 1,
+        freeMovement: false,
+      },
+    ]);
+    const shown = await mountTable();
+    expect(shown.find('[data-testid="turn-bar"]').exists()).toBe(true);
+    expect(shown.text()).toContain('Round 1');
   });
 });
 

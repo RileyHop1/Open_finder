@@ -27,6 +27,7 @@ import { resolvePermission } from '@hearthtable/core';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
 import { uploadAsset } from '../api/assets.js';
+import { useCombatStore } from '../stores/combat.js';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
@@ -36,6 +37,8 @@ import MapView from './map/MapView.vue';
 import { startActorDrag } from './map/placement.js';
 import MonsterPicker from './scenes/MonsterPicker.vue';
 import SceneManager from './scenes/SceneManager.vue';
+import TurnBar from './TurnBar.vue';
+import { turnBarItems } from './turnBarModel.js';
 import { useDrawer } from './useDrawer.js';
 import PartyBar from './PartyBar.vue';
 import PartyManager from './PartyManager.vue';
@@ -52,6 +55,24 @@ const props = defineProps<{ worldId: string; seatName: string }>();
 const documents = useDocumentsStore();
 const lobby = useLobbyStore();
 const scenes = useScenesStore();
+const combat = useCombatStore();
+
+/** The turn bar shows only while a combat is running on the scene this browser shows. */
+const turnBar = computed(() => {
+  const active = combat.activeCombat;
+  return active?.status === 'active'
+    ? {
+        round: active.round,
+        items: turnBarItems(
+          combat.order,
+          active.activeCombatantId,
+          scenes.shownTokens,
+          documents.actorById,
+          props.worldId,
+        ),
+      }
+    : undefined;
+});
 
 const selectedId = ref<string>();
 const selected = computed(() =>
@@ -195,6 +216,7 @@ const openNextNew = ref(false);
 onMounted(() => {
   void documents.load(props.worldId);
   void scenes.load(props.worldId);
+  void combat.load(props.worldId);
 });
 
 // A deleted character cannot stay selected.
@@ -299,6 +321,14 @@ async function handleCreate(): Promise<void> {
             Scenes
           </button>
         </p>
+
+        <TurnBar
+          v-if="turnBar !== undefined"
+          :items="turnBar.items"
+          :round="turnBar.round"
+          :unseen-acting="combat.activeIsUnseen"
+          @focus="(tokenId) => mapView?.focusToken(tokenId)"
+        />
 
         <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
           You are previewing <strong>{{ scenes.shownScene?.name }}</strong
