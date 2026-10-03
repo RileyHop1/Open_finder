@@ -1,12 +1,13 @@
 <script setup lang="ts">
 /**
  * Hit points at the table: the numbers in words, and for an owner or the GM
- * an amount box with Damage, Heal, and Temp HP buttons. The arithmetic is
- * `applyDamage` / `applyHealing` / `grantTemporaryHitPoints` in `systems/pf2e`
- * (temporary hit points soak damage first, healing stops at the maximum,
- * temporary hit points do not stack), so every place that changes hit points
- * follows the same rules. The result is emitted as the two stored fields, for
- * the parent to send as one `actor.update`.
+ * an amount box with Damage, Heal, and Temp HP buttons. Damage and Heal are
+ * sent as `actor.applyDamage` / `actor.heal` (M5 C.8a), which run the whole
+ * dying chain server-side in the same operation (knock out, dying, massive
+ * damage, revive) -- a plain `actor.update` would bypass it entirely. Temp
+ * HP has no such operation, so it still computes locally with
+ * `grantTemporaryHitPoints` (temporary hit points do not stack) and is sent
+ * as a raw field change by the parent.
  *
  * Setting a value directly is the GM override and lives in the sheet's edit
  * mode ("Current Hit Points", "Temporary Hit Points"); nothing here is a
@@ -14,11 +15,8 @@
  */
 import type { Actor } from '@hearthtable/core';
 import {
-  applyDamage,
-  applyHealing,
   characterDataSchema,
   grantTemporaryHitPoints,
-  type HitPointState,
   npcDataSchema,
   prepareCharacter,
   prepareNpc,
@@ -26,7 +24,11 @@ import {
 import { computed, ref } from 'vue';
 
 const props = defineProps<{ actor: Actor; editable?: boolean }>();
-const emit = defineEmits<{ change: [changes: Record<string, number>] }>();
+const emit = defineEmits<{
+  change: [changes: Record<string, number>];
+  damage: [amount: number, critical: boolean];
+  heal: [amount: number];
+}>();
 
 /** A character's or a monster's hit points: both store `system.hp.current` and `.temp`, and prepare a maximum. */
 const prepared = computed(() => {
@@ -46,30 +48,40 @@ const validAmount = computed(
     amount.value >= 1,
 );
 
-function apply(
-  change: (state: HitPointState, amount: number, max: number) => HitPointState,
-): void {
+/** Whether the hit damage was a critical hit: doubles the dying value on a knockout (`docs/conditions.md`). */
+const critical = ref(false);
+
+function damage(): void {
+  if (typeof amount.value !== 'number' || !validAmount.value) {
+    return;
+  }
+  emit('damage', amount.value, critical.value);
+  amount.value = '';
+  critical.value = false;
+}
+
+function heal(): void {
+  if (typeof amount.value !== 'number' || !validAmount.value) {
+    return;
+  }
+  emit('heal', amount.value);
+  amount.value = '';
+}
+
+function grantTemp(): void {
   const hp = prepared.value?.hp;
   if (hp === undefined || typeof amount.value !== 'number' || !validAmount.value) {
     return;
   }
-  const next = change({ current: hp.current, temp: hp.temp }, amount.value, hp.max.total);
-  const changes: Record<string, number> = {};
-  if (next.current !== hp.current) {
-    changes['system.hp.current'] = next.current;
-  }
-  if (next.temp !== hp.temp) {
-    changes['system.hp.temp'] = next.temp;
-  }
+  const next = grantTemporaryHitPoints(
+    { current: hp.current, temp: hp.temp },
+    amount.value,
+  );
   amount.value = '';
-  if (Object.keys(changes).length > 0) {
-    emit('change', changes);
+  if (next.temp !== hp.temp) {
+    emit('change', { 'system.hp.temp': next.temp });
   }
 }
-
-const damage = () => apply((state, n) => applyDamage(state, n));
-const heal = () => apply((state, n, max) => applyHealing(state, n, max));
-const grantTemp = () => apply((state, n) => grantTemporaryHitPoints(state, n));
 </script>
 
 <template>
@@ -84,6 +96,10 @@ const grantTemp = () => apply((state, n) => grantTemporaryHitPoints(state, n));
     <form v-if="editable" class="hp-controls" @submit.prevent="damage">
       <label for="hp-amount">Amount</label>
       <input id="hp-amount" v-model.number="amount" type="number" min="1" step="1" />
+      <label for="hp-critical" class="critical-label">
+        <input id="hp-critical" v-model="critical" type="checkbox" />
+        Critical hit
+      </label>
       <button type="submit" :disabled="!validAmount">Damage</button>
       <button type="button" :disabled="!validAmount" @click="heal">Heal</button>
       <button type="button" :disabled="!validAmount" @click="grantTemp">Temp HP</button>
@@ -115,7 +131,13 @@ p {
   min-height: var(--touch-target-min);
 }
 
-.hp-controls input {
+.critical-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.hp-controls input[type='number'] {
   width: 5rem;
 }
 
