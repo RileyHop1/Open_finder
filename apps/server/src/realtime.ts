@@ -56,6 +56,7 @@ import {
   updateActor,
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
+import { applyDamageToActor, healActor } from './hitPoints.js';
 import {
   cascadeCombatDeletion,
   createCombat,
@@ -582,6 +583,26 @@ function dispatch(
     case 'combat.spendAction': {
       const seat = requireSeat(store, socket);
       const { documents } = spendAction(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'actor.applyDamage': {
+      const seat = requireSeat(store, socket);
+      const { documents } = applyDamageToActor(
+        store,
+        seat,
+        compendium.conditions(),
+        operation.payload,
+      );
+      return { seatId: seat.id, seats: [], documents };
+    }
+    case 'actor.heal': {
+      const seat = requireSeat(store, socket);
+      const { documents } = healActor(
+        store,
+        seat,
+        compendium.conditions(),
+        operation.payload,
+      );
       return { seatId: seat.id, seats: [], documents };
     }
     default:

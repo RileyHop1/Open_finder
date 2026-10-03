@@ -635,6 +635,38 @@ export const combatSpendActionOperationSchema = clientOperationSchema.extend({
     ),
 });
 
+/** The most hit points one damage or healing operation may move: a sanity bound. */
+export const MAX_HIT_POINT_CHANGE = 100_000;
+
+/**
+ * Deal damage to a character or monster. Owner or GM. Temporary hit points go
+ * first. A character dropped to 0 is knocked out (dying, plus wounded), damage at 0
+ * raises dying, and enough left over kills outright; `critical` is the caller's
+ * (a critical hit raises dying by 2). A monster at 0 is marked defeated in an
+ * active combat. See docs/conditions.md, "The dying chain".
+ */
+export const actorApplyDamageOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.applyDamage'),
+  payload: z.object({
+    actorId: idSchema,
+    amount: z.number().int().min(0).max(MAX_HIT_POINT_CHANGE),
+    critical: z.boolean().optional(),
+  }),
+});
+
+/**
+ * Heal a character or monster, up to its maximum. Owner or GM. Healing a character
+ * above 0 ends dying and unconsciousness (raising wounded if it was dying); a dead
+ * character is refused, since the GM revives by hand.
+ */
+export const actorHealOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.heal'),
+  payload: z.object({
+    actorId: idSchema,
+    amount: z.number().int().min(0).max(MAX_HIT_POINT_CHANGE),
+  }),
+});
+
 /**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
@@ -685,6 +717,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatPreviousTurnOperationSchema,
   combatSetMovementRulingOperationSchema,
   combatSpendActionOperationSchema,
+  actorApplyDamageOperationSchema,
+  actorHealOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
