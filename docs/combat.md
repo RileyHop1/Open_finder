@@ -196,8 +196,16 @@ ticked, reduced) so the table is told and the GM can undo it by hand. The server
 
 ## Permissions
 The server derives them and a client never sets them, as for a token
-([token.md](token.md)). That arrives with the operations that create these
-documents (milestone 5's server stack); until then nothing writes one.
+([token.md](token.md)), in `apps/server/src/combat.ts`:
+
+- A **combat** is `none` to players while it is `pending` (the GM is setting it
+  up) and `observer` once it has begun or ended.
+- A **combatant** is `none` while its combat is pending or its own `hidden` flag
+  is set, and `observer` otherwise. The GM always reads everything.
+
+`combat.create`, `combat.addCombatant` and `combat.removeCombatant` are the
+operations so far ([operations.md](operations.md)). Deleting a token, an actor or
+a scene does not yet remove its combatants: that cascade follows in B.1b.
 
 ## Example
 ```ts
