@@ -17,10 +17,11 @@
  */
 
 import type { Actor, Seat } from '@hearthtable/core';
-import { actorSchema } from '@hearthtable/core';
-import type { AppliedCondition } from '@hearthtable/pf2e';
+import { actorSchema, combatantSchema } from '@hearthtable/core';
+import type { AppliedCondition, ConditionDuration } from '@hearthtable/pf2e';
 import {
   addCondition,
+  conditionDurationSchema,
   npcDataSchema,
   removeCondition,
   setCondition,
@@ -36,13 +37,46 @@ interface ConditionPayload {
   actorId: string;
   slug: string;
   value?: number | undefined;
+  duration?: Record<string, unknown> | undefined;
 }
 
-/** `{ slug, value }` with `value` left out entirely when absent (`exactOptionalPropertyTypes`). */
-function applied(payload: ConditionPayload): { slug: string; value?: number } {
-  return payload.value === undefined
-    ? { slug: payload.slug }
-    : { slug: payload.slug, value: payload.value };
+/**
+ * The payload's duration, checked: it must be a duration the game system knows,
+ * and a turn-anchored one must name a combatant that exists (a missing one would
+ * never expire it).
+ */
+function durationOf(
+  store: WorldStore,
+  payload: ConditionPayload,
+): ConditionDuration | undefined {
+  if (payload.duration === undefined) {
+    return undefined;
+  }
+  const parsed = conditionDurationSchema.safeParse(payload.duration);
+  if (!parsed.success) {
+    throw new OperationRejected('that is not a valid condition duration');
+  }
+  if (
+    parsed.data.type === 'turn' &&
+    combatantSchema.safeParse(store.getDocument(parsed.data.combatantId)).success ===
+      false
+  ) {
+    throw new OperationRejected(`no combatant found with id ${parsed.data.combatantId}`);
+  }
+  return parsed.data;
+}
+
+/** `{ slug, value, duration }` with absent fields left out entirely (`exactOptionalPropertyTypes`). */
+function applied(
+  store: WorldStore,
+  payload: ConditionPayload,
+): { slug: string; value?: number; duration?: ConditionDuration } {
+  const duration = durationOf(store, payload);
+  return {
+    slug: payload.slug,
+    ...(payload.value === undefined ? {} : { value: payload.value }),
+    ...(duration === undefined ? {} : { duration }),
+  };
 }
 
 function requireKnown(compendium: CompendiumIndex, slug: string): void {
@@ -98,7 +132,7 @@ export function addConditionToActor(
 ): Actor {
   requireKnown(compendium, payload.slug);
   return editConditions(store, seat, payload.actorId, (conditions) =>
-    addCondition(conditions, applied(payload), compendium.conditions()),
+    addCondition(conditions, applied(store, payload), compendium.conditions()),
   );
 }
 
@@ -111,7 +145,7 @@ export function setConditionOnActor(
 ): Actor {
   requireKnown(compendium, payload.slug);
   return editConditions(store, seat, payload.actorId, (conditions) =>
-    setCondition(conditions, applied(payload), compendium.conditions()),
+    setCondition(conditions, applied(store, payload), compendium.conditions()),
   );
 }
 
