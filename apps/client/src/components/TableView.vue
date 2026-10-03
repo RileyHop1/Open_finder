@@ -57,21 +57,29 @@ const lobby = useLobbyStore();
 const scenes = useScenesStore();
 const combat = useCombatStore();
 
-/** The turn bar shows only while a combat is running on the scene this browser shows. */
+/**
+ * The turn bar shows while a combat is running, or, for the GM only, when
+ * there is none yet -- that empty state is where "Start combat" lives
+ * (CLAUDE.md: nothing else may start one). A player sees nothing until a
+ * combat is active.
+ */
 const turnBar = computed(() => {
   const active = combat.activeCombat;
-  return active?.status === 'active'
-    ? {
-        round: active.round,
-        items: turnBarItems(
-          combat.order,
-          active.activeCombatantId,
-          scenes.shownTokens,
-          documents.actorById,
-          props.worldId,
-        ),
-      }
-    : undefined;
+  const isGM = lobby.mySeat?.isGM === true;
+  if (active?.status === 'active') {
+    return {
+      active: true,
+      round: active.round,
+      items: turnBarItems(
+        combat.order,
+        active.activeCombatantId,
+        scenes.shownTokens,
+        documents.actorById,
+        props.worldId,
+      ),
+    };
+  }
+  return isGM ? { active: false, round: 0, items: [] } : undefined;
 });
 
 const selectedId = ref<string>();
@@ -326,8 +334,14 @@ async function handleCreate(): Promise<void> {
           v-if="turnBar !== undefined"
           :items="turnBar.items"
           :round="turnBar.round"
+          :active="turnBar.active"
           :unseen-acting="combat.activeIsUnseen"
+          :show-controls="lobby.mySeat?.isGM === true"
           @focus="(tokenId) => mapView?.focusToken(tokenId)"
+          @start="combat.startCombat"
+          @end="combat.endCombat"
+          @next="combat.nextTurn"
+          @previous="combat.previousTurn"
         />
 
         <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
@@ -346,7 +360,12 @@ async function handleCreate(): Promise<void> {
           tabindex="-1"
           data-testid="map-pane"
         >
-          <MapView ref="mapView" :world-id="worldId" @open-actor="openSheetOf" />
+          <MapView
+            ref="mapView"
+            :world-id="worldId"
+            @open-actor="openSheetOf"
+            @next-turn="combat.nextTurn"
+          />
         </section>
 
         <Transition name="drawer">

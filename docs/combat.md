@@ -18,6 +18,12 @@ as it does today.
 - **On means `status: 'active'`**, reached only by the GM's `combat.start`. A
   combat that is `pending` (being set up) or `ended` tracks nothing. Opening a
   battle map, placing monsters, or adding combatants never starts one.
+  **Implemented in C.1b:** the turn bar's **Start combat** button is the GM's
+  only button onto the wire (`combat.create` then `combat.start`, in one
+  click); it is where the bar shows for the GM even before anything is
+  running. While a combat is active the bar also offers **Previous turn**,
+  **Next turn**, and **End combat**, plus a **Shift+N** "end turn" hotkey on
+  the map surface, GM only. None of this exists for a player.
 - **Off (no active combat):** a token moves anywhere, with no speed limit and no
   turn check. There is no turn state, no action counting, and no Multiple Attack
   Penalty from the tracker (a strike still takes an explicit attack number, as

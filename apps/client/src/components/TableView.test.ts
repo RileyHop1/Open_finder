@@ -183,6 +183,83 @@ describe('the turn bar', () => {
     expect(shown.find('[data-testid="turn-bar"]').exists()).toBe(true);
     expect(shown.text()).toContain('Round 1');
   });
+
+  function sceneWithParty() {
+    const scene = sceneSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'scene',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      name: 'Bog',
+      kind: 'battle',
+    });
+    vi.mocked(documentsApi.listScenes).mockResolvedValue([scene]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue({
+      ...makeParty([]),
+      sceneId: scene.id,
+    });
+    return scene;
+  }
+
+  it('offers the GM "Start combat" with none running, and nothing to a player', async () => {
+    sceneWithParty();
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    const gm = await mountTable();
+    expect(gm.find('[data-testid="turn-bar"]').exists()).toBe(true);
+    expect(gm.text()).toContain('Start combat');
+    gm.unmount();
+
+    mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
+    const player = await mountTable();
+    expect(player.find('[data-testid="turn-bar"]').exists()).toBe(false);
+  });
+
+  it('sends combat.create then combat.start when the GM clicks Start combat', async () => {
+    const scene = sceneWithParty();
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    vi.mocked(emitOperation).mockResolvedValueOnce({ ok: true });
+    vi.mocked(emitOperation).mockResolvedValueOnce({ ok: true });
+
+    const wrapper = await mountTable();
+    await wrapper.find('[data-testid="turn-bar"] button').trigger('click');
+    await flushPromises();
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.create',
+      payload: { sceneId: scene.id },
+    });
+  });
+
+  it('sends combat.nextTurn on Shift+N while a combat is active, for the GM only', async () => {
+    const scene = sceneWithParty();
+    vi.mocked(documentsApi.listCombats).mockResolvedValue([
+      {
+        id: crypto.randomUUID(),
+        worldId: WORLD,
+        type: 'combat',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        status: 'active',
+        round: 1,
+        freeMovement: false,
+      },
+    ]);
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    const wrapper = await mountTable();
+    await wrapper.get('.map-surface').trigger('keydown', { key: 'N', shiftKey: true });
+    await flushPromises();
+    expect(vi.mocked(emitOperation)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ type: 'combat.nextTurn' }),
+    );
+  });
 });
 
 describe('map and character drawer', () => {

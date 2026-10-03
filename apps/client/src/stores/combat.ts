@@ -16,7 +16,7 @@ import type { Broadcast, Combat, Combatant } from '@hearthtable/core';
 import { actorSchema, combatantSchema, combatSchema } from '@hearthtable/core';
 import { sortByInitiative } from '@hearthtable/pf2e';
 import { defineStore } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import { listCombatants, listCombats } from '../api/documents.js';
 import { useConnectionStore } from './connection.js';
@@ -136,5 +136,82 @@ export const useCombatStore = defineStore('combat', () => {
     },
   );
 
-  return { activeCombat, order, activeCombatant, activeIsUnseen, error, load };
+  /** Sends an operation that is not optimistic (the server decides) and records a rejection in `error`. Returns whether it was accepted. */
+  async function send(type: string, payload: unknown): Promise<boolean> {
+    error.value = undefined;
+    const ack = await connection.sendOperation(crypto.randomUUID(), type, payload);
+    if (!ack.ok) {
+      error.value = ack.error ?? `${type} failed`;
+    }
+    return ack.ok;
+  }
+
+  /**
+   * Sets up and starts a combat on the shown scene: GM only (the server checks).
+   * Creates one first if the scene has none unfinished -- CLAUDE.md's rule that
+   * nothing else may start a combat, so this is the one path onto the wire.
+   *
+   * The ack for `combat.create` carries no document (`OperationAck` is just
+   * `{ok, error?}`): the new combat's id comes from the broadcast that
+   * `applyBroadcast` turns into `activeCombat`. `nextTick` waits for that
+   * watcher to run before this reads it, rather than trusting that the
+   * broadcast and the ack happen to arrive in a useful order.
+   */
+  async function startCombat(): Promise<boolean> {
+    const sceneId = scenes.shownSceneId;
+    if (sceneId === undefined) {
+      return false;
+    }
+    let combatId = activeCombat.value?.id;
+    if (combatId === undefined) {
+      error.value = undefined;
+      const ack = await connection.sendOperation(crypto.randomUUID(), 'combat.create', {
+        sceneId,
+      });
+      if (!ack.ok) {
+        error.value = ack.error ?? 'combat.create failed';
+        return false;
+      }
+      await nextTick();
+      combatId = activeCombat.value?.id;
+    }
+    return combatId === undefined ? false : send('combat.start', { combatId });
+  }
+
+  /** Ends the active combat. No-op (false) if there isn't one. */
+  function endCombat(): Promise<boolean> {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? Promise.resolve(false)
+      : send('combat.end', { combatId });
+  }
+
+  /** Advances to the next turn. No-op (false) if there is no active combat. */
+  function nextTurn(): Promise<boolean> {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? Promise.resolve(false)
+      : send('combat.nextTurn', { combatId });
+  }
+
+  /** Steps back to the previous turn. No-op (false) if there is no active combat. */
+  function previousTurn(): Promise<boolean> {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? Promise.resolve(false)
+      : send('combat.previousTurn', { combatId });
+  }
+
+  return {
+    activeCombat,
+    order,
+    activeCombatant,
+    activeIsUnseen,
+    error,
+    load,
+    startCombat,
+    endCombat,
+    nextTurn,
+    previousTurn,
+  };
 });

@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import * as documentsApi from '../api/documents.js';
-import { createSocket } from '../realtime/socket.js';
+import { createSocket, emitOperation } from '../realtime/socket.js';
 import { useCombatStore } from './combat.js';
 import { useConnectionStore } from './connection.js';
 import { useDocumentsStore } from './documents.js';
@@ -207,5 +207,101 @@ describe('activeCombat and order', () => {
     await nextTick();
     await nextTick();
     expect(store.activeCombat?.round).toBe(2);
+  });
+});
+
+describe('the GM’s controls', () => {
+  async function emptyTable() {
+    const scene = makeScene();
+    vi.mocked(documentsApi.getParty).mockResolvedValue(makeParty(scene.id));
+    vi.mocked(documentsApi.listScenes).mockResolvedValue([scene]);
+
+    const connection = useConnectionStore();
+    connection.connect();
+    await useDocumentsStore().load(WORLD);
+    await useScenesStore().load(WORLD);
+    const store = useCombatStore();
+    await store.load(WORLD);
+    return { store, scene };
+  }
+
+  it('creates and starts a combat when none exists yet, in one call', async () => {
+    const { store, scene } = await emptyTable();
+    const created = makeCombat(scene.id, { status: 'pending', round: 0 });
+    vi.mocked(emitOperation).mockImplementationOnce(async () => {
+      await broadcast([created]);
+      return { ok: true };
+    });
+    vi.mocked(emitOperation).mockResolvedValueOnce({ ok: true });
+
+    expect(await store.startCombat()).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.create',
+      payload: { sceneId: scene.id },
+    });
+    expect(vi.mocked(emitOperation).mock.calls[1]?.[1]).toMatchObject({
+      type: 'combat.start',
+      payload: { combatId: created.id },
+    });
+  });
+
+  it('starts straight away when an unfinished combat already exists', async () => {
+    const { store, scene } = await emptyTable();
+    const pending = makeCombat(scene.id, { status: 'pending', round: 0 });
+    await broadcast([pending]);
+    vi.mocked(emitOperation).mockResolvedValueOnce({ ok: true });
+
+    expect(await store.startCombat()).toBe(true);
+    expect(emitOperation).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.start',
+      payload: { combatId: pending.id },
+    });
+  });
+
+  it('surfaces a rejected combat.create and never calls combat.start', async () => {
+    const { store } = await emptyTable();
+    vi.mocked(emitOperation).mockResolvedValueOnce({ ok: false, error: 'not the GM' });
+
+    expect(await store.startCombat()).toBe(false);
+    expect(store.error).toBe('not the GM');
+    expect(emitOperation).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing with no scene shown', async () => {
+    const store = useCombatStore();
+    const connection = useConnectionStore();
+    connection.connect();
+    await store.load(WORLD);
+    expect(await store.startCombat()).toBe(false);
+    expect(emitOperation).not.toHaveBeenCalled();
+  });
+
+  it('sends the active combat’s id for end, next and previous turn', async () => {
+    const { store, combat } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    await store.endCombat();
+    await store.nextTurn();
+    await store.previousTurn();
+    expect(vi.mocked(emitOperation).mock.calls.map((call) => call[1])).toEqual([
+      expect.objectContaining({ type: 'combat.end', payload: { combatId: combat.id } }),
+      expect.objectContaining({
+        type: 'combat.nextTurn',
+        payload: { combatId: combat.id },
+      }),
+      expect.objectContaining({
+        type: 'combat.previousTurn',
+        payload: { combatId: combat.id },
+      }),
+    ]);
+  });
+
+  it('is a no-op for end, next and previous turn with no active combat', async () => {
+    const { store } = await emptyTable();
+    expect(await store.endCombat()).toBe(false);
+    expect(await store.nextTurn()).toBe(false);
+    expect(await store.previousTurn()).toBe(false);
+    expect(emitOperation).not.toHaveBeenCalled();
   });
 });
