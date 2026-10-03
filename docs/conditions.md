@@ -254,6 +254,17 @@ whole answer to a disagreement: set or remove `dying`, `wounded`, `doomed`, and
 especially prominent on this one, since it is the automation a GM is most likely
 to want to overrule.
 
+**Implemented in M5 C.8a.** `HitPointsPanel.vue`'s Damage and Heal buttons send
+`actor.applyDamage`/`actor.heal` instead of a raw field update, so the server
+runs the whole chain above in one operation; Damage also carries a "Critical
+hit" checkbox, since a knockout's dying value doubles on one. (Temp HP still
+computes locally and sends a field change -- there is no dedicated operation
+for it.) `PartyBar.vue` reads `dying`/`wounded`/`doomed`/`unconscious`/`dead`
+with `dyingStateOf` and shows them in a dedicated status line that is never
+folded behind the generic badge list's "+N more", since this is the one state
+a table must never miss. The recovery-check prompt and a dedicated override
+widget are **C.8b**, a follow-up PR under the same checklist item.
+
 ## Persistent damage
 Persistent damage hurts its bearer again at the **end of their turn** until a flat
 check ends it. It is a **list of its own** on the actor (`persistentDamage`,

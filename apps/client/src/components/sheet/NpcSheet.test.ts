@@ -91,7 +91,7 @@ describe('NpcSheet', () => {
 });
 
 describe('the shared panels, for a monster', () => {
-  it('hit points: reads the monster’s, and damage and healing follow the same rules', async () => {
+  it('hit points: reads the monster’s, and damage sends an amount for the server to apply', async () => {
     const wrapper = mount(HitPointsPanel, {
       props: { actor: withState([], { current: 40, temp: 5 }), editable: true },
     });
@@ -100,10 +100,8 @@ describe('the shared panels, for a monster', () => {
 
     await wrapper.get('#hp-amount').setValue('10');
     await wrapper.get('form').trigger('submit');
-    // Temporary hit points soak first: 5 temp gone, 5 from current.
-    expect(wrapper.emitted('change')).toEqual([
-      [{ 'system.hp.current': 35, 'system.hp.temp': 0 }],
-    ]);
+    // M5 C.8a: the server runs the dying chain, so only the amount is sent.
+    expect(wrapper.emitted('damage')).toEqual([[10, false]]);
   });
 
   it('conditions: lists the monster’s, with their values', () => {

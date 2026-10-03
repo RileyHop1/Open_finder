@@ -62,31 +62,27 @@ describe('the buttons', () => {
     expect(disabled().every((d) => d !== undefined)).toBe(true);
   });
 
-  it('damage comes out of temporary hit points first, and only the changed fields are sent', async () => {
+  it('sends damage as an amount, not a field change, so the server runs the dying chain', async () => {
     const wrapper = mountPanel(12, 5);
     await wrapper.find('#hp-amount').setValue('3');
     await wrapper.find('form').trigger('submit');
-    expect(wrapper.emitted('change')).toEqual([[{ 'system.hp.temp': 2 }]]);
-
-    const spill = mountPanel(12, 5);
-    await spill.find('#hp-amount').setValue('8');
-    await spill.find('form').trigger('submit');
-    expect(spill.emitted('change')).toEqual([
-      [{ 'system.hp.current': 9, 'system.hp.temp': 0 }],
-    ]);
+    expect(wrapper.emitted('damage')).toEqual([[3, false]]);
+    expect(wrapper.emitted('change')).toBeUndefined();
   });
 
-  it('heal stops at the maximum', async () => {
+  it('carries whether it was a critical hit', async () => {
+    const wrapper = mountPanel(12, 5);
+    await wrapper.find('#hp-amount').setValue('3');
+    await wrapper.find('#hp-critical').setValue(true);
+    await wrapper.find('form').trigger('submit');
+    expect(wrapper.emitted('damage')).toEqual([[3, true]]);
+  });
+
+  it('sends healing as an amount too, for the same reason', async () => {
     const wrapper = mountPanel(18, 0);
     await wrapper.find('#hp-amount').setValue('10');
     await wrapper.findAll('button')[1]?.trigger('click');
-    expect(wrapper.emitted('change')).toEqual([[{ 'system.hp.current': 20 }]]);
-  });
-
-  it('says nothing when a heal would change nothing', async () => {
-    const wrapper = mountPanel(20, 0);
-    await wrapper.find('#hp-amount').setValue('5');
-    await wrapper.findAll('button')[1]?.trigger('click');
+    expect(wrapper.emitted('heal')).toEqual([[10]]);
     expect(wrapper.emitted('change')).toBeUndefined();
   });
 

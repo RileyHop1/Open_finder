@@ -399,6 +399,23 @@ function saveChanges(changes: Record<string, unknown>): void {
   }
 }
 
+/** Damage and healing run the dying chain server-side (M5 C.8a), never a plain field update. */
+function hpDamage(amount: number, critical: boolean): void {
+  if (selectedId.value !== undefined) {
+    void documents.send('actor.applyDamage', {
+      actorId: selectedId.value,
+      amount,
+      ...(critical ? { critical } : {}),
+    });
+  }
+}
+
+function hpHeal(amount: number): void {
+  if (selectedId.value !== undefined) {
+    void documents.send('actor.heal', { actorId: selectedId.value, amount });
+  }
+}
+
 /** Item changes are server logic (the server copies from the compendium), so they are sent and shown when the broadcast returns. */
 function sendItem(type: string, payload: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
@@ -792,6 +809,8 @@ async function handleCreate(): Promise<void> {
                 :actor="selected"
                 :editable="canEdit"
                 @change="saveChanges"
+                @damage="hpDamage"
+                @heal="hpHeal"
               />
               <NpcSheet
                 v-if="selected.kind === 'npc'"

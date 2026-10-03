@@ -196,6 +196,40 @@ describe('PartyBar', () => {
     expect(owners).toHaveLength(2);
   });
 
+  it('shows dying and wounded prominently, never folded into the generic badges (M5 C.8a)', () => {
+    const wrapper = mountBar([
+      member('Anna', { current: 0 }, {}, [
+        { slug: 'unconscious' },
+        { slug: 'dying', value: 2 },
+        { slug: 'wounded', value: 1 },
+        { slug: 'frightened', value: 1 },
+      ]),
+    ]);
+    expect(wrapper.find('.dying-status').text()).toBe('Unconscious, dying 2, wounded 1');
+    expect(wrapper.findAll('.badge').map((b) => b.text())).toEqual(['Frightened 1']);
+  });
+
+  it('shows doomed alongside dying, and nothing when none of the five apply', () => {
+    const doomed = mountBar([
+      member('Anna', { current: 0 }, {}, [
+        { slug: 'dying', value: 1 },
+        { slug: 'doomed', value: 1 },
+      ]),
+    ]);
+    expect(doomed.find('.dying-status').text()).toBe('dying 1, doomed 1');
+
+    const fine = mountBar([member('Anna')]);
+    expect(fine.find('.dying-status').exists()).toBe(false);
+  });
+
+  it('shows "Dead" alone, and does not count it among the generic badges', () => {
+    const wrapper = mountBar([
+      member('Anna', { current: 0 }, {}, [{ slug: 'dead' }, { slug: 'dying', value: 4 }]),
+    ]);
+    expect(wrapper.find('.dying-status').text()).toBe('Dead');
+    expect(wrapper.find('.badges').exists()).toBe(false);
+  });
+
   it('is built of real buttons, so Enter and Space work and each is at least 44px tall', () => {
     const wrapper = mountBar([member('Anna')]);
     expect(wrapper.find('li > button').exists()).toBe(true);

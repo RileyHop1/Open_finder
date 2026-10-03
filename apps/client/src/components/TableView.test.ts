@@ -1273,9 +1273,9 @@ describe('editing a character', () => {
     });
   });
 
-  it('applies damage as one optimistic actor.update of the hit point fields', async () => {
+  it('sends damage as actor.applyDamage (M5 C.8a), so the server runs the dying chain', async () => {
     mySeat = seat({ isGM: true });
-    vi.mocked(emitOperation).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
     const base = makeActor('Anna');
     const hero = {
       ...base,
@@ -1293,10 +1293,45 @@ describe('editing a character', () => {
     await flushPromises();
 
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
-      type: 'actor.update',
-      payload: { actorId: hero.id, changes: { 'system.hp.current': 7 } },
+      type: 'actor.applyDamage',
+      payload: { actorId: hero.id, amount: 5 },
     });
-    expect(wrapper.find('.hp-read').text()).toBe('7 / 18');
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]?.payload).not.toHaveProperty(
+      'critical',
+    );
+  });
+
+  it('sends the critical flag with actor.applyDamage when the box is checked', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const hero = makeActor('Anna');
+    const wrapper = await openHero(hero);
+
+    await wrapper.find('#hp-amount').setValue('5');
+    await wrapper.find('#hp-critical').setValue(true);
+    await wrapper.find('.hp-controls').trigger('submit');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.applyDamage',
+      payload: { actorId: hero.id, amount: 5, critical: true },
+    });
+  });
+
+  it('sends healing as actor.heal', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const hero = makeActor('Anna');
+    const wrapper = await openHero(hero);
+
+    await wrapper.find('#hp-amount').setValue('5');
+    await wrapper.findAll('.hp-controls button')[1]?.trigger('click');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.heal',
+      payload: { actorId: hero.id, amount: 5 },
+    });
   });
 
   describe('managing the party', () => {
