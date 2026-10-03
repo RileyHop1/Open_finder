@@ -1237,6 +1237,40 @@ describe('editing a character', () => {
       type: 'actor.addCondition',
       payload: { actorId: hero.id, slug: 'frightened', value: 2 },
     });
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]?.payload).not.toHaveProperty(
+      'duration',
+    );
+  });
+
+  it('forwards a chosen duration into actor.addCondition (M5 C.7)', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
+      {
+        packId: 'conditions',
+        slug: 'frightened',
+        name: 'Frightened',
+        kind: 'condition',
+        traits: [],
+      },
+    ]);
+    const hero = makeActor('Anna');
+    const wrapper = await openHero(hero);
+
+    await wrapper.find('#condition-pick').setValue('frightened');
+    await wrapper.find('#condition-duration-type').setValue('rounds');
+    await wrapper.find('#condition-duration-amount').setValue('3');
+    await wrapper.find('form.add-condition').trigger('submit');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.addCondition',
+      payload: {
+        actorId: hero.id,
+        slug: 'frightened',
+        duration: { type: 'rounds', remaining: 3 },
+      },
+    });
   });
 
   it('applies damage as one optimistic actor.update of the hit point fields', async () => {

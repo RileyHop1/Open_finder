@@ -91,6 +91,16 @@ const turnBar = computed(() => {
 });
 
 /**
+ * Who can be picked for a condition's "ends at end of X's turn" duration
+ * (M5 C.7): the turn bar's own items, already resolved to a hidden
+ * creature's "Someone is acting" placeholder where this seat may not read
+ * the real name, so the picker never re-derives that rule.
+ */
+const combatantOptions = computed(() =>
+  (turnBar.value?.items ?? []).map((item) => ({ id: item.id, label: item.label })),
+);
+
+/**
  * The action tray: the acting combatant's ◆◆◆ and ↺, shown only while a combat
  * is active and this seat can read the active combatant (`activeCombatant` is
  * already filtered to that). Spend/undo controls are for the GM or the
@@ -817,11 +827,13 @@ async function handleCreate(): Promise<void> {
                 :key="`conditions-${contentVersion}`"
                 :actor="selected"
                 :editable="canEdit"
+                :combatants="combatantOptions"
                 @add="
-                  (slug, value) =>
+                  (slug, value, duration) =>
                     sendCondition('actor.addCondition', {
                       slug,
                       ...(value === undefined ? {} : { value }),
+                      ...(duration === undefined ? {} : { duration }),
                     })
                 "
                 @set="

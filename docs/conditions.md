@@ -203,6 +203,17 @@ See [rulings.md](rulings.md), "When a rounds duration ticks, and when frightened
 **Expiry is a server operation**, not a client timer. A condition that expires
 must broadcast like any other change (ADR 0005).
 
+**Implemented in M5 C.7.** `ConditionsPanel.vue`'s add form picks a duration
+alongside the condition itself: until removed (the default, sending none),
+a number of rounds, until the start or end of a chosen combatant's turn (the
+combatant list comes from the turn bar's own items, so a hidden creature
+still reads as "Someone is acting" here, not its name), sustained, or a
+calendar span. Every condition already carrying a duration shows how it
+ends in words next to its name (`conditionDuration.ts`'s `describeDuration`),
+using exactly the wording above -- including "ends by hand until the
+Calendar exists" for the calendar kinds. Editing a duration after the fact,
+and ticking `minutes`/`hours`/`days`, are both still out of scope here.
+
 ## The dying chain
 The fiddliest part of the system, and the one most worth getting right: a mistake
 here kills a player character who should have lived. It is a set of pure functions
