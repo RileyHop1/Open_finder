@@ -584,3 +584,30 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/squareGrid.test.ts`, "line" and
   "cone". Clear the **(confirm)** here and in `grid.md` when the pages can be
   checked.
+
+### Flanking: opposite sides by a relaxed straight-line test
+- **Rules text:** **(confirm)**. The Archives of Nethys pages could not be
+  reached from the environment this was written in (2026-10-03), so this is from
+  memory of Player Core and unverified. As remembered: two allies flank a target
+  when both threaten it and a line between them passes through opposite sides of
+  the target's space.
+- **The ambiguity:** "opposite sides" is not given a precise geometry, and the rules
+  were written for adjacent squares; a reach weapon lets an ally threaten from
+  farther away, and a larger target has more than one square to draw a line through.
+- **Our reading:** both allies must threaten the target with their own reach, and
+  their **centres** must be on opposite sides of the target's centre: the direction
+  from one ally to the target and from the target to the other ally agree within
+  **22.5 degrees**. That is half the angle between neighbouring squares around a
+  target, so an ally one square off a straight line from farther out still counts,
+  and one on the diagonal does not.
+- **Alternative reading:** an exact line, with allies only on one of the eight
+  squares around the target (no tolerance), or a test against the edges of a larger
+  target's space instead of its centre.
+- **Why:** a continuous test is the same rule at every distance a reach weapon
+  can create, instead of a table of eight directions that does not extend to them,
+  and a centre-based test is the simplest thing that is still symmetric. A borderline
+  call is one the GM can see (off-guard names flanking as its source) and remove.
+- **Override:** the GM removes the off-guard condition by hand, or sets it when the
+  app does not (`setCondition`).
+- **Golden test:** `systems/pf2e/src/rules/flanking.test.ts`. Clear the **(confirm)**
+  here and in `grid.md` when the pages can be checked.
