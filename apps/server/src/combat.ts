@@ -33,6 +33,7 @@ import {
 import type { RandomSource } from '@hearthtable/dice';
 import type {
   AppliedCondition,
+  ConditionDefinitions,
   TurnEvent,
   TurnParticipant,
   TurnResult,
@@ -50,6 +51,7 @@ import {
 } from '@hearthtable/pf2e';
 
 import { rollActorCheck } from './checks.js';
+import { rollRecovery } from './hitPoints.js';
 import { OperationRejected } from './rejection.js';
 import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
@@ -986,4 +988,40 @@ export function spendAction(
     documents.push(message);
   }
   return { documents };
+}
+
+/**
+ * The recovery check owed at the start of a turn: if the combat's active combatant
+ * is a dying character, rolls it (`rollRecovery`) and returns what changed. Nothing
+ * happens for anyone else. Called right after `combat.start` and `combat.nextTurn`,
+ * in the same operation, so the check lands with the turn that triggers it.
+ */
+export function recoverActive(
+  store: WorldStore,
+  seat: Seat,
+  rng: RandomSource,
+  definitions: ConditionDefinitions,
+  payload: { combatId: string },
+): CombatChange {
+  const combat = loadCombat(store, payload.combatId);
+  const active =
+    combat.activeCombatantId === undefined
+      ? undefined
+      : combatantSchema.safeParse(store.getDocument(combat.activeCombatantId)).data;
+  const actor = actorSchema.safeParse(
+    active === undefined ? undefined : store.getDocument(active.actorId),
+  ).data;
+  const data =
+    actor?.kind === 'character'
+      ? characterDataSchema.safeParse(actor.system).data
+      : undefined;
+  if (actor === undefined || data === undefined) {
+    return { documents: [] };
+  }
+  const dying =
+    data.conditions.some((c) => c.slug === 'dying') &&
+    !data.conditions.some((c) => c.slug === 'dead');
+  return dying
+    ? rollRecovery(store, seat, rng, definitions, { actorId: actor.id })
+    : { documents: [] };
 }

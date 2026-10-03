@@ -134,6 +134,7 @@ export {
   combatSpendActionOperationSchema,
   actorApplyDamageOperationSchema,
   actorHealOperationSchema,
+  actorRollRecoveryOperationSchema,
   MAX_HIT_POINT_CHANGE,
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,

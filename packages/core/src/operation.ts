@@ -668,6 +668,17 @@ export const actorHealOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Roll a dying character's recovery check by hand: a flat check against DC 10 plus
+ * dying that moves dying by -2, -1, +1 or +2 (docs/conditions.md). GM only. It runs
+ * by itself at the start of a dying character's turn; this is the re-roll and the
+ * way to run one outside a combat. Refused for a character who is not dying.
+ */
+export const actorRollRecoveryOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.rollRecovery'),
+  payload: z.object({ actorId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -719,6 +730,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatSpendActionOperationSchema,
   actorApplyDamageOperationSchema,
   actorHealOperationSchema,
+  actorRollRecoveryOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

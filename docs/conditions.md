@@ -232,8 +232,10 @@ memory of Player Core, and not checked against the Archives of Nethys. See
   point change: a character dropped to 0 is knocked out, damage at 0 raises dying,
   enough left over kills (the character gets a **`dead`** condition, see
   [rulings.md](rulings.md)), and healing above 0 revives. A monster only loses
-  hit points; at 0 it is marked defeated in an active combat. The recovery check at
-  the start of a turn follows in B.6b.
+  hit points; at 0 it is marked defeated in an active combat. The recovery check runs by
+  itself at the start of a dying character's turn (in the same operation as
+  `combat.start` or `combat.nextTurn`), and `actor.rollRecovery` is the GM's manual
+  re-roll.
 
 These interact and a wrong step is a dead character, so the **GM override** is the
 whole answer to a disagreement: set or remove `dying`, `wounded`, `doomed`, and
