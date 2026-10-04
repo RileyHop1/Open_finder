@@ -53,7 +53,10 @@ what happened.
 7. **The operation log is the undo substrate.** Prep-mode undo replays or inverts
    logged operations. This is why undo is scoped to prep mode and to the GM:
    inverting an operation other clients have already acted on is a fundamentally
-   harder problem, and CLAUDE.md declines it in play mode for that reason.
+   harder problem, and CLAUDE.md declines it in play mode for that reason. **One
+   narrow play-mode exception** exists for undoing your own current combat turn —
+   see ADR 0019, which uses document snapshots rather than inverting this log,
+   for reasons specific to that case.
 
 ## Consequences
 - **One place to reason about consistency.** Every state change goes through one
