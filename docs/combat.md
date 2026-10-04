@@ -245,6 +245,7 @@ an id, not a position that could drift onto the wrong creature.
 | `actionsSpent` | integer 0-99, default 0 | Allowed to exceed the turn's capacity: the app warns and never blocks ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
 | `reactionUsed` | boolean, default `false` | Refreshed at the start of the combatant's turn |
 | `attacksMade` | integer 0-99, default 0 | The Multiple Attack Penalty counts attacks, not actions. Reset at the start of the combatant's turn |
+| `movementUsed` | integer feet, 0-9999, default 0 | Feet moved this turn while this combatant is active. Reset at the start of the combatant's turn. **Schema only so far** (M5 movement stack, part a): `systems/pf2e`'s `stridesFor` says how many Strides a move of this size costs, and `speedOf` reads a character's or NPC's Speed, but nothing writes to this field yet -- `token.move` does not spend actions for movement until the server piece lands |
 
 It lives on the combatant, not the actor: it means nothing outside a fight, and
 leaving a combat must leave the actor exactly as it was, apart from the real
