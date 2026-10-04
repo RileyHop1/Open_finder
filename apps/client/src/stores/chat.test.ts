@@ -212,6 +212,37 @@ describe('sendRoll', () => {
   });
 });
 
+describe('adjustRoll', () => {
+  it('sends a chat.adjustRoll operation with the messageId and total payload', async () => {
+    const store = useChatStore();
+    const connection = useConnectionStore();
+    connection.connect();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const messageId = crypto.randomUUID();
+
+    await store.adjustRoll(messageId, 30);
+
+    expect(emitOperation).toHaveBeenCalledWith(
+      stubSocket,
+      expect.objectContaining({
+        type: 'chat.adjustRoll',
+        payload: { messageId, total: 30 },
+      }),
+    );
+  });
+
+  it('records a readable error on rejection', async () => {
+    const store = useChatStore();
+    const connection = useConnectionStore();
+    connection.connect();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'only the GM' });
+
+    await store.adjustRoll(crypto.randomUUID(), 30);
+
+    expect(store.error).toBe('only the GM');
+  });
+});
+
 describe('broadcast handling', () => {
   it('ignores documents that are not valid ChatMessages', async () => {
     const store = useChatStore();
@@ -242,5 +273,27 @@ describe('broadcast handling', () => {
     await nextTick();
 
     expect(store.messages).toEqual([mine, theirs]);
+  });
+
+  it("replaces a message already in the log in place, by id, instead of appending a second copy (chat.adjustRoll's broadcast)", async () => {
+    const store = useChatStore();
+    const connection = useConnectionStore();
+    connection.connect();
+
+    const first = makeTextMessage({ text: 'first' });
+    const middle = makeTextMessage({ text: 'before the edit' });
+    const third = makeTextMessage({ text: 'third' });
+    stubSocket.handlers.get('broadcast')?.(
+      fakeBroadcast(crypto.randomUUID(), [first, middle, third]) as never,
+    );
+    await nextTick();
+
+    const edited = { ...middle, text: 'after the edit' };
+    stubSocket.handlers.get('broadcast')?.(
+      fakeBroadcast(crypto.randomUUID(), [edited]) as never,
+    );
+    await nextTick();
+
+    expect(store.messages).toEqual([first, edited, third]);
   });
 });

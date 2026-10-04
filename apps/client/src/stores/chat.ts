@@ -85,14 +85,19 @@ export const useChatStore = defineStore('chat', () => {
       }
       // The pending entry this broadcast confirms (if any) is dropped in
       // the same update that adds the real document, so the message never
-      // visibly appears twice.
+      // visibly appears twice. A `chat.adjustRoll` broadcast re-sends a
+      // message already here under its own (real) id, not a pending one --
+      // that one is replaced in place, so the GM's edit updates the card
+      // rather than adding a second copy of it further down the log.
       const operationId = broadcast.operation.id;
-      messages.value = [
-        ...messages.value.filter(
-          (entry) => !isPending(entry) || entry.id !== operationId,
-        ),
-        ...chatDocs,
-      ];
+      const chatDocsById = new Map(chatDocs.map((doc) => [doc.id, doc]));
+      const withoutPending = messages.value.filter(
+        (entry) => !isPending(entry) || entry.id !== operationId,
+      );
+      const merged = withoutPending.map((entry) => chatDocsById.get(entry.id) ?? entry);
+      const mergedIds = new Set(withoutPending.map((entry) => entry.id));
+      const appended = chatDocs.filter((doc) => !mergedIds.has(doc.id));
+      messages.value = [...merged, ...appended];
     },
   );
 
@@ -122,5 +127,22 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  return { messages, error, load, sendMessage, sendRoll };
+  /**
+   * The GM's override of a roll already in chat (`chat.adjustRoll`, GM
+   * only). No optimistic entry: unlike a send, there's nothing to show
+   * before the server confirms it, and the edited card arrives the same way
+   * any other broadcast does.
+   */
+  async function adjustRoll(messageId: string, total: number): Promise<void> {
+    error.value = undefined;
+    const ack = await connection.sendOperation(crypto.randomUUID(), 'chat.adjustRoll', {
+      messageId,
+      total,
+    });
+    if (!ack.ok) {
+      error.value = ack.error ?? 'failed to edit roll';
+    }
+  }
+
+  return { messages, error, load, sendMessage, sendRoll, adjustRoll };
 });
