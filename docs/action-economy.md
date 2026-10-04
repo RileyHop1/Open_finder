@@ -63,6 +63,19 @@ turn that already ended is never undoable from here — consistent with
 `combat.previousTurn` not undoing boundary-rule effects either; the GM sets
 those by hand.
 
+`turnLog` holds moves too, tagged separately from spends: `MapView.vue`'s
+two move paths (the arrow-key step and the drag-and-drop drop) each record
+where the token was *before* the move, but only while that token's own
+combatant is the one currently active — a move anyone else makes (the GM
+repositioning a monster, a free-movement or grant-driven move out of turn)
+never spent Strides server-side, so there is nothing for this stack to undo,
+and recording it anyway would sit there for a combatant whose turn may never
+come. Undoing a move entry sends `token.move` back to that recorded point
+with `undo: true`, which gives back the exact Strides the move cost
+([combat.md](combat.md)) — not a flat action count, the way a spend entry's
+undo works. Entries pop in the order they happened regardless of kind, so a
+spend and a move interleave correctly.
+
 ## A turn
 - **3 actions**, spent in any combination.
 - **1 reaction**, refreshed at the start of your turn.

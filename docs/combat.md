@@ -73,8 +73,12 @@ as it does today.
   and the token does not move (the whole operation rolls back together). A
   token that is not the active combatant, is not in a running combat, or
   whose actor's Speed cannot be read (a hazard) moves for free, same as
-  always. The client's own undo (M5, part c) sends the same move back with
-  `undo: true`, giving back exactly the Strides that move cost.
+  always. **"Undo last action" undoes a move too**: `MapView.vue`'s arrow-key
+  step and drag-drop both record where the token was before the move (only
+  while that token's own combatant is active, the one case the server
+  actually charges for), and undoing sends it back with `undo: true`, giving
+  back exactly the Strides that move cost ([action-economy.md](action-economy.md),
+  "Implemented in M5 C.5b").
 - **Ending a combat** returns to free play, and the rulings go with it. What
   happens to a condition that was anchored to one of its combatants (`turn`
   durations) is decided with `combat.end` (B.3); the recommendation is that it ends
