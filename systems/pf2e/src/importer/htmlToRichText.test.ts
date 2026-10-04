@@ -111,16 +111,43 @@ describe('htmlToRichText -- basic structure', () => {
   });
 });
 
+describe('htmlToRichText -- tables degrade to a list', () => {
+  it('turns each row into a list item, cells joined with " | "', () => {
+    const html =
+      '<table><tr><th>Rank</th><th>DC</th></tr><tr><td>Trained</td><td>15</td></tr></table>';
+    expect(htmlToRichText(html)).toEqual([
+      {
+        kind: 'list',
+        ordered: false,
+        items: [
+          [{ kind: 'text', value: 'Rank | DC' }],
+          [{ kind: 'text', value: 'Trained | 15' }],
+        ],
+      },
+    ]);
+  });
+});
+
+describe('htmlToRichText -- action-glyph spans', () => {
+  it('drops the span and its text content entirely', () => {
+    expect(
+      htmlToRichText('<p>Stride <span class="action-glyph">1</span> twice.</p>'),
+    ).toEqual([
+      { kind: 'paragraph', children: [{ kind: 'text', value: 'Stride  twice.' }] },
+    ]);
+  });
+
+  it('leaves a span with a different class alone (transparent, content kept)', () => {
+    expect(htmlToRichText('<p><span class="trait">agile</span></p>')).toEqual([
+      { kind: 'paragraph', children: [{ kind: 'text', value: 'agile' }] },
+    ]);
+  });
+});
+
 describe('htmlToRichText -- unrecognized tags are transparent', () => {
   it('flattens an unknown tag, keeping its content', () => {
     expect(htmlToRichText('<div>Some <a href="#">linked</a> text.</div>')).toEqual([
       { kind: 'text', value: 'Some linked text.' },
-    ]);
-  });
-
-  it('flattens a span regardless of its class -- action-glyph gets its own handling in a later PR', () => {
-    expect(htmlToRichText('<p><span class="trait">agile</span></p>')).toEqual([
-      { kind: 'paragraph', children: [{ kind: 'text', value: 'agile' }] },
     ]);
   });
 
@@ -134,11 +161,6 @@ describe('htmlToRichText -- unrecognized tags are transparent', () => {
     expect(htmlToRichText('<p>Before<img src="x.png">After</p>')).toEqual([
       { kind: 'paragraph', children: [{ kind: 'text', value: 'BeforeAfter' }] },
     ]);
-  });
-
-  it("runs a table's cell and row text together -- a table gets its own list-degradation handling in a later PR", () => {
-    const html = '<table><tr><th>Rank</th><th>DC</th></tr></table>';
-    expect(htmlToRichText(html)).toEqual([{ kind: 'text', value: 'RankDC' }]);
   });
 });
 
