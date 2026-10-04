@@ -105,6 +105,15 @@ describe('clientOperationUnionSchema -- chat.sendRoll', () => {
       expect('total' in withResult.data.payload).toBe(false);
     }
   });
+
+  it('rejects an expression longer than 200 characters', () => {
+    const result = chatSendRollOperationSchema.safeParse({
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: '1+'.repeat(150) },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('clientOperationUnionSchema -- discrimination', () => {
