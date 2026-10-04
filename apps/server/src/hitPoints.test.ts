@@ -69,9 +69,19 @@ const valueOf = (actorId: string, slug: string): number =>
   dataOf(actorId).conditions.find((c) => c.slug === slug)?.value ?? 0;
 
 /** A level 1 character with 18 maximum hit points (8 ancestry + 10 class, Con +0), at `current`. */
-function hero(options: { current?: number; temp?: number; conditions?: unknown[] } = {}) {
+function hero(
+  options: {
+    current?: number;
+    temp?: number;
+    conditions?: unknown[];
+    name?: string;
+  } = {},
+) {
   const owner = makeSeat();
-  const actor = createActor(store, owner, { kind: 'character', name: 'Ada' });
+  const actor = createActor(store, owner, {
+    kind: 'character',
+    name: options.name ?? 'Ada',
+  });
   updateActor(store, owner, {
     actorId: actor.id,
     changes: {
@@ -117,7 +127,11 @@ describe('applyDamageToActor on a character', () => {
     damage(crit.owner, crit.actorId, 7, true);
     expect(valueOf(crit.actorId, 'dying')).toBe(2);
 
-    const wounded = hero({ current: 5, conditions: [{ slug: 'wounded', value: 1 }] });
+    const wounded = hero({
+      current: 5,
+      conditions: [{ slug: 'wounded', value: 1 }],
+      name: 'Wounded Ally',
+    });
     damage(wounded.owner, wounded.actorId, 7);
     expect(valueOf(wounded.actorId, 'dying')).toBe(2);
   });
@@ -130,7 +144,11 @@ describe('applyDamageToActor on a character', () => {
     damage(owner, actorId, 3);
     expect(valueOf(actorId, 'dying')).toBe(2);
 
-    const stable = hero({ current: 0, conditions: [{ slug: 'unconscious' }] });
+    const stable = hero({
+      current: 0,
+      conditions: [{ slug: 'unconscious' }],
+      name: 'Stable Ally',
+    });
     damage(stable.owner, stable.actorId, 3);
     expect(valueOf(stable.actorId, 'dying')).toBe(1);
   });
@@ -163,7 +181,7 @@ describe('applyDamageToActor on a character', () => {
     damage(near.owner, near.actorId, 5 + 18);
     expect(slugs(near.actorId)).toContain('dead');
 
-    const falling = hero({ current: 5 });
+    const falling = hero({ current: 5, name: 'Falling Ally' });
     damage(falling.owner, falling.actorId, 5 + 17);
     expect(slugs(falling.actorId)).not.toContain('dead');
   });
@@ -174,7 +192,7 @@ describe('applyDamageToActor on a character', () => {
     expect(dataOf(absorbed.actorId).hp).toMatchObject({ current: 5, temp: 0 });
     expect(slugs(absorbed.actorId)).toEqual([]);
 
-    const through = hero({ current: 5, temp: 3 });
+    const through = hero({ current: 5, temp: 3, name: 'Breakthrough Ally' });
     damage(through.owner, through.actorId, 8);
     expect(dataOf(through.actorId).hp.current).toBe(0);
     expect(valueOf(through.actorId, 'dying')).toBe(1);
@@ -184,7 +202,11 @@ describe('applyDamageToActor on a character', () => {
     const dead = hero({ current: 0, conditions: [{ slug: 'dead' }] });
     damage(dead.owner, dead.actorId, 4);
     expect(slugs(dead.actorId)).toEqual(['dead']);
-    const idle = hero({ current: 0, conditions: [{ slug: 'unconscious' }] });
+    const idle = hero({
+      current: 0,
+      conditions: [{ slug: 'unconscious' }],
+      name: 'Idle Ally',
+    });
     damage(idle.owner, idle.actorId, 0);
     expect(valueOf(idle.actorId, 'dying')).toBe(0);
   });
@@ -330,10 +352,11 @@ describe('a monster', () => {
 
 describe('rollRecovery', () => {
   const gm = () => makeSeat({ name: 'GM', isGM: true });
-  const dyingHero = (value: number, extra: unknown[] = []) =>
+  const dyingHero = (value: number, extra: unknown[] = [], name?: string) =>
     hero({
       current: 0,
       conditions: [{ slug: 'dying', value }, { slug: 'unconscious' }, ...extra],
+      ...(name === undefined ? {} : { name }),
     });
   const recover = (actorId: string, face: number) =>
     rollRecovery(store, gm(), fixed(face), definitions, { actorId });
@@ -359,7 +382,7 @@ describe('rollRecovery', () => {
     const good = dyingHero(2);
     recover(good.actorId, 20);
     expect(valueOf(good.actorId, 'dying')).toBe(0);
-    const bad = dyingHero(1);
+    const bad = dyingHero(1, [], 'Unlucky Ally');
     recover(bad.actorId, 1);
     expect(valueOf(bad.actorId, 'dying')).toBe(3);
   });
@@ -379,9 +402,9 @@ describe('rollRecovery', () => {
     expect(() => rollRecovery(store, owner, fixed(11), definitions, { actorId })).toThrow(
       'only the GM',
     );
-    const healthy = hero();
+    const healthy = hero({ name: 'Healthy Ally' });
     expect(() => recover(healthy.actorId, 11)).toThrow('not dying');
-    const dead = dyingHero(1, [{ slug: 'dead' }]);
+    const dead = dyingHero(1, [{ slug: 'dead' }], 'Dead Ally');
     expect(() => recover(dead.actorId, 11)).toThrow('not dying');
   });
 });
@@ -390,10 +413,11 @@ describe('the recovery check at the start of a turn', () => {
   function dyingInCombat() {
     const gm = makeSeat({ name: 'GM', isGM: true });
     const scene = createScene(store, gm, { name: 'Crypt', kind: 'battle' });
-    const fighter = hero();
+    const fighter = hero({ name: 'Fighter' });
     const downed = hero({
       current: 0,
       conditions: [{ slug: 'dying', value: 1 }, { slug: 'unconscious' }],
+      name: 'Downed',
     });
     const tokenFor = (actorId: string) => {
       const actor = actorSchema.parse(store.getDocument(actorId));

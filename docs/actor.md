@@ -11,7 +11,7 @@ system's own data lives in the opaque `system` payload. Rationale in
 | --- | --- | --- |
 | `type` | `'actor'` | Literal |
 | `kind` | `'character' \| 'npc' \| 'hazard'` | One document type for all three, per CLAUDE.md |
-| `name` | non-empty string | |
+| `name` | non-empty string, unique for `kind: 'character'` (case- and whitespace-insensitive) | An NPC or hazard may share a name with anything else -- "three goblins" is a normal table |
 | `portrait` | non-empty string, optional | A content-addressed asset (`<hash>.<ext>`). Absent means the client shows a placeholder; no default image is stored |
 | `system` | object | Opaque to core. `systems/pf2e` validates it (`characterDataSchema`); the server re-validates after every mutation |
 

@@ -18,9 +18,24 @@ function seatsUrl(worldId: string): string {
   return `/api/worlds/${worldId}/seats`;
 }
 
-function assertOk(response: Response, action: string): void {
+/** The server's own `{ error }` body, if the response has one readable as JSON. */
+async function serverError(response: Response): Promise<string | undefined> {
+  try {
+    const body: unknown = await response.json();
+    if (typeof body === 'object' && body !== null && 'error' in body) {
+      const { error } = body;
+      return typeof error === 'string' ? error : undefined;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function assertOk(response: Response, action: string): Promise<void> {
   if (!response.ok) {
-    throw new Error(`failed to ${action}: server responded ${response.status}`);
+    const reason = await serverError(response);
+    throw new Error(reason ?? `failed to ${action}: server responded ${response.status}`);
   }
 }
 
@@ -32,7 +47,7 @@ async function parseJson<T>(response: Response, schema: z.ZodType<T>): Promise<T
 /** Every seat in `worldId`, claimed or not -- `claimedByDeviceToken` included, not redacted (see `seatSchema`'s own docs on why). */
 export async function listSeats(worldId: string): Promise<Seat[]> {
   const response = await fetch(seatsUrl(worldId));
-  assertOk(response, 'list seats');
+  await assertOk(response, 'list seats');
   return parseJson(response, z.array(seatSchema));
 }
 
@@ -48,6 +63,6 @@ export async function createSeat(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(pin === undefined ? { name, isGM } : { name, isGM, pin }),
   });
-  assertOk(response, 'create seat');
+  await assertOk(response, 'create seat');
   return parseJson(response, seatSchema);
 }
