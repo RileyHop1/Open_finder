@@ -462,3 +462,46 @@ describe('serialize', () => {
     }
   });
 });
+
+describe('turn undo steps', () => {
+  let store: WorldStore;
+  const turn = { combatId: 'combat', combatantId: 'ada', round: 2 };
+
+  beforeEach(() => {
+    store = createWorld(worldsRoot, 'Test Campaign');
+  });
+
+  afterEach(() => {
+    store.close();
+  });
+
+  it('opens steps in order and keeps only the first state recorded for a document', () => {
+    const first = store.openUndoStep(turn, 'seat');
+    const second = store.openUndoStep(turn, 'seat');
+    store.putUndoDocument(first, 'doc', { hp: 10 });
+    store.putUndoDocument(first, 'doc', { hp: 5 });
+    store.putUndoDocument(first, 'new', null);
+
+    expect(store.listUndoSteps().map((s) => s.step)).toEqual([first, second]);
+    expect(store.listUndoSteps()[0]).toEqual({ step: first, seatId: 'seat', ...turn });
+    expect(store.listUndoDocuments(first)).toEqual(
+      expect.arrayContaining([
+        { documentId: 'doc', before: { hp: 10 } },
+        { documentId: 'new', before: null },
+      ]),
+    );
+  });
+
+  it('deletes one step with its documents, or every step at once', () => {
+    const first = store.openUndoStep(turn, 'seat');
+    const second = store.openUndoStep(turn, 'seat');
+    store.putUndoDocument(first, 'doc', { hp: 10 });
+
+    store.deleteUndoStep(first);
+    expect(store.listUndoSteps().map((s) => s.step)).toEqual([second]);
+    expect(store.listUndoDocuments(first)).toEqual([]);
+
+    store.clearUndo();
+    expect(store.listUndoSteps()).toEqual([]);
+  });
+});

@@ -478,6 +478,12 @@ function participantsOf(
   });
 }
 
+/** How many actions `combatant` has this turn, from the conditions its actor bears (`actionCapacity`). */
+export function turnCapacityOf(store: WorldStore, combatant: Combatant): number {
+  const [participant] = participantsOf(store, [combatant]);
+  return actionCapacity(participant?.conditions ?? []).total;
+}
+
 /** Writes a turn rule's changes back, and returns the combatants and actors it touched. */
 function applyTurnResult(store: WorldStore, result: TurnResult): BaseDocument[] {
   const changed = new Map<string, BaseDocument>();
@@ -982,8 +988,7 @@ function applyActionDelta(
 ): { actionsSpent: number; warning?: string } {
   const before = combatant.turn.actionsSpent;
   const actionsSpent = Math.min(Math.max(before + delta, 0), MAX_COUNTER);
-  const [participant] = participantsOf(store, [combatant]);
-  const capacity = actionCapacity(participant?.conditions ?? []).total;
+  const capacity = turnCapacityOf(store, combatant);
 
   if (!seat.isGM && delta > 0 && actionsSpent > capacity) {
     const left = Math.max(capacity - before, 0);

@@ -56,7 +56,42 @@ const SCHEMA_SQL = `
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS turn_undo_steps (
+    step INTEGER PRIMARY KEY AUTOINCREMENT,
+    combat_id TEXT NOT NULL,
+    combatant_id TEXT NOT NULL,
+    round INTEGER NOT NULL,
+    seat_id TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS turn_undo_documents (
+    step INTEGER NOT NULL,
+    document_id TEXT NOT NULL,
+    before TEXT,
+    PRIMARY KEY (step, document_id)
+  );
 `;
+
+/** Whose turn an undo step belongs to: one combat's one combatant, in one round (ADR 0019). */
+export interface UndoTurn {
+  combatId: string;
+  combatantId: string;
+  round: number;
+}
+
+/** One undoable step of the current turn, oldest first by `step`. */
+export interface UndoStep extends UndoTurn {
+  step: number;
+  /** The seat whose spend opened the step: the one player allowed to undo it. */
+  seatId: string;
+}
+
+/** A document as it was before a step first touched it. `before` is `null` when the step created it. */
+export interface UndoDocument {
+  documentId: string;
+  before: unknown;
+}
 
 /** An operation ready to append: everything `AppliedOperation` has except the sequence, which the table assigns. */
 export type NewOperation = Omit<AppliedOperation, 'sequence'>;
@@ -90,6 +125,18 @@ export interface WorldStore {
   getSeatByDeviceToken(deviceToken: string): Seat | undefined;
   getMeta(key: string): string | undefined;
   setMeta(key: string, value: string): void;
+  /** The current turn's undo steps, oldest first (ADR 0019). */
+  listUndoSteps(): UndoStep[];
+  /** Opens a new undo step for `turn`, returning its step number. */
+  openUndoStep(turn: UndoTurn, seatId: string): number;
+  /** Records `documentId`'s state before `step` touched it. Ignored if `step` already has one: only the first touch counts. */
+  putUndoDocument(step: number, documentId: string, before: unknown): void;
+  /** The documents `step` touched, with what each looked like before. */
+  listUndoDocuments(step: number): UndoDocument[];
+  /** Forgets one step and its documents. */
+  deleteUndoStep(step: number): void;
+  /** Forgets every step: a turn ended, or the stack belongs to a turn that is no longer running. */
+  clearUndo(): void;
   /**
    * A complete, self-contained snapshot of this world's database, reflecting
    * every committed write regardless of where its bytes currently live on
@@ -117,6 +164,19 @@ interface OperationRow {
 
 interface MetaRow {
   value: string;
+}
+
+interface UndoStepRow {
+  step: number;
+  combat_id: string;
+  combatant_id: string;
+  round: number;
+  seat_id: string;
+}
+
+interface UndoDocumentRow {
+  document_id: string;
+  before: string | null;
 }
 
 interface SeatRow {
@@ -298,6 +358,53 @@ function buildStore(db: DatabaseSync, world: World): WorldStore {
         `INSERT INTO meta (key, value) VALUES (?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
       ).run(key, value);
+    },
+
+    listUndoSteps(): UndoStep[] {
+      const rows = db
+        .prepare('SELECT * FROM turn_undo_steps ORDER BY step ASC')
+        .all() as unknown as UndoStepRow[];
+      return rows.map((row) => ({
+        step: row.step,
+        combatId: row.combat_id,
+        combatantId: row.combatant_id,
+        round: row.round,
+        seatId: row.seat_id,
+      }));
+    },
+
+    openUndoStep(turn: UndoTurn, seatId: string): number {
+      const result = db
+        .prepare(
+          'INSERT INTO turn_undo_steps (combat_id, combatant_id, round, seat_id) VALUES (?, ?, ?, ?)',
+        )
+        .run(turn.combatId, turn.combatantId, turn.round, seatId);
+      return Number(result.lastInsertRowid);
+    },
+
+    putUndoDocument(step: number, documentId: string, before: unknown): void {
+      db.prepare(
+        'INSERT OR IGNORE INTO turn_undo_documents (step, document_id, before) VALUES (?, ?, ?)',
+      ).run(step, documentId, before === null ? null : JSON.stringify(before));
+    },
+
+    listUndoDocuments(step: number): UndoDocument[] {
+      const rows = db
+        .prepare('SELECT document_id, before FROM turn_undo_documents WHERE step = ?')
+        .all(step) as unknown as UndoDocumentRow[];
+      return rows.map((row) => ({
+        documentId: row.document_id,
+        before: row.before === null ? null : (JSON.parse(row.before) as unknown),
+      }));
+    },
+
+    deleteUndoStep(step: number): void {
+      db.prepare('DELETE FROM turn_undo_documents WHERE step = ?').run(step);
+      db.prepare('DELETE FROM turn_undo_steps WHERE step = ?').run(step);
+    },
+
+    clearUndo(): void {
+      db.exec('DELETE FROM turn_undo_documents; DELETE FROM turn_undo_steps;');
     },
 
     serialize(): Uint8Array {
