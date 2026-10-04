@@ -183,27 +183,33 @@ export class SquareGrid implements GridStrategy {
   }
 
   /**
-   * Cells on the segment from `from` to `to`, `widthFeet` wide: a rectangle in
-   * real pixel space, not a diagonal-counted distance -- see the file comment
-   * on `cone` for why. A cell is included when its centre's perpendicular
-   * distance from the segment is at most half the width and its projection
-   * onto the segment falls within the two endpoints. Degenerate (`from`
-   * equals `to`) returns `[]`: there is no line to be on.
+   * Cells on the segment starting at `from`, `lengthFeet` long in the
+   * direction of `to`, `widthFeet` wide: a rectangle in real pixel space, not
+   * a diagonal-counted distance -- see the file comment on `cone` for why.
+   * `to` decides only the direction (the same way `cone`'s `towards` does);
+   * the segment's length is always `lengthFeet`, never the distance to `to`.
+   * A cell is included when its centre's perpendicular distance from the
+   * segment is at most half the width and its projection onto the segment
+   * falls within the two endpoints. Degenerate (`from` equals `to`, so there
+   * is no direction) returns `[]`.
    */
-  line(from: Point, to: Point, widthFeet: number): Cell[] {
+  line(from: Point, to: Point, widthFeet: number, lengthFeet: number): Cell[] {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
-    const length = Math.hypot(dx, dy);
-    if (length === 0) {
+    const facing = Math.hypot(dx, dy);
+    if (facing === 0) {
       return [];
     }
+    const length = (lengthFeet * this.grid.size) / this.grid.distance;
     const halfWidth = ((widthFeet / 2) * this.grid.size) / this.grid.distance;
-    const unitX = dx / length;
-    const unitY = dy / length;
-    const minCol = this.colAt(Math.min(from.x, to.x) - halfWidth);
-    const maxCol = this.colAt(Math.max(from.x, to.x) + halfWidth);
-    const minRow = this.rowAt(Math.min(from.y, to.y) - halfWidth);
-    const maxRow = this.rowAt(Math.max(from.y, to.y) + halfWidth);
+    const unitX = dx / facing;
+    const unitY = dy / facing;
+    const endX = from.x + unitX * length;
+    const endY = from.y + unitY * length;
+    const minCol = this.colAt(Math.min(from.x, endX) - halfWidth);
+    const maxCol = this.colAt(Math.max(from.x, endX) + halfWidth);
+    const minRow = this.rowAt(Math.min(from.y, endY) - halfWidth);
+    const maxRow = this.rowAt(Math.max(from.y, endY) + halfWidth);
 
     const cells: Cell[] = [];
     for (let row = minRow; row <= maxRow; row += 1) {

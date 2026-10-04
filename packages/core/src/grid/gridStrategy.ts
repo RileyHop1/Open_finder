@@ -79,13 +79,17 @@ export interface GridStrategy {
   emanation(footprint: Footprint, radiusFeet: number): Cell[];
 
   /**
-   * Cells on the segment from `from` to `to`, `widthFeet` wide -- a line area
-   * template. A cell is included when its centre's perpendicular distance from
-   * the segment is at most half the width and its projection onto the segment
+   * Cells on the segment starting at `from`, `lengthFeet` long and `widthFeet`
+   * wide, in the direction of `to` -- a line area template. `to` decides only
+   * the direction, the same way `cone`'s `towards` does; the segment's actual
+   * length is `lengthFeet`, never the distance to `to`, so dragging the aim
+   * point further than the template's own length can never lengthen it. A
+   * cell is included when its centre's perpendicular distance from the
+   * segment is at most half the width and its projection onto the segment
    * falls within the two endpoints: a rectangle, not a capsule with rounded
    * ends. A strategy with no cells (gridless) returns an empty array.
    */
-  line(from: Point, to: Point, widthFeet: number): Cell[];
+  line(from: Point, to: Point, widthFeet: number, lengthFeet: number): Cell[];
 
   /**
    * Cells within `lengthFeet` of `origin`, inside the 90-degree arc facing
