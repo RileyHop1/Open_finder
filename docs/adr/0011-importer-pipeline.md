@@ -43,6 +43,11 @@ tree staying free of anything that could complicate packaging).
    layer does not re-fetch on every run.
 
 ## Consequences
+- **This pattern repeats for every upstream directory the importer needs**,
+  not only `packs/`. ADR 0020 adds a second one (`static/lang`, for trait
+  text) under its own checksum, `UPSTREAM_LANG_CHECKSUM`, fetched and verified
+  the same way and re-pinned alongside `UPSTREAM_PACKS_CHECKSUM` -- one more
+  value in the same file, not a second mechanism.
 - **No new dependency.** `git` is already required to work on this repository
   at all, so this adds nothing to the dependency tree that ADR 0009 and ADR
   0010 are protecting.
