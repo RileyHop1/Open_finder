@@ -640,29 +640,31 @@ ruling from silently drifting.
 - **This is not a rules dispute** -- it is a recording choice, like the `dead`
   condition, included here because it changes what a GM sees without any rule
   dictating it.
-- **The ambiguity:** PF2e has dozens of basic (non-skill) actions. The
-  importer (milestone 2) has no compendium source for them yet, and the
+- **The ambiguity:** PF2e has dozens of basic (non-skill) actions, and the
   action bar (M5 C.5) needs some set of one-action activities every
-  creature can take, with no prerequisites, to be useful at a real table
-  before the full action compendium exists.
+  creature can take, with no prerequisites, to be useful at a real table.
+  The importer now covers the `action` content kind, but wiring the action
+  bar to a full imported list (with per-action cost and prerequisites read
+  from the entry, rather than hand-set here) is its own UI work, not yet done.
 - **Our reading:** seven are hard-coded in
   `systems/pf2e/src/content/basicActions.ts` (`BASIC_ACTIONS`): Stride,
-  Step, Interact, Delay, Ready, Take Cover, Seek. All cost 1 action and only
-  ever spend (no roll). Chosen for being usable by any creature in any
-  situation and covering what most turns actually reach for.
-- **Alternative:** import the full basic-action list from the compendium once
-  the importer covers the `action` content kind (`content-model.md`), or
-  include more of PF2e's basic actions (Aid, Grapple, Shove, Trip, Sidestep,
-  and others that need a target or a skill) now by hand.
+  Step, Interact, Delay, Ready, Take Cover, Seek, each with the correct
+  action cost (Delay is a free action; Ready costs two actions; the rest
+  cost one). Only ever spend (no roll). Chosen for being usable by any
+  creature in any situation and covering what most turns actually reach for.
+- **Alternative:** wire the action bar to the imported `actions` compendium
+  pack directly, or include more of PF2e's basic actions (Aid, Grapple,
+  Shove, Trip, Sidestep, and others that need a target or a skill) now by
+  hand.
 - **Why:** a short, obviously-correct list that ships now beats waiting on
-  compendium coverage that has no PR yet, and the list is additive --
+  the action bar's compendium-wiring work, and the list is additive --
   swapping it for imported data later changes nothing a GM has already done
   with it.
 - **Override:** none needed; nothing in the list is a judgment call about a
   rule, only about which actions are worth a button yet. The GM's "Other
   action" freeform entry covers anything missing in the meantime.
 - **Test:** `systems/pf2e/src/content/basicActions.test.ts` (no duplicate
-  slugs, a positive cost on every entry) and
+  slugs, a non-negative cost on every entry, Delay and Ready's costs) and
   `apps/client/src/components/actionBarModel.test.ts`.
 
 ### Movement spends actions per move, not by a running total
