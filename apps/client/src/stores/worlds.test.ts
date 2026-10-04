@@ -106,3 +106,36 @@ describe('activate', () => {
     expect(store.error).toBe('not found');
   });
 });
+
+describe('remove', () => {
+  it('removes the deleted campaign from the list', async () => {
+    const a = makeWorld({ name: 'A' });
+    const b = makeWorld({ name: 'B' });
+    vi.mocked(worldsApi.listWorlds).mockResolvedValue([a, b]);
+    vi.mocked(worldsApi.getActiveWorld).mockResolvedValue(undefined);
+    vi.mocked(worldsApi.deleteWorld).mockResolvedValue(undefined);
+
+    const store = useWorldsStore();
+    await store.refresh();
+    await store.remove(a.id);
+
+    expect(store.worlds).toEqual([b]);
+    expect(worldsApi.deleteWorld).toHaveBeenCalledWith(a.id);
+  });
+
+  it('records an error and leaves the list unchanged on failure', async () => {
+    const a = makeWorld({ name: 'A' });
+    vi.mocked(worldsApi.listWorlds).mockResolvedValue([a]);
+    vi.mocked(worldsApi.getActiveWorld).mockResolvedValue(undefined);
+    vi.mocked(worldsApi.deleteWorld).mockRejectedValue(
+      new Error('leave the campaign before deleting it'),
+    );
+
+    const store = useWorldsStore();
+    await store.refresh();
+    await store.remove(a.id);
+
+    expect(store.worlds).toEqual([a]);
+    expect(store.error).toBe('leave the campaign before deleting it');
+  });
+});

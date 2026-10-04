@@ -32,6 +32,17 @@ that fact lives in memory / process state, not in `world.json` or the
 database. This keeps world records themselves free of state that's really
 about the *server's* current behavior.
 
+### Deleting a world
+
+`DELETE /api/worlds/:id` removes a campaign permanently: the whole
+`worlds/<id>/` folder (`worldStore.ts`'s `deleteWorld`), its database, every
+asset, every snapshot. Refused with 404 for an id that isn't a real world
+folder (`listWorldIds` is the only source of truth checked, so a
+path-traversal id never reaches the filesystem call) and with 409 while that
+world is the active one, since nothing should delete a database file out
+from under its own open `DatabaseSync` handle. There is no undo; the
+client's confirmation (`CampaignSelect.vue`) is the only safeguard.
+
 ## Seat
 
 One of the "characters" a person can claim in a world's lobby. There is no

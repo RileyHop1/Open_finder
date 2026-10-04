@@ -77,3 +77,9 @@ export async function getActiveWorld(): Promise<World | undefined> {
   await assertOk(response, 'fetch the active campaign');
   return parseJson(response, worldSchema);
 }
+
+/** Permanently deletes campaign `id` and everything in its world folder. Refused while it is the active campaign. */
+export async function deleteWorld(id: string): Promise<void> {
+  const response = await fetch(`${WORLDS_URL}/${id}`, { method: 'DELETE' });
+  await assertOk(response, 'delete campaign');
+}

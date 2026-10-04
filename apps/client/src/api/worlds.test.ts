@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { activateWorld, createWorld, getActiveWorld, listWorlds } from './worlds.js';
+import {
+  activateWorld,
+  createWorld,
+  deleteWorld,
+  getActiveWorld,
+  listWorlds,
+} from './worlds.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -117,5 +123,25 @@ describe('getActiveWorld', () => {
   it('still throws on a genuine server error', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500));
     await expect(getActiveWorld()).rejects.toThrow('boom');
+  });
+});
+
+describe('deleteWorld', () => {
+  it('sends a DELETE to the campaign', async () => {
+    const id = crypto.randomUUID();
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await deleteWorld(id);
+
+    expect(fetchMock).toHaveBeenCalledWith(`/api/worlds/${id}`, { method: 'DELETE' });
+  });
+
+  it('throws a readable error when the campaign is active', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: 'leave the campaign before deleting it' }, 409),
+    );
+    await expect(deleteWorld(crypto.randomUUID())).rejects.toThrow(
+      'leave the campaign before deleting it',
+    );
   });
 });

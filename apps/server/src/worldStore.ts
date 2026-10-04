@@ -11,7 +11,14 @@
  * this module doesn't know those schemas exist.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 import type { AppliedOperation, BaseDocument, Seat, World } from '@hearthtable/core';
@@ -378,4 +385,16 @@ export function listWorlds(worldsRoot: string): World[] {
     const paths = resolveWorldPaths(worldsRoot, id);
     return worldSchema.parse(JSON.parse(readFileSync(paths.manifestFile, 'utf8')));
   });
+}
+
+/**
+ * Deletes `worldId`'s entire folder -- the database, its WAL/SHM files,
+ * every asset, every snapshot. The caller must ensure nothing holds the
+ * database open first (the active world's `DatabaseSync`, in particular):
+ * this only removes files, it never closes a handle. A no-op if the world
+ * doesn't exist.
+ */
+export function deleteWorld(worldsRoot: string, worldId: string): void {
+  const paths = resolveWorldPaths(worldsRoot, worldId);
+  rmSync(paths.root, { recursive: true, force: true });
 }

@@ -178,6 +178,51 @@ describe('POST /api/worlds', () => {
   });
 });
 
+describe('DELETE /api/worlds/:id', () => {
+  it('deletes a world and removes it from the list', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${worldId}`,
+    });
+    expect(response.statusCode).toBe(204);
+
+    const listed = await app.inject({ method: 'GET', url: '/api/worlds' });
+    expect(jsonAs<WorldSummary[]>(listed).map((w) => w.id)).not.toContain(worldId);
+  });
+
+  it('returns 404 for a world that does not exist', async () => {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${crypto.randomUUID()}`,
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('refuses a path-traversal id, since it never matches a real world folder', async () => {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${encodeURIComponent('../../etc')}`,
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('refuses to delete the active world with 409, and leaves it in place', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${worldId}`,
+    });
+    expect(response.statusCode).toBe(409);
+
+    const active = await app.inject({ method: 'GET', url: '/api/worlds/active' });
+    expect(active.statusCode).toBe(200);
+    expect(jsonAs<WorldSummary>(active).id).toBe(worldId);
+  });
+});
+
 describe('POST /api/worlds/:id/activate', () => {
   it('activates a world that exists', async () => {
     const created = await app.inject({

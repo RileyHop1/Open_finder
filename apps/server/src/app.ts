@@ -34,7 +34,7 @@ import { resolveWorldPaths } from './paths.js';
 import { readableDocuments } from './visibility.js';
 import { withWorldStore } from './worldAccess.js';
 import { exportWorldArchive, importWorldArchive } from './worldArchive.js';
-import { createWorld, listWorlds } from './worldStore.js';
+import { createWorld, deleteWorld, listWorldIds, listWorlds } from './worldStore.js';
 
 export interface AppOptions {
   /** Where world folders live -- see `paths.ts`. Always explicit, never defaulted here. */
@@ -154,6 +154,20 @@ export function createApp(options: AppOptions): FastifyInstance {
     // later" workflow. Close it immediately rather than leaking a handle.
     store.close();
     await reply.status(201).send(world);
+  });
+
+  app.delete('/api/worlds/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    if (!listWorldIds(options.worldsRoot).includes(id)) {
+      await reply.status(404).send({ error: `no world found with id ${id}` });
+      return;
+    }
+    if (activeWorld.get()?.world.id === id) {
+      await reply.status(409).send({ error: 'leave the campaign before deleting it' });
+      return;
+    }
+    deleteWorld(options.worldsRoot, id);
+    await reply.status(204).send();
   });
 
   app.post('/api/worlds/:id/activate', async (request, reply) => {
