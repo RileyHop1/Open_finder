@@ -15,6 +15,8 @@
 import { type World, worldSchema } from '@hearthtable/core';
 import { z } from 'zod';
 
+import { getDeviceToken } from '../realtime/deviceToken.js';
+
 const WORLDS_URL = '/api/worlds';
 
 async function parseJson<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
@@ -76,4 +78,13 @@ export async function getActiveWorld(): Promise<World | undefined> {
   }
   await assertOk(response, 'fetch the active campaign');
   return parseJson(response, worldSchema);
+}
+
+/** Leaves the active campaign: back to the campaign list, for everyone at the table. GM only. */
+export async function deactivateWorld(): Promise<void> {
+  const response = await fetch(`${WORLDS_URL}/active/deactivate`, {
+    method: 'POST',
+    headers: { 'x-device-token': getDeviceToken() },
+  });
+  assertOk(response, 'leave the campaign');
 }

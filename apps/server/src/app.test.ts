@@ -246,6 +246,73 @@ describe('GET /api/worlds/active', () => {
   });
 });
 
+describe('POST /api/worlds/active/deactivate', () => {
+  /** Puts a claimed seat into `worldId`, bypassing HTTP, the same way the "who is asking" suite does. */
+  function putClaimedSeat(worldId: string, deviceToken: string, isGM: boolean): void {
+    const now = new Date().toISOString();
+    const store = openWorld(worldsRoot, worldId);
+    store.putSeat({
+      id: crypto.randomUUID(),
+      worldId,
+      schemaVersion: 1,
+      name: isGM ? 'GM' : 'Valeros',
+      isGM,
+      claimedByDeviceToken: deviceToken,
+      createdAt: now,
+      updatedAt: now,
+    });
+    store.close();
+  }
+
+  it('returns 404 when nothing is active', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+      headers: { 'x-device-token': 'gm-token' },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('refuses a request with no device token, and one from a player', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+    putClaimedSeat(worldId, 'player-token', false);
+
+    const noToken = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+    });
+    expect(noToken.statusCode).toBe(403);
+
+    const asPlayer = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+      headers: { 'x-device-token': 'player-token' },
+    });
+    expect(asPlayer.statusCode).toBe(403);
+
+    // Still active: neither refused attempt cleared it.
+    const active = await app.inject({ method: 'GET', url: '/api/worlds/active' });
+    expect(active.statusCode).toBe(200);
+  });
+
+  it('clears the active world for the GM, and the campaign list shows nothing active again', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+    putClaimedSeat(worldId, 'gm-token', true);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+      headers: { 'x-device-token': 'gm-token' },
+    });
+    expect(response.statusCode).toBe(204);
+
+    const active = await app.inject({ method: 'GET', url: '/api/worlds/active' });
+    expect(active.statusCode).toBe(404);
+  });
+});
+
 describe('static file serving', () => {
   it('serves nothing extra when staticDir is not provided', async () => {
     const response = await app.inject({ method: 'GET', url: '/index.html' });
