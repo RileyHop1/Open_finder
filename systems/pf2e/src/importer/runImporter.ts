@@ -41,6 +41,7 @@ import { mapSpell } from './mapSpell.js';
 import { mapWeapon } from './mapWeapon.js';
 import { readUpstreamEntries, type UpstreamEntry } from './reader.js';
 import { resolveDependencies } from './resolveDependencies.js';
+import { resolveEntryText } from './resolveEntryText.js';
 import { applyScopeFilter } from './scopeFilter.js';
 import { writePacks, type UpstreamPin } from './writePacks.js';
 
@@ -156,8 +157,14 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
 
   const { kept, drops: dependencyDrops } = resolveDependencies(drafts);
 
+  // Resolves every entry's @UUID references against the *other* kept
+  // entries -- needs the whole set for the same reason resolveDependencies
+  // just did, so it runs here, between dependency resolution and writing.
+  const { entries: textResolved, warnings: inlineSyntaxWarnings } =
+    resolveEntryText(kept);
+
   const { packs, drops: duplicateDrops } = writePacks({
-    entries: kept,
+    entries: textResolved,
     outputDir: options.outputDir,
     upstream: options.upstream,
     generatedAt: options.importedAt,
@@ -167,9 +174,13 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
   // exclude them here too, so the coverage report's counts describe what
   // was actually written, not what merely survived dependency resolution.
   const droppedIds = new Set(duplicateDrops.map((drop) => drop.id));
-  const written = kept.filter((entry) => !droppedIds.has(entry.id));
+  const written = textResolved.filter((entry) => !droppedIds.has(entry.id));
 
-  const report = buildCoverageReport(written, [...dependencyDrops, ...duplicateDrops]);
+  const report = buildCoverageReport(
+    written,
+    [...dependencyDrops, ...duplicateDrops],
+    inlineSyntaxWarnings,
+  );
   writeCoverageReport(report, options.outputDir);
 
   return {

@@ -39,6 +39,8 @@ export interface CoverageReport {
   readonly ruleElementsByKind: Readonly<Record<string, number>>;
   readonly inertRuleElements: readonly InertElementCount[];
   readonly drops: readonly DropRecord[];
+  /** `resolveEntryText.ts`'s own warnings -- a matched span of unresolved markup, which may itself be Paizo content, so (like `drops[].slug`) this stays out of `CoverageAggregate`. */
+  readonly inlineSyntaxWarnings: readonly string[];
 }
 
 export interface CoverageAggregate {
@@ -50,6 +52,7 @@ export interface CoverageAggregate {
   readonly dropsByReason: Readonly<Record<string, number>>;
   readonly dropsByKind: Readonly<Record<string, number>>;
   readonly dropsByRound: Readonly<Record<string, number>>;
+  readonly inlineSyntaxWarningCount: number;
 }
 
 function countBy<T>(
@@ -98,6 +101,7 @@ function countInertElements(entries: readonly Pf2eEntry[]): readonly InertElemen
 export function buildCoverageReport(
   entries: readonly Pf2eEntry[],
   drops: readonly DependencyDrop[],
+  inlineSyntaxWarnings: readonly string[] = [],
 ): CoverageReport {
   const mappedElements = entries
     .flatMap((entry) => entry.ruleElements)
@@ -116,10 +120,11 @@ export function buildCoverageReport(
         round: drop.round,
       }))
       .sort((a, b) => a.round - b.round || a.slug.localeCompare(b.slug)),
+    inlineSyntaxWarnings,
   };
 }
 
-/** Strips every entry-identifying field (`drops[].slug`) down to bare counts -- see the module doc. */
+/** Strips every entry-identifying field (`drops[].slug`, `inlineSyntaxWarnings`' quoted markup) down to bare counts -- see the module doc. */
 export function aggregateCoverage(report: CoverageReport): CoverageAggregate {
   return {
     totalEntries: report.totalEntries,
@@ -128,6 +133,7 @@ export function aggregateCoverage(report: CoverageReport): CoverageAggregate {
     inertRuleElements: report.inertRuleElements,
     dropCount: report.drops.length,
     dropsByReason: countBy(report.drops, (drop) => drop.reason),
+    inlineSyntaxWarningCount: report.inlineSyntaxWarnings.length,
     dropsByKind: countBy(report.drops, (drop) => drop.kind),
     dropsByRound: countBy(report.drops, (drop) => String(drop.round)),
   };
@@ -174,6 +180,19 @@ export function renderCoverageMarkdown(report: CoverageReport): string {
     lines.push('| round | kind | slug | reason |', '|---|---|---|---|');
     for (const drop of report.drops) {
       lines.push(`| ${drop.round} | ${drop.kind} | \`${drop.slug}\` | ${drop.reason} |`);
+    }
+    lines.push('');
+  }
+
+  lines.push(
+    `## Inline syntax that couldn't be fully resolved (${report.inlineSyntaxWarnings.length} total)`,
+    '',
+  );
+  if (report.inlineSyntaxWarnings.length === 0) {
+    lines.push('_none_', '');
+  } else {
+    for (const warning of report.inlineSyntaxWarnings) {
+      lines.push(`- ${warning}`);
     }
     lines.push('');
   }

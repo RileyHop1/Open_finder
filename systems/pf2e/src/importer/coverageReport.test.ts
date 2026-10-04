@@ -107,6 +107,14 @@ describe('buildCoverageReport', () => {
     ]);
   });
 
+  it('carries inlineSyntaxWarnings through, defaulting to empty when none are given', () => {
+    const withWarnings = buildCoverageReport([], [], ['unresolved @UUID: Compendium.x']);
+    expect(withWarnings.inlineSyntaxWarnings).toEqual(['unresolved @UUID: Compendium.x']);
+
+    const withoutWarnings = buildCoverageReport([], []);
+    expect(withoutWarnings.inlineSyntaxWarnings).toEqual([]);
+  });
+
   it('includes every drop, sorted by round then slug', () => {
     const drops: DependencyDrop[] = [
       {
@@ -182,6 +190,18 @@ describe('aggregateCoverage', () => {
     expect(JSON.stringify(aggregate)).not.toContain('b-heritage');
   });
 
+  it("strips inlineSyntaxWarnings' quoted markup down to a bare count", () => {
+    const report = buildCoverageReport([], [], [
+      'unrecognized inline syntax, left as text: @Actor[abc]{Some Flavor Text}',
+      '@Localize has no localization table here, guessed a label: PF2E.Foo',
+    ]);
+
+    const aggregate = aggregateCoverage(report);
+
+    expect(aggregate.inlineSyntaxWarningCount).toBe(2);
+    expect(JSON.stringify(aggregate)).not.toContain('Some Flavor Text');
+  });
+
   it('carries totalEntries, entriesByPublication, ruleElementsByKind, and inertRuleElements through unchanged', () => {
     const entries = [
       makeFeat('aaaaaaaaaaaaaaaa', 'Pathfinder Player Core', [FLAT_MODIFIER]),
@@ -225,6 +245,15 @@ describe('renderCoverageMarkdown', () => {
     expect(markdown).toContain('formula-value');
     expect(markdown).toContain('invented-orphan');
     expect(markdown).toContain('grant-target-excluded');
+  });
+
+  it('renders inline syntax warnings, never dropping them silently', () => {
+    const report = buildCoverageReport([], [], ['unresolved @UUID with no fallback label: Compendium.x']);
+
+    const markdown = renderCoverageMarkdown(report);
+
+    expect(markdown).toContain("Inline syntax that couldn't be fully resolved (1 total)");
+    expect(markdown).toContain('unresolved @UUID with no fallback label: Compendium.x');
   });
 
   it('renders "_none_" placeholders for empty sections rather than blank tables', () => {

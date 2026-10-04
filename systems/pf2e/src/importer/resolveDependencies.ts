@@ -54,7 +54,8 @@ export interface ResolveDependenciesResult {
  * target's own id was computed, so re-deriving it here always agrees with
  * the target's real id without any lookup table in between.
  */
-function extractUpstreamId(uuid: string): string | undefined {
+/** Exported for `resolveEntryText.ts`'s own, display-only `@UUID` resolution -- see that module's doc for why reusing this is safe even though resolving `@UUID` in prose is otherwise declined above. */
+export function extractUpstreamId(uuid: string): string | undefined {
   const lastDot = uuid.lastIndexOf('.');
   if (lastDot === -1 || lastDot === uuid.length - 1) {
     return undefined;
