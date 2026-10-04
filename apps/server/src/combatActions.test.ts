@@ -145,7 +145,7 @@ describe('spendAction', () => {
     expect(stored(ada.id).turn).toMatchObject({ actionsSpent: 0, reactionUsed: false });
   });
 
-  it('never blocks an overspend, an off-turn spend, or a second reaction, and warns in chat', () => {
+  it('never blocks the GM’s overspend, an off-turn spend, or a second reaction, and warns in chat', () => {
     const { gm, ada, ben, stored, start } = fight();
     start();
     const over = spendAction(store, gm, { combatantId: ada.id, actions: 3 });
@@ -169,6 +169,49 @@ describe('spendAction', () => {
     start();
     const { documents } = spendAction(store, gm, { combatantId: ada.id, actions: 3 });
     expect(JSON.stringify(documents)).toContain('3 of 2 actions');
+  });
+
+  it('refuses a player who tries to spend past the turn’s capacity, naming how many are left', () => {
+    const { owner, ada, stored, start } = fight();
+    start();
+    spendAction(store, owner, { combatantId: ada.id, actions: 2 });
+    expect(() => spendAction(store, owner, { combatantId: ada.id, actions: 2 })).toThrow(
+      'Ada has only 1 action left this turn.',
+    );
+    // Refused outright: nothing was written.
+    expect(stored(ada.id).turn.actionsSpent).toBe(2);
+  });
+
+  it('lets a player spend exactly up to capacity, never over it', () => {
+    const { owner, ada, stored, start } = fight();
+    start();
+    spendAction(store, owner, { combatantId: ada.id, actions: 3 });
+    expect(stored(ada.id).turn.actionsSpent).toBe(3);
+    expect(() => spendAction(store, owner, { combatantId: ada.id, actions: 1 })).toThrow(
+      'Ada has no actions left this turn.',
+    );
+  });
+
+  it('never blocks a player giving actions back, even past capacity', () => {
+    const { gm, owner, ada, stored, start } = fight();
+    start();
+    spendAction(store, gm, { combatantId: ada.id, actions: 4 });
+    spendAction(store, owner, { combatantId: ada.id, actions: -1 });
+    expect(stored(ada.id).turn.actionsSpent).toBe(3);
+  });
+
+  it('blocks a player at the smaller capacity a slowed condition leaves them', () => {
+    const { owner, hero, ada, start } = fight();
+    const sheet = actorSchema.parse(store.getDocument(hero.id));
+    store.putDocument({
+      ...sheet,
+      system: { ...sheet.system, conditions: [{ slug: 'slowed', value: 1 }] },
+    } as typeof sheet);
+    start();
+    spendAction(store, owner, { combatantId: ada.id, actions: 2 });
+    expect(() => spendAction(store, owner, { combatantId: ada.id, actions: 1 })).toThrow(
+      'Ada has no actions left this turn.',
+    );
   });
 
   it("keeps a hidden combatant's warning from players", () => {

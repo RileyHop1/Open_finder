@@ -2,29 +2,37 @@
 
 How a turn works, what the app enforces, and what it merely shows.
 
-## The rule: display and warn, never block
-**The app shows action costs, warns visibly on an overspend, and lets it
-through.** It does not prevent a fourth action.
+## The rule: a player is capped, the GM never is
+**A player cannot spend past the turn's capacity; the GM always can.**
 
-This resolves a genuine tension in the north star. Owlcat's games hard-block,
-because a single-player CRPG owns every rule. Ours does not: "the GM is the
-director and can always override the automation" is a ground rule, and PF2e has
-real effects that grant extra actions in ways no automation will fully model.
+The original M5 C.4 design let anyone overspend, with a visible warning instead
+of a block, reasoning that PF2e has real effects granting extra actions no
+automation fully models, and that blocking would leave the table stuck whenever
+the automation guessed the capacity wrong. Playtesting found the opposite
+problem in practice: a player could keep clicking past 3 actions with nothing
+stopping them, which read as broken rather than permissive, and a warning
+nobody was watching for didn't actually teach the limit it was meant to teach.
 
-Blocking would mean that every time the automation is wrong, the table is *stuck*
-— and the GM's workaround is to disable automation entirely, which is worse than
-a warning they can ignore. A visible warning teaches new players the limit (the
-stated north-star goal) without making the software the final authority.
+**The resolution keeps the GM escape hatch and removes the player one.** The
+GM is still never blocked (CLAUDE.md's "the GM is the director and can always
+override the automation"): if a real effect the importer or the rules engine
+doesn't model grants someone an extra action, the GM spends it for them, or
+adjusts the result directly, the same override path every other automated
+number already has. A player hitting the cap sees a refusal naming how many
+actions are left, not a silent no-op and not a warning they can click past.
 
-The warning is not a modal. It is an inline marker on the turn's action tray, in
-text and icon, never color alone (see Accessibility).
+The refusal is not a modal. It is the same inline error line
+(`combat.error`) other rejected operations in this view already use (see
+`TableView.vue`), next to the turn controls below the map.
 
 **Implemented in M5 C.4**: `apps/client/src/components/ActionTray.vue` shows
 the acting combatant's ◆◆◆ (filled by `actionsSpent`) and ↺, both with a text
-count, plus a quickened extra marked "restricted". An overspend shows "⚠ N
-actions over" in text, and the server (`combat.spendAction`, B.4) still never
-refuses it. Spend/undo and the reaction toggle are for the combatant's actor's
-owner or the GM; hidden entirely while no combat is active.
+count, plus a quickened extra marked "restricted". Spend/undo and the reaction
+toggle are for the combatant's actor's owner or the GM; hidden entirely while
+no combat is active. The server (`combat.spendAction`) refuses a player's
+spend that would cross the turn's `actionCapacity` and writes nothing; the
+GM's own overspend still goes through and is only announced in chat ("Ada has
+spent 4 of 3 actions").
 
 **Implemented in M5 C.5a**: `apps/client/src/components/ActionBar.vue`, across
 the bottom of the map for whatever token is selected, strikes and basic
@@ -70,9 +78,10 @@ those by hand.
   them used, and nothing about the schema changes.
 
 All of these are conditions (see `docs/conditions.md`) and change the tray's
-capacity rather than being special-cased in the tracker. Spending more than the
-capacity is warned about and never blocked. See [rulings.md](rulings.md), "Stunned,
-slowed, and quickened".
+capacity rather than being special-cased in the tracker. A player spending more
+than this capacity is refused outright; the GM's own overspend is warned about
+and never blocked (see "A player is capped, the GM never is" above). See
+[rulings.md](rulings.md), "Stunned, slowed, and quickened".
 
 ## Multiple Attack Penalty
 MAP is the most-used piece of combat math in the game and the easiest to get

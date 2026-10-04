@@ -61,9 +61,10 @@ as it does today.
   surprised, and the keyboard and menu routes are the same as for any GM tool.
   **Implemented in C.2b:** a Free movement checkbox in the turn bar, and a
   "Let this token move" / "Revoke movement" item in the token menu.
-- **Actions are still only warned about.** Overspending a turn's actions is shown
-  and never blocked ([action-economy.md](action-economy.md)); movement is the one
-  thing the tracker enforces, because it has the GM's override above.
+- **A player's actions are enforced too.** A spend that would cross the turn's
+  `actionCapacity` is refused outright, naming how many actions are left; the
+  GM's own overspend still goes through, with a chat warning
+  ([action-economy.md](action-economy.md)).
 - **Ending a combat** returns to free play, and the rulings go with it. What
   happens to a condition that was anchored to one of its combatants (`turn`
   durations) is decided with `combat.end` (B.3); the recommendation is that it ends
@@ -242,7 +243,7 @@ an id, not a position that could drift onto the wrong creature.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `actionsSpent` | integer 0-99, default 0 | Allowed to exceed the turn's capacity: the app warns and never blocks ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
+| `actionsSpent` | integer 0-99, default 0 | A player's spend is refused outright once it would exceed the turn's capacity; the GM's own overspend still goes through, with a chat warning ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
 | `reactionUsed` | boolean, default `false` | Refreshed at the start of the combatant's turn |
 | `attacksMade` | integer 0-99, default 0 | The Multiple Attack Penalty counts attacks, not actions. Reset at the start of the combatant's turn |
 | `movementUsed` | integer feet, 0-9999, default 0 | Feet moved this turn while this combatant is active. Reset at the start of the combatant's turn. **Schema only so far** (M5 movement stack, part a): `systems/pf2e`'s `stridesFor` says how many Strides a move of this size costs, and `speedOf` reads a character's or NPC's Speed, but nothing writes to this field yet -- `token.move` does not spend actions for movement until the server piece lands |

@@ -420,6 +420,70 @@ describe('the turn bar', () => {
     });
   });
 
+  it('shows the server’s refusal when a spend is rejected (over the action budget)', async () => {
+    const scene = sceneWithParty();
+    const actor = makeActor('Ada');
+    const token = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: actor.id,
+      x: 0,
+      y: 0,
+    });
+    const combatant = combatantSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'combatant',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      combatId: crypto.randomUUID(),
+      tokenId: token.id,
+      actorId: actor.id,
+      turn: { actionsSpent: 3, reactionUsed: false, attacksMade: 0 },
+    });
+    vi.mocked(documentsApi.listActors).mockResolvedValue([actor]);
+    vi.mocked(documentsApi.listTokens).mockResolvedValue([token]);
+    vi.mocked(documentsApi.listCombatants).mockResolvedValue([combatant]);
+    vi.mocked(documentsApi.listCombats).mockResolvedValue([
+      {
+        id: combatant.combatId,
+        worldId: WORLD,
+        type: 'combat',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        status: 'active',
+        round: 1,
+        freeMovement: false,
+        activeCombatantId: combatant.id,
+      },
+    ]);
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    vi.mocked(emitOperation).mockResolvedValue({
+      ok: false,
+      error: 'Ada has no actions left this turn.',
+    });
+
+    const wrapper = await mountTable();
+    expect(wrapper.find('.status-error').exists()).toBe(false);
+
+    await wrapper.find('.action-tray button').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('.status-error').text()).toBe(
+      'Ada has no actions left this turn.',
+    );
+  });
+
   it('shows the action bar for a token the GM selects, and spends an action for a basic action', async () => {
     const scene = sceneWithParty();
     const actor = makeActor('Ada');
