@@ -17,7 +17,7 @@
  * build on, not a second copy of it.
  */
 
-export { parse } from './parser.js';
+export { MAX_DICE_COUNT, MAX_DIE_FACES, parse } from './parser.js';
 export type { ParseError, ParseErrorCode, ParseResult } from './parser.js';
 
 export { evaluate } from './evaluator.js';

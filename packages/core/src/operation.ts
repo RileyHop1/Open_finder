@@ -102,7 +102,7 @@ export const chatSendMessageOperationSchema = clientOperationSchema.extend({
  */
 export const chatSendRollOperationSchema = clientOperationSchema.extend({
   type: z.literal('chat.sendRoll'),
-  payload: z.object({ expression: z.string().min(1) }),
+  payload: z.object({ expression: z.string().min(1).max(200) }),
 });
 
 /**

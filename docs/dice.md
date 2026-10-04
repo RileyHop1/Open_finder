@@ -47,6 +47,15 @@ Examples: `1d20+7`, `2d6+4`, `1d20+@perception`, `2d20kh1` (fortune),
 `explode` is in the grammar for completeness but **is not implemented in v1** —
 PF2e has no exploding dice. It is listed so nobody adds it ad hoc later.
 
+## Caps
+A roll is capped at 100 dice and a die at 1000 faces (`MAX_DICE_COUNT`,
+`MAX_DIE_FACES` in `parser.ts`) — far beyond anything PF2e rolls, so this is a
+sanity bound against a typed-in `/roll 100000d6`, not a rule. Over either cap,
+or under 1 die, `parse` returns a readable `ParseError` the same way a syntax
+error does; it never throws and never hangs the evaluator. `chat.sendRoll`'s
+`expression` field is separately capped at 200 characters so an enormous
+string never reaches the parser at all.
+
 `@references` resolve against a context object supplied by the caller. The dice
 package does not know where `@perception` comes from; it asks.
 

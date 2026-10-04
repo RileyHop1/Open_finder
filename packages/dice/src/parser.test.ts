@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DiceExpr, Expression } from './ast.js';
-import { parse } from './parser.js';
+import { MAX_DICE_COUNT, MAX_DIE_FACES, parse } from './parser.js';
 
 function parseOk(source: string): Expression {
   const result = parse(source);
@@ -163,5 +163,43 @@ describe('parse -- malformed input never throws', () => {
       expect(typeof result.error.message).toBe('string');
       expect(typeof result.error.position).toBe('number');
     }
+  });
+});
+
+describe('parse -- dice count and face caps', () => {
+  it(`allows exactly ${MAX_DICE_COUNT} dice`, () => {
+    const dice = firstDice(parseOk(`${MAX_DICE_COUNT}d6`));
+    expect(dice.count).toBe(MAX_DICE_COUNT);
+  });
+
+  it('rejects a dice count over the cap', () => {
+    const result = parse(`${MAX_DICE_COUNT + 1}d6`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain(`${MAX_DICE_COUNT} dice`);
+    }
+  });
+
+  it('rejects an extremely long dice count (would otherwise overflow to Infinity)', () => {
+    const result = parse(`${'9'.repeat(400)}d6`);
+    expect(result.ok).toBe(false);
+  });
+
+  it(`allows exactly ${MAX_DIE_FACES} faces`, () => {
+    const dice = firstDice(parseOk(`1d${MAX_DIE_FACES}`));
+    expect(dice.faces).toBe(MAX_DIE_FACES);
+  });
+
+  it('rejects a face count over the cap', () => {
+    const result = parse(`1d${MAX_DIE_FACES + 1}`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain(`${MAX_DIE_FACES} faces`);
+    }
+  });
+
+  it('rejects a dice count of 0', () => {
+    const result = parse('0d6');
+    expect(result.ok).toBe(false);
   });
 });
