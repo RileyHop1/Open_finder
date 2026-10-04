@@ -5,6 +5,13 @@
  * picture, a battle scene, 100 tokens), then panned and zoomed with a real mouse
  * while the page records how long each animation frame took.
  *
+ * M5 D.1 adds the combat overlays to the same stress scene before the
+ * scripted work runs: an active combat (so the turn bar renders all 100
+ * combatants and the active one's token draws its turn marker through every
+ * pan and zoom) and a placed template. Reusing the same 100-token scene,
+ * rather than a second one, is the point -- the overlays are measured under
+ * the worst case the budget already covers, not in isolation.
+ *
  * On demand, not CI (`playwright.perf.config.ts` says why): run `pnpm test:perf`
  * on the machine that matters. It always prints the numbers and the graphics
  * card the browser really used (a software renderer such as SwiftShader says
@@ -91,6 +98,33 @@ async function sendOperation(
     [store, type, payload] as const,
   );
   expect(ok, `${type} was refused`).toBe(true);
+}
+
+/** Calls a zero-argument method on one of the app's own stores, such as `combat.startCombat`. */
+async function callStoreMethod(
+  page: Page,
+  store: 'combat',
+  method: string,
+): Promise<void> {
+  const ok = await page.evaluate(
+    async ([name, methodName]) => {
+      const app = (
+        document.querySelector('#app') as unknown as {
+          __vue_app__: {
+            config: {
+              globalProperties: {
+                $pinia: { _s: Map<string, Record<string, () => Promise<boolean>>> };
+              };
+            };
+          };
+        }
+      ).__vue_app__;
+      const target = app.config.globalProperties.$pinia._s.get(name);
+      return (await target?.[methodName]?.()) ?? false;
+    },
+    [store, method] as const,
+  );
+  expect(ok, `${store}.${method} was refused`).toBe(true);
 }
 
 /** Records the time between animation frames until `stop` is awaited. */
@@ -218,6 +252,19 @@ test('canvas budget: 100 tokens on an 8000 x 8000 map', async ({ browser }, test
   await expect(gm.locator('.map-surface canvas')).toBeVisible();
   // The map picture is 64 MB of pixels to decode and upload: let it land.
   await gm.waitForTimeout(4000);
+
+  // --- the combat overlays (M5 D.1): turn bar, turn marker, a template ---
+  await callStoreMethod(gm, 'combat', 'startCombat');
+  await expect(gm.locator('[data-testid="turn-bar"] ol li')).toHaveCount(TOKENS, {
+    timeout: 30_000,
+  });
+  await sendOperation(gm, 'scenes', 'template.place', {
+    sceneId,
+    shape: 'burst',
+    at: { x: MAP_SIZE / 2, y: MAP_SIZE / 2 },
+    feet: 20,
+  });
+  await expect(gm.locator('.template-list li')).toHaveCount(1);
 
   const gpu = await gm.evaluate(() => {
     const gl = document.createElement('canvas').getContext('webgl2');
