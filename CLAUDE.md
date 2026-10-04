@@ -402,9 +402,12 @@ Every GM feature is judged by "could a first-time GM figure this out without doc
   damage application, and condition change has a visible manual path — adjust
   the result, re-roll, or set the value directly. Build it alongside each piece
   of automation, never after. This is also how ambiguous rulings stay survivable
-- **Undo/redo in prep mode**, GM-only, implemented as a command log. Deliberately
-  *not* offered in play mode: undoing one client's action on a live shared table,
-  after other people have acted on it, is a much harder problem than it looks
+- **Undo/redo in prep mode**, GM-only, implemented as a command log. Not offered
+  in play mode at large: undoing one client's action on a live shared table, after
+  other people have acted on it, is a much harder problem than it looks. **One
+  narrow exception:** undoing your own current combat turn, scoped to that turn
+  and backed by server-side snapshots rather than the command log above — see
+  `docs/adr/0019-turn-undo.md`
 
 ## Repo layout
 ```

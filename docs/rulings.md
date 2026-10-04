@@ -664,3 +664,35 @@ ruling from silently drifting.
 - **Test:** `systems/pf2e/src/content/basicActions.test.ts` (no duplicate
   slugs, a positive cost on every entry) and
   `apps/client/src/components/actionBarModel.test.ts`.
+
+### Movement spends actions per move, not by a running total
+- **Rules text:** Player Core, Actions, Stride: "Your Speed determines how far
+  you can go with a single Stride." Each Stride is its own action, costing 1
+  action per use.
+- **The ambiguity:** PF2e's own wording is unambiguous about a single Stride,
+  but says nothing about how an app should charge a *drag* that covers several
+  squares of continuous movement in one gesture — is that one Stride regardless
+  of distance, or does crossing a Speed's worth of distance mid-drag cost a
+  second one?
+- **Our first implementation (superseded):** a running total for the whole
+  turn (`movementUsed`), so any movement up to Speed cost 1 action regardless
+  of how many separate moves it took, and crossing another Speed's worth
+  (cumulative) cost a second. Playtesting found this read as broken rather than
+  permissive: the same 5 ft move cost an action some of the time and nothing
+  the rest of the time, depending on what else had moved that turn, including
+  movement already undone.
+- **Our reading (current):** each move — one drag, or one committed
+  keyboard-planned path — is charged independently: `max(1, ceil(distance /
+  Speed))` actions, a minimum of 1 for any nonzero distance. This matches a
+  real table, where a player says "I move" once per decision, not once per 5 ft,
+  and it is simpler to verify against RAW than a running total ever was.
+- **Alternative reading:** the running total described above, which a GM might
+  prefer as more generous for a slow character splitting movement into several
+  small steps. Any GM who wants that can still allow it by hand (see Override).
+- **Why:** per-move cost is exactly what the rule says and was simple enough to
+  get right the first time; the running-total version was an attempt to be more
+  forgiving that ended up being less predictable, which is a worse trade for a
+  table than the stricter, simpler reading.
+- **Golden test:** `systems/pf2e/src/rules/movement.test.ts`.
+- **Override:** the GM can always spend or refund an action by hand through the
+  action tray, independent of what a move actually cost.
