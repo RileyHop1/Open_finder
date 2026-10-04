@@ -1,6 +1,8 @@
 /**
  * Combat operations: setting up a combat and choosing who is in it (ADR 0018).
- * Only the GM does any of it. Like the other handler modules these take the
+ * Almost all of it is the GM's; the one exception is `nextTurn`, which the
+ * owner of the currently active combatant may also call, to end their own
+ * turn (`requireCanEndTurn`). Like the other handler modules these take the
  * already-resolved `Seat` and a `WorldStore` and return what changed, so they
  * are tested without a socket and `realtime.ts` only dispatches.
  *
@@ -73,6 +75,24 @@ function requireGM(seat: Seat): void {
   if (!seat.isGM) {
     throw new OperationRejected('only the GM can change a combat');
   }
+}
+
+/**
+ * The GM may always end a turn; otherwise only the owner of the combatant
+ * whose turn it currently is may end their own (the player's "End turn",
+ * CLAUDE.md's "the GM is never blocked" plus letting a player act without
+ * waiting on the GM to click Next turn for them). A combat with nobody yet
+ * active (just started, before `nextTurn` has run once) is GM-only.
+ */
+function requireCanEndTurn(store: WorldStore, seat: Seat, combat: Combat): void {
+  if (seat.isGM) {
+    return;
+  }
+  if (combat.activeCombatantId === undefined) {
+    throw new OperationRejected('only the GM can change a combat');
+  }
+  const active = loadCombatant(store, combat.activeCombatantId);
+  loadOwnedDocument(store, seat, active.actorId, 'actor', 'combatant');
 }
 
 function loadCombat(store: WorldStore, combatId: string): Combat {
@@ -709,14 +729,18 @@ function loadActiveCombat(store: WorldStore, combatId: string): Combat {
  * those with no initiative are skipped. If the active combatant is gone (its token
  * was deleted) the turn simply goes to the top of the order without a new round.
  * Persistent damage that falls due is not rolled yet (B.7).
+ *
+ * The GM may always call this; so may the owner of the combatant whose turn
+ * it currently is, ending their own turn (`requireCanEndTurn`) -- a player
+ * is never stuck waiting on the GM to click "Next turn" for them.
  */
 export function nextTurn(
   store: WorldStore,
   seat: Seat,
   payload: { combatId: string },
 ): CombatChange {
-  requireGM(seat);
   const combat = loadActiveCombat(store, payload.combatId);
+  requireCanEndTurn(store, seat, combat);
   const leaving = combat.activeCombatantId;
   const sorted = sortByInitiative(entriesOf(store, combatantsOf(store, combat.id)));
   const step = nextCombatant(sorted, leaving);

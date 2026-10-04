@@ -6,6 +6,7 @@ import {
   activateWorld,
   createWorld,
   deactivateWorld,
+  deleteWorld,
   getActiveWorld,
   listWorlds,
 } from './worlds.js';
@@ -143,5 +144,25 @@ describe('deactivateWorld', () => {
   it('throws when the server refuses', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'only the GM' }, 403));
     await expect(deactivateWorld()).rejects.toThrow('only the GM');
+  });
+});
+
+describe('deleteWorld', () => {
+  it('sends a DELETE to the campaign', async () => {
+    const id = crypto.randomUUID();
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await deleteWorld(id);
+
+    expect(fetchMock).toHaveBeenCalledWith(`/api/worlds/${id}`, { method: 'DELETE' });
+  });
+
+  it('throws a readable error when the campaign is active', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: 'leave the campaign before deleting it' }, 409),
+    );
+    await expect(deleteWorld(crypto.randomUUID())).rejects.toThrow(
+      'leave the campaign before deleting it',
+    );
   });
 });

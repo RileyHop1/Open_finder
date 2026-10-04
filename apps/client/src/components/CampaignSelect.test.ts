@@ -130,4 +130,41 @@ describe('CampaignSelect', () => {
     expect(label.exists()).toBe(true);
     expect(wrapper.find('#new-campaign-name').exists()).toBe(true);
   });
+
+  describe('deleting a campaign', () => {
+    it('asks before deleting, and only calls deleteWorld after confirming', async () => {
+      const world = makeWorld();
+      vi.mocked(worldsApi.listWorlds).mockResolvedValue([world]);
+      vi.mocked(worldsApi.deleteWorld).mockResolvedValue(undefined);
+
+      const wrapper = mountCampaignSelect();
+      await flushPromises();
+
+      await wrapper.find('.campaign-row button:nth-of-type(2)').trigger('click');
+      await flushPromises();
+      expect(worldsApi.deleteWorld).not.toHaveBeenCalled();
+      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true);
+
+      await wrapper.find('.delete-confirm button').trigger('click');
+      await flushPromises();
+      expect(worldsApi.deleteWorld).toHaveBeenCalledWith(world.id);
+      expect(wrapper.text()).not.toContain(world.name);
+    });
+
+    it('cancels without calling deleteWorld', async () => {
+      const world = makeWorld();
+      vi.mocked(worldsApi.listWorlds).mockResolvedValue([world]);
+
+      const wrapper = mountCampaignSelect();
+      await flushPromises();
+
+      await wrapper.find('.campaign-row button:nth-of-type(2)').trigger('click');
+      await flushPromises();
+      await wrapper.findAll('.delete-confirm button')[1]?.trigger('click');
+      await flushPromises();
+
+      expect(worldsApi.deleteWorld).not.toHaveBeenCalled();
+      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false);
+    });
+  });
 });

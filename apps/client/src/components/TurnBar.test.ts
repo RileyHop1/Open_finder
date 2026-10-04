@@ -23,7 +23,6 @@ const baseProps = {
   active: true,
   showControls: false,
   unseenActing: false,
-  freeMovement: false,
 };
 
 describe('TurnBar -- combatants', () => {
@@ -89,7 +88,6 @@ describe('TurnBar -- the GM’s controls', () => {
     const wrapper = mount(TurnBar, {
       props: {
         active: false,
-        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [],
@@ -100,26 +98,10 @@ describe('TurnBar -- the GM’s controls', () => {
     expect(labels).toEqual(['Start combat']);
   });
 
-  it('offers Previous/Next/End once a combat is active, for the GM', () => {
-    const wrapper = mount(TurnBar, {
-      props: {
-        active: true,
-        freeMovement: false,
-        showControls: true,
-        unseenActing: false,
-        items: [],
-        round: 1,
-      },
-    });
-    const labels = wrapper.findAll('button').map((b) => b.text());
-    expect(labels).toEqual(['Previous turn', 'Next turn', 'End combat']);
-  });
-
   it('offers no controls at all for a player, in either state', () => {
     const noCombat = mount(TurnBar, {
       props: {
         active: false,
-        freeMovement: false,
         showControls: false,
         unseenActing: false,
         items: [],
@@ -131,7 +113,6 @@ describe('TurnBar -- the GM’s controls', () => {
     const running = mount(TurnBar, {
       props: {
         active: true,
-        freeMovement: false,
         showControls: false,
         unseenActing: false,
         items: [item()],
@@ -142,11 +123,10 @@ describe('TurnBar -- the GM’s controls', () => {
     expect(running.findAll('button')).toHaveLength(1);
   });
 
-  it('emits start, previous, next and end', async () => {
+  it('emits start', async () => {
     const start = mount(TurnBar, {
       props: {
         active: false,
-        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [],
@@ -155,24 +135,22 @@ describe('TurnBar -- the GM’s controls', () => {
     });
     await start.find('button').trigger('click');
     expect(start.emitted('start')).toHaveLength(1);
+  });
 
-    const running = mount(TurnBar, {
+  it('offers no Previous/Next/End buttons here -- TurnControls.vue has those now', () => {
+    const wrapper = mount(TurnBar, {
       props: {
         active: true,
-        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [],
         round: 1,
       },
     });
-    const [previous, next, end] = running.findAll('button');
-    await previous?.trigger('click');
-    await next?.trigger('click');
-    await end?.trigger('click');
-    expect(running.emitted('previous')).toHaveLength(1);
-    expect(running.emitted('next')).toHaveLength(1);
-    expect(running.emitted('end')).toHaveLength(1);
+    const labels = wrapper.findAll('button').map((b) => b.text());
+    expect(labels).not.toContain('Previous turn');
+    expect(labels).not.toContain('Next turn');
+    expect(labels).not.toContain('End combat');
   });
 
   it('offers the GM a per-combatant initiative override, absent for a player', async () => {
@@ -180,7 +158,6 @@ describe('TurnBar -- the GM’s controls', () => {
     const gm = mount(TurnBar, {
       props: {
         active: true,
-        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [target],
@@ -194,7 +171,6 @@ describe('TurnBar -- the GM’s controls', () => {
     const player = mount(TurnBar, {
       props: {
         active: true,
-        freeMovement: false,
         showControls: false,
         unseenActing: false,
         items: [target],
@@ -209,7 +185,6 @@ describe('TurnBar -- the GM’s controls', () => {
     const wrapper = mount(TurnBar, {
       props: {
         active: true,
-        freeMovement: false,
         showControls: true,
         unseenActing: false,
         items: [target],
@@ -218,36 +193,5 @@ describe('TurnBar -- the GM’s controls', () => {
     });
     await wrapper.get('form.override').trigger('submit');
     expect(wrapper.emitted('setInitiative')).toBeUndefined();
-  });
-
-  it('shows the free-movement checkbox for the GM, reflecting the prop, and emits on change', async () => {
-    const wrapper = mount(TurnBar, {
-      props: {
-        active: true,
-        freeMovement: true,
-        showControls: true,
-        unseenActing: false,
-        items: [],
-        round: 1,
-      },
-    });
-    const checkbox = wrapper.get('input[type="checkbox"]');
-    expect((checkbox.element as HTMLInputElement).checked).toBe(true);
-    await checkbox.setValue(false);
-    expect(wrapper.emitted('setFreeMovement')).toEqual([[false]]);
-  });
-
-  it('has no free-movement checkbox for a player', () => {
-    const wrapper = mount(TurnBar, {
-      props: {
-        active: true,
-        freeMovement: false,
-        showControls: false,
-        unseenActing: false,
-        items: [],
-        round: 1,
-      },
-    });
-    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false);
   });
 });
