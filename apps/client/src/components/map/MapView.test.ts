@@ -65,8 +65,6 @@ vi.mock('../../stores/documents.js', () => ({
 const addCombatant = vi.fn<(tokenId: string, hidden: boolean) => Promise<boolean>>();
 const setMovementGrant =
   vi.fn<(combatantId: string, allowed: boolean) => Promise<boolean>>();
-const recordMove =
-  vi.fn<(combatantId: string, tokenId: string, from: { x: number; y: number }) => void>();
 const combat = reactive<{
   activeCombat: { status: string } | undefined;
   activeCombatant: { tokenId: string } | undefined;
@@ -75,14 +73,12 @@ const combat = reactive<{
   ) => { id: string; movementGrant: boolean } | undefined;
   addCombatant: typeof addCombatant;
   setMovementGrant: typeof setMovementGrant;
-  recordMove: typeof recordMove;
 }>({
   activeCombat: undefined,
   activeCombatant: undefined,
   combatantByToken: () => undefined,
   addCombatant,
   setMovementGrant,
-  recordMove,
 });
 vi.mock('../../stores/combat.js', () => ({ useCombatStore: () => combat }));
 vi.mock('./mapImage.js');
@@ -755,27 +751,6 @@ describe('selecting and moving tokens', () => {
     expect(wrapper.get('[role="status"]').text()).toBe('Valeros moved 5 ft.');
   });
 
-  it('records the move for undo, from where the token was before it moved, if it is a combatant', async () => {
-    const { wrapper, token, surface } = await setup(GM);
-    const combatantId = crypto.randomUUID();
-    combat.combatantByToken = (tokenId) =>
-      tokenId === token.id ? { id: combatantId, movementGrant: false } : undefined;
-    await wrapper.get('.token-list button').trigger('click');
-
-    await press(surface, 'ArrowRight');
-    await flushPromises();
-    expect(recordMove).toHaveBeenCalledWith(combatantId, token.id, { x: 250, y: 250 });
-  });
-
-  it('records nothing for undo when the token is not a combatant', async () => {
-    const { wrapper, surface } = await setup(GM);
-    await wrapper.get('.token-list button').trigger('click');
-
-    await press(surface, 'ArrowRight');
-    await flushPromises();
-    expect(recordMove).not.toHaveBeenCalled();
-  });
-
   it('keeps the arrows for panning when nothing is selected, and stops the page scrolling for a move', async () => {
     const { wrapper, surface } = await setup(GM);
     view.setCamera.mockClear();
@@ -1171,19 +1146,6 @@ describe('dragging tokens', () => {
     expect(wrapper.find('output.move-readout').exists()).toBe(false);
     expect(wrapper.get('.visually-hidden').text()).toBe('Valeros moved 10 ft.');
     expect(wrapper.get('.map-surface').classes()).not.toContain('is-dragging');
-  });
-
-  it('records the drag for undo, from where the drag began, if the token is a combatant', async () => {
-    const { token, surface } = await setup(GM);
-    const combatantId = crypto.randomUUID();
-    combat.combatantByToken = (tokenId) =>
-      tokenId === token.id ? { id: combatantId, movementGrant: false } : undefined;
-    await grab(surface);
-    await drag(surface, 249, 149);
-    await drop(surface, 249, 149);
-    await flushPromises();
-
-    expect(recordMove).toHaveBeenCalledWith(combatantId, token.id, { x: 250, y: 250 });
   });
 
   it('sends nothing for a click or a wobble inside the starting cell', async () => {

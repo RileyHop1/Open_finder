@@ -253,18 +253,10 @@ export const useScenesStore = defineStore('scenes', () => {
   /**
    * Moves a token to `x`, `y` (scene pixels, the token's centre), shown at once
    * and rolled back if the server refuses. Returns whether it was accepted.
-   *
-   * `undo: true` marks this as "undo last action" moving the active
-   * combatant's token back to where a move it made began -- the server gives
-   * back the Strides that move cost instead of charging more
-   * (`docs/combat.md`).
+   * Moving a token back (an "undo last action") is `combat.undo` (ADR 0019),
+   * not a flag here: it restores the token document directly.
    */
-  async function moveToken(
-    tokenId: string,
-    x: number,
-    y: number,
-    undo?: boolean,
-  ): Promise<boolean> {
+  async function moveToken(tokenId: string, x: number, y: number): Promise<boolean> {
     const operationId = crypto.randomUUID();
     error.value = undefined;
     pendingMoves.value = [...pendingMoves.value, { operationId, tokenId, x, y }];
@@ -272,7 +264,6 @@ export const useScenesStore = defineStore('scenes', () => {
       tokenId,
       x,
       y,
-      ...(undo === undefined ? {} : { undo }),
     });
     if (!ack.ok) {
       pendingMoves.value = pendingMoves.value.filter(

@@ -30,7 +30,7 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
 describe('ActionBar', () => {
   it('shows each strike’s three MAP variants and emits which was clicked', async () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false, canUndo: false },
+      props: { view: view(), label: 'Ada', gm: false },
     });
     expect(wrapper.text()).toContain('1st +7');
     expect(wrapper.text()).toContain('3rd -3');
@@ -41,14 +41,14 @@ describe('ActionBar', () => {
 
   it('says so when there are no strikes', () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view({ strikes: [] }), label: 'Ada', gm: false, canUndo: false },
+      props: { view: view({ strikes: [] }), label: 'Ada', gm: false },
     });
     expect(wrapper.text()).toContain('No strikes');
   });
 
   it('lists basic actions with their cost, and emits the slug and cost on click', async () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false, canUndo: false },
+      props: { view: view(), label: 'Ada', gm: false },
     });
     const basic = wrapper.findAll('.basics button')[0];
     expect(basic?.text()).toContain('Stride');
@@ -59,19 +59,19 @@ describe('ActionBar', () => {
 
   it('hides the basic actions with no combatant to spend against', () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view({ canAct: false }), label: 'Ada', gm: false, canUndo: false },
+      props: { view: view({ canAct: false }), label: 'Ada', gm: false },
     });
     expect(wrapper.find('.basics').exists()).toBe(false);
   });
 
   it('shows "Other action" only for the GM, and emits its label and cost', async () => {
     const player = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false, canUndo: false },
+      props: { view: view(), label: 'Ada', gm: false },
     });
     expect(player.find('.freeform').exists()).toBe(false);
 
     const gm = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: true, canUndo: false },
+      props: { view: view(), label: 'Ada', gm: true },
     });
     await gm.find('#freeform-label').setValue('Pries the door open');
     await gm.find('#freeform-cost').setValue(2);
@@ -81,34 +81,14 @@ describe('ActionBar', () => {
 
   it('hides "Other action" with no combatant to spend against, even for the GM', () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view({ canAct: false }), label: 'Ada', gm: true, canUndo: false },
+      props: { view: view({ canAct: false }), label: 'Ada', gm: true },
     });
     expect(wrapper.find('.freeform').exists()).toBe(false);
   });
 
-  it('shows "Undo last action" only when there is one, and emits on click', async () => {
-    const nothingToUndo = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false, canUndo: false },
-    });
-    expect(nothingToUndo.find('.undo').exists()).toBe(false);
-
-    const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false, canUndo: true },
-    });
-    await wrapper.find('.undo').trigger('click');
-    expect(wrapper.emitted('undo')).toEqual([[]]);
-  });
-
-  it('hides "Undo last action" with no combatant to spend against', () => {
-    const wrapper = mount(ActionBar, {
-      props: { view: view({ canAct: false }), label: 'Ada', gm: false, canUndo: true },
-    });
-    expect(wrapper.find('.undo').exists()).toBe(false);
-  });
-
   it('emits hoverStrike on mouseenter or focus, and unhoverStrike on mouseleave or blur', async () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false, canUndo: false },
+      props: { view: view(), label: 'Ada', gm: false },
     });
     const button = wrapper.find('button[aria-label="Sword 1st attack, +7"]');
 

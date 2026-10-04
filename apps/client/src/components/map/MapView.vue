@@ -271,14 +271,7 @@ async function moveSelected(direction: Direction): Promise<void> {
     announcement.value = `${token.label} is at the edge of the map.`;
     return;
   }
-  const from = { x: token.x, y: token.y };
   const accepted = await scenes.moveToken(token.id, step.to.x, step.to.y);
-  if (accepted) {
-    const combatantId = combat.combatantByToken(token.id)?.id;
-    if (combatantId !== undefined) {
-      combat.recordMove(combatantId, token.id, from);
-    }
-  }
   announcement.value = accepted ? `${token.label} moved ${step.feet} ft.` : '';
 }
 
@@ -544,15 +537,9 @@ async function dropToken(send: boolean): Promise<void> {
   // The move is pending before the drag is released, so the token never flickers back.
   const accepted = scenes.moveToken(current.tokenId, current.to.x, current.to.y);
   scenes.clearLocalDrag(current.tokenId);
-  if (await accepted) {
-    const combatantId = combat.combatantByToken(current.tokenId)?.id;
-    if (combatantId !== undefined) {
-      combat.recordMove(combatantId, current.tokenId, current.from);
-    }
-    announcement.value = `${current.label} moved ${current.feet} ft.`;
-  } else {
-    announcement.value = '';
-  }
+  announcement.value = (await accepted)
+    ? `${current.label} moved ${current.feet} ft.`
+    : '';
 }
 
 function onPointerUp(event: PointerEvent): void {

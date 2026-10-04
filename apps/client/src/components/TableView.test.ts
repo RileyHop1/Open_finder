@@ -538,7 +538,6 @@ describe('the turn bar', () => {
 
     await wrapper.get('.token-list button').trigger('click');
     expect(wrapper.find('.action-bar').exists()).toBe(true);
-    expect(wrapper.find('.undo').exists()).toBe(false);
 
     await wrapper.find('.basics button').trigger('click');
     await flushPromises();
@@ -546,16 +545,67 @@ describe('the turn bar', () => {
       type: 'combat.spendAction',
       payload: { combatantId: combatant.id, actions: 1 },
     });
+  });
 
-    // The spend was recorded once accepted, so "Undo last action" now shows.
-    expect(wrapper.find('.undo').exists()).toBe(true);
-    await wrapper.find('.undo').trigger('click');
-    expect(vi.mocked(emitOperation).mock.calls[1]?.[1]).toMatchObject({
-      type: 'combat.spendAction',
-      payload: { combatantId: combatant.id, actions: -1 },
+  it('sends combat.undo for the active combat when the tray’s "Undo last action" is clicked', async () => {
+    const scene = sceneWithParty();
+    const actor = makeActor('Ada');
+    const token = tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId: scene.id,
+      actorId: actor.id,
+      x: 0,
+      y: 0,
     });
-    await flushPromises();
-    expect(wrapper.find('.undo').exists()).toBe(false);
+    const combatant = combatantSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: WORLD,
+      type: 'combatant',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      combatId: crypto.randomUUID(),
+      tokenId: token.id,
+      actorId: actor.id,
+    });
+    vi.mocked(documentsApi.listActors).mockResolvedValue([actor]);
+    vi.mocked(documentsApi.listTokens).mockResolvedValue([token]);
+    vi.mocked(documentsApi.listCombatants).mockResolvedValue([combatant]);
+    vi.mocked(documentsApi.listCombats).mockResolvedValue([
+      {
+        id: combatant.combatId,
+        worldId: WORLD,
+        type: 'combat',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: NOW,
+        updatedAt: NOW,
+        sceneId: scene.id,
+        status: 'active',
+        round: 1,
+        freeMovement: false,
+        activeCombatantId: combatant.id,
+      },
+    ]);
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    const wrapper = await mountTable();
+    const undoButton = wrapper
+      .findAll('.action-tray button')
+      .find((button) => button.text() === 'Undo last action');
+    await undoButton?.trigger('click');
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.undo',
+      payload: { combatId: combatant.combatId },
+    });
   });
 
   it('hides the action bar for a token a player does not own', async () => {

@@ -440,7 +440,6 @@ function dispatch(
               seat,
               token,
               gridFor(scene).pathDistance([before, token]),
-              operation.payload.undo ?? false,
             );
       return {
         seatId: seat.id,
