@@ -8,6 +8,12 @@
  * point (ADR 0007: no accounts); this screen is simply what the app shows
  * before any campaign is active, or when someone wants to change which one
  * is.
+ *
+ * Delete is reachable here, never from the lobby -- this screen only shows
+ * once nothing is active (App.vue's own switch), so there is no risk of
+ * deleting a campaign out from under a table that is on it. Asked for with
+ * an inline confirmation, the same `role="alertdialog"` pattern the map's
+ * exit confirmation uses (`MapView.vue`), since it is permanent.
  */
 import { onMounted, ref } from 'vue';
 
@@ -15,6 +21,7 @@ import { useWorldsStore } from '../stores/worlds.js';
 
 const store = useWorldsStore();
 const newCampaignName = ref('');
+const confirmingDeleteId = ref<string>();
 
 onMounted(() => {
   void store.refresh();
@@ -27,6 +34,11 @@ async function handleCreate(): Promise<void> {
   }
   await store.create(name);
   newCampaignName.value = '';
+}
+
+async function confirmDelete(id: string): Promise<void> {
+  confirmingDeleteId.value = undefined;
+  await store.remove(id);
 }
 </script>
 
@@ -41,7 +53,24 @@ async function handleCreate(): Promise<void> {
       <li v-for="world in store.worlds" :key="world.id" class="campaign-row">
         <span class="campaign-name">{{ world.name }}</span>
         <span v-if="world.id === store.activeWorldId" class="active-badge">Active</span>
-        <button v-else type="button" @click="store.activate(world.id)">Activate</button>
+        <template v-else>
+          <button type="button" @click="store.activate(world.id)">Activate</button>
+          <button type="button" @click="confirmingDeleteId = world.id">Delete</button>
+        </template>
+        <div
+          v-if="confirmingDeleteId === world.id"
+          class="delete-confirm"
+          role="alertdialog"
+          :aria-labelledby="`delete-question-${world.id}`"
+          @keydown.esc.stop="confirmingDeleteId = undefined"
+        >
+          <p :id="`delete-question-${world.id}`">
+            Permanently delete <strong>{{ world.name }}</strong
+            >? This cannot be undone.
+          </p>
+          <button type="button" @click="confirmDelete(world.id)">Delete campaign</button>
+          <button type="button" @click="confirmingDeleteId = undefined">Cancel</button>
+        </div>
       </li>
     </ul>
     <p v-else-if="!store.loading">No campaigns yet. Create one below.</p>
@@ -88,11 +117,29 @@ async function handleCreate(): Promise<void> {
 
 .campaign-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: 4px;
+}
+
+.delete-confirm {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  border: 2px solid var(--color-danger);
+  border-radius: 4px;
+}
+
+.delete-confirm p {
+  margin: 0;
+  flex-basis: 100%;
 }
 
 .campaign-name {

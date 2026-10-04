@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import type { Readable } from 'node:stream';
 
 import type { Seat } from '@hearthtable/core';
+import { sameName } from '@hearthtable/core';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -33,7 +34,7 @@ import { resolveWorldPaths } from './paths.js';
 import { readableDocuments } from './visibility.js';
 import { withWorldStore } from './worldAccess.js';
 import { exportWorldArchive, importWorldArchive } from './worldArchive.js';
-import { createWorld, listWorlds } from './worldStore.js';
+import { createWorld, deleteWorld, listWorldIds, listWorlds } from './worldStore.js';
 
 export interface AppOptions {
   /** Where world folders live -- see `paths.ts`. Always explicit, never defaulted here. */
@@ -80,6 +81,9 @@ const WORLD_ARCHIVE_BODY_LIMIT = 4 * 1024 * 1024 * 1024; // 4 GiB
  * could inject into the `Content-Disposition` response header rather than
  * just render oddly.
  */
+/** A campaign or a seat name collides with one already there (ignoring case and surrounding whitespace). */
+class DuplicateNameError extends Error {}
+
 function slugForFilename(name: string): string {
   const slug = name
     .toLowerCase()
@@ -136,6 +140,13 @@ export function createApp(options: AppOptions): FastifyInstance {
         .send({ error: 'invalid request body', issues: parsed.error.issues });
       return;
     }
+    const existing = listWorlds(options.worldsRoot);
+    if (existing.some((world) => sameName(world.name, parsed.data.name))) {
+      await reply
+        .status(409)
+        .send({ error: `a campaign named "${parsed.data.name}" already exists` });
+      return;
+    }
     const store = createWorld(options.worldsRoot, parsed.data.name);
     const { world } = store;
     // Creating a world does not activate it -- these are deliberately
@@ -143,6 +154,20 @@ export function createApp(options: AppOptions): FastifyInstance {
     // later" workflow. Close it immediately rather than leaking a handle.
     store.close();
     await reply.status(201).send(world);
+  });
+
+  app.delete('/api/worlds/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    if (!listWorldIds(options.worldsRoot).includes(id)) {
+      await reply.status(404).send({ error: `no world found with id ${id}` });
+      return;
+    }
+    if (activeWorld.get()?.world.id === id) {
+      await reply.status(409).send({ error: 'leave the campaign before deleting it' });
+      return;
+    }
+    deleteWorld(options.worldsRoot, id);
+    await reply.status(204).send();
   });
 
   app.post('/api/worlds/:id/activate', async (request, reply) => {
@@ -167,6 +192,29 @@ export function createApp(options: AppOptions): FastifyInstance {
     await reply.send(store.world);
   });
 
+  // GM only, the same device-token check `/api/compendium/import` uses:
+  // leaving a campaign disconnects every seat at the table, not just the
+  // caller's own browser, so a player hitting this by accident would kick
+  // everyone else out mid-session.
+  app.post('/api/worlds/active/deactivate', async (request, reply) => {
+    const store = activeWorld.get();
+    if (store === undefined) {
+      await reply.status(404).send({ error: 'no world is currently active' });
+      return;
+    }
+    const deviceToken = request.headers['x-device-token'];
+    const seat =
+      typeof deviceToken === 'string' && deviceToken.length > 0
+        ? store.getSeatByDeviceToken(deviceToken)
+        : undefined;
+    if (seat?.isGM !== true) {
+      await reply.status(403).send({ error: 'only the GM can leave the campaign' });
+      return;
+    }
+    activeWorld.clear();
+    await reply.status(204).send();
+  });
+
   // These two routes return the full Seat object, pin included -- not
   // redacted. Seat.pin already documents itself as not a secret (ADR 0007),
   // and this app's whole threat model is "anyone who can reach the port is
@@ -186,6 +234,13 @@ export function createApp(options: AppOptions): FastifyInstance {
 
     try {
       const seat = withWorldStore(activeWorld, options.worldsRoot, id, (store) => {
+        if (
+          store.listSeats().some((existing) => sameName(existing.name, parsed.data.name))
+        ) {
+          throw new DuplicateNameError(
+            `a seat named "${parsed.data.name}" already exists`,
+          );
+        }
         const now = new Date().toISOString();
         const newSeat: Seat = {
           id: crypto.randomUUID(),
@@ -201,7 +256,11 @@ export function createApp(options: AppOptions): FastifyInstance {
         return newSeat;
       });
       await reply.status(201).send(seat);
-    } catch {
+    } catch (caught) {
+      if (caught instanceof DuplicateNameError) {
+        await reply.status(409).send({ error: caught.message });
+        return;
+      }
       await reply.status(404).send({ error: `no world found with id ${id}` });
     }
   });

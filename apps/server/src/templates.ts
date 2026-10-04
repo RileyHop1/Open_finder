@@ -44,7 +44,7 @@ export function creaturesCaught(store: WorldStore, template: Template): Token[] 
       : template.shape === 'cone'
         ? grid.cone(origin, aim, template.feet)
         : template.shape === 'line'
-          ? grid.line(origin, aim, template.widthFeet)
+          ? grid.line(origin, aim, template.widthFeet, template.feet)
           : source === undefined
             ? []
             : grid.emanation(footprintOf(source), template.feet);

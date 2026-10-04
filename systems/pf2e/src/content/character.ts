@@ -143,6 +143,14 @@ export const characterDataSchema = z
       current: z.number().int().nonnegative(),
       temp: z.number().int().nonnegative().default(0),
     }),
+    /**
+     * Land speed in feet. Hand-set on the sheet (CLAUDE.md's "a character's
+     * Speed is a hand-set sheet field"), not derived from ancestry -- the
+     * wizard (milestone 7) will set it from the chosen ancestry, but nothing
+     * here recomputes it, so a GM's manual override (haste, a feat) never
+     * gets silently clobbered by an unrelated edit.
+     */
+    speed: z.number().int().nonnegative().default(25),
     items: z.array(characterItemSchema).default([]),
     conditions: z.array(appliedConditionSchema).default([]),
     /** Persistent damage still burning; empty when none (`persistentDamage.ts`). */

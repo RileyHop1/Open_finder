@@ -90,7 +90,11 @@ const sheetOf = (actorId: string): CharacterData =>
 /** A level 1 fighter-ish character: Str +4, martial trained (+3 with level) = +7 to hit; sword unequipped. */
 function swordsman(equipped = true) {
   const owner = makeSeat();
-  const actor = createActor(store, owner, { kind: 'character', name: 'Hero' });
+  // Unique per call: several tests make more than one in the same world.
+  const actor = createActor(store, owner, {
+    kind: 'character',
+    name: `Hero ${crypto.randomUUID()}`,
+  });
   updateActor(store, owner, {
     actorId: actor.id,
     changes: { 'system.attributes.str': 4, 'system.ranks.weapons.martial': 'trained' },
@@ -104,12 +108,12 @@ function swordsman(equipped = true) {
   if (equipped) {
     updateItem(store, owner, { actorId: actor.id, itemId, equipped: true });
   }
-  return { owner, actorId: actor.id, itemId };
+  return { owner, actorId: actor.id, itemId, name: actor.name };
 }
 
 describe('rollActorStrike', () => {
   it('rolls the first attack with the prepared bonus and stores it as chat', () => {
-    const { owner, actorId, itemId } = swordsman();
+    const { owner, actorId, itemId, name } = swordsman();
     const message = rollActorStrike(store, owner, fixed(10), {
       actorId,
       itemId,
@@ -117,7 +121,7 @@ describe('rollActorStrike', () => {
     });
     expect(message).toMatchObject({
       kind: 'strikeAttack',
-      actorName: 'Hero',
+      actorName: name,
       weaponName: 'Invented Sword',
       itemId,
       attackNumber: 1,

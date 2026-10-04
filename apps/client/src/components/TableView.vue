@@ -46,6 +46,7 @@ import MonsterPicker from './scenes/MonsterPicker.vue';
 import SceneManager from './scenes/SceneManager.vue';
 import TurnBar from './TurnBar.vue';
 import { turnBarItems } from './turnBarModel.js';
+import TurnControls from './TurnControls.vue';
 import { useDrawer } from './useDrawer.js';
 import PartyBar from './PartyBar.vue';
 import PartyManager from './PartyManager.vue';
@@ -125,6 +126,17 @@ const actionTray = computed(() => {
     canControl,
   };
 });
+
+/**
+ * Whether this seat may end the current turn (`TurnControls`'s "End turn"):
+ * the GM always may; otherwise only the active combatant's own owner,
+ * mirroring the server's own `requireCanEndTurn`. Independent of
+ * `actionTray` existing at all -- the GM still gets this even if the active
+ * combatant's token is gone and the tray has nothing to show.
+ */
+const canEndTurn = computed(
+  () => lobby.mySeat?.isGM === true || actionTray.value?.canControl === true,
+);
 
 /** No-op once the active combatant has changed since the tray was rendered. */
 function spendTrayAction(actions: number): void {
@@ -637,27 +649,13 @@ async function handleCreate(): Promise<void> {
           :items="turnBar.items"
           :round="turnBar.round"
           :active="turnBar.active"
-          :free-movement="turnBar.freeMovement"
           :unseen-acting="combat.activeIsUnseen"
           :show-controls="lobby.mySeat?.isGM === true"
           @focus="(tokenId) => mapView?.focusToken(tokenId)"
           @start="combat.startCombat"
-          @end="combat.endCombat"
-          @next="combat.nextTurn"
-          @set-free-movement="combat.setFreeMovement"
           @set-initiative="
             (combatantId, initiative) => combat.setInitiative(combatantId, initiative)
           "
-          @previous="combat.previousTurn"
-        />
-
-        <ActionTray
-          v-if="actionTray !== undefined"
-          :view="actionTray.view"
-          :label="actionTray.label"
-          :can-control="actionTray.canControl"
-          @spend="spendTrayAction"
-          @set-reaction="setTrayReaction"
         />
 
         <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
@@ -683,6 +681,7 @@ async function handleCreate(): Promise<void> {
             :highlighted-cells="mapHighlight"
             :targeting="pendingStrike !== undefined"
             :melee-targeting="pendingStrike?.ranged === false"
+            :can-end-turn="canEndTurn"
             @open-actor="openSheetOf"
             @next-turn="combat.nextTurn"
             @pick-target="confirmTarget"
@@ -707,6 +706,30 @@ async function handleCreate(): Promise<void> {
           @pointerdown="startResize"
           @keydown="onResizeKey"
         ></div>
+
+        <p v-if="combat.error" role="alert" class="status status-error">
+          {{ combat.error }}
+        </p>
+
+        <TurnControls
+          v-if="turnBar?.active"
+          :is-gm="lobby.mySeat?.isGM === true"
+          :can-end-turn="canEndTurn"
+          :free-movement="turnBar.freeMovement"
+          @previous="combat.previousTurn"
+          @next="combat.nextTurn"
+          @end="combat.endCombat"
+          @set-free-movement="combat.setFreeMovement"
+        />
+
+        <ActionTray
+          v-if="actionTray !== undefined"
+          :view="actionTray.view"
+          :label="actionTray.label"
+          :can-control="actionTray.canControl"
+          @spend="spendTrayAction"
+          @set-reaction="setTrayReaction"
+        />
 
         <ActionBar
           v-if="actionBar !== undefined"

@@ -37,6 +37,22 @@ describe('cellsFor', () => {
     expect(cells).toContainEqual({ col: 4, row: 2 });
   });
 
+  it("a line's length is its own feet, not the distance to the aim point", () => {
+    const nearAim = cellsFor(
+      grid,
+      { shape: 'line', x: 250, y: 250, toX: 350, toY: 250, feet: 20, widthFeet: 5 },
+      [],
+    );
+    const farAim = cellsFor(
+      grid,
+      { shape: 'line', x: 250, y: 250, toX: 5250, toY: 250, feet: 20, widthFeet: 5 },
+      [],
+    );
+    expect(farAim).toEqual(nearAim);
+    // 20 feet east of (250, 250) on a 5ft grid reaches through col 6, not past it.
+    expect(farAim.some((c) => c.col > 6)).toBe(false);
+  });
+
   it('an emanation covers its source token plus a ring at 0 feet', () => {
     const tokens = [{ id: 'tok-1', x: 250, y: 250, size: 1 }];
     const cells = cellsFor(

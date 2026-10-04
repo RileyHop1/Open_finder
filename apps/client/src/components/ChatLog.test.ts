@@ -304,4 +304,82 @@ describe('ChatLog', () => {
     await flushPromises();
     expect(wrapper.find('label[for="chat-input"]').exists()).toBe(true);
   });
+
+  /** jsdom never lays out real pixels, so scrollHeight/clientHeight are stubbed by hand. */
+  function stubScrollMetrics(
+    el: Element,
+    { scrollHeight, clientHeight }: { scrollHeight: number; clientHeight: number },
+  ): void {
+    Object.defineProperty(el, 'scrollHeight', {
+      value: scrollHeight,
+      configurable: true,
+    });
+    Object.defineProperty(el, 'clientHeight', {
+      value: clientHeight,
+      configurable: true,
+    });
+  }
+
+  it('opens scrolled to the newest message', async () => {
+    const seat = makeSeat({ name: 'Riley' });
+    vi.mocked(chatApi.listChatMessages).mockResolvedValue([makeTextMessage()]);
+    vi.mocked(useLobbyStore).mockReturnValue({ seats: [seat] } as never);
+
+    const wrapper = mountChatLog();
+    const list = wrapper.get('.messages').element;
+    stubScrollMetrics(list, { scrollHeight: 500, clientHeight: 100 });
+    await flushPromises();
+
+    expect(list.scrollTop).toBe(500);
+  });
+
+  it('follows a new message down when already at the bottom', async () => {
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const wrapper = mountChatLog();
+    const list = wrapper.get('.messages').element;
+    stubScrollMetrics(list, { scrollHeight: 100, clientHeight: 100 });
+    await flushPromises();
+    list.scrollTop = 0;
+
+    stubScrollMetrics(list, { scrollHeight: 500, clientHeight: 100 });
+    connectSharedConnection();
+    await wrapper.find('#chat-input').setValue('hello table');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(list.scrollTop).toBe(500);
+  });
+
+  it('does not yank the view away from a reader scrolled up into history', async () => {
+    const seat = makeSeat({ name: 'Riley' });
+    vi.mocked(chatApi.listChatMessages).mockResolvedValue([makeTextMessage()]);
+    vi.mocked(useLobbyStore).mockReturnValue({ seats: [seat] } as never);
+
+    const wrapper = mountChatLog();
+    const list = wrapper.get('.messages').element;
+    stubScrollMetrics(list, { scrollHeight: 1000, clientHeight: 100 });
+    await flushPromises();
+
+    // Scrolled well away from the bottom, reading history.
+    list.scrollTop = 10;
+    list.dispatchEvent(new Event('scroll'));
+
+    connectSharedConnection();
+    const onBroadcast = stubSocket.handlers.get('broadcast');
+    onBroadcast?.({
+      sequence: 1,
+      operation: {
+        id: crypto.randomUUID(),
+        worldId: crypto.randomUUID(),
+        type: 'chat.sendMessage',
+        payload: {},
+        sequence: 1,
+        appliedAt: new Date().toISOString(),
+      },
+      documents: [makeTextMessage()],
+    } as never);
+    await flushPromises();
+
+    expect(list.scrollTop).toBe(10);
+  });
 });

@@ -54,10 +54,12 @@ interface SeatSummary {
 }
 
 async function createTestWorld(): Promise<string> {
+  // Unique per call: campaign names are unique now, and several tests create
+  // more than one world in the same test.
   const response = await app.inject({
     method: 'POST',
     url: '/api/worlds',
-    payload: { name: 'Test Campaign' },
+    payload: { name: `Test Campaign ${crypto.randomUUID()}` },
   });
   return jsonAs<WorldSummary>(response).id;
 }
@@ -156,6 +158,69 @@ describe('POST /api/worlds', () => {
     const response = await app.inject({ method: 'GET', url: '/api/worlds/active' });
     expect(response.statusCode).toBe(404);
   });
+
+  it('rejects a name already used by another campaign with 409', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/worlds',
+      payload: { name: 'Curse of the Crimson Throne' },
+    });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds',
+      // Same name, different case and surrounding whitespace.
+      payload: { name: ' curse of the crimson throne ' },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(jsonAs<{ error: string }>(response).error).toContain(
+      'curse of the crimson throne',
+    );
+  });
+});
+
+describe('DELETE /api/worlds/:id', () => {
+  it('deletes a world and removes it from the list', async () => {
+    const worldId = await createTestWorld();
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${worldId}`,
+    });
+    expect(response.statusCode).toBe(204);
+
+    const listed = await app.inject({ method: 'GET', url: '/api/worlds' });
+    expect(jsonAs<WorldSummary[]>(listed).map((w) => w.id)).not.toContain(worldId);
+  });
+
+  it('returns 404 for a world that does not exist', async () => {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${crypto.randomUUID()}`,
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('refuses a path-traversal id, since it never matches a real world folder', async () => {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${encodeURIComponent('../../etc')}`,
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('refuses to delete the active world with 409, and leaves it in place', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/worlds/${worldId}`,
+    });
+    expect(response.statusCode).toBe(409);
+
+    const active = await app.inject({ method: 'GET', url: '/api/worlds/active' });
+    expect(active.statusCode).toBe(200);
+    expect(jsonAs<WorldSummary>(active).id).toBe(worldId);
+  });
 });
 
 describe('POST /api/worlds/:id/activate', () => {
@@ -223,6 +288,73 @@ describe('GET /api/worlds/active', () => {
     const response = await app.inject({ method: 'GET', url: '/api/worlds/active' });
     expect(response.statusCode).toBe(200);
     expect(jsonAs<WorldSummary>(response).id).toBe(id);
+  });
+});
+
+describe('POST /api/worlds/active/deactivate', () => {
+  /** Puts a claimed seat into `worldId`, bypassing HTTP, the same way the "who is asking" suite does. */
+  function putClaimedSeat(worldId: string, deviceToken: string, isGM: boolean): void {
+    const now = new Date().toISOString();
+    const store = openWorld(worldsRoot, worldId);
+    store.putSeat({
+      id: crypto.randomUUID(),
+      worldId,
+      schemaVersion: 1,
+      name: isGM ? 'GM' : 'Valeros',
+      isGM,
+      claimedByDeviceToken: deviceToken,
+      createdAt: now,
+      updatedAt: now,
+    });
+    store.close();
+  }
+
+  it('returns 404 when nothing is active', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+      headers: { 'x-device-token': 'gm-token' },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('refuses a request with no device token, and one from a player', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+    putClaimedSeat(worldId, 'player-token', false);
+
+    const noToken = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+    });
+    expect(noToken.statusCode).toBe(403);
+
+    const asPlayer = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+      headers: { 'x-device-token': 'player-token' },
+    });
+    expect(asPlayer.statusCode).toBe(403);
+
+    // Still active: neither refused attempt cleared it.
+    const active = await app.inject({ method: 'GET', url: '/api/worlds/active' });
+    expect(active.statusCode).toBe(200);
+  });
+
+  it('clears the active world for the GM, and the campaign list shows nothing active again', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({ method: 'POST', url: `/api/worlds/${worldId}/activate` });
+    putClaimedSeat(worldId, 'gm-token', true);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds/active/deactivate',
+      headers: { 'x-device-token': 'gm-token' },
+    });
+    expect(response.statusCode).toBe(204);
+
+    const active = await app.inject({ method: 'GET', url: '/api/worlds/active' });
+    expect(active.statusCode).toBe(404);
   });
 });
 
@@ -307,6 +439,23 @@ describe('POST /api/worlds/:id/seats', () => {
       payload: { name: '', isGM: false },
     });
     expect(response.statusCode).toBe(400);
+  });
+
+  it('rejects a name already used by another seat with 409', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'Valeros', isGM: false },
+    });
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      // Same name, different case and surrounding whitespace.
+      payload: { name: ' valeros ', isGM: false },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(jsonAs<{ error: string }>(response).error).toContain('valeros');
   });
 
   it('returns 404 for a world that does not exist', async () => {
@@ -534,7 +683,12 @@ describe('GET /api/worlds/:id/export', () => {
   });
 
   it('streams a downloadable archive with a slugified filename', async () => {
-    const worldId = await createTestWorld();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/worlds',
+      payload: { name: 'Slug Me' },
+    });
+    const worldId = jsonAs<WorldSummary>(created).id;
     const response = await app.inject({
       method: 'GET',
       url: `/api/worlds/${worldId}/export`,
@@ -543,7 +697,7 @@ describe('GET /api/worlds/:id/export', () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toBe('application/octet-stream');
     expect(response.headers['content-disposition']).toBe(
-      `attachment; filename="test-campaign-${worldId}.htworld"`,
+      `attachment; filename="slug-me-${worldId}.htworld"`,
     );
     expect(response.rawPayload.length).toBeGreaterThan(0);
   });

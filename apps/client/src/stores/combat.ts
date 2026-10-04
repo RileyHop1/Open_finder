@@ -92,13 +92,25 @@ export const useCombatStore = defineStore('combat', () => {
   );
 
   /**
-   * This turn's action-bar spends, per combatant, purely client state (never
-   * sent, never saved): what "undo last action" undoes. Cleared, not kept,
-   * the moment the active combatant changes -- a spend from a turn that has
-   * already ended is not this session's to undo (the GM sets those by hand,
-   * same as `combat.previousTurn`'s own boundary rule).
+   * One undoable thing a combatant did this turn: an action-bar spend, or a
+   * token move (which "undo" reverses by sending it back, not by refunding a
+   * number).
    */
-  const turnLog = reactive(new Map<string, number[]>());
+  type TurnLogEntry =
+    | { kind: 'spend'; cost: number }
+    | { kind: 'move'; tokenId: string; from: { x: number; y: number } };
+
+  /**
+   * This turn's undoable actions, per combatant, purely client state (never
+   * sent, never saved): what "undo last action" undoes. Cleared, not kept,
+   * the moment the active combatant changes -- a spend or move from a turn
+   * that has already ended is not this session's to undo (the GM sets those
+   * by hand, same as `combat.previousTurn`'s own boundary rule). Keeping this
+   * scoped to one combatant at a time, flushed the instant its turn ends,
+   * is deliberate: there is never more than one turn's worth of entries to
+   * hold, and nothing here outlives the turn it was recorded for.
+   */
+  const turnLog = reactive(new Map<string, TurnLogEntry[]>());
 
   watch(
     () => activeCombat.value?.activeCombatantId,
@@ -109,31 +121,61 @@ export const useCombatStore = defineStore('combat', () => {
     },
   );
 
-  /** Records a cost just spent via the action bar, for `undoLastSpend` to find. */
-  function recordSpend(combatantId: string, cost: number): void {
-    turnLog.set(combatantId, [...(turnLog.get(combatantId) ?? []), cost]);
+  function pushEntry(combatantId: string, entry: TurnLogEntry): void {
+    turnLog.set(combatantId, [...(turnLog.get(combatantId) ?? []), entry]);
   }
 
-  /** Whether `combatantId` has a recorded spend this turn left to undo. */
+  /** Records a cost just spent via the action bar, for `undoLastSpend` to find. */
+  function recordSpend(combatantId: string, cost: number): void {
+    pushEntry(combatantId, { kind: 'spend', cost });
+  }
+
+  /**
+   * Records a token move just made, for `undoLastSpend` to send back -- only
+   * while `combatantId` is the currently active combatant, the one case
+   * `combat.spendMovement` actually charges Strides for. A move on anyone
+   * else's token (the GM repositioning a monster, a free-movement or
+   * grant-driven move out of turn) cost nothing server-side, so there would
+   * be nothing to undo; recording it anyway would sit in `turnLog` for a
+   * combatant whose turn may never come (or has already passed), the one
+   * leak `turnLog`'s per-turn flush is built to avoid.
+   */
+  function recordMove(
+    combatantId: string,
+    tokenId: string,
+    from: { x: number; y: number },
+  ): void {
+    if (activeCombat.value?.activeCombatantId !== combatantId) {
+      return;
+    }
+    pushEntry(combatantId, { kind: 'move', tokenId, from });
+  }
+
+  /** Whether `combatantId` has a recorded spend or move this turn left to undo. */
   function canUndoSpend(combatantId: string): boolean {
     return (turnLog.get(combatantId)?.length ?? 0) > 0;
   }
 
   /**
-   * Undoes the most recent recorded spend by giving the actions back
-   * (negative `combat.spendAction`). No-op (false) with nothing recorded; on
-   * the server refusing, the cost is put back so nothing is silently lost.
+   * Undoes the most recent recorded action: gives back a spend's actions
+   * (negative `combat.spendAction`), or sends a move's token back to where
+   * it started (`token.move` with `undo: true`, giving back the Strides that
+   * move cost). No-op (false) with nothing recorded; on the server refusing,
+   * the entry is put back so nothing is silently lost.
    */
   async function undoLastSpend(combatantId: string): Promise<boolean> {
     const log = turnLog.get(combatantId);
-    const cost = log?.at(-1);
-    if (log === undefined || cost === undefined) {
+    const entry = log?.at(-1);
+    if (log === undefined || entry === undefined) {
       return false;
     }
     turnLog.set(combatantId, log.slice(0, -1));
-    const accepted = await spendAction(combatantId, -cost);
+    const accepted =
+      entry.kind === 'spend'
+        ? await spendAction(combatantId, -entry.cost)
+        : await scenes.moveToken(entry.tokenId, entry.from.x, entry.from.y, true);
     if (!accepted) {
-      recordSpend(combatantId, cost);
+      pushEntry(combatantId, entry);
     }
     return accepted;
   }
@@ -323,6 +365,7 @@ export const useCombatStore = defineStore('combat', () => {
     spendAction,
     setReaction,
     recordSpend,
+    recordMove,
     canUndoSpend,
     undoLastSpend,
   };

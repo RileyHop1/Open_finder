@@ -11,7 +11,7 @@ system's own data lives in the opaque `system` payload. Rationale in
 | --- | --- | --- |
 | `type` | `'actor'` | Literal |
 | `kind` | `'character' \| 'npc' \| 'hazard'` | One document type for all three, per CLAUDE.md |
-| `name` | non-empty string | |
+| `name` | non-empty string, unique for `kind: 'character'` (case- and whitespace-insensitive) | An NPC or hazard may share a name with anything else -- "three goblins" is a normal table |
 | `portrait` | non-empty string, optional | A content-addressed asset (`<hash>.<ext>`). Absent means the client shows a placeholder; no default image is stored |
 | `system` | object | Opaque to core. `systems/pf2e` validates it (`characterDataSchema`); the server re-validates after every mutation |
 
@@ -74,6 +74,7 @@ total is derived by `prepareCharacter` and never stored.
 | `ancestry`, `heritage`, `background`, `class` | Optional `{ name, source? }` references; a hand-built character may use none |
 | `ancestryHp`, `classHp` | Inputs to max HP. Max HP itself is derived by `buildMaxHitPoints` (`ancestryHp + (classHp + con) * level`, plus `hp`-selector rule elements and drained), never stored |
 | `hp` | `{ current, temp }` |
+| `speed` | Land speed in feet, integer, default 25. Hand-set on the sheet, not derived from ancestry (CLAUDE.md); `systems/pf2e`'s `speedOf` reads it, and an NPC's own equivalent is `system.creature.speeds.land` |
 | `items` | Embedded copies of weapon, armor, gear, feat, classFeature, spell, and action entries, each with its own id, an optional `source`, `equipped`, and `quantity` |
 | `conditions` | `{ slug, value? }`, one per slug. Modifiers are computed, never stored ([conditions.md](conditions.md)) |
 | `persistentDamage` | `{ id, formula, damageType, source? }[]`, default empty. Persistent damage still burning, one entry per damage type (`systems/pf2e/src/content/persistentDamage.ts`). Absent in an actor stored before it existed, which parses as none |

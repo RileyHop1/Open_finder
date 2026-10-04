@@ -249,6 +249,8 @@ export {
 
 export { meleeReach, naturalReach, threatenedCells, threatens } from './rules/reach.js';
 
+export { speedOf, stridesFor } from './rules/movement.js';
+
 export {
   OPPOSITE_SIDES_TOLERANCE_DEGREES,
   flanks,

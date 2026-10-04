@@ -89,6 +89,7 @@ export {
   COMBAT_STATUSES,
   MAX_COUNTER,
   MAX_INITIATIVE,
+  MAX_MOVEMENT_FEET,
   MAX_ROUND,
   combatSchema,
   combatStatusSchema,
@@ -227,6 +228,8 @@ export {
   type CompendiumEntry,
   type PackManifest,
 } from './compendium.js';
+
+export { sameName } from './name.js';
 
 export { tokenDragSchema } from './realtime.js';
 

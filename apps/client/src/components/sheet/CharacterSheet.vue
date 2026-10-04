@@ -142,6 +142,9 @@ const lineage = computed(() =>
           <strong>{{ prepared.hp.current }} / {{ prepared.hp.max.total }}</strong>
           <span v-if="prepared.hp.temp > 0"> (+{{ prepared.hp.temp }} temporary)</span>
         </p>
+        <p class="speed">
+          Speed <strong>{{ data.speed }} feet</strong>
+        </p>
         <p v-if="data.conditions.length > 0" class="conditions">
           Conditions:
           <span v-for="condition in data.conditions" :key="condition.slug" class="chip">
@@ -234,6 +237,12 @@ const lineage = computed(() =>
             :value="data.hp.temp"
             :min="0"
             @commit="(v) => set('system.hp.temp', v)"
+          />
+          <NumberField
+            label="Speed (feet)"
+            :value="data.speed"
+            :min="0"
+            @commit="(v) => set('system.speed', v)"
           />
         </div>
       </section>

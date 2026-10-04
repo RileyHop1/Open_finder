@@ -20,6 +20,12 @@ import type {
 import type { Token, TokenType } from './tokenizer.js';
 import { tokenize } from './tokenizer.js';
 
+/** The most dice a single term may roll. A client typing `/roll 100000d6` should get a readable error, not a frozen tab. */
+export const MAX_DICE_COUNT = 100;
+
+/** The most faces a single die may have. PF2e's largest is d20; this is a sanity bound, not a rule. */
+export const MAX_DIE_FACES = 1000;
+
 export type ParseErrorCode = 'syntax' | 'unsupported-feature';
 
 export interface ParseError {
@@ -155,17 +161,43 @@ function parseModifiers(cursor: Cursor): readonly DiceModifier[] | ParseError {
 }
 
 /** Parses "d" faces modifiers*; count is the already-consumed leading dice count. */
-function parseDice(cursor: Cursor, count: number): DiceExpr | ParseError {
+function parseDice(
+  cursor: Cursor,
+  count: number,
+  countPosition: number,
+): DiceExpr | ParseError {
+  if (!Number.isFinite(count) || count < 1) {
+    return {
+      code: 'syntax',
+      message: 'a roll must have at least 1 die',
+      position: countPosition,
+    };
+  }
+  if (count > MAX_DICE_COUNT) {
+    return {
+      code: 'syntax',
+      message: `a single roll is capped at ${MAX_DICE_COUNT} dice`,
+      position: countPosition,
+    };
+  }
+
   const dToken = expect(cursor, 'd', "expected 'd' after the dice count");
   if (isParseError(dToken)) return dToken;
 
   const facesToken = expect(cursor, 'integer', "expected the number of faces after 'd'");
   if (isParseError(facesToken)) return facesToken;
   const faces = facesToken.value ?? 0;
-  if (faces < 1) {
+  if (!Number.isFinite(faces) || faces < 1) {
     return {
       code: 'syntax',
       message: 'a die must have at least 1 face',
+      position: facesToken.position,
+    };
+  }
+  if (faces > MAX_DIE_FACES) {
+    return {
+      code: 'syntax',
+      message: `a die is capped at ${MAX_DIE_FACES} faces`,
       position: facesToken.position,
     };
   }
@@ -189,14 +221,14 @@ function parseTerm(cursor: Cursor): Term | ParseError {
 
   if (token.type === 'd') {
     // A bare "d20" with an implicit count of 1.
-    return parseDice(cursor, 1);
+    return parseDice(cursor, 1, token.position);
   }
 
   if (token.type === 'integer') {
     cursor.advance();
     const value = token.value ?? 0;
     if (cursor.peek().type === 'd') {
-      return parseDice(cursor, value);
+      return parseDice(cursor, value, token.position);
     }
     return { kind: 'integer', value };
   }

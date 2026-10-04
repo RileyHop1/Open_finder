@@ -15,6 +15,8 @@
 import { type World, worldSchema } from '@hearthtable/core';
 import { z } from 'zod';
 
+import { getDeviceToken } from '../realtime/deviceToken.js';
+
 const WORLDS_URL = '/api/worlds';
 
 async function parseJson<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
@@ -22,16 +24,31 @@ async function parseJson<T>(response: Response, schema: z.ZodType<T>): Promise<T
   return schema.parse(body);
 }
 
-function assertOk(response: Response, action: string): void {
+/** The server's own `{ error }` body, if the response has one readable as JSON. */
+async function serverError(response: Response): Promise<string | undefined> {
+  try {
+    const body: unknown = await response.json();
+    if (typeof body === 'object' && body !== null && 'error' in body) {
+      const { error } = body;
+      return typeof error === 'string' ? error : undefined;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function assertOk(response: Response, action: string): Promise<void> {
   if (!response.ok) {
-    throw new Error(`failed to ${action}: server responded ${response.status}`);
+    const reason = await serverError(response);
+    throw new Error(reason ?? `failed to ${action}: server responded ${response.status}`);
   }
 }
 
 /** Every campaign that exists, whether or not it is currently active. */
 export async function listWorlds(): Promise<World[]> {
   const response = await fetch(WORLDS_URL);
-  assertOk(response, 'list campaigns');
+  await assertOk(response, 'list campaigns');
   return parseJson(response, z.array(worldSchema));
 }
 
@@ -42,14 +59,14 @@ export async function createWorld(name: string): Promise<World> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
-  assertOk(response, 'create campaign');
+  await assertOk(response, 'create campaign');
   return parseJson(response, worldSchema);
 }
 
 /** Makes `id` the server's active campaign. */
 export async function activateWorld(id: string): Promise<World> {
   const response = await fetch(`${WORLDS_URL}/${id}/activate`, { method: 'POST' });
-  assertOk(response, 'activate campaign');
+  await assertOk(response, 'activate campaign');
   return parseJson(response, worldSchema);
 }
 
@@ -59,6 +76,21 @@ export async function getActiveWorld(): Promise<World | undefined> {
   if (response.status === 404) {
     return undefined;
   }
-  assertOk(response, 'fetch the active campaign');
+  await assertOk(response, 'fetch the active campaign');
   return parseJson(response, worldSchema);
+}
+
+/** Leaves the active campaign: back to the campaign list, for everyone at the table. GM only. */
+export async function deactivateWorld(): Promise<void> {
+  const response = await fetch(`${WORLDS_URL}/active/deactivate`, {
+    method: 'POST',
+    headers: { 'x-device-token': getDeviceToken() },
+  });
+  await assertOk(response, 'leave the campaign');
+}
+
+/** Permanently deletes campaign `id` and everything in its world folder. Refused while it is the active campaign. */
+export async function deleteWorld(id: string): Promise<void> {
+  const response = await fetch(`${WORLDS_URL}/${id}`, { method: 'DELETE' });
+  await assertOk(response, 'delete campaign');
 }

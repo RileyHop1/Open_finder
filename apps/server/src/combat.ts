@@ -1,6 +1,8 @@
 /**
  * Combat operations: setting up a combat and choosing who is in it (ADR 0018).
- * Only the GM does any of it. Like the other handler modules these take the
+ * Almost all of it is the GM's; the one exception is `nextTurn`, which the
+ * owner of the currently active combatant may also call, to end their own
+ * turn (`requireCanEndTurn`). Like the other handler modules these take the
  * already-resolved `Seat` and a `WorldStore` and return what changed, so they
  * are tested without a socket and `realtime.ts` only dispatches.
  *
@@ -26,6 +28,7 @@ import {
   combatantSchema,
   combatSchema,
   MAX_COUNTER,
+  MAX_MOVEMENT_FEET,
   partySchema,
   sceneSchema,
   tokenSchema,
@@ -47,7 +50,9 @@ import {
   placeCombatant,
   previousCombatant,
   sortByInitiative,
+  speedOf,
   startOfTurn,
+  stridesFor,
 } from '@hearthtable/pf2e';
 
 import { rollActorCheck } from './checks.js';
@@ -73,6 +78,24 @@ function requireGM(seat: Seat): void {
   if (!seat.isGM) {
     throw new OperationRejected('only the GM can change a combat');
   }
+}
+
+/**
+ * The GM may always end a turn; otherwise only the owner of the combatant
+ * whose turn it currently is may end their own (the player's "End turn",
+ * CLAUDE.md's "the GM is never blocked" plus letting a player act without
+ * waiting on the GM to click Next turn for them). A combat with nobody yet
+ * active (just started, before `nextTurn` has run once) is GM-only.
+ */
+function requireCanEndTurn(store: WorldStore, seat: Seat, combat: Combat): void {
+  if (seat.isGM) {
+    return;
+  }
+  if (combat.activeCombatantId === undefined) {
+    throw new OperationRejected('only the GM can change a combat');
+  }
+  const active = loadCombatant(store, combat.activeCombatantId);
+  loadOwnedDocument(store, seat, active.actorId, 'actor', 'combatant');
 }
 
 function loadCombat(store: WorldStore, combatId: string): Combat {
@@ -709,14 +732,18 @@ function loadActiveCombat(store: WorldStore, combatId: string): Combat {
  * those with no initiative are skipped. If the active combatant is gone (its token
  * was deleted) the turn simply goes to the top of the order without a new round.
  * Persistent damage that falls due is not rolled yet (B.7).
+ *
+ * The GM may always call this; so may the owner of the combatant whose turn
+ * it currently is, ending their own turn (`requireCanEndTurn`) -- a player
+ * is never stuck waiting on the GM to click "Next turn" for them.
  */
 export function nextTurn(
   store: WorldStore,
   seat: Seat,
   payload: { combatId: string },
 ): CombatChange {
-  requireGM(seat);
   const combat = loadActiveCombat(store, payload.combatId);
+  requireCanEndTurn(store, seat, combat);
   const leaving = combat.activeCombatantId;
   const sorted = sortByInitiative(entriesOf(store, combatantsOf(store, combat.id)));
   const step = nextCombatant(sorted, leaving);
@@ -934,11 +961,53 @@ export function countAttack(store: WorldStore, combatant: Combatant): Combatant 
 }
 
 /**
+ * Applies `delta` to a combatant's `actionsSpent`, clamped to the schema's
+ * sanity bound and never below zero. Shared by `spendAction` (the action
+ * tray/bar) and `spendMovement` (a move's Strides), so a player cannot
+ * overspend through either path.
+ *
+ * **A player cannot spend past the turn's capacity**: a spend (`delta > 0`,
+ * never a give-back) that would put the new total over `actionCapacity` is
+ * refused outright, before anything is written, naming how many actions are
+ * left. **The GM is never blocked** (CLAUDE.md, "the GM is never blocked"):
+ * an overspend from the GM goes through, with `warning` set to the same
+ * chat line it always posted ("Ada has spent 4 of 3 actions"), kept from
+ * players when the combatant is hidden.
+ */
+function applyActionDelta(
+  store: WorldStore,
+  seat: Seat,
+  combatant: Combatant,
+  delta: number,
+  actorName: string,
+): { actionsSpent: number; warning?: string } {
+  const before = combatant.turn.actionsSpent;
+  const actionsSpent = Math.min(Math.max(before + delta, 0), MAX_COUNTER);
+  const [participant] = participantsOf(store, [combatant]);
+  const capacity = actionCapacity(participant?.conditions ?? []).total;
+
+  if (!seat.isGM && delta > 0 && actionsSpent > capacity) {
+    const left = Math.max(capacity - before, 0);
+    throw new OperationRejected(
+      left > 0
+        ? `${actorName} has only ${left} action${left === 1 ? '' : 's'} left this turn.`
+        : `${actorName} has no actions left this turn.`,
+    );
+  }
+
+  return {
+    actionsSpent,
+    ...(actionsSpent > capacity && actionsSpent > before
+      ? { warning: `${actorName} has spent ${actionsSpent} of ${capacity} actions.` }
+      : {}),
+  };
+}
+
+/**
  * Spends or gives back actions and the reaction on a combatant's turn. The
- * combatant's actor's owner or the GM may; it does not have to be that combatant's
- * turn (reactions are not), and an overspend is **never blocked**: the table is told
- * in chat ("Ada has spent 4 of 3 actions"), kept from players when the combatant is
- * hidden. The count is clamped to the schema's sanity bound, not to the capacity.
+ * combatant's actor's owner or the GM may; it does not have to be that
+ * combatant's turn (reactions are not). The action count goes through
+ * `applyActionDelta`, above.
  */
 export function spendAction(
   store: WorldStore,
@@ -953,10 +1022,15 @@ export function spendAction(
   loadActiveCombat(store, combatant.combatId);
   const { raw } = loadOwnedDocument(store, seat, combatant.actorId, 'actor', 'combatant');
   const before = combatant.turn;
-  const actionsSpent = Math.min(
-    Math.max(before.actionsSpent + (payload.actions ?? 0), 0),
-    MAX_COUNTER,
+  const name = actorSchema.safeParse(raw).data?.name ?? 'Someone';
+  const { actionsSpent, warning } = applyActionDelta(
+    store,
+    seat,
+    combatant,
+    payload.actions ?? 0,
+    name,
   );
+
   const reactionUsed = payload.reaction ?? before.reactionUsed;
   const updated: Combatant = {
     ...combatant,
@@ -966,12 +1040,9 @@ export function spendAction(
   store.putDocument(updated);
 
   const documents: BaseDocument[] = [updated];
-  const [participant] = participantsOf(store, [updated]);
-  const capacity = actionCapacity(participant?.conditions ?? []).total;
-  const name = actorSchema.safeParse(raw).data?.name ?? 'Someone';
   const warnings: string[] = [];
-  if (actionsSpent > capacity && actionsSpent > before.actionsSpent) {
-    warnings.push(`${name} has spent ${actionsSpent} of ${capacity} actions.`);
+  if (warning !== undefined) {
+    warnings.push(warning);
   }
   if (payload.reaction === true && before.reactionUsed) {
     warnings.push(`${name} has already used a reaction.`);
@@ -989,6 +1060,113 @@ export function spendAction(
       seatId: seat.id,
       kind: 'text',
       text: warnings.join(' '),
+    };
+    store.putDocument(message);
+    documents.push(message);
+  }
+  return { documents };
+}
+
+/**
+ * Spends the Strides a move of `distanceFeet` costs, when `token` is the
+ * active combatant's own token in a combat that is currently running --
+ * `token.move`'s one piece of turn bookkeeping (docs/combat.md). `distanceFeet`
+ * is added to `movementUsed`, and the Strides it costs (`stridesFor`, from
+ * `systems/pf2e`) are added to `actionsSpent`, through the same
+ * `applyActionDelta` the action tray uses: a player's move that would cross
+ * the turn's capacity is refused outright, rolling back the whole
+ * `token.move` operation, since this runs inside its own transaction; the
+ * GM's own overspend only warns, as it always has.
+ *
+ * **`undo` reverses the same move** instead of spending further: the exact
+ * Strides a forward move of this distance would have cost are given back.
+ * `stridesFor` is pure and direction-independent, so recomputing it from the
+ * *reduced* `movementUsed` exactly cancels the original charge -- there is
+ * nothing to remember from the forward move. Never refused, like any other
+ * give-back.
+ *
+ * **`undefined` when nothing applies**: no active combat on the token's
+ * scene, the token is not that combat's active combatant, or its actor's
+ * Speed cannot be read (a hazard, or data that does not match its kind).
+ * Movement stays free, the same as it always was outside this one case.
+ */
+export function spendMovement(
+  store: WorldStore,
+  seat: Seat,
+  token: Token,
+  distanceFeet: number,
+  undo: boolean,
+): CombatChange | undefined {
+  if (distanceFeet <= 0) {
+    return undefined;
+  }
+  const combat = store
+    .listDocuments('combat')
+    .flatMap((raw) => {
+      const parsed = combatSchema.safeParse(raw);
+      return parsed.success ? [parsed.data] : [];
+    })
+    .find((entry) => entry.status === 'active' && entry.sceneId === token.sceneId);
+  if (combat === undefined) {
+    return undefined;
+  }
+  const combatant = combatantsOf(store, combat.id).find(
+    (entry) => entry.tokenId === token.id,
+  );
+  if (combatant === undefined || combat.activeCombatantId !== combatant.id) {
+    return undefined;
+  }
+  const actor = actorSchema.safeParse(store.getDocument(combatant.actorId));
+  const speed = actor.success ? speedOf(actor.data) : undefined;
+  if (speed === undefined) {
+    return undefined;
+  }
+  const name = actor.success ? actor.data.name : 'Someone';
+  const before = combatant.turn;
+
+  if (undo) {
+    const movementUsed = Math.max(before.movementUsed - distanceFeet, 0);
+    const refund = stridesFor(movementUsed, distanceFeet, speed);
+    const { actionsSpent } = applyActionDelta(store, seat, combatant, -refund, name);
+    const updated: Combatant = {
+      ...combatant,
+      turn: { ...before, actionsSpent, movementUsed },
+      updatedAt: new Date().toISOString(),
+    };
+    store.putDocument(updated);
+    return { documents: [updated] };
+  }
+
+  const strides = stridesFor(before.movementUsed, distanceFeet, speed);
+  const movementUsed = Math.min(before.movementUsed + distanceFeet, MAX_MOVEMENT_FEET);
+  const { actionsSpent, warning } = applyActionDelta(
+    store,
+    seat,
+    combatant,
+    strides,
+    name,
+  );
+  const updated: Combatant = {
+    ...combatant,
+    turn: { ...before, actionsSpent, movementUsed },
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+
+  const documents: BaseDocument[] = [updated];
+  if (warning !== undefined) {
+    const now = new Date().toISOString();
+    const message: ChatTextMessage = {
+      id: crypto.randomUUID(),
+      worldId: store.world.id,
+      type: 'chatMessage',
+      schemaVersion: 1,
+      permissions: { default: combatant.hidden ? 'none' : 'observer', seats: {} },
+      createdAt: now,
+      updatedAt: now,
+      seatId: seat.id,
+      kind: 'text',
+      text: warning,
     };
     store.putDocument(message);
     documents.push(message);

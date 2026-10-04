@@ -139,6 +139,36 @@ describe('placeTemplate', () => {
     ).toEqual(expect.arrayContaining([source.id, ahead.id]));
   });
 
+  it("a line's reach is its own feet, not the distance the GM dragged the aim point", () => {
+    const { gm, scene, put } = table();
+    const source = put('Mage', 2, 2);
+    const ahead = put('Ahead', 4, 2);
+    const farBeyond = put('Far beyond', 20, 2);
+    const at = { x: 250, y: 250 };
+    const caught = (payload: Parameters<typeof placeTemplate>[2]) =>
+      creaturesCaught(store, placeTemplate(store, gm, payload).template).map((t) => t.id);
+
+    // Aimed just past "Ahead", 20 feet matches the distance to the aim point.
+    const atAimDistance = caught({
+      sceneId: scene.id,
+      shape: 'line',
+      at,
+      to: { x: 650, y: 250 },
+      feet: 20,
+    });
+    // Same feet, but dragged far past "Far beyond": the reach must not grow.
+    const draggedFar = caught({
+      sceneId: scene.id,
+      shape: 'line',
+      at,
+      to: { x: 5250, y: 250 },
+      feet: 20,
+    });
+    expect(atAimDistance).toEqual(expect.arrayContaining([source.id, ahead.id]));
+    expect(draggedFar).toEqual(expect.arrayContaining([source.id, ahead.id]));
+    expect(draggedFar).not.toContain(farBeyond.id);
+  });
+
   it('rejects a gridless scene, a cone with no aim, and an emanation with no token', () => {
     const { gm, scene } = table();
     const base = { sceneId: scene.id, at: { x: 250, y: 250 }, feet: 15 };

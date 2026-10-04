@@ -105,7 +105,9 @@ function npc(size: CreatureEntry['size']): Actor {
   return actor;
 }
 
-const hero = (): Actor => createActor(store, gm(), { kind: 'character', name: 'Hero' });
+// Unique per call: some tests make more than one in the same world.
+const hero = (): Actor =>
+  createActor(store, gm(), { kind: 'character', name: `Hero ${crypto.randomUUID()}` });
 
 const scene = (name = 'Crypt'): Scene => createScene(store, gm(), { name, kind: 'area' });
 

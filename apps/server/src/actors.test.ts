@@ -70,9 +70,32 @@ describe('createActor', () => {
 
   it('gives every actor its own id', () => {
     const seat = makeSeat();
-    const a = createActor(store, seat, { kind: 'character', name: 'A' });
-    const b = createActor(store, seat, { kind: 'character', name: 'A' });
+    const a = createActor(store, seat, { kind: 'npc', name: 'Goblin' });
+    const b = createActor(store, seat, { kind: 'npc', name: 'Goblin' });
     expect(a.id).not.toBe(b.id);
+  });
+
+  it('rejects a second character with the same name (ignoring case and whitespace)', () => {
+    const seat = makeSeat();
+    createActor(store, seat, { kind: 'character', name: 'Valeria' });
+    expect(() =>
+      createActor(store, seat, { kind: 'character', name: ' valeria ' }),
+    ).toThrow(OperationRejected);
+  });
+
+  it('allows two NPCs with the same name -- three goblins is a normal table', () => {
+    const seat = makeSeat();
+    const a = createActor(store, seat, { kind: 'npc', name: 'Goblin' });
+    const b = createActor(store, seat, { kind: 'npc', name: 'Goblin' });
+    expect(a.id).not.toBe(b.id);
+  });
+
+  it('allows a hazard to share a name with a character', () => {
+    const seat = makeSeat();
+    createActor(store, seat, { kind: 'character', name: 'Pit Trap' });
+    expect(() =>
+      createActor(store, seat, { kind: 'hazard', name: 'Pit Trap' }),
+    ).not.toThrow();
   });
 });
 
@@ -83,6 +106,23 @@ describe('updateActor', () => {
     return { owner, actor };
   }
   const stored = (id: string) => actorSchema.parse(store.getDocument(id));
+
+  it('rejects a rename that collides with another character', () => {
+    const { owner, actor } = ownedCharacter();
+    createActor(store, owner, { kind: 'character', name: 'Valeria' });
+    expect(() =>
+      updateActor(store, owner, { actorId: actor.id, changes: { name: 'Valeria' } }),
+    ).toThrow(OperationRejected);
+  });
+
+  it('allows a rename that only changes case, since it is still itself', () => {
+    const { owner, actor } = ownedCharacter();
+    const updated = updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { name: 'HERO' },
+    });
+    expect(updated.name).toBe('HERO');
+  });
 
   it('sets the name and nested system fields, and stores the result', () => {
     const { owner, actor } = ownedCharacter();

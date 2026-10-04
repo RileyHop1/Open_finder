@@ -138,6 +138,12 @@ const props = defineProps<{
    * either) also shows nothing, never a wrong hint.
    */
   meleeTargeting?: boolean;
+  /**
+   * Whether this seat may end the current turn right now (TableView.vue's
+   * own `canEndTurn`: the GM, or the active combatant's own owner) -- gates
+   * the Shift+N hotkey the same way the GM-only buttons below the map do.
+   */
+  canEndTurn?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -265,7 +271,14 @@ async function moveSelected(direction: Direction): Promise<void> {
     announcement.value = `${token.label} is at the edge of the map.`;
     return;
   }
+  const from = { x: token.x, y: token.y };
   const accepted = await scenes.moveToken(token.id, step.to.x, step.to.y);
+  if (accepted) {
+    const combatantId = combat.combatantByToken(token.id)?.id;
+    if (combatantId !== undefined) {
+      combat.recordMove(combatantId, token.id, from);
+    }
+  }
   announcement.value = accepted ? `${token.label} moved ${step.feet} ft.` : '';
 }
 
@@ -531,9 +544,15 @@ async function dropToken(send: boolean): Promise<void> {
   // The move is pending before the drag is released, so the token never flickers back.
   const accepted = scenes.moveToken(current.tokenId, current.to.x, current.to.y);
   scenes.clearLocalDrag(current.tokenId);
-  announcement.value = (await accepted)
-    ? `${current.label} moved ${current.feet} ft.`
-    : '';
+  if (await accepted) {
+    const combatantId = combat.combatantByToken(current.tokenId)?.id;
+    if (combatantId !== undefined) {
+      combat.recordMove(combatantId, current.tokenId, current.from);
+    }
+    announcement.value = `${current.label} moved ${current.feet} ft.`;
+  } else {
+    announcement.value = '';
+  }
 }
 
 function onPointerUp(event: PointerEvent): void {
@@ -1107,9 +1126,10 @@ function onKeyDown(event: KeyboardEvent): void {
     setPlacingTemplate(!placingTemplate.value);
     return;
   }
-  // End turn (GM only): a combat not yet active makes this a no-op on the
-  // store side, so nothing here needs to know whether one is running.
-  if (event.key.toLowerCase() === 'n' && event.shiftKey && lobby.mySeat?.isGM === true) {
+  // End turn (the GM, or the active combatant's own owner): a combat not
+  // yet active makes this a no-op on the store side, so nothing here needs
+  // to know whether one is running.
+  if (event.key.toLowerCase() === 'n' && event.shiftKey && props.canEndTurn === true) {
     event.preventDefault();
     emit('nextTurn');
     return;

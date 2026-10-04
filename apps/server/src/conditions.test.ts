@@ -99,7 +99,11 @@ function makeSeat(overrides: Partial<Seat> = {}): Seat {
 
 function ownedCharacter() {
   const owner = makeSeat();
-  const actor = createActor(store, owner, { kind: 'character', name: 'Hero' });
+  // Unique per call: one test makes two in the same world.
+  const actor = createActor(store, owner, {
+    kind: 'character',
+    name: `Hero ${crypto.randomUUID()}`,
+  });
   return { owner, actorId: actor.id };
 }
 

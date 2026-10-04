@@ -204,19 +204,30 @@ export function describeGridStrategy(
 
         it('never loses a cell when a line grows longer or wider', () => {
           const from = { x: 500, y: 500 };
+          const towards = { x: from.x + grid.size, y: from.y };
           const shortNarrow = new Set(
             strategy
-              .line(from, { x: from.x + grid.size * 2, y: from.y }, grid.distance)
+              .line(from, towards, grid.distance, grid.distance * 2)
               .map((c) => `${c.col},${c.row}`),
           );
           const longWide = new Set(
             strategy
-              .line(from, { x: from.x + grid.size * 6, y: from.y }, grid.distance * 3)
+              .line(from, towards, grid.distance * 3, grid.distance * 6)
               .map((c) => `${c.col},${c.row}`),
           );
           for (const key of shortNarrow) {
             expect(longWide.has(key)).toBe(true);
           }
+        });
+
+        it("a line's cells never reach past its own lengthFeet, however far the aim point is", () => {
+          const from = { x: 500, y: 500 };
+          const nearAim = { x: from.x + grid.size, y: from.y };
+          const farAim = { x: from.x + grid.size * 50, y: from.y };
+          const lengthFeet = grid.distance * 2;
+          const fromNearAim = strategy.line(from, nearAim, grid.distance, lengthFeet);
+          const fromFarAim = strategy.line(from, farAim, grid.distance, lengthFeet);
+          expect(fromFarAim).toEqual(fromNearAim);
         });
 
         it('never loses a cell when a cone grows longer, and stays inside a burst of the same length', () => {

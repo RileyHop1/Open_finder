@@ -16,7 +16,7 @@ The top-level container. One world is one campaign, one folder on disk
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id`, `schemaVersion`, `createdAt`, `updatedAt` | — | The shared record trio |
-| `name` | non-empty string | |
+| `name` | non-empty string, unique (case- and whitespace-insensitive) | |
 
 **A World has no `worldId`** — it cannot belong to itself — **and no
 `permissions`** — access to what's inside a world is about what a *seat* can
@@ -32,6 +32,24 @@ that fact lives in memory / process state, not in `world.json` or the
 database. This keeps world records themselves free of state that's really
 about the *server's* current behavior.
 
+The GM can also leave it: `POST /api/worlds/active/deactivate` (GM-only, by
+the same `x-device-token` check `/api/compendium/import` uses) calls
+`ActiveWorldManager.clear()`, which closes the store and disconnects every
+socket, the same as switching to another campaign would. The client's
+`CampaignLobby` offers this as "Back to campaigns," behind a confirmation
+since it affects the whole table, not just the GM's own browser.
+
+### Deleting a world
+
+`DELETE /api/worlds/:id` removes a campaign permanently: the whole
+`worlds/<id>/` folder (`worldStore.ts`'s `deleteWorld`), its database, every
+asset, every snapshot. Refused with 404 for an id that isn't a real world
+folder (`listWorldIds` is the only source of truth checked, so a
+path-traversal id never reaches the filesystem call) and with 409 while that
+world is the active one, since nothing should delete a database file out
+from under its own open `DatabaseSync` handle. There is no undo; the
+client's confirmation (`CampaignSelect.vue`) is the only safeguard.
+
 ## Seat
 
 One of the "characters" a person can claim in a world's lobby. There is no
@@ -43,10 +61,21 @@ controller works in couch co-op.
 | --- | --- | --- |
 | `id`, `schemaVersion`, `createdAt`, `updatedAt` | — | The shared record trio |
 | `worldId` | UUID | Which world this seat belongs to |
-| `name` | non-empty string | What the lobby shows — labeled "character" in the UI even though the schema says `Seat` |
+| `name` | non-empty string, unique within the world (case- and whitespace-insensitive) | What the lobby shows — labeled "character" in the UI even though the schema says `Seat` |
 | `isGM` | boolean | Required; there is no default for who the GM is |
 | `pin` | short string, optional | See "Not a secret" below |
 | `claimedByDeviceToken` | string, optional | Set on first claim; absent until then |
+
+### Unique names
+
+Two seats in the same world, or two campaigns, cannot share a name once
+trimmed and lowercased -- the GM creating a second "Valeros" by mistake gets
+told so, in words, at the point of creation (`app.ts`'s seat and world
+routes, both a 409). `@hearthtable/core`'s `sameName` is the one place that
+comparison is made, so it stays consistent everywhere it's checked. The same
+rule applies to a player **character** actor's name (`actors.ts`'s
+`createActor` and a rename through `actor.update`) -- but not to an NPC or a
+hazard, where two "Goblin"s is an ordinary table, not a mistake.
 
 ### Not a secret
 

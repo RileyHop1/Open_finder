@@ -19,6 +19,7 @@ import {
   baseDocumentSchema,
   parsePath,
   PatchError,
+  sameName,
 } from '@hearthtable/core';
 import type { CharacterData } from '@hearthtable/pf2e';
 import {
@@ -37,6 +38,28 @@ import { loadOwnedDocument } from './writeGuard.js';
 import type { WorldStore } from './worldStore.js';
 
 /**
+ * Whether a character actor already on this world is named `name` (ignoring
+ * case and surrounding whitespace), other than `excludeId` itself. NPCs and
+ * hazards are exempt -- "three goblins" is a normal table, two "Valeria"s
+ * is not.
+ */
+function isDuplicateCharacterName(
+  store: WorldStore,
+  name: string,
+  excludeId?: string,
+): boolean {
+  return store.listDocuments('actor').some((raw) => {
+    const actor = actorSchema.safeParse(raw);
+    return (
+      actor.success &&
+      actor.data.kind === 'character' &&
+      actor.data.id !== excludeId &&
+      sameName(actor.data.name, name)
+    );
+  });
+}
+
+/**
  * Creates and stores an actor owned by `seat`. A character gets a blank
  * level 1 sheet built here, never taken from the client; an NPC or hazard
  * gets an empty system payload until their schemas exist.
@@ -46,6 +69,9 @@ export function createActor(
   seat: Seat,
   payload: { kind: Actor['kind']; name: string },
 ): Actor {
+  if (payload.kind === 'character' && isDuplicateCharacterName(store, payload.name)) {
+    throw new OperationRejected(`a character named "${payload.name}" already exists`);
+  }
   const now = new Date().toISOString();
   const actor = actorSchema.parse({
     id: crypto.randomUUID(),
@@ -173,6 +199,14 @@ export function updateActor(
     throw new OperationRejected(describeIssue(parsed.error));
   }
   let actor = parsed.data;
+
+  if (
+    actor.kind === 'character' &&
+    'name' in payload.changes &&
+    isDuplicateCharacterName(store, actor.name, actor.id)
+  ) {
+    throw new OperationRejected(`a character named "${actor.name}" already exists`);
+  }
 
   if (actor.kind === 'character') {
     const system = characterDataSchema.safeParse(actor.system);

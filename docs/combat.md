@@ -21,9 +21,16 @@ as it does today.
   **Implemented in C.1b:** the turn bar's **Start combat** button is the GM's
   only button onto the wire (`combat.create` then `combat.start`, in one
   click); it is where the bar shows for the GM even before anything is
-  running. While a combat is active the bar also offers **Previous turn**,
-  **Next turn**, and **End combat**, plus a **Shift+N** "end turn" hotkey on
-  the map surface, GM only. None of this exists for a player.
+  running. The turn bar itself (`TurnBar.vue`) shows only the turn order:
+  portraits, initiative, round, and the GM's per-combatant initiative
+  override. The GM's **Previous turn** and **End combat**, and the shared
+  **Next turn**/**End turn** button, live below the map next to the action
+  bar (`TurnControls.vue`), so only turn-order facts sit above the map.
+  **Players may end their own turn** when they own the active combatant's
+  actor -- `combat.nextTurn` allows the GM or that owner (the server's
+  `requireCanEndTurn`); everything else on `TurnControls` (**Previous turn**,
+  **End combat**, free movement) stays GM-only. The **Shift+N** hotkey on the
+  map surface follows the same rule.
   **Implemented in C.3:** the acting combatant's token gets a second ring on
   the map and "(current turn)" in its label; its party bar card (if it has
   one) gets the same ring and a "Current turn" line. Both clear with no
@@ -54,9 +61,24 @@ as it does today.
   surprised, and the keyboard and menu routes are the same as for any GM tool.
   **Implemented in C.2b:** a Free movement checkbox in the turn bar, and a
   "Let this token move" / "Revoke movement" item in the token menu.
-- **Actions are still only warned about.** Overspending a turn's actions is shown
-  and never blocked ([action-economy.md](action-economy.md)); movement is the one
-  thing the tracker enforces, because it has the GM's override above.
+- **A player's actions are enforced too.** A spend that would cross the turn's
+  `actionCapacity` is refused outright, naming how many actions are left; the
+  GM's own overspend still goes through, with a chat warning
+  ([action-economy.md](action-economy.md)).
+- **Moving spends the Strides it costs.** While it is the mover's own
+  combatant's turn, `token.move` adds the move's distance to `movementUsed`
+  and the Strides that distance costs (`stridesFor`, from the Speed `speedOf`
+  reads off the actor) to `actionsSpent` -- the same budget rule as any other
+  spend, so a player's move that would cross the turn's capacity is refused
+  and the token does not move (the whole operation rolls back together). A
+  token that is not the active combatant, is not in a running combat, or
+  whose actor's Speed cannot be read (a hazard) moves for free, same as
+  always. **"Undo last action" undoes a move too**: `MapView.vue`'s arrow-key
+  step and drag-drop both record where the token was before the move (only
+  while that token's own combatant is active, the one case the server
+  actually charges for), and undoing sends it back with `undo: true`, giving
+  back exactly the Strides that move cost ([action-economy.md](action-economy.md),
+  "Implemented in M5 C.5b").
 - **Ending a combat** returns to free play, and the rulings go with it. What
   happens to a condition that was anchored to one of its combatants (`turn`
   durations) is decided with `combat.end` (B.3); the recommendation is that it ends
@@ -235,9 +257,10 @@ an id, not a position that could drift onto the wrong creature.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `actionsSpent` | integer 0-99, default 0 | Allowed to exceed the turn's capacity: the app warns and never blocks ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
+| `actionsSpent` | integer 0-99, default 0 | A player's spend is refused outright once it would exceed the turn's capacity; the GM's own overspend still goes through, with a chat warning ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
 | `reactionUsed` | boolean, default `false` | Refreshed at the start of the combatant's turn |
 | `attacksMade` | integer 0-99, default 0 | The Multiple Attack Penalty counts attacks, not actions. Reset at the start of the combatant's turn |
+| `movementUsed` | integer feet, 0-9999, default 0 | Feet moved this turn while this combatant is active. Reset at the start of the combatant's turn. Written by `token.move`'s `spendMovement` (below): each move adds its distance here and the Strides it costs (`stridesFor`) to `actionsSpent`, through the same budget rule as the action tray |
 
 It lives on the combatant, not the actor: it means nothing outside a fight, and
 leaving a combat must leave the actor exactly as it was, apart from the real
