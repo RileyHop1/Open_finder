@@ -28,7 +28,6 @@ import {
   combatantSchema,
   combatSchema,
   MAX_COUNTER,
-  MAX_MOVEMENT_FEET,
   partySchema,
   sceneSchema,
   tokenSchema,
@@ -1070,19 +1069,16 @@ export function spendAction(
 /**
  * Spends the Strides a move of `distanceFeet` costs, when `token` is the
  * active combatant's own token in a combat that is currently running --
- * `token.move`'s one piece of turn bookkeeping (docs/combat.md). `distanceFeet`
- * is added to `movementUsed`, and the Strides it costs (`stridesFor`, from
- * `systems/pf2e`) are added to `actionsSpent`, through the same
- * `applyActionDelta` the action tray uses: a player's move that would cross
- * the turn's capacity is refused outright, rolling back the whole
- * `token.move` operation, since this runs inside its own transaction; the
- * GM's own overspend only warns, as it always has.
+ * `token.move`'s one piece of turn bookkeeping (docs/combat.md). Each move is
+ * charged on its own (`stridesFor`, from `systems/pf2e`; docs/rulings.md,
+ * "Movement spends actions per move, not by a running total"), added to
+ * `actionsSpent` through the same `applyActionDelta` the action tray uses: a
+ * player's move that would cross the turn's capacity is refused outright,
+ * rolling back the whole `token.move` operation, since this runs inside its
+ * own transaction; the GM's own overspend only warns, as it always has.
  *
  * **`undo` reverses the same move** instead of spending further: the exact
- * Strides a forward move of this distance would have cost are given back.
- * `stridesFor` is pure and direction-independent, so recomputing it from the
- * *reduced* `movementUsed` exactly cancels the original charge -- there is
- * nothing to remember from the forward move. Never refused, like any other
+ * Strides this move cost are given back. Never refused, like any other
  * give-back.
  *
  * **`undefined` when nothing applies**: no active combat on the token's
@@ -1123,22 +1119,19 @@ export function spendMovement(
   }
   const name = actor.success ? actor.data.name : 'Someone';
   const before = combatant.turn;
+  const strides = stridesFor(distanceFeet, speed);
 
   if (undo) {
-    const movementUsed = Math.max(before.movementUsed - distanceFeet, 0);
-    const refund = stridesFor(movementUsed, distanceFeet, speed);
-    const { actionsSpent } = applyActionDelta(store, seat, combatant, -refund, name);
+    const { actionsSpent } = applyActionDelta(store, seat, combatant, -strides, name);
     const updated: Combatant = {
       ...combatant,
-      turn: { ...before, actionsSpent, movementUsed },
+      turn: { ...before, actionsSpent },
       updatedAt: new Date().toISOString(),
     };
     store.putDocument(updated);
     return { documents: [updated] };
   }
 
-  const strides = stridesFor(before.movementUsed, distanceFeet, speed);
-  const movementUsed = Math.min(before.movementUsed + distanceFeet, MAX_MOVEMENT_FEET);
   const { actionsSpent, warning } = applyActionDelta(
     store,
     seat,
@@ -1148,7 +1141,7 @@ export function spendMovement(
   );
   const updated: Combatant = {
     ...combatant,
-    turn: { ...before, actionsSpent, movementUsed },
+    turn: { ...before, actionsSpent },
     updatedAt: new Date().toISOString(),
   };
   store.putDocument(updated);

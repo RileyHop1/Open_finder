@@ -1,8 +1,10 @@
 /**
- * Movement spends actions: a Stride covers a creature's Speed, and moving
- * further costs another Stride for each additional Speed's worth of
- * distance. Pure math only -- the server (`apps/server`) is the one that
- * knows a move happened and writes the result back; see `docs/combat.md`.
+ * Movement spends actions: a Stride covers a creature's Speed, and each
+ * separate move is its own Stride (or more, for one that outruns a single
+ * Speed), per RAW (docs/rulings.md, "Movement spends actions per move, not
+ * by a running total"). Pure math only -- the server (`apps/server`) is the
+ * one that knows a move happened and writes the result back; see
+ * `docs/combat.md`.
  */
 
 import type { Actor } from '@hearthtable/core';
@@ -11,29 +13,20 @@ import { characterDataSchema } from '../content/character.js';
 import { npcDataSchema } from '../content/npc.js';
 
 /**
- * How many additional Strides moving from `usedFeet` already spent this turn
- * to `usedFeet + addedFeet` costs, at a Speed of `speedFeet`. A Stride covers
- * up to one Speed's worth of distance, so the cost is how many Speeds the
- * new total needs beyond how many the old total already needed --
- * `ceil((used + added) / speed) - ceil(used / speed)` -- never negative, and
- * never charged twice for the same ground. A Speed of 0 cannot Stride at all,
- * so every foot of `addedFeet` costs its own Stride (an edge case; the GM's
- * override path is this operation's own undo).
+ * How many Strides one move of `distanceFeet` costs, at a Speed of
+ * `speedFeet`: `ceil(distance / speed)`, with a minimum of 1 for any nonzero
+ * distance (a Stride is spent even for a single foot) and 0 for no movement
+ * at all. A Speed of 0 cannot Stride at all, so every foot of distance costs
+ * its own Stride (an edge case; the GM's override path is the action tray).
  */
-export function stridesFor(
-  usedFeet: number,
-  addedFeet: number,
-  speedFeet: number,
-): number {
-  if (addedFeet <= 0) {
+export function stridesFor(distanceFeet: number, speedFeet: number): number {
+  if (distanceFeet <= 0) {
     return 0;
   }
   if (speedFeet <= 0) {
-    return addedFeet;
+    return distanceFeet;
   }
-  const before = Math.ceil(usedFeet / speedFeet);
-  const after = Math.ceil((usedFeet + addedFeet) / speedFeet);
-  return after - before;
+  return Math.max(1, Math.ceil(distanceFeet / speedFeet));
 }
 
 /**

@@ -23,31 +23,34 @@ function actor(kind: Actor['kind'], system: Record<string, unknown>): Actor {
 }
 
 describe('stridesFor', () => {
-  it('costs one Stride for a move within one Speed, from a stationary start', () => {
-    expect(stridesFor(0, 25, 25)).toBe(1);
-    expect(stridesFor(0, 10, 25)).toBe(1);
+  it('costs one Stride for any move up to one Speed', () => {
+    expect(stridesFor(5, 25)).toBe(1);
+    expect(stridesFor(25, 25)).toBe(1);
   });
 
   it('costs nothing for no movement', () => {
-    expect(stridesFor(0, 0, 25)).toBe(0);
-    expect(stridesFor(40, 0, 25)).toBe(0);
+    expect(stridesFor(0, 25)).toBe(0);
   });
 
-  it('costs a second Stride only once the total crosses another Speed', () => {
-    // 20 + 5 = 25: still fits inside the one Stride already paid for.
-    expect(stridesFor(20, 5, 25)).toBe(0);
-    // 20 + 10 = 30: crosses into a second Speed's worth of distance.
-    expect(stridesFor(20, 10, 25)).toBe(1);
+  it('costs a minimum of one Stride even for a short move', () => {
+    expect(stridesFor(1, 25)).toBe(1);
   });
 
-  it('never charges twice for ground already paid for this turn', () => {
-    expect(stridesFor(25, 10, 25)).toBe(1);
-    expect(stridesFor(25, 25, 25)).toBe(1);
+  it('costs a second Stride once the move itself outruns one Speed', () => {
+    expect(stridesFor(30, 25)).toBe(2);
+    expect(stridesFor(50, 25)).toBe(2);
+    expect(stridesFor(51, 25)).toBe(3);
+  });
+
+  it('charges every separate move its own Stride, never a running total', () => {
+    // Two 5 ft moves cost one Stride each, not one Stride total.
+    expect(stridesFor(5, 25)).toBe(1);
+    expect(stridesFor(5, 25)).toBe(1);
   });
 
   it('charges one Stride per foot at Speed 0', () => {
-    expect(stridesFor(0, 5, 0)).toBe(5);
-    expect(stridesFor(10, 3, 0)).toBe(3);
+    expect(stridesFor(5, 0)).toBe(5);
+    expect(stridesFor(3, 0)).toBe(3);
   });
 });
 

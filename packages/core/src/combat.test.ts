@@ -101,7 +101,6 @@ describe('combatantSchema', () => {
       actionsSpent: 0,
       reactionUsed: false,
       attacksMade: 0,
-      movementUsed: 0,
     });
   });
 
@@ -132,7 +131,6 @@ describe('combatantSchema', () => {
       actionsSpent: 2,
       reactionUsed: false,
       attacksMade: 0,
-      movementUsed: 0,
     });
   });
 
