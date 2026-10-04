@@ -10,6 +10,7 @@ import {
   type NewOperation,
   type WorldStore,
   createWorld,
+  deleteWorld,
   listWorldIds,
   openWorld,
 } from './worldStore.js';
@@ -85,6 +86,25 @@ describe('createWorld', () => {
     expect(store.world.name).toBe('Test Campaign');
     expect(store.world.schemaVersion).toBe(1);
     store.close();
+  });
+});
+
+describe('deleteWorld', () => {
+  it('removes the whole world folder', () => {
+    const store = createWorld(worldsRoot, 'Curse of the Crimson Throne');
+    const { id } = store.world;
+    store.close();
+    const root = resolveWorldPaths(worldsRoot, id).root;
+    expect(existsSync(root)).toBe(true);
+
+    deleteWorld(worldsRoot, id);
+
+    expect(existsSync(root)).toBe(false);
+    expect(listWorldIds(worldsRoot)).not.toContain(id);
+  });
+
+  it('is a no-op for a world that does not exist', () => {
+    expect(() => deleteWorld(worldsRoot, crypto.randomUUID())).not.toThrow();
   });
 });
 

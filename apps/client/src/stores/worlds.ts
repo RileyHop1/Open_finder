@@ -13,6 +13,7 @@ import {
   activateWorld,
   createWorld,
   deactivateWorld,
+  deleteWorld,
   getActiveWorld,
   listWorlds,
 } from '../api/worlds.js';
@@ -75,5 +76,26 @@ export const useWorldsStore = defineStore('worlds', () => {
     }
   }
 
-  return { worlds, activeWorldId, loading, error, refresh, create, activate, deactivate };
+  /** Permanently deletes campaign `id` and removes it from the list. Refused while it is the active campaign. */
+  async function remove(id: string): Promise<void> {
+    error.value = undefined;
+    try {
+      await deleteWorld(id);
+      worlds.value = worlds.value.filter((world) => world.id !== id);
+    } catch (caught) {
+      error.value = messageOf(caught, 'failed to delete campaign');
+    }
+  }
+
+  return {
+    worlds,
+    activeWorldId,
+    loading,
+    error,
+    refresh,
+    create,
+    activate,
+    deactivate,
+    remove,
+  };
 });
