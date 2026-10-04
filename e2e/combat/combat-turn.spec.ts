@@ -212,9 +212,15 @@ test('a full combat turn: initiative, turn order, movement gating, a strike with
 
     // --- A condition with a `turn` duration disappears once that
     // combatant's turn ends. ---
-    await player
-      .getByRole('button', { name: 'Open the sheet of Valeria' })
-      .click({ force: true });
+    // The token list is transparent and `pointer-events: none` until something
+    // inside it has focus (TokenList.vue), and selecting a token moves focus
+    // back to the map so arrow keys move it -- so a plain click on "Sheet"
+    // here would actually land on the map canvas underneath. Focusing the
+    // button directly keeps the list visible and activates it without a
+    // mouse hit-test.
+    const sheetButton = player.getByRole('button', { name: 'Open the sheet of Valeria' });
+    await sheetButton.focus();
+    await player.keyboard.press('Enter');
     await player.getByLabel('Condition name').fill('frightened');
     await player.getByLabel('Ends').selectOption('turn');
     await player.getByLabel('Whose turn').selectOption({ label: 'Valeria' });
