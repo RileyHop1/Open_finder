@@ -69,6 +69,24 @@ function seatName(seatId: string): string {
 
 const ROLL_COMMAND = /^\/roll\s+(.+)$/i;
 
+/** Which plain roll's GM-edit form (if any) is open, and its draft value. A dedicated `ChatRollCard` handles its own editing state; a plain `/roll` has no such component, so this lives here instead. */
+const editingRollId = ref<string>();
+const rollEditDraft = ref('');
+
+function startEditingRoll(messageId: string, currentTotal: number): void {
+  rollEditDraft.value = String(currentTotal);
+  editingRollId.value = messageId;
+}
+
+async function submitRollEdit(messageId: string): Promise<void> {
+  const total = Number.parseInt(rollEditDraft.value, 10);
+  editingRollId.value = undefined;
+  if (Number.isNaN(total)) {
+    return;
+  }
+  await chatStore.adjustRoll(messageId, total);
+}
+
 async function handleSubmit(): Promise<void> {
   const value = draft.value.trim();
   if (value.length === 0) {
@@ -119,11 +137,15 @@ async function handleSubmit(): Promise<void> {
           "
           :message="entry"
           :sender="seatName(entry.seatId)"
+          :is-gm="lobbyStore.mySeat?.isGM === true"
         />
         <template v-else>
           <span class="sender"
             >{{ seatName(entry.seatId) }} rolled {{ entry.roll.expression }}:</span
           >
+          <template v-if="entry.gmTotal !== undefined">
+            GM set to <strong>{{ entry.gmTotal }}</strong> (rolled {{ entry.roll.total }})
+          </template>
           <details class="roll-breakdown">
             <summary>Total: {{ entry.roll.total }}</summary>
             <ul>
@@ -139,6 +161,22 @@ async function handleSubmit(): Promise<void> {
               </li>
             </ul>
           </details>
+          <template v-if="lobbyStore.mySeat?.isGM === true">
+            <button
+              v-if="editingRollId !== entry.id"
+              type="button"
+              class="gm-edit-toggle"
+              @click="startEditingRoll(entry.id, entry.gmTotal ?? entry.roll.total)"
+            >
+              Edit roll
+            </button>
+            <form v-else class="gm-edit" @submit.prevent="submitRollEdit(entry.id)">
+              <label :for="`gm-total-${entry.id}`">GM total</label>
+              <input :id="`gm-total-${entry.id}`" v-model="rollEditDraft" type="number" />
+              <button type="submit">Set</button>
+              <button type="button" @click="editingRollId = undefined">Cancel</button>
+            </form>
+          </template>
         </template>
       </li>
     </ul>
@@ -208,6 +246,23 @@ async function handleSubmit(): Promise<void> {
 
 .roll-breakdown summary {
   cursor: pointer;
+}
+
+.gm-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.gm-edit input {
+  width: 6rem;
+}
+
+.gm-edit-toggle,
+.gm-edit button {
+  min-height: var(--touch-target-min);
+  margin-top: var(--space-1);
 }
 
 .roll-breakdown ul {
