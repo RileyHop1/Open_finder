@@ -32,6 +32,16 @@
  * nothing movable selected the arrows pan the map as before. Each move is
  * announced in words for screen readers.
  *
+ * **Planning a move on your own turn** (`planningMove`): while it is a
+ * player's own combatant's active turn -- the one case a move spends
+ * Strides at all -- the arrow keys trace out a path instead of moving at
+ * once: each press extends it from where it last landed, shown with the
+ * distance and the action cost beside it ("25 ft, ◆◆"), live to everyone
+ * else the same way a drag is. Enter sends it as the one move it represents;
+ * Escape drops it, or picking a different token does, silently. The GM is
+ * never gated here, so their own moves (and a free-movement or grant-driven
+ * move out of turn) stay immediate, as before.
+ *
  * **Dragging**: grabbing a token this seat may move picks it up. It follows the
  * pointer cell by cell (snapped, as the server will snap it), with the distance
  * moved in feet beside it; the others see a throttled live preview, and letting
@@ -64,7 +74,13 @@
  * Escape puts it away. It is local to this screen. The keyboard equivalent is in
  * the token list, which says how far each token is from the selected one.
  */
-import { TEMPLATE_SHAPES, type Cell, type TemplateShape } from '@hearthtable/core';
+import {
+  TEMPLATE_SHAPES,
+  type Cell,
+  type Scene,
+  type TemplateShape,
+} from '@hearthtable/core';
+import { speedOf, stridesFor } from '@hearthtable/pf2e';
 import type { Application } from 'pixi.js';
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 
@@ -190,12 +206,30 @@ interface HeldToken {
   feet: number;
 }
 let held: HeldToken | undefined;
-/** Distance moved so far, drawn beside the held token. */
-const readout = ref<{ x: number; y: number; feet: number }>();
+/** Distance moved so far, drawn beside the held token; `cost` only while planning a keyboard move. */
+const readout = ref<{ x: number; y: number; feet: number; cost?: string }>();
 const sendPreview = createThrottle(
   (tokenId: string, x: number, y: number) => scenes.sendDrag(tokenId, x, y),
   DRAG_PREVIEW_INTERVAL_MS,
 );
+
+/**
+ * A keyboard move being traced out, not yet sent: each arrow press extends
+ * it from where it last landed, so three presses in a row read as one move
+ * of three cells, not three (RAW's own Stride cost, `docs/rulings.md`,
+ * "Movement spends actions per move, not by a running total"). Enter sends
+ * it as the one real `token.move` this represents; Escape drops it. Shown
+ * to everyone else the same way a drag is, through the same preview channel
+ * (`scenes.sendDrag`) and the same local-drag overlay (`scenes.setLocalDrag`).
+ */
+interface PlannedMove {
+  readonly tokenId: string;
+  /** The cell centre the token actually last moved from -- the start of the whole planned move, not of its latest step. */
+  readonly from: Point;
+  to: Point;
+  feet: number;
+}
+let plannedMove: PlannedMove | undefined;
 
 /** What changes the picture: not the links, name, or kind. */
 const drawKey = computed(() => {
@@ -225,6 +259,31 @@ const views = computed(() =>
 );
 
 const selectedView = computed(() => views.value.find((view) => view.selected));
+
+/**
+ * Whether the selected token's own arrow-key moves should plan instead of
+ * moving at once: only while it is this combatant's own active turn, since
+ * that is the one case a move spends Strides at all (`docs/combat.md`,
+ * "Moving spends the Strides it costs"). The GM is never gated here --
+ * CLAUDE.md's "the GM is never blocked" -- so GM moves, free movement, and a
+ * grant-driven move out of turn all stay immediate, exactly as before.
+ */
+const planningMove = computed(
+  () =>
+    lobby.mySeat?.isGM !== true &&
+    combat.activeCombatant?.tokenId === selectedView.value?.id,
+);
+
+/** "N ft, ◆◆": the Strides this planned move would cost, from the selected token's actor's Speed. Empty if unknown (a hazard, or data that does not match its kind). */
+function plannedCost(feet: number): string {
+  const actor = documents.actorById(selectedView.value?.actorId ?? '');
+  const speed = actor === undefined ? undefined : speedOf(actor);
+  if (speed === undefined) {
+    return '';
+  }
+  const strides = stridesFor(feet, speed);
+  return strides > 0 ? `, ${'◆'.repeat(strides)}` : '';
+}
 
 /** Which tokens the acting token would flank right now (M5 C.10), while a melee strike is pending. */
 const flankedTokenIds = computed<ReadonlySet<string>>(() => {
@@ -259,11 +318,29 @@ watch(views, (current) => {
   }
 });
 
-/** One grid square in `direction` for the selected token, shown at once and announced. */
+// Selecting something else leaves a planned move stranded on a token that is
+// no longer even selected: drop it silently, the way picking up a different
+// token mid-drag could never happen (the pointer is captured by the one held).
+watch(selectedId, (current) => {
+  if (plannedMove !== undefined && plannedMove.tokenId !== current) {
+    cancelPlannedMove();
+  }
+});
+
+/**
+ * One grid square in `direction` for the selected token. While it is this
+ * combatant's own active turn, this extends a plan instead of moving at
+ * once (`stepPlannedMove`); otherwise it moves immediately, shown at once
+ * and announced, same as always.
+ */
 async function moveSelected(direction: Direction): Promise<void> {
   const token = selectedView.value;
   const scene = scenes.shownScene;
   if (token === undefined || scene === undefined) {
+    return;
+  }
+  if (planningMove.value) {
+    stepPlannedMove(token, scene, direction);
     return;
   }
   const step = stepToken(gridForScene(scene), scene, token, direction);
@@ -273,6 +350,60 @@ async function moveSelected(direction: Direction): Promise<void> {
   }
   const accepted = await scenes.moveToken(token.id, step.to.x, step.to.y);
   announcement.value = accepted ? `${token.label} moved ${step.feet} ft.` : '';
+}
+
+/** Extends `plannedMove` one cell toward `direction`, from where it last landed (or from the token's real position, starting a new plan). Shown at once, locally and to everyone else, through the drag preview channel. */
+function stepPlannedMove(
+  token: TokenView,
+  scene: Pick<Scene, 'width' | 'height' | 'grid'>,
+  direction: Direction,
+): void {
+  const grid = gridForScene(scene);
+  const current = plannedMove?.tokenId === token.id ? plannedMove : undefined;
+  const from = current?.from ?? grid.snap(token, token.size);
+  const stepFrom = current?.to ?? from;
+  const step = stepToken(grid, scene, { ...stepFrom, size: token.size }, direction);
+  if (step === undefined) {
+    announcement.value = `${token.label} is at the edge of the map.`;
+    return;
+  }
+  const feet = grid.pathDistance([from, step.to]);
+  plannedMove = { tokenId: token.id, from, to: step.to, feet };
+  scenes.setLocalDrag(token.id, step.to.x, step.to.y);
+  sendPreview(token.id, step.to.x, step.to.y);
+  const place = sceneToScreen(camera ?? { x: 0, y: 0, zoom: 1 }, viewportSize(), step.to);
+  readout.value = { x: place.x, y: place.y, feet, cost: plannedCost(feet) };
+  announcement.value = `${token.label} planned ${feet} ft${plannedCost(feet)}. Press Enter to move, Escape to cancel.`;
+}
+
+/** Sends the planned move as the one real `token.move` it represents, and lets go either way. No-op with nothing planned. */
+async function commitPlannedMove(): Promise<void> {
+  const planned = plannedMove;
+  if (planned === undefined) {
+    return;
+  }
+  plannedMove = undefined;
+  readout.value = undefined;
+  sendPreview.cancel();
+  const accepted = await scenes.moveToken(planned.tokenId, planned.to.x, planned.to.y);
+  scenes.clearLocalDrag(planned.tokenId);
+  const token = views.value.find((view) => view.id === planned.tokenId);
+  announcement.value = accepted
+    ? `${token?.label ?? 'Token'} moved ${planned.feet} ft.`
+    : '';
+}
+
+/** Drops the planned move without sending it. No-op with nothing planned. */
+function cancelPlannedMove(): void {
+  const planned = plannedMove;
+  if (planned === undefined) {
+    return;
+  }
+  plannedMove = undefined;
+  readout.value = undefined;
+  sendPreview.cancel();
+  scenes.clearLocalDrag(planned.tokenId);
+  announcement.value = 'Move cancelled.';
 }
 
 /** Selects a token from the list, then hands focus to the map so the arrow keys act on it. */
@@ -1136,6 +1267,16 @@ function onKeyDown(event: KeyboardEvent): void {
     setPlacingTemplate(false);
     return;
   }
+  if (plannedMove !== undefined && event.key === 'Enter') {
+    event.preventDefault();
+    void commitPlannedMove();
+    return;
+  }
+  if (plannedMove !== undefined && event.key === 'Escape') {
+    event.preventDefault();
+    cancelPlannedMove();
+    return;
+  }
   const direction = ARROW_DIRECTIONS[event.key];
   if (direction !== undefined && selectedView.value?.movable === true) {
     event.preventDefault();
@@ -1246,6 +1387,10 @@ onBeforeUnmount(() => {
     scenes.clearLocalDrag(held.tokenId);
     held = undefined;
   }
+  if (plannedMove !== undefined) {
+    scenes.clearLocalDrag(plannedMove.tokenId);
+    plannedMove = undefined;
+  }
   sendPreview.cancel();
   release();
 });
@@ -1310,7 +1455,7 @@ onBeforeUnmount(() => {
         class="move-readout"
         :style="{ left: `${readout.x}px`, top: `${readout.y}px` }"
       >
-        {{ readout.feet }} ft
+        {{ readout.feet }} ft{{ readout.cost ?? '' }}
       </output>
       <output
         v-if="rulerReadout"

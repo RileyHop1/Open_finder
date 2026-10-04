@@ -178,11 +178,14 @@ test('a full combat turn: initiative, turn order, movement gating, a strike with
     await expect(moveError(player)).toHaveCount(0);
 
     // --- The GM ends Brute's turn: on Valeria's own turn she moves
-    // normally, no grant needed. ---
+    // normally, no grant needed. It is her own active turn, so the arrow key
+    // plans the move instead of sending it at once; Enter commits it. ---
     await gm.getByRole('button', { name: 'Next turn' }).click();
     await expect(turnBarRow(gm, 'Valeria')).toHaveAttribute('aria-current', 'true');
     await selectByKeyboard(player, 'Valeria');
     await player.keyboard.press('ArrowRight');
+    await expect(player.getByRole('status').filter({ hasText: 'planned' })).toBeVisible();
+    await player.keyboard.press('Enter');
     await expect(moveError(player)).toHaveCount(0);
 
     // --- A strike shows its precomputed MAP variants, and rolls one. ---

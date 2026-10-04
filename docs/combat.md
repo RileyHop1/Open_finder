@@ -81,6 +81,19 @@ as it does today.
   (ADR 0019, "Turn undo" below): `combat.undo` puts the token back and gives
   back the Strides, since restoring the token document is what moving it back
   means ([action-economy.md](action-economy.md)).
+- **The keyboard route plans a move instead of sending one per cell.** Per
+  move, not per cell, is the whole point of the ruling above -- so while it is
+  a player's own combatant's active turn, the arrow keys (`MapView.vue`'s
+  `planningMove`) trace out a path instead of moving at once: each press
+  extends it from where it last landed, shown with the distance and the
+  Strides it would cost beside it ("25 ft, ◆◆"), live to everyone else the
+  same way a drag is (the existing preview channel, `scenes.sendDrag`).
+  Enter sends the whole path as the one `token.move` it represents; Escape
+  drops it, or selecting a different token does, silently. The GM is never
+  gated here (CLAUDE.md's "the GM is never blocked"), so GM moves, free
+  movement, and a grant-driven move out of turn all stay immediate, the same
+  as a mouse drag already is for everyone -- a drag is already one
+  continuous move, so only repeated key presses needed this.
 - **Ending a combat** returns to free play, and the rulings go with it. What
   happens to a condition that was anchored to one of its combatants (`turn`
   durations) is decided with `combat.end` (B.3); the recommendation is that it ends
