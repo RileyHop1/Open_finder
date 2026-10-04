@@ -46,6 +46,7 @@ import type {
 import {
   canReadDocument,
   clientOperationUnionSchema,
+  sceneSchema,
   tokenSchema,
 } from '@hearthtable/core';
 import { cryptoRandomSource, evaluate, parse } from '@hearthtable/dice';
@@ -77,6 +78,7 @@ import {
   setInitiative,
   setMovementRuling,
   spendAction,
+  spendMovement,
   startCombat,
 } from './combat.js';
 import { placeTemplate, removeTemplate } from './templates.js';
@@ -101,7 +103,7 @@ import {
 import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
 import { createDragLimiter, previewTokenDrag } from './tokenDrag.js';
-import { createToken, deleteToken, moveToken, updateToken } from './tokens.js';
+import { createToken, deleteToken, gridFor, moveToken, updateToken } from './tokens.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
@@ -425,10 +427,25 @@ function dispatch(
         token === undefined || before === undefined
           ? []
           : promptReactions(store, seat, before, token);
+      const scene =
+        token === undefined || before === undefined
+          ? undefined
+          : sceneSchema.safeParse(store.getDocument(token.sceneId)).data;
+      const movement =
+        scene === undefined || token === undefined || before === undefined
+          ? undefined
+          : spendMovement(
+              store,
+              seat,
+              token,
+              gridFor(scene).pathDistance([before, token]),
+              operation.payload.undo ?? false,
+            );
       return {
         seatId: seat.id,
         seats: [],
-        documents: token === undefined ? [] : [token, ...prompts],
+        documents:
+          token === undefined ? [] : [token, ...prompts, ...(movement?.documents ?? [])],
       };
     }
     case 'token.delete': {

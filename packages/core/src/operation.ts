@@ -501,6 +501,12 @@ export const tokenMoveOperationSchema = clientOperationSchema.extend({
     tokenId: idSchema,
     x: z.number().min(0).max(MAX_SCENE_PIXELS),
     y: z.number().min(0).max(MAX_SCENE_PIXELS),
+    /**
+     * This move undoes the active combatant's own most recent move: the
+     * server gives back the Strides that move cost instead of charging more
+     * (`docs/combat.md`). Absent or `false` for an ordinary move.
+     */
+    undo: z.boolean().optional(),
   }),
 });
 
