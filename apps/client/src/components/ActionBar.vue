@@ -21,7 +21,7 @@ defineProps<{
   label: string;
   /** Whether this seat is the GM: only the GM gets "Other action". */
   gm: boolean;
-  /** Whether this turn has a recorded spend left to undo. */
+  /** Whether this turn has a recorded spend or move left to undo. */
   canUndo: boolean;
 }>();
 const emit = defineEmits<{
