@@ -12,6 +12,7 @@ import { ref } from 'vue';
 import {
   activateWorld,
   createWorld,
+  deactivateWorld,
   deleteWorld,
   getActiveWorld,
   listWorlds,
@@ -64,6 +65,17 @@ export const useWorldsStore = defineStore('worlds', () => {
     }
   }
 
+  /** Leaves the active campaign: back to the campaign list, for everyone at the table. */
+  async function deactivate(): Promise<void> {
+    error.value = undefined;
+    try {
+      await deactivateWorld();
+      activeWorldId.value = undefined;
+    } catch (caught) {
+      error.value = messageOf(caught, 'failed to leave the campaign');
+    }
+  }
+
   /** Permanently deletes campaign `id` and removes it from the list. Refused while it is the active campaign. */
   async function remove(id: string): Promise<void> {
     error.value = undefined;
@@ -75,5 +87,15 @@ export const useWorldsStore = defineStore('worlds', () => {
     }
   }
 
-  return { worlds, activeWorldId, loading, error, refresh, create, activate, remove };
+  return {
+    worlds,
+    activeWorldId,
+    loading,
+    error,
+    refresh,
+    create,
+    activate,
+    deactivate,
+    remove,
+  };
 });

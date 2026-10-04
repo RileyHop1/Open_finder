@@ -32,6 +32,13 @@ that fact lives in memory / process state, not in `world.json` or the
 database. This keeps world records themselves free of state that's really
 about the *server's* current behavior.
 
+The GM can also leave it: `POST /api/worlds/active/deactivate` (GM-only, by
+the same `x-device-token` check `/api/compendium/import` uses) calls
+`ActiveWorldManager.clear()`, which closes the store and disconnects every
+socket, the same as switching to another campaign would. The client's
+`CampaignLobby` offers this as "Back to campaigns," behind a confirmation
+since it affects the whole table, not just the GM's own browser.
+
 ### Deleting a world
 
 `DELETE /api/worlds/:id` removes a campaign permanently: the whole

@@ -192,6 +192,29 @@ export function createApp(options: AppOptions): FastifyInstance {
     await reply.send(store.world);
   });
 
+  // GM only, the same device-token check `/api/compendium/import` uses:
+  // leaving a campaign disconnects every seat at the table, not just the
+  // caller's own browser, so a player hitting this by accident would kick
+  // everyone else out mid-session.
+  app.post('/api/worlds/active/deactivate', async (request, reply) => {
+    const store = activeWorld.get();
+    if (store === undefined) {
+      await reply.status(404).send({ error: 'no world is currently active' });
+      return;
+    }
+    const deviceToken = request.headers['x-device-token'];
+    const seat =
+      typeof deviceToken === 'string' && deviceToken.length > 0
+        ? store.getSeatByDeviceToken(deviceToken)
+        : undefined;
+    if (seat?.isGM !== true) {
+      await reply.status(403).send({ error: 'only the GM can leave the campaign' });
+      return;
+    }
+    activeWorld.clear();
+    await reply.status(204).send();
+  });
+
   // These two routes return the full Seat object, pin included -- not
   // redacted. Seat.pin already documents itself as not a secret (ADR 0007),
   // and this app's whole threat model is "anyone who can reach the port is

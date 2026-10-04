@@ -6,9 +6,10 @@
  * here needs deep links or browser back/forward yet). CampaignSelect's own
  * `onMounted` hook is what actually populates `worldsStore`; this component
  * deliberately doesn't fetch a second time, just reads whatever that
- * populates. There is no way back to CampaignSelect once a campaign is
- * active -- the server has no "deactivate" route yet either, so there is
- * nothing this screen could call even if it offered one.
+ * populates. The GM's "Back to campaigns" button in CampaignLobby is the
+ * way back: it calls `worldsStore.deactivate()`, which clears
+ * `activeWorldId`, and this computed switches back to CampaignSelect on
+ * its own -- no extra wiring needed here.
  */
 import { computed } from 'vue';
 
