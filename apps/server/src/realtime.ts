@@ -104,6 +104,7 @@ import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
 import { createDragLimiter, previewTokenDrag } from './tokenDrag.js';
 import { createToken, deleteToken, gridFor, moveToken, updateToken } from './tokens.js';
+import { recordTurnBefores, recordTurnUndo, undoLastStep } from './turnUndo.js';
 import { broadcastFor, operationsFor } from './visibility.js';
 import type { NewOperation, WorldStore } from './worldStore.js';
 
@@ -655,6 +656,11 @@ function dispatch(
       const { documents } = spendAction(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents };
     }
+    case 'combat.undo': {
+      const seat = requireSeat(store, socket);
+      const { documents, deleted } = undoLastStep(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents, deleted };
+    }
     case 'actor.applyDamage': {
       const seat = requireSeat(store, socket);
       const { documents } = applyDamageToActor(
@@ -737,15 +743,22 @@ function handleOperation(
 
   /** What each document looked like before this operation, so access taken away reaches whoever held it. */
   const previous = new Map<string, BaseDocument>();
+  /** What each document looked like before this operation, for turn undo (ADR 0019) -- absent for `combat.undo` itself, which must never be filed under a step. */
+  const turnBefores =
+    parsed.data.type === 'combat.undo' ? undefined : new Map<string, unknown>();
   try {
     const { appliedOperation, seats, documents, deleted } = store.transaction(() => {
+      const recorded = recordPreviousDocuments(store, previous);
       const result = dispatch(
-        recordPreviousDocuments(store, previous),
+        turnBefores === undefined ? recorded : recordTurnBefores(recorded, turnBefores),
         compendium,
         deviceToken,
         socket,
         parsed.data,
       );
+      if (turnBefores !== undefined) {
+        recordTurnUndo(store, turnBefores, result.seatId ?? '');
+      }
       const newOperation: NewOperation = {
         id: parsed.data.id,
         worldId: store.world.id,

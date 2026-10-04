@@ -14,9 +14,16 @@
  * without any of those operations having to know undo exists.
  */
 
-import { combatantSchema, combatSchema, type Combat } from '@hearthtable/core';
+import {
+  baseDocumentSchema,
+  combatantSchema,
+  combatSchema,
+  type Combat,
+} from '@hearthtable/core';
+import type { BaseDocument, Seat } from '@hearthtable/core';
 
 import { turnCapacityOf } from './combat.js';
+import { OperationRejected } from './rejection.js';
 import type { UndoStep, UndoTurn, WorldStore } from './worldStore.js';
 
 /** Document types an undo never restores: a roll is never taken back (ADR 0019, decision 7). */
@@ -204,4 +211,55 @@ export function recordTurnUndo(
   for (const [documentId, before] of befores) {
     store.putUndoDocument(step, documentId, before);
   }
+}
+
+/** What `undoLastStep` changed: the documents it restored, and the ones it un-created. */
+export interface UndoChange {
+  readonly documents: BaseDocument[];
+  readonly deleted: BaseDocument[];
+}
+
+/**
+ * Undoes the current turn's most recent step (ADR 0019): every document it
+ * touched goes back to its recorded before-state, or is deleted if the step
+ * created it. The GM may undo any step; a player only one opened by their own
+ * seat. There is no separate "is it still that combatant's turn" check: the
+ * stack is always cleared on a turn change (`decideUndo`), so a step only
+ * ever exists while it is still the turn it was opened on.
+ */
+export function undoLastStep(
+  store: WorldStore,
+  seat: Seat,
+  payload: { combatId: string },
+): UndoChange {
+  const step = store.listUndoSteps().at(-1);
+  if (step === undefined || step.combatId !== payload.combatId) {
+    throw new OperationRejected('there is nothing to undo this turn');
+  }
+  if (!seat.isGM && step.seatId !== seat.id) {
+    throw new OperationRejected('only the GM can undo someone else’s action');
+  }
+
+  const documents: BaseDocument[] = [];
+  const deleted: BaseDocument[] = [];
+  for (const { documentId, before } of store.listUndoDocuments(step.step)) {
+    if (before === null) {
+      const existing = baseDocumentSchema.safeParse(store.getDocument(documentId));
+      store.deleteDocument(documentId);
+      if (existing.success) {
+        deleted.push(existing.data);
+      }
+    } else if (baseDocumentSchema.safeParse(before).success) {
+      // `before` is the document's own previously-stored, already-validated
+      // body -- restored whole, not through `baseDocumentSchema.safeParse`,
+      // which would strip every field a concrete document type adds beyond
+      // the base envelope (x/y, turn, actorId, ...). The `safeParse` above
+      // only confirms it still has a valid envelope to put back.
+      const restored = before as BaseDocument;
+      store.putDocument(restored);
+      documents.push(restored);
+    }
+  }
+  store.deleteUndoStep(step.step);
+  return { documents, deleted };
 }

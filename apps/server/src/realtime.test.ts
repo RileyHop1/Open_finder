@@ -1622,6 +1622,64 @@ describe('token.create, token.update, token.delete', () => {
     expect(store.getDocument(heroToken.id)).toMatchObject({ x: landed?.x, y: landed?.y });
   });
 
+  it("undoes a move and the GM's damage from the same step together, then has nothing left", async () => {
+    const { table, heroId, heroToken } = await inTheCrypt();
+    const created = await send(
+      table.gm,
+      table,
+      op('combat.create', { sceneId: heroToken.sceneId as string }),
+    );
+    const combatId = created.forGm.documents.find((d) => d.type === 'combat')?.id ?? '';
+    await send(table.gm, table, op('combat.start', { combatId }));
+
+    const start = { x: heroToken.x as number, y: heroToken.y as number };
+    const actorBefore = store.getDocument(heroId);
+
+    await send(
+      table.player,
+      table,
+      op('token.move', { tokenId: heroToken.id, x: start.x + 500, y: start.y }),
+    );
+    await send(table.gm, table, op('actor.applyDamage', { actorId: heroId, amount: 5 }));
+    expect(store.getDocument(heroId)).not.toEqual(actorBefore);
+
+    const undone = await send(table.player, table, op('combat.undo', { combatId }));
+    expect(store.getDocument(heroToken.id)).toMatchObject(start);
+    expect(store.getDocument(heroId)).toEqual(actorBefore);
+    expect(undone.forGm.documents.map((d) => d.id)).toContain(heroId);
+
+    expect(await emitOperation(table.player, op('combat.undo', { combatId }))).toEqual({
+      ok: false,
+      error: 'there is nothing to undo this turn',
+    });
+  });
+
+  it("refuses a player undoing the GM's own step, but lets the GM undo it", async () => {
+    const { table, heroToken } = await inTheCrypt();
+    const created = await send(
+      table.gm,
+      table,
+      op('combat.create', { sceneId: heroToken.sceneId as string }),
+    );
+    const combatId = created.forGm.documents.find((d) => d.type === 'combat')?.id ?? '';
+    await send(table.gm, table, op('combat.start', { combatId }));
+    const start = { x: heroToken.x as number, y: heroToken.y as number };
+
+    // The GM moves the hero's token themselves, opening a step under the GM's own seat.
+    await send(
+      table.gm,
+      table,
+      op('token.move', { tokenId: heroToken.id, x: start.x + 500, y: start.y }),
+    );
+
+    expect(await emitOperation(table.player, op('combat.undo', { combatId }))).toEqual({
+      ok: false,
+      error: 'only the GM can undo someone else’s action',
+    });
+    await send(table.gm, table, op('combat.undo', { combatId }));
+    expect(store.getDocument(heroToken.id)).toMatchObject(start);
+  });
+
   it('refuses a player for every token operation, logging none', async () => {
     const { table, sceneId, heroId, heroToken } = await inTheCrypt();
     const before = store.listOperationsSince(0).length;

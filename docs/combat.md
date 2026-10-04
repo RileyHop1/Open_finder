@@ -325,7 +325,16 @@ shadow (`apps/server/src/turnUndo.ts`):
   is never deeper than the turn's capacity. Nothing is recorded before a turn's
   first spend.
 
-The `combat.undo` operation that writes a step back is wired in separately.
+**`combat.undo` (`{combatId}`)** pops the newest step and writes every one of
+its documents back: `putDocument` for a recorded before-state, `deleteDocument`
+for one the step created (`undoLastStep`, `apps/server/src/turnUndo.ts`).
+Refused with `OperationRejected` when there is nothing to undo. The GM may
+undo any step; a player only one their own seat opened -- there is no separate
+"is it still that combatant's turn" check, since a step can only exist while it
+is (the stack is cleared on every turn change, above). A roll's chat message
+is never part of what a step restores, so undoing a strike puts the board back
+(MAP's attack count included) but leaves the roll exactly as it was; the GM's
+own override for a bad roll is editing it directly, not undoing it.
 
 ## Permissions
 The server derives them and a client never sets them, as for a token
