@@ -138,6 +138,12 @@ const props = defineProps<{
    * either) also shows nothing, never a wrong hint.
    */
   meleeTargeting?: boolean;
+  /**
+   * Whether this seat may end the current turn right now (TableView.vue's
+   * own `canEndTurn`: the GM, or the active combatant's own owner) -- gates
+   * the Shift+N hotkey the same way the GM-only buttons below the map do.
+   */
+  canEndTurn?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -1107,9 +1113,10 @@ function onKeyDown(event: KeyboardEvent): void {
     setPlacingTemplate(!placingTemplate.value);
     return;
   }
-  // End turn (GM only): a combat not yet active makes this a no-op on the
-  // store side, so nothing here needs to know whether one is running.
-  if (event.key.toLowerCase() === 'n' && event.shiftKey && lobby.mySeat?.isGM === true) {
+  // End turn (the GM, or the active combatant's own owner): a combat not
+  // yet active makes this a no-op on the store side, so nothing here needs
+  // to know whether one is running.
+  if (event.key.toLowerCase() === 'n' && event.shiftKey && props.canEndTurn === true) {
     event.preventDefault();
     emit('nextTurn');
     return;

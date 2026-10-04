@@ -10,10 +10,13 @@
  *
  * **The GM's switch** (CLAUDE.md: combat only happens when the GM starts it)
  * lives here too, as `showControls`: with no active combat it is the only way
- * onto the wire ("Start combat"); once one is running it is Previous/Next
- * turn and End combat, plus a direct initiative override per combatant (the
- * manual path every automated roll gets). A player is never passed
- * `showControls`, so these buttons do not exist for them, not merely hidden.
+ * onto the wire ("Start combat"), plus a direct initiative override per
+ * combatant (the manual path every automated roll gets) once one is running.
+ * A player is never passed `showControls`, so these do not exist for them,
+ * not merely hidden. Only turn *order* lives here -- ending a turn, ending
+ * the combat, and the free-movement switch are `TurnControls.vue`'s, down
+ * with the action bar, since those are things you do each turn rather than
+ * facts about the order itself.
  */
 import { reactive } from 'vue';
 
@@ -25,19 +28,13 @@ defineProps<{
   unseenActing: boolean;
   /** Whether a combat is running (round/items apply) or there is none yet to show. */
   active: boolean;
-  /** Whether this seat is the GM: shows the start/end/turn buttons. */
+  /** Whether this seat is the GM: shows "Start combat" and the initiative override. */
   showControls: boolean;
-  /** The combat's free-movement ruling: lifts the turn rule for everyone. */
-  freeMovement: boolean;
 }>();
 const emit = defineEmits<{
   focus: [tokenId: string];
   start: [];
-  end: [];
-  next: [];
-  previous: [];
   setInitiative: [combatantId: string, initiative: number];
-  setFreeMovement: [on: boolean];
 }>();
 
 /** The override field's own draft per combatant, kept apart from the rolled value until submitted. */
@@ -60,19 +57,6 @@ function submitOverride(combatantId: string): void {
     <template v-if="active">
       <p class="round">Round {{ round }}</p>
       <p v-if="unseenActing" class="unseen" role="status">Someone is acting</p>
-      <template v-if="showControls">
-        <button type="button" @click="emit('previous')">Previous turn</button>
-        <button type="button" @click="emit('next')">Next turn</button>
-        <button type="button" @click="emit('end')">End combat</button>
-        <label class="free-movement">
-          <input
-            type="checkbox"
-            :checked="freeMovement"
-            @change="emit('setFreeMovement', ($event.target as HTMLInputElement).checked)"
-          />
-          Free movement
-        </label>
-      </template>
     </template>
     <ol v-if="active">
       <li

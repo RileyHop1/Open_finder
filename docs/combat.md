@@ -21,9 +21,16 @@ as it does today.
   **Implemented in C.1b:** the turn bar's **Start combat** button is the GM's
   only button onto the wire (`combat.create` then `combat.start`, in one
   click); it is where the bar shows for the GM even before anything is
-  running. While a combat is active the bar also offers **Previous turn**,
-  **Next turn**, and **End combat**, plus a **Shift+N** "end turn" hotkey on
-  the map surface, GM only. None of this exists for a player.
+  running. The turn bar itself (`TurnBar.vue`) shows only the turn order:
+  portraits, initiative, round, and the GM's per-combatant initiative
+  override. The GM's **Previous turn** and **End combat**, and the shared
+  **Next turn**/**End turn** button, live below the map next to the action
+  bar (`TurnControls.vue`), so only turn-order facts sit above the map.
+  **Players may end their own turn** when they own the active combatant's
+  actor -- `combat.nextTurn` allows the GM or that owner (the server's
+  `requireCanEndTurn`); everything else on `TurnControls` (**Previous turn**,
+  **End combat**, free movement) stays GM-only. The **Shift+N** hotkey on the
+  map surface follows the same rule.
   **Implemented in C.3:** the acting combatant's token gets a second ring on
   the map and "(current turn)" in its label; its party bar card (if it has
   one) gets the same ring and a "Current turn" line. Both clear with no
