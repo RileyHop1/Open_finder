@@ -86,5 +86,5 @@ export async function deactivateWorld(): Promise<void> {
     method: 'POST',
     headers: { 'x-device-token': getDeviceToken() },
   });
-  assertOk(response, 'leave the campaign');
+  await assertOk(response, 'leave the campaign');
 }

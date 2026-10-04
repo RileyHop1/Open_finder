@@ -142,6 +142,6 @@ describe('deactivateWorld', () => {
 
   it('throws when the server refuses', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'only the GM' }, 403));
-    await expect(deactivateWorld()).rejects.toThrow(/403/);
+    await expect(deactivateWorld()).rejects.toThrow('only the GM');
   });
 });
