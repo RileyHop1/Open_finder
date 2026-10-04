@@ -1,13 +1,12 @@
 /**
  * Converts upstream's rules-text HTML into a `RichText` AST (ADR 0020). This
- * module handles the common HTML *structure* -- paragraphs, headings,
- * lists, bold/italic, line breaks. Two things it deliberately does not
- * cover yet, each its own small follow-up PR: Foundry's inline reference
- * syntax (`@UUID[...]`, `@Check[...]`, `[[/r ...]]`), which lives inside the
- * text nodes this module produces and is untouched here; and the two
- * degenerate cases upstream's markup occasionally contains, a `<table>` and
- * an action-cost icon span -- rare enough, and separable enough, that they
- * don't belong in the same PR as the common case.
+ * module handles HTML *structure* -- paragraphs, headings, lists,
+ * bold/italic, line breaks, and the two degenerate cases upstream's markup
+ * occasionally contains, a table and an action-cost icon span. Foundry's
+ * inline reference syntax (`@UUID[...]`, `@Check[...]`, `[[/r ...]]`) lives
+ * inside the text nodes this module produces and is untouched here -- that
+ * is `inlineSyntax.ts`'s job (the next PR in this stack), kept separate so
+ * each piece is reviewable on its own.
  *
  * Built on `htmlparser2`'s streaming `Parser`, not a DOM: this project has
  * no DOM at import time (it runs as a Node child process), and a streaming
@@ -21,17 +20,23 @@
  * - `br` becomes a literal `\n` in the surrounding text, not a node kind of
  *   its own -- `RichText` has no line-break node, and a newline inside a
  *   `text` node's `value` is a simpler, equally faithful rendering.
- * - Anything else unrecognized (`div`, `a`, `hr`, `img`, `table`, `span`,
- *   ...) is **transparent**: its own children are kept, flattened into its
- *   parent, with no node of its own. This is the safe default for a tag
- *   this module doesn't specifically understand -- content survives,
- *   structure that has no `RichText` equivalent just doesn't get invented
- *   one. `table` and `span.action-glyph` get a real mapping of their own in
- *   the next PR; until then, a table's cell and row text still comes
- *   through (just run together), and an action-glyph span's icon-font
- *   codepoint still shows as literal text -- both are strictly worse
- *   *fidelity*, never lost *content*, which is the right place for this
- *   module to be mid-stack.
+ * - **A `table` degrades to a `list`, one item per row**, each item's cells
+ *   joined with `" | "`. `RichText` has no table node (nothing in v1's
+ *   scope needs one, and the few tables that do turn up in a condition's or
+ *   a hazard's description are short enough that this reads fine as a
+ *   list). Losing column headers is an accepted simplification, not a bug.
+ * - **`<span class="action-glyph">` is dropped whole, text included.**
+ *   Upstream renders an action's cost as a private-use-area codepoint in an
+ *   icon font this project doesn't ship; keeping that codepoint as plain
+ *   text would show literal tofu. Action cost is already shown elsewhere
+ *   (the action bar's own ◆ icons, `basicActions.ts`), so nothing is lost
+ *   by dropping it here.
+ * - Anything else unrecognized (`div`, `a`, `hr`, `img`, a `span` with no
+ *   `action-glyph` class, ...) is **transparent**: its own children are
+ *   kept, flattened into its parent, with no node of its own. This is the
+ *   safe default for a tag this module doesn't specifically understand --
+ *   content survives, structure that has no `RichText` equivalent just
+ *   doesn't get invented one.
  */
 
 import { Parser } from 'htmlparser2';
@@ -55,12 +60,23 @@ interface ListItemFrame {
   readonly children: RichTextNode[];
 }
 
+interface TableCellFrame {
+  readonly kind: 'tableCell';
+  readonly children: RichTextNode[];
+}
+
+/** Swallows everything inside it (its own children included) -- `action-glyph` spans only. */
+interface SkipFrame {
+  readonly kind: 'skip';
+}
+
 /** A one-shot marker: `<br>` has no content of its own, just the effect `closeFrame` gives it (a literal newline in the surrounding text). */
 interface BreakFrame {
   readonly kind: 'br';
 }
 
-type Frame = GenericFrame | ListFrame | ListItemFrame | BreakFrame;
+type Frame =
+  GenericFrame | ListFrame | ListItemFrame | TableCellFrame | SkipFrame | BreakFrame;
 
 const HEADING_TAGS: Readonly<Record<string, HeadingLevel>> = {
   h1: 1,
@@ -71,9 +87,11 @@ const HEADING_TAGS: Readonly<Record<string, HeadingLevel>> = {
   h6: 3,
 };
 
-/** The frame kinds `append` can actually push a child node into -- everything except `list` (children only arrive via a `listItem`) and `br` (childless by design). */
-function hasChildren(frame: Frame): frame is GenericFrame | ListItemFrame {
-  return frame.kind !== 'list' && frame.kind !== 'br';
+/** The frame kinds `append` can actually push a child node into -- everything except `list` (children only arrive via a `listItem`), `skip`, and `br` (both childless by design). */
+function hasChildren(
+  frame: Frame,
+): frame is GenericFrame | ListItemFrame | TableCellFrame {
+  return frame.kind !== 'list' && frame.kind !== 'skip' && frame.kind !== 'br';
 }
 
 /** Appends `node` to the frame on top of the stack, merging into a trailing text node when both are text -- so a run of entities/inline tags doesn't fragment into many one-character text nodes. */
@@ -108,7 +126,11 @@ function appendText(stack: readonly Frame[], raw: string): void {
   append(stack, { kind: 'text', value: collapsed });
 }
 
-function openTag(stack: Frame[], tagName: string): void {
+function openTag(
+  stack: Frame[],
+  tagName: string,
+  attribs: Readonly<Record<string, string>>,
+): void {
   const name = tagName.toLowerCase();
   const headingLevel = HEADING_TAGS[name];
   if (name === 'p') {
@@ -125,8 +147,19 @@ function openTag(stack: Frame[], tagName: string): void {
     stack.push({ kind: 'strong', children: [] });
   } else if (name === 'em' || name === 'i') {
     stack.push({ kind: 'em', children: [] });
+  } else if (name === 'table') {
+    stack.push({ kind: 'list', ordered: false, items: [] });
+  } else if (name === 'tr') {
+    stack.push({ kind: 'listItem', children: [] });
+  } else if (name === 'td' || name === 'th') {
+    stack.push({ kind: 'tableCell', children: [] });
   } else if (name === 'br') {
     stack.push({ kind: 'br' });
+  } else if (
+    name === 'span' &&
+    (attribs.class ?? '').split(/\s+/).includes('action-glyph')
+  ) {
+    stack.push({ kind: 'skip' });
   } else {
     stack.push({ kind: 'transparent', children: [] });
   }
@@ -168,6 +201,8 @@ function closeFrame(stack: Frame[]): void {
     return;
   }
   switch (frame.kind) {
+    case 'skip':
+      return;
     case 'br':
       append(stack, { kind: 'text', value: '\n' });
       return;
@@ -200,11 +235,21 @@ function closeFrame(stack: Frame[]): void {
       if (parent?.kind === 'list') {
         parent.items.push(trimEdges(frame.children));
       } else {
-        // A stray <li> outside any <ul>/<ol> (malformed upstream markup) --
-        // its content still isn't lost.
+        // A stray <li>/<tr> outside any <ul>/<ol>/<table> (malformed
+        // upstream markup) -- its content still isn't lost.
         for (const child of trimEdges(frame.children)) {
           append(stack, child);
         }
+      }
+      return;
+    }
+    case 'tableCell': {
+      const parent = stack[stack.length - 1];
+      if (parent !== undefined && hasChildren(parent) && parent.children.length > 0) {
+        append(stack, { kind: 'text', value: ' | ' });
+      }
+      for (const child of trimEdges(frame.children)) {
+        append(stack, child);
       }
       return;
     }
@@ -222,8 +267,8 @@ export function htmlToRichText(html: string): RichText {
   const stack: Frame[] = [root];
   const parser = new Parser(
     {
-      onopentag(name) {
-        openTag(stack, name);
+      onopentag(name, attribs) {
+        openTag(stack, name, attribs);
       },
       ontext(text) {
         appendText(stack, text);
