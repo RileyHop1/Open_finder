@@ -131,7 +131,10 @@ describe('resolveEntryText', () => {
       {
         kind: 'paragraph',
         children: [
-          { kind: 'text', value: `@UUID[Compendium.pf2e.equipment.Item.cccccccccccccccc]` },
+          {
+            kind: 'text',
+            value: `@UUID[Compendium.pf2e.equipment.Item.cccccccccccccccc]`,
+          },
         ],
       },
     ]);

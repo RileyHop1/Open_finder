@@ -31,7 +31,11 @@ import type { TermKind } from '@hearthtable/core';
 
 import type { Pf2eEntry } from '../content/entry.js';
 import { deterministicId } from './deterministicId.js';
-import { applyInlineSyntax, type ResolveUuid, type UuidResolution } from './inlineSyntax.js';
+import {
+  applyInlineSyntax,
+  type ResolveUuid,
+  type UuidResolution,
+} from './inlineSyntax.js';
 import { extractUpstreamId } from './resolveDependencies.js';
 
 const TERM_KIND_BY_CONTENT_KIND: Readonly<Record<string, TermKind>> = {

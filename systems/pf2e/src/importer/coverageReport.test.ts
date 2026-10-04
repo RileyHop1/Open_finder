@@ -191,10 +191,14 @@ describe('aggregateCoverage', () => {
   });
 
   it("strips inlineSyntaxWarnings' quoted markup down to a bare count", () => {
-    const report = buildCoverageReport([], [], [
-      'unrecognized inline syntax, left as text: @Actor[abc]{Some Flavor Text}',
-      '@Localize has no localization table here, guessed a label: PF2E.Foo',
-    ]);
+    const report = buildCoverageReport(
+      [],
+      [],
+      [
+        'unrecognized inline syntax, left as text: @Actor[abc]{Some Flavor Text}',
+        '@Localize has no localization table here, guessed a label: PF2E.Foo',
+      ],
+    );
 
     const aggregate = aggregateCoverage(report);
 
@@ -248,7 +252,11 @@ describe('renderCoverageMarkdown', () => {
   });
 
   it('renders inline syntax warnings, never dropping them silently', () => {
-    const report = buildCoverageReport([], [], ['unresolved @UUID with no fallback label: Compendium.x']);
+    const report = buildCoverageReport(
+      [],
+      [],
+      ['unresolved @UUID with no fallback label: Compendium.x'],
+    );
 
     const markdown = renderCoverageMarkdown(report);
 
