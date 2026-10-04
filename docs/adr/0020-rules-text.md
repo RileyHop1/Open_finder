@@ -46,7 +46,13 @@ already let through -- i.e., ones a Remaster book also defines and uses.
    would ripple through roughly a hundred existing fixtures across the
    importer and golden tests for no benefit, since nothing currently reads it
    as anything but an opaque string. `text` is the new, renderable value;
-   nothing in this project will read `description` once the UI lands.
+   nothing in this project will read `description` once the UI lands. `text`
+   is optional, not defaulted to `[]` -- a defaulted field is *required* in
+   the schema's inferred TypeScript type (always present once parsed), which
+   would force every one of this project's own hand-built fixtures (golden
+   characters, rule-engine test entries) to add a field they have no content
+   for. Optional keeps the same fixtures valid unchanged, and "absent" reads
+   correctly either way: nothing to show yet.
 2. **`RichText` is our own small AST, not sanitized HTML.** A short, closed set
    of node kinds -- paragraph, heading, list, strong, em, plain text, and a
    `term` node (`{ kind, slug, label }`) for anything that should be a tooltip
@@ -98,8 +104,8 @@ already let through -- i.e., ones a Remaster book also defines and uses.
   `packs/`. This is a small, mechanical addition to an already-reviewed
   re-pin process (ADR 0011).
 - **Re-importing is required before this milestone's UI shows real text.**
-  `text` is absent (schema default `[]`) on any entry imported before this
-  ADR's PRs land.
+  `text` is simply absent on any entry imported before this ADR's PRs land,
+  which the renderer treats the same as "nothing to show."
 - **This ADR's trait-licensing call is this project's own judgment, not legal
   advice** -- same caveat ADR 0003 already carries, and the same obligation:
   revisit before the project is shared publicly.

@@ -22,14 +22,45 @@ function makeEntry(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('compendiumEntrySchema', () => {
-  it('accepts a minimal well-formed entry, defaulting traits/ruleElements/description', () => {
+  it('accepts a minimal well-formed entry, defaulting traits/ruleElements/description, leaving text absent', () => {
     const result = compendiumEntrySchema.safeParse(makeEntry());
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.traits).toEqual([]);
       expect(result.data.ruleElements).toEqual([]);
       expect(result.data.description).toBe('');
+      expect(result.data.text).toBeUndefined();
     }
+  });
+
+  it('accepts a rich-text value, including a nested term', () => {
+    const result = compendiumEntrySchema.safeParse(
+      makeEntry({
+        text: [
+          {
+            kind: 'paragraph',
+            children: [
+              { kind: 'text', value: 'You are ' },
+              {
+                kind: 'term',
+                termKind: 'condition',
+                slug: 'frightened',
+                label: 'Frightened',
+              },
+              { kind: 'text', value: '.' },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a rich-text node of an unknown kind', () => {
+    const result = compendiumEntrySchema.safeParse(
+      makeEntry({ text: [{ kind: 'span', value: 'nope' }] }),
+    );
+    expect(result.success).toBe(false);
   });
 
   it('accepts an entry with traits, rule elements, and a description', () => {

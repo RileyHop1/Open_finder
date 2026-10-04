@@ -231,6 +231,17 @@ export {
   type PackManifest,
 } from './compendium.js';
 
+export {
+  TERM_KINDS,
+  richTextNodeSchema,
+  richTextSchema,
+  termKindSchema,
+  type HeadingLevel,
+  type RichText,
+  type RichTextNode,
+  type TermKind,
+} from './richText.js';
+
 export { sameName } from './name.js';
 
 export { tokenDragSchema } from './realtime.js';

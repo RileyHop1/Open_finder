@@ -17,6 +17,7 @@ import { z } from 'zod';
 
 import { provenanceSchema } from './provenance.js';
 import { baseRecordSchema, timestampSchema } from './record.js';
+import { richTextSchema } from './richText.js';
 import { ruleElementSchema } from './ruleElement.js';
 
 /**
@@ -36,6 +37,18 @@ export const compendiumEntrySchema = baseRecordSchema.extend({
   traits: z.array(z.string().min(1)).readonly().default([]),
   ruleElements: z.array(ruleElementSchema).readonly().default([]),
   description: z.string().default(''),
+  /**
+   * The same rules text as `description`, converted to `RichText` at import
+   * time (ADR 0020) -- this is what the client actually renders; nothing
+   * reads `description` once the tooltip/encyclopedia UI lands. Optional
+   * rather than defaulted: an entry imported before that conversion existed
+   * (or any of this project's own hand-built fixtures, which have no HTML to
+   * convert) simply has no `text` at all, rather than a default empty array
+   * that would look identical to "converted, and genuinely empty." A reader
+   * treats a missing `text` the same way it already treats a missing rule
+   * element or trait list -- as nothing to show, not as an error.
+   */
+  text: richTextSchema.optional(),
 });
 
 export type CompendiumEntry = z.infer<typeof compendiumEntrySchema>;
