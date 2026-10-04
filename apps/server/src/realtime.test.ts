@@ -1576,6 +1576,52 @@ describe('token.create, token.update, token.delete', () => {
     expect(store.listOperationsSince(0)).toHaveLength(before);
   });
 
+  it("spends the Strides a move costs on the hero's own turn, and refuses one that would overspend", async () => {
+    const { table, heroToken } = await inTheCrypt();
+    const created = await send(
+      table.gm,
+      table,
+      op('combat.create', { sceneId: heroToken.sceneId as string }),
+    );
+    const combatId = created.forGm.documents.find((d) => d.type === 'combat')?.id ?? '';
+    await send(table.gm, table, op('combat.start', { combatId }));
+
+    const tokenOf = (heard: { documents: { id: string; type: string }[] }) =>
+      heard.documents.find((d) => d.type === 'token') as
+        { id: string; x: number; y: number } | undefined;
+    const combatantOf = (heard: { documents: { type: string }[] }) =>
+      heard.documents.find((d) => d.type === 'combatant');
+
+    const start = { x: heroToken.x as number, y: heroToken.y as number };
+    const move = (x: number, y: number) =>
+      send(table.player, table, op('token.move', { tokenId: heroToken.id, x, y }));
+
+    const first = await move(start.x + 500, start.y);
+    expect(combatantOf(first.forPlayer)).toMatchObject({
+      turn: { actionsSpent: 1, movementUsed: 25 },
+    });
+
+    const second = await move(start.x, start.y);
+    expect(combatantOf(second.forPlayer)).toMatchObject({
+      turn: { actionsSpent: 2, movementUsed: 50 },
+    });
+
+    const third = await move(start.x + 500, start.y);
+    expect(combatantOf(third.forPlayer)).toMatchObject({
+      turn: { actionsSpent: 3, movementUsed: 75 },
+    });
+    const landed = tokenOf(third.forPlayer);
+
+    // At capacity: five more feet needs a fourth Stride, refused outright for a player.
+    const refused = await emitOperation(
+      table.player,
+      op('token.move', { tokenId: heroToken.id, x: start.x + 600, y: start.y }),
+    );
+    expect(refused).toEqual({ ok: false, error: 'Hero has no actions left this turn.' });
+    // Rolled back: the token did not move either.
+    expect(store.getDocument(heroToken.id)).toMatchObject({ x: landed?.x, y: landed?.y });
+  });
+
   it('refuses a player for every token operation, logging none', async () => {
     const { table, sceneId, heroId, heroToken } = await inTheCrypt();
     const before = store.listOperationsSince(0).length;

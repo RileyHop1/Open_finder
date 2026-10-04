@@ -65,6 +65,16 @@ as it does today.
   `actionCapacity` is refused outright, naming how many actions are left; the
   GM's own overspend still goes through, with a chat warning
   ([action-economy.md](action-economy.md)).
+- **Moving spends the Strides it costs.** While it is the mover's own
+  combatant's turn, `token.move` adds the move's distance to `movementUsed`
+  and the Strides that distance costs (`stridesFor`, from the Speed `speedOf`
+  reads off the actor) to `actionsSpent` -- the same budget rule as any other
+  spend, so a player's move that would cross the turn's capacity is refused
+  and the token does not move (the whole operation rolls back together). A
+  token that is not the active combatant, is not in a running combat, or
+  whose actor's Speed cannot be read (a hazard) moves for free, same as
+  always. The client's own undo (M5, part c) sends the same move back with
+  `undo: true`, giving back exactly the Strides that move cost.
 - **Ending a combat** returns to free play, and the rulings go with it. What
   happens to a condition that was anchored to one of its combatants (`turn`
   durations) is decided with `combat.end` (B.3); the recommendation is that it ends
@@ -246,7 +256,7 @@ an id, not a position that could drift onto the wrong creature.
 | `actionsSpent` | integer 0-99, default 0 | A player's spend is refused outright once it would exceed the turn's capacity; the GM's own overspend still goes through, with a chat warning ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
 | `reactionUsed` | boolean, default `false` | Refreshed at the start of the combatant's turn |
 | `attacksMade` | integer 0-99, default 0 | The Multiple Attack Penalty counts attacks, not actions. Reset at the start of the combatant's turn |
-| `movementUsed` | integer feet, 0-9999, default 0 | Feet moved this turn while this combatant is active. Reset at the start of the combatant's turn. **Schema only so far** (M5 movement stack, part a): `systems/pf2e`'s `stridesFor` says how many Strides a move of this size costs, and `speedOf` reads a character's or NPC's Speed, but nothing writes to this field yet -- `token.move` does not spend actions for movement until the server piece lands |
+| `movementUsed` | integer feet, 0-9999, default 0 | Feet moved this turn while this combatant is active. Reset at the start of the combatant's turn. Written by `token.move`'s `spendMovement` (below): each move adds its distance here and the Strides it costs (`stridesFor`) to `actionsSpent`, through the same budget rule as the action tray |
 
 It lives on the combatant, not the actor: it means nothing outside a fight, and
 leaving a combat must leave the actor exactly as it was, apart from the real

@@ -45,8 +45,11 @@ spend against. The GM alone gets "Other action", a free-text entry with a
 cost picker for whatever the table asks for that the system doesn't model;
 spending it names it in a chat message. The bar itself is shown only for a
 token this seat controls (the GM, any; a player, one they own) — see
-`docs/combat.md` for where that check lives. Still open, as follow-up PRs
-under the same C.5 item: range highlighting and movement spending actions.
+`docs/combat.md` for where that check lives. Still open, as a follow-up PR
+under the same C.5 item: range highlighting. Movement spending actions landed
+separately, in `token.move` itself (`combat.ts`'s `spendMovement`,
+[combat.md](combat.md)) rather than on this bar, since a move is dragged on
+the map, not clicked here.
 
 **Implemented in M5 C.5b**: "Undo last action" on the bar
 (`stores/combat.ts`'s `turnLog`, a per-combatant stack kept only in the

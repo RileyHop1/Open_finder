@@ -89,6 +89,7 @@ export {
   COMBAT_STATUSES,
   MAX_COUNTER,
   MAX_INITIATIVE,
+  MAX_MOVEMENT_FEET,
   MAX_ROUND,
   combatSchema,
   combatStatusSchema,

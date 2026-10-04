@@ -14,6 +14,7 @@ import {
   nextTurn,
   setInitiative,
   setMovementRuling,
+  spendMovement,
   startCombat,
 } from './combat.js';
 import { setPartyScene } from './party.js';
@@ -198,5 +199,73 @@ describe('setMovementRuling', () => {
     expect(() =>
       setMovementRuling(store, gm, { combatId: combat.id, freeMovement: true }),
     ).toThrow('has ended');
+  });
+});
+
+describe('spendMovement', () => {
+  const turnOf = (tokenId: string, of: (tokenId: string) => { id: string }) =>
+    combatantSchema.parse(store.getDocument(of(tokenId).id)).turn;
+
+  it("spends a Stride per full Speed crossed, on the active combatant's own turn", () => {
+    const { adaPlayer, ada, of, start } = table();
+    start();
+    spendMovement(store, adaPlayer, ada, 25, false);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 1, movementUsed: 25 });
+    spendMovement(store, adaPlayer, ada, 25, false);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 2, movementUsed: 50 });
+  });
+
+  it('never charges twice for ground already paid for, within one Speed', () => {
+    const { adaPlayer, ada, of, start } = table();
+    start();
+    spendMovement(store, adaPlayer, ada, 10, false);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 1, movementUsed: 10 });
+    spendMovement(store, adaPlayer, ada, 10, false);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 1, movementUsed: 20 });
+  });
+
+  it("refuses a player's move past the turn's action capacity, and writes nothing", () => {
+    const { adaPlayer, ada, of, start } = table();
+    start();
+    spendMovement(store, adaPlayer, ada, 25, false);
+    spendMovement(store, adaPlayer, ada, 25, false);
+    spendMovement(store, adaPlayer, ada, 25, false);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 3, movementUsed: 75 });
+    expect(() => spendMovement(store, adaPlayer, ada, 5, false)).toThrow(
+      'has no actions left this turn.',
+    );
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 3, movementUsed: 75 });
+  });
+
+  it("never blocks the GM's overspend by moving a token too far", () => {
+    const { gm, ada, of, start } = table();
+    start();
+    for (let i = 0; i < 4; i++) {
+      spendMovement(store, gm, ada, 25, false);
+    }
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 4, movementUsed: 100 });
+  });
+
+  it('undo gives back exactly the Strides the matching forward move cost', () => {
+    const { adaPlayer, ada, of, start } = table();
+    start();
+    spendMovement(store, adaPlayer, ada, 30, false);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 2, movementUsed: 30 });
+    spendMovement(store, adaPlayer, ada, 30, true);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 0, movementUsed: 0 });
+  });
+
+  it('does nothing before the combat starts, or for a token that is not the active combatant', () => {
+    const { adaPlayer, benPlayer, ada, ben, start } = table();
+    expect(spendMovement(store, adaPlayer, ada, 25, false)).toBeUndefined();
+    start();
+    expect(spendMovement(store, benPlayer, ben, 25, false)).toBeUndefined();
+  });
+
+  it('does nothing for no movement at all', () => {
+    const { adaPlayer, ada, of, start } = table();
+    start();
+    expect(spendMovement(store, adaPlayer, ada, 0, false)).toBeUndefined();
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 0, movementUsed: 0 });
   });
 });
