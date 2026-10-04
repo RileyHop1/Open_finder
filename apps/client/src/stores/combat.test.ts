@@ -412,114 +412,40 @@ describe('spending actions and the reaction', () => {
   });
 });
 
-describe('the action bar’s per-turn undo cache', () => {
-  it('has nothing to undo until a spend is recorded', async () => {
-    const { store, fast } = await table();
-    expect(store.canUndoSpend(fast.id)).toBe(false);
-    expect(await store.undoLastSpend(fast.id)).toBe(false);
+describe('undo', () => {
+  it('sends combat.undo for the active combat, win or lose', async () => {
+    const { store, combat } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    expect(await store.undo()).toBe(true);
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'combat.undo',
+      payload: { combatId: combat.id },
+    });
+  });
+
+  it("surfaces the server's refusal through error, the same as any other rejected operation", async () => {
+    const { store } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({
+      ok: false,
+      error: 'there is nothing to undo this turn',
+    });
+
+    expect(await store.undo()).toBe(false);
+    expect(store.error).toBe('there is nothing to undo this turn');
+  });
+
+  it('is a no-op with no active combat', async () => {
+    const scene = makeScene();
+    vi.mocked(documentsApi.getParty).mockResolvedValue(makeParty(scene.id));
+    vi.mocked(documentsApi.listScenes).mockResolvedValue([scene]);
+    useConnectionStore().connect();
+    await useDocumentsStore().load(WORLD);
+    await useScenesStore().load(WORLD);
+    const store = useCombatStore();
+    await store.load(WORLD);
+
+    expect(await store.undo()).toBe(false);
     expect(emitOperation).not.toHaveBeenCalled();
-  });
-
-  it('undoes the most recent recorded spend by giving the actions back', async () => {
-    const { store, fast } = await table();
-    store.recordSpend(fast.id, 1);
-    store.recordSpend(fast.id, 2);
-    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
-
-    expect(await store.undoLastSpend(fast.id)).toBe(true);
-    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
-      type: 'combat.spendAction',
-      payload: { combatantId: fast.id, actions: -2 },
-    });
-    // One spend is still left to undo.
-    expect(store.canUndoSpend(fast.id)).toBe(true);
-
-    expect(await store.undoLastSpend(fast.id)).toBe(true);
-    expect(vi.mocked(emitOperation).mock.calls[1]?.[1]).toMatchObject({
-      payload: { combatantId: fast.id, actions: -1 },
-    });
-    expect(store.canUndoSpend(fast.id)).toBe(false);
-  });
-
-  it('puts the spend back if the server refuses the undo', async () => {
-    const { store, fast } = await table();
-    store.recordSpend(fast.id, 1);
-    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'no' });
-
-    expect(await store.undoLastSpend(fast.id)).toBe(false);
-    expect(store.canUndoSpend(fast.id)).toBe(true);
-  });
-
-  it('clears a combatant’s cache the moment the active combatant changes, not before', async () => {
-    const { store, combat, fast, slow } = await table();
-    store.recordSpend(fast.id, 1);
-    expect(store.canUndoSpend(fast.id)).toBe(true);
-
-    // Still mid-turn: an unrelated broadcast must not clear it.
-    await broadcast([{ ...slow, defeated: false }]);
-    expect(store.canUndoSpend(fast.id)).toBe(true);
-
-    await broadcast([{ ...combat, activeCombatantId: slow.id }]);
-    expect(store.canUndoSpend(fast.id)).toBe(false);
-  });
-});
-
-describe('undoing a move', () => {
-  it('records a move only for the active combatant, not any other', async () => {
-    const { store, fast, slow, heroToken, goblinToken } = await table();
-    store.recordMove(fast.id, heroToken.id, { x: 100, y: 100 });
-    expect(store.canUndoSpend(fast.id)).toBe(true);
-
-    store.recordMove(slow.id, goblinToken.id, { x: 200, y: 200 });
-    expect(store.canUndoSpend(slow.id)).toBe(false);
-  });
-
-  it('sends the token back to where the move began, with undo: true', async () => {
-    const { store, fast, heroToken } = await table();
-    store.recordMove(fast.id, heroToken.id, { x: 120, y: 340 });
-    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
-
-    expect(await store.undoLastSpend(fast.id)).toBe(true);
-    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
-      type: 'token.move',
-      payload: { tokenId: heroToken.id, x: 120, y: 340, undo: true },
-    });
-    expect(store.canUndoSpend(fast.id)).toBe(false);
-  });
-
-  it('puts the move back if the server refuses the undo', async () => {
-    const { store, fast, heroToken } = await table();
-    store.recordMove(fast.id, heroToken.id, { x: 120, y: 340 });
-    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'no' });
-
-    expect(await store.undoLastSpend(fast.id)).toBe(false);
-    expect(store.canUndoSpend(fast.id)).toBe(true);
-  });
-
-  it('undoes spends and moves in the order they happened, mixed together', async () => {
-    const { store, fast, heroToken } = await table();
-    store.recordSpend(fast.id, 1);
-    store.recordMove(fast.id, heroToken.id, { x: 50, y: 60 });
-    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
-
-    expect(await store.undoLastSpend(fast.id)).toBe(true);
-    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
-      type: 'token.move',
-    });
-
-    expect(await store.undoLastSpend(fast.id)).toBe(true);
-    expect(vi.mocked(emitOperation).mock.calls[1]?.[1]).toMatchObject({
-      type: 'combat.spendAction',
-    });
-    expect(store.canUndoSpend(fast.id)).toBe(false);
-  });
-
-  it('clears a recorded move too, the moment the active combatant changes', async () => {
-    const { store, combat, fast, slow, heroToken } = await table();
-    store.recordMove(fast.id, heroToken.id, { x: 0, y: 0 });
-    expect(store.canUndoSpend(fast.id)).toBe(true);
-
-    await broadcast([{ ...combat, activeCombatantId: slow.id }]);
-    expect(store.canUndoSpend(fast.id)).toBe(false);
   });
 });

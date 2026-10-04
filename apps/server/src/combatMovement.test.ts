@@ -209,36 +209,36 @@ describe('spendMovement', () => {
   it("charges each move its own Stride(s), on the active combatant's own turn", () => {
     const { adaPlayer, ada, of, start } = table();
     start();
-    spendMovement(store, adaPlayer, ada, 25, false);
+    spendMovement(store, adaPlayer, ada, 25);
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 1 });
-    spendMovement(store, adaPlayer, ada, 25, false);
+    spendMovement(store, adaPlayer, ada, 25);
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 2 });
   });
 
   it('charges every separate move its own Stride, never a running total', () => {
     const { adaPlayer, ada, of, start } = table();
     start();
-    spendMovement(store, adaPlayer, ada, 10, false);
+    spendMovement(store, adaPlayer, ada, 10);
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 1 });
-    spendMovement(store, adaPlayer, ada, 10, false);
+    spendMovement(store, adaPlayer, ada, 10);
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 2 });
   });
 
   it('charges a second Stride for one move that outruns a single Speed', () => {
     const { adaPlayer, ada, of, start } = table();
     start();
-    spendMovement(store, adaPlayer, ada, 30, false);
+    spendMovement(store, adaPlayer, ada, 30);
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 2 });
   });
 
   it("refuses a player's move past the turn's action capacity, and writes nothing", () => {
     const { adaPlayer, ada, of, start } = table();
     start();
-    spendMovement(store, adaPlayer, ada, 25, false);
-    spendMovement(store, adaPlayer, ada, 25, false);
-    spendMovement(store, adaPlayer, ada, 25, false);
+    spendMovement(store, adaPlayer, ada, 25);
+    spendMovement(store, adaPlayer, ada, 25);
+    spendMovement(store, adaPlayer, ada, 25);
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 3 });
-    expect(() => spendMovement(store, adaPlayer, ada, 5, false)).toThrow(
+    expect(() => spendMovement(store, adaPlayer, ada, 5)).toThrow(
       'has no actions left this turn.',
     );
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 3 });
@@ -248,31 +248,22 @@ describe('spendMovement', () => {
     const { gm, ada, of, start } = table();
     start();
     for (let i = 0; i < 4; i++) {
-      spendMovement(store, gm, ada, 25, false);
+      spendMovement(store, gm, ada, 25);
     }
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 4 });
   });
 
-  it('undo gives back exactly the Strides the matching forward move cost', () => {
-    const { adaPlayer, ada, of, start } = table();
-    start();
-    spendMovement(store, adaPlayer, ada, 30, false);
-    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 2 });
-    spendMovement(store, adaPlayer, ada, 30, true);
-    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 0 });
-  });
-
   it('does nothing before the combat starts, or for a token that is not the active combatant', () => {
     const { adaPlayer, benPlayer, ada, ben, start } = table();
-    expect(spendMovement(store, adaPlayer, ada, 25, false)).toBeUndefined();
+    expect(spendMovement(store, adaPlayer, ada, 25)).toBeUndefined();
     start();
-    expect(spendMovement(store, benPlayer, ben, 25, false)).toBeUndefined();
+    expect(spendMovement(store, benPlayer, ben, 25)).toBeUndefined();
   });
 
   it('does nothing for no movement at all', () => {
     const { adaPlayer, ada, of, start } = table();
     start();
-    expect(spendMovement(store, adaPlayer, ada, 0, false)).toBeUndefined();
+    expect(spendMovement(store, adaPlayer, ada, 0)).toBeUndefined();
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 0 });
   });
 });

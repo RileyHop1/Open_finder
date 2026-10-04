@@ -16,7 +16,7 @@ import type { Broadcast, Combat, Combatant } from '@hearthtable/core';
 import { actorSchema, combatantSchema, combatSchema } from '@hearthtable/core';
 import { sortByInitiative } from '@hearthtable/pf2e';
 import { defineStore } from 'pinia';
-import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import { listCombatants, listCombats } from '../api/documents.js';
 import { useConnectionStore } from './connection.js';
@@ -90,95 +90,6 @@ export const useCombatStore = defineStore('combat', () => {
       activeCombat.value.activeCombatantId !== undefined &&
       activeCombatant.value === undefined,
   );
-
-  /**
-   * One undoable thing a combatant did this turn: an action-bar spend, or a
-   * token move (which "undo" reverses by sending it back, not by refunding a
-   * number).
-   */
-  type TurnLogEntry =
-    | { kind: 'spend'; cost: number }
-    | { kind: 'move'; tokenId: string; from: { x: number; y: number } };
-
-  /**
-   * This turn's undoable actions, per combatant, purely client state (never
-   * sent, never saved): what "undo last action" undoes. Cleared, not kept,
-   * the moment the active combatant changes -- a spend or move from a turn
-   * that has already ended is not this session's to undo (the GM sets those
-   * by hand, same as `combat.previousTurn`'s own boundary rule). Keeping this
-   * scoped to one combatant at a time, flushed the instant its turn ends,
-   * is deliberate: there is never more than one turn's worth of entries to
-   * hold, and nothing here outlives the turn it was recorded for.
-   */
-  const turnLog = reactive(new Map<string, TurnLogEntry[]>());
-
-  watch(
-    () => activeCombat.value?.activeCombatantId,
-    (_current, previous) => {
-      if (previous !== undefined) {
-        turnLog.delete(previous);
-      }
-    },
-  );
-
-  function pushEntry(combatantId: string, entry: TurnLogEntry): void {
-    turnLog.set(combatantId, [...(turnLog.get(combatantId) ?? []), entry]);
-  }
-
-  /** Records a cost just spent via the action bar, for `undoLastSpend` to find. */
-  function recordSpend(combatantId: string, cost: number): void {
-    pushEntry(combatantId, { kind: 'spend', cost });
-  }
-
-  /**
-   * Records a token move just made, for `undoLastSpend` to send back -- only
-   * while `combatantId` is the currently active combatant, the one case
-   * `combat.spendMovement` actually charges Strides for. A move on anyone
-   * else's token (the GM repositioning a monster, a free-movement or
-   * grant-driven move out of turn) cost nothing server-side, so there would
-   * be nothing to undo; recording it anyway would sit in `turnLog` for a
-   * combatant whose turn may never come (or has already passed), the one
-   * leak `turnLog`'s per-turn flush is built to avoid.
-   */
-  function recordMove(
-    combatantId: string,
-    tokenId: string,
-    from: { x: number; y: number },
-  ): void {
-    if (activeCombat.value?.activeCombatantId !== combatantId) {
-      return;
-    }
-    pushEntry(combatantId, { kind: 'move', tokenId, from });
-  }
-
-  /** Whether `combatantId` has a recorded spend or move this turn left to undo. */
-  function canUndoSpend(combatantId: string): boolean {
-    return (turnLog.get(combatantId)?.length ?? 0) > 0;
-  }
-
-  /**
-   * Undoes the most recent recorded action: gives back a spend's actions
-   * (negative `combat.spendAction`), or sends a move's token back to where
-   * it started (`token.move` with `undo: true`, giving back the Strides that
-   * move cost). No-op (false) with nothing recorded; on the server refusing,
-   * the entry is put back so nothing is silently lost.
-   */
-  async function undoLastSpend(combatantId: string): Promise<boolean> {
-    const log = turnLog.get(combatantId);
-    const entry = log?.at(-1);
-    if (log === undefined || entry === undefined) {
-      return false;
-    }
-    turnLog.set(combatantId, log.slice(0, -1));
-    const accepted =
-      entry.kind === 'spend'
-        ? await spendAction(combatantId, -entry.cost)
-        : await scenes.moveToken(entry.tokenId, entry.from.x, entry.from.y, true);
-    if (!accepted) {
-      pushEntry(combatantId, entry);
-    }
-    return accepted;
-  }
 
   async function load(forWorldId: string): Promise<void> {
     worldId = forWorldId;
@@ -346,6 +257,23 @@ export const useCombatStore = defineStore('combat', () => {
     return send('combat.spendAction', { combatantId, reaction: used });
   }
 
+  /**
+   * "Undo last action": pops the current turn's most recent step and
+   * restores everything it touched -- a spend, a move, anything else filed
+   * under it by anyone (ADR 0019). No-op (false) with no active combat.
+   * There is no client-side check for whether anything is there to undo, or
+   * whose it is: the GM may undo any step, a player only one their own seat
+   * opened, and the server's refusal for either case ("there is nothing to
+   * undo this turn", "only the GM can undo someone else's action") shows
+   * through `error`, the same as any other rejected operation here.
+   */
+  function undo(): Promise<boolean> {
+    const combatId = activeCombat.value?.id;
+    return combatId === undefined
+      ? Promise.resolve(false)
+      : send('combat.undo', { combatId });
+  }
+
   return {
     activeCombat,
     order,
@@ -364,9 +292,6 @@ export const useCombatStore = defineStore('combat', () => {
     setMovementGrant,
     spendAction,
     setReaction,
-    recordSpend,
-    recordMove,
-    canUndoSpend,
-    undoLastSpend,
+    undo,
   };
 });

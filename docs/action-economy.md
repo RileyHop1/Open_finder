@@ -27,12 +27,14 @@ The refusal is not a modal. It is the same inline error line
 
 **Implemented in M5 C.4**: `apps/client/src/components/ActionTray.vue` shows
 the acting combatant's ◆◆◆ (filled by `actionsSpent`) and ↺, both with a text
-count, plus a quickened extra marked "restricted". Spend/undo and the reaction
+count, plus a quickened extra marked "restricted". Spend and the reaction
 toggle are for the combatant's actor's owner or the GM; hidden entirely while
 no combat is active. The server (`combat.spendAction`) refuses a player's
 spend that would cross the turn's `actionCapacity` and writes nothing; the
 GM's own overspend still goes through and is only announced in chat ("Ada has
-spent 4 of 3 actions").
+spent 4 of 3 actions"). "Give back an action" (`combat.spendAction` with a
+negative count) is the GM's own manual override for a number the automation
+got wrong — not an undo, and shown to the GM only.
 
 **Implemented in M5 C.5a**: `apps/client/src/components/ActionBar.vue`, across
 the bottom of the map for whatever token is selected, strikes and basic
@@ -51,30 +53,25 @@ separately, in `token.move` itself (`combat.ts`'s `spendMovement`,
 [combat.md](combat.md)) rather than on this bar, since a move is dragged on
 the map, not clicked here.
 
-**Implemented in M5 C.5b**: "Undo last action" on the bar
-(`stores/combat.ts`'s `turnLog`, a per-combatant stack kept only in the
-browser, never sent or saved). Every bar spend — a strike's action cost, a
-basic action, the freeform entry — is recorded once the server accepts it;
-undoing pops the most recent one and gives those actions back
-(`combat.spendAction` with a negative count, same op `ActionTray`'s own
-undo already used). The stack is cleared, not kept, the moment the active
-combatant changes (`combat.nextTurn`/`previousTurn`), so a spend from a
-turn that already ended is never undoable from here — consistent with
-`combat.previousTurn` not undoing boundary-rule effects either; the GM sets
-those by hand.
+**Implemented in M5 C.5b, redesigned under ADR 0019**: "Undo last action" on
+the action tray sends `combat.undo` (owner-or-GM, same as the tray's other
+controls). It is a thin client over the server's own turn-undo stack
+(`apps/server/src/turnUndo.ts`, [combat.md](combat.md), "Turn undo"), not a
+client-side log: a *step* opens on the active combatant's in-budget spend and
+gathers everything else that happens on that turn — a move, a strike's MAP
+count, a reaction, even the GM's own damage or a condition applied in the
+meantime — whoever caused it. Undoing restores every document the step
+touched in one operation, which is the only way "move, and someone reacts to
+it" can undo cleanly. A roll's own chat message is never part of what a step
+restores, so undoing a strike puts MAP and the board back but leaves the roll
+exactly as it was; a bad roll is the GM's to edit directly, not undo.
 
-`turnLog` holds moves too, tagged separately from spends: `MapView.vue`'s
-two move paths (the arrow-key step and the drag-and-drop drop) each record
-where the token was *before* the move, but only while that token's own
-combatant is the one currently active — a move anyone else makes (the GM
-repositioning a monster, a free-movement or grant-driven move out of turn)
-never spent Strides server-side, so there is nothing for this stack to undo,
-and recording it anyway would sit there for a combatant whose turn may never
-come. Undoing a move entry sends `token.move` back to that recorded point
-with `undo: true`, which gives back the exact Strides the move cost
-([combat.md](combat.md)) — not a flat action count, the way a spend entry's
-undo works. Entries pop in the order they happened regardless of kind, so a
-spend and a move interleave correctly.
+The button is always shown wherever the tray already is (owner-or-GM, a
+combat active): there is no separate client-side check for "is there
+something to undo," since the stack only ever belongs to whoever is
+currently acting, and clicking with nothing to undo, or a player trying a
+step that was not theirs, surfaces the server's refusal through the same
+`combat.error` line other rejected operations use.
 
 ## A turn
 - **3 actions**, spent in any combination.

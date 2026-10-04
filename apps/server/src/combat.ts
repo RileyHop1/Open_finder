@@ -1081,10 +1081,9 @@ export function spendAction(
  * player's move that would cross the turn's capacity is refused outright,
  * rolling back the whole `token.move` operation, since this runs inside its
  * own transaction; the GM's own overspend only warns, as it always has.
- *
- * **`undo` reverses the same move** instead of spending further: the exact
- * Strides this move cost are given back. Never refused, like any other
- * give-back.
+ * Reversing a move's Strides (an "undo last action") goes through
+ * `combat.undo` instead, which restores the whole step this move was part of
+ * (ADR 0019) rather than this operation charging in reverse.
  *
  * **`undefined` when nothing applies**: no active combat on the token's
  * scene, the token is not that combat's active combatant, or its actor's
@@ -1096,7 +1095,6 @@ export function spendMovement(
   seat: Seat,
   token: Token,
   distanceFeet: number,
-  undo: boolean,
 ): CombatChange | undefined {
   if (distanceFeet <= 0) {
     return undefined;
@@ -1125,17 +1123,6 @@ export function spendMovement(
   const name = actor.success ? actor.data.name : 'Someone';
   const before = combatant.turn;
   const strides = stridesFor(distanceFeet, speed);
-
-  if (undo) {
-    const { actionsSpent } = applyActionDelta(store, seat, combatant, -strides, name);
-    const updated: Combatant = {
-      ...combatant,
-      turn: { ...before, actionsSpent },
-      updatedAt: new Date().toISOString(),
-    };
-    store.putDocument(updated);
-    return { documents: [updated] };
-  }
 
   const { actionsSpent, warning } = applyActionDelta(
     store,

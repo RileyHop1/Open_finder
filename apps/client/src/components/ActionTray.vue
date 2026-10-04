@@ -6,6 +6,14 @@
  * shows an inline warning in text and an icon rather than refusing the click.
  * Shown only while a combat is active (the parent's `v-if`); control buttons
  * only for the combatant's owner or the GM.
+ *
+ * "Undo last action" sends `combat.undo` (ADR 0019): it restores whatever the
+ * current turn's most recent step touched, not just a spend. Always shown
+ * alongside the other controls -- there is no client-side check for whether
+ * anything is undoable, or whose turn opened it; a refusal shows through the
+ * usual `combat.error` line instead. "Give back an action" is a flat manual
+ * adjustment (the same `spend` with a negative count), kept GM-only since it
+ * is an override for a number the automation got wrong, not an undo.
  */
 import { computed } from 'vue';
 
@@ -15,10 +23,13 @@ const props = defineProps<{
   view: ActionTrayView;
   label: string;
   canControl: boolean;
+  /** Whether this seat is the GM: only the GM gets "Give back an action". */
+  gm: boolean;
 }>();
 const emit = defineEmits<{
   spend: [actions: number];
   setReaction: [used: boolean];
+  undo: [];
 }>();
 
 const diamonds = computed<boolean[]>(() =>
@@ -48,8 +59,13 @@ const diamonds = computed<boolean[]>(() =>
     </p>
     <template v-if="canControl">
       <button type="button" @click="emit('spend', 1)">Spend an action</button>
-      <button type="button" :disabled="view.spent <= 0" @click="emit('spend', -1)">
-        Undo an action
+      <button
+        v-if="gm"
+        type="button"
+        :disabled="view.spent <= 0"
+        @click="emit('spend', -1)"
+      >
+        Give back an action
       </button>
       <button
         type="button"
@@ -65,6 +81,7 @@ const diamonds = computed<boolean[]>(() =>
       >
         Give back reaction
       </button>
+      <button type="button" @click="emit('undo')">Undo last action</button>
     </template>
   </section>
 </template>

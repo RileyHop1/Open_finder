@@ -189,16 +189,8 @@ const actionBar = computed(() => {
     view: actionBarView(actor, combatant),
     label: token.name ?? actor.name,
     gm: seat.isGM,
-    canUndo: combatant !== undefined && combat.canUndoSpend(combatant.id),
   };
 });
-
-/** Spends `cost` on `combatantId` and, once accepted, records it for `barUndo` to find. */
-async function spendAndRecord(combatantId: string, cost: number): Promise<void> {
-  if (await combat.spendAction(combatantId, cost)) {
-    combat.recordSpend(combatantId, cost);
-  }
-}
 
 /**
  * A strike waiting on a target (C.6): set by either strike button, cleared
@@ -242,7 +234,7 @@ function fireStrike(targetTokenId: string | undefined): void {
     ...(targetTokenId === undefined ? {} : { targetTokenId }),
   });
   if (pending.combatantId !== undefined) {
-    void spendAndRecord(pending.combatantId, 1);
+    void combat.spendAction(pending.combatantId, 1);
   }
   pendingStrike.value = undefined;
 }
@@ -280,7 +272,7 @@ function barStrike(
 function barBasicAction(_slug: string, cost: number): void {
   const combatantId = actionBar.value?.combatantId;
   if (combatantId !== undefined) {
-    void spendAndRecord(combatantId, cost);
+    void combat.spendAction(combatantId, cost);
   }
 }
 
@@ -290,16 +282,8 @@ function barFreeform(label: string, cost: number): void {
   if (bar?.combatantId === undefined) {
     return;
   }
-  void spendAndRecord(bar.combatantId, cost);
+  void combat.spendAction(bar.combatantId, cost);
   void documents.send('chat.sendMessage', { text: `${bar.label} -- ${label}` });
-}
-
-/** "Undo last action": gives back whatever the bar's most recent recorded spend cost. */
-function barUndo(): void {
-  const combatantId = actionBar.value?.combatantId;
-  if (combatantId !== undefined) {
-    void combat.undoLastSpend(combatantId);
-  }
 }
 
 /** Escape anywhere on the screen skips a pending strike's target. */
@@ -727,8 +711,10 @@ async function handleCreate(): Promise<void> {
           :view="actionTray.view"
           :label="actionTray.label"
           :can-control="actionTray.canControl"
+          :gm="lobby.mySeat?.isGM === true"
           @spend="spendTrayAction"
           @set-reaction="setTrayReaction"
+          @undo="combat.undo"
         />
 
         <ActionBar
@@ -736,11 +722,9 @@ async function handleCreate(): Promise<void> {
           :view="actionBar.view"
           :label="actionBar.label"
           :gm="actionBar.gm"
-          :can-undo="actionBar.canUndo"
           @strike="barStrike"
           @basic-action="barBasicAction"
           @freeform="barFreeform"
-          @undo="barUndo"
           @hover-strike="barHoverStrike"
           @unhover-strike="barUnhoverStrike"
         />

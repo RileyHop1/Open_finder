@@ -77,12 +77,10 @@ as it does today.
   a single Speed costs more than one Stride by itself. A token that is not
   the active combatant, is not in a running combat, or whose actor's Speed
   cannot be read (a hazard) moves for free, same as always. **"Undo last
-  action" undoes a move too**: `MapView.vue`'s arrow-key step and drag-drop
-  both record where the token was before the move (only while that token's
-  own combatant is active, the one case the server actually charges for), and
-  undoing sends it back with `undo: true`, giving back exactly the Strides
-  that move cost ([action-economy.md](action-economy.md), "Implemented in M5
-  C.5b").
+  action" undoes a move too**, along with anything else on the same step
+  (ADR 0019, "Turn undo" below): `combat.undo` puts the token back and gives
+  back the Strides, since restoring the token document is what moving it back
+  means ([action-economy.md](action-economy.md)).
 - **Ending a combat** returns to free play, and the rulings go with it. What
   happens to a condition that was anchored to one of its combatants (`turn`
   durations) is decided with `combat.end` (B.3); the recommendation is that it ends
@@ -191,11 +189,10 @@ that token's own turn: strikes and basic actions, both spending via
 `actionBarModel.ts`). Still open under the same checklist item: movement
 spending actions.
 
-**Implemented in C.5b**: "Undo last action" on the bar, backed by a
-per-combatant stack of this turn's recorded spends
-(`stores/combat.ts`'s `turnLog`) that lives only in the browser. It is
-cleared the moment the active combatant changes, never kept past the turn
-it was recorded on.
+**Implemented in C.5b, redesigned under ADR 0019**: "Undo last action" lives
+on the action tray and sends `combat.undo`, backed by the server's own
+turn-undo stack rather than a client-side log (see "Turn undo" above and
+[action-economy.md](action-economy.md)).
 
 **Implemented in C.5c: range highlighting.** Hovering or focusing a strike's
 attack button (never only on hover, so a keyboard user gets it too) shades

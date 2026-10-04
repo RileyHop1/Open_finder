@@ -10,7 +10,10 @@
  * that the system doesn't model, spending its chosen cost and naming it in
  * chat. Hovering or focusing a strike's attack button highlights its range
  * on the map (never only on hover, so a keyboard user gets it from focus
- * too); losing hover or focus clears it.
+ * too); losing hover or focus clears it. "Undo last action" lives on the
+ * action tray instead (ADR 0019): it undoes the current turn's whole step,
+ * not just something spent from this bar, so it belongs with the acting
+ * combatant's own controls rather than whatever token happens to be selected.
  */
 import { ref } from 'vue';
 
@@ -21,14 +24,11 @@ defineProps<{
   label: string;
   /** Whether this seat is the GM: only the GM gets "Other action". */
   gm: boolean;
-  /** Whether this turn has a recorded spend or move left to undo. */
-  canUndo: boolean;
 }>();
 const emit = defineEmits<{
   strike: [target: { itemId: string } | { strikeKey: string }, attackNumber: 1 | 2 | 3];
   basicAction: [slug: string, cost: number];
   freeform: [label: string, cost: number];
-  undo: [];
   hoverStrike: [strike: ActionBarView['strikes'][number]];
   unhoverStrike: [];
 }>();
@@ -74,15 +74,6 @@ function submitFreeform(): void {
         </button>
       </li>
     </ul>
-
-    <button
-      v-if="view.canAct && canUndo"
-      type="button"
-      class="undo"
-      @click="emit('undo')"
-    >
-      Undo last action
-    </button>
 
     <form v-if="gm && view.canAct" class="freeform" @submit.prevent="submitFreeform">
       <label for="freeform-label">Other action</label>
