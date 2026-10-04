@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import type { Actor, Scene, Seat, Template, Token } from '@hearthtable/core';
 import { sceneSchema, templateSchema, tokenSchema } from '@hearthtable/core';
+import { newCharacterData } from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, reactive } from 'vue';
@@ -830,6 +831,162 @@ describe('selecting and moving tokens', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('permission');
     // Nothing is announced as moved, and the earlier message is not left standing.
     expect(wrapper.get('.visually-hidden').text()).toBe('');
+  });
+});
+
+describe('planning a move on your own turn', () => {
+  const world = crypto.randomUUID();
+  const GM: Seat = {
+    id: crypto.randomUUID(),
+    worldId: world,
+    schemaVersion: 1,
+    name: 'GM',
+    isGM: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  const player: Seat = { ...GM, id: crypto.randomUUID(), isGM: false };
+
+  const makeActor = (name: string, owner?: Seat): Actor => ({
+    id: crypto.randomUUID(),
+    worldId: world,
+    type: 'actor',
+    schemaVersion: 1,
+    permissions: {
+      default: 'observer',
+      seats: owner === undefined ? {} : { [owner.id]: 'owner' },
+    },
+    createdAt: NOW,
+    updatedAt: NOW,
+    kind: 'character',
+    name,
+    // A full character, not `{}`: `speedOf` needs a real Speed for the cost readout.
+    system: newCharacterData(),
+  });
+
+  const makeToken = (sceneId: string, actorId: string): Token =>
+    tokenSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: world,
+      type: 'token',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: NOW,
+      updatedAt: NOW,
+      sceneId,
+      actorId,
+      x: 250,
+      y: 250,
+    });
+
+  const press = (
+    surface: { trigger: (e: string, o: object) => Promise<unknown> },
+    key: string,
+  ) => surface.trigger('keydown', { key });
+
+  beforeEach(() => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+  });
+
+  /** A player's own token, on their own combatant's active turn. */
+  async function setup() {
+    const hero = makeActor('Valeros', player);
+    docs.actors = [hero];
+    lobby.mySeat = player;
+    const scene = makeScene();
+    state.shownScene = scene;
+    const token = makeToken(scene.id, hero.id);
+    state.shownTokens = [token];
+    combat.activeCombatant = { tokenId: token.id };
+    const wrapper = mountView();
+    await ready(wrapper);
+    await wrapper.get('.token-list button').trigger('click');
+    return { wrapper, hero, token, surface: wrapper.get('.map-surface') };
+  }
+
+  it('plans instead of moving at once, showing the distance and the Stride it costs', async () => {
+    const { wrapper, token, surface } = await setup();
+    await press(surface, 'ArrowRight');
+
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(setLocalDrag).toHaveBeenCalledWith(token.id, 350, 250);
+    expect(sendDrag).toHaveBeenCalledWith(token.id, 350, 250);
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'Valeros planned 5 ft, ◆. Press Enter to move, Escape to cancel.',
+    );
+  });
+
+  it('extends the plan from where it last landed: three presses read as one move, not three', async () => {
+    const { token, surface } = await setup();
+    await press(surface, 'ArrowRight');
+    await press(surface, 'ArrowRight');
+    await press(surface, 'ArrowRight');
+
+    // Still nothing sent -- only shown, each time further from the start.
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(setLocalDrag).toHaveBeenLastCalledWith(token.id, 550, 250);
+  });
+
+  it('sends the whole plan as one move on Enter, then has nothing left to commit', async () => {
+    const { wrapper, token, surface } = await setup();
+    await press(surface, 'ArrowRight');
+    await press(surface, 'ArrowRight');
+    await press(surface, 'Enter');
+    await flushPromises();
+
+    expect(moveToken).toHaveBeenCalledTimes(1);
+    expect(moveToken).toHaveBeenCalledWith(token.id, 450, 250);
+    expect(clearLocalDrag).toHaveBeenCalledWith(token.id);
+    expect(wrapper.get('[role="status"]').text()).toBe('Valeros moved 10 ft.');
+
+    // Enter again with nothing planned does nothing.
+    moveToken.mockClear();
+    await press(surface, 'Enter');
+    expect(moveToken).not.toHaveBeenCalled();
+  });
+
+  it('drops the plan on Escape without sending anything', async () => {
+    const { wrapper, token, surface } = await setup();
+    await press(surface, 'ArrowRight');
+    await press(surface, 'Escape');
+
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(clearLocalDrag).toHaveBeenCalledWith(token.id);
+    expect(wrapper.get('[role="status"]').text()).toBe('Move cancelled.');
+
+    // The selection itself survives -- only the plan was dropped.
+    expect(wrapper.get('.token-list button').attributes('aria-pressed')).toBe('true');
+  });
+
+  it('drops a stranded plan silently when a different token is selected instead', async () => {
+    const { wrapper, hero, token, surface } = await setup();
+    const other = makeActor('Ben', player);
+    docs.actors = [hero, other];
+    const otherToken = tokenSchema.parse({
+      ...token,
+      id: crypto.randomUUID(),
+      actorId: other.id,
+      x: 450,
+      y: 450,
+    });
+    state.shownTokens = [token, otherToken];
+    await flushPromises();
+
+    await press(surface, 'ArrowRight');
+    clearLocalDrag.mockClear();
+    await wrapper.findAll('.token-list button')[2]?.trigger('click');
+
+    expect(moveToken).not.toHaveBeenCalled();
+    expect(clearLocalDrag).toHaveBeenCalledWith(token.id);
+  });
+
+  it('still moves the GM at once, even on the active combatant’s own token', async () => {
+    const { wrapper, token, surface } = await setup();
+    lobby.mySeat = GM;
+    await wrapper.get('.token-list button').trigger('click');
+
+    await press(surface, 'ArrowRight');
+    expect(moveToken).toHaveBeenCalledWith(token.id, 350, 250);
   });
 });
 
