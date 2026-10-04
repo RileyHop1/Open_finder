@@ -96,7 +96,6 @@ const FRESH_TURN: TurnState = {
   actionsSpent: 0,
   reactionUsed: false,
   attacksMade: 0,
-  movementUsed: 0,
 };
 
 /** Whether `condition` lasts until the `boundary` of `combatantId`'s turn. */
@@ -117,8 +116,7 @@ function sameTurn(a: TurnState, b: TurnState): boolean {
   return (
     a.actionsSpent === b.actionsSpent &&
     a.reactionUsed === b.reactionUsed &&
-    a.attacksMade === b.attacksMade &&
-    a.movementUsed === b.movementUsed
+    a.attacksMade === b.attacksMade
   );
 }
 

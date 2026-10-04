@@ -1598,17 +1598,17 @@ describe('token.create, token.update, token.delete', () => {
 
     const first = await move(start.x + 500, start.y);
     expect(combatantOf(first.forPlayer)).toMatchObject({
-      turn: { actionsSpent: 1, movementUsed: 25 },
+      turn: { actionsSpent: 1 },
     });
 
     const second = await move(start.x, start.y);
     expect(combatantOf(second.forPlayer)).toMatchObject({
-      turn: { actionsSpent: 2, movementUsed: 50 },
+      turn: { actionsSpent: 2 },
     });
 
     const third = await move(start.x + 500, start.y);
     expect(combatantOf(third.forPlayer)).toMatchObject({
-      turn: { actionsSpent: 3, movementUsed: 75 },
+      turn: { actionsSpent: 3 },
     });
     const landed = tokenOf(third.forPlayer);
 

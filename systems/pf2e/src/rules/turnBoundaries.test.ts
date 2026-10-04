@@ -9,13 +9,11 @@ const FRESH: TurnState = {
   actionsSpent: 0,
   reactionUsed: false,
   attacksMade: 0,
-  movementUsed: 0,
 };
 const SPENT: TurnState = {
   actionsSpent: 3,
   reactionUsed: true,
   attacksMade: 2,
-  movementUsed: 0,
 };
 
 const VALEROS = '11111111-1111-4111-8111-111111111111';
@@ -236,7 +234,7 @@ describe('startOfTurn -- stunned', () => {
       {
         combatantId: VALEROS,
         conditions: [],
-        turn: { actionsSpent: 3, reactionUsed: false, attacksMade: 0, movementUsed: 0 },
+        turn: { actionsSpent: 3, reactionUsed: false, attacksMade: 0 },
       },
     ]);
     expect(result.events).toEqual([
