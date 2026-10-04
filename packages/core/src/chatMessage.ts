@@ -121,6 +121,8 @@ export type ChatTextMessage = z.infer<typeof chatTextMessageSchema>;
 export const chatRollMessageSchema = chatMessageBaseSchema.extend({
   kind: z.literal('roll'),
   roll: rollResultSchema,
+  /** The GM's override of this roll's total ("GM set to N (rolled M)" on the card, `docs/dice.md`). `roll` itself is untouched: every term, and its own `total`, stay exactly as rolled. `chat.adjustRoll`, GM only. */
+  gmTotal: z.number().int().optional(),
 });
 
 export type ChatRollMessage = z.infer<typeof chatRollMessageSchema>;
@@ -146,6 +148,8 @@ export const chatCheckMessageSchema = chatMessageBaseSchema.extend({
   /** The statistic as resolved when the roll was made. */
   breakdown: statisticSchema,
   roll: rollResultSchema,
+  /** The GM's override of this roll's total ("GM set to N (rolled M)" on the card, `docs/dice.md`). `roll` itself is untouched, and `degree` is recomputed against `dc` from the new total. `chat.adjustRoll`, GM only. */
+  gmTotal: z.number().int().optional(),
 });
 
 export type ChatCheckMessage = z.infer<typeof chatCheckMessageSchema>;
@@ -186,6 +190,8 @@ export const chatStrikeAttackMessageSchema = chatStrikeBaseSchema.extend({
   flanking: z.boolean().optional(),
   breakdown: statisticSchema,
   roll: rollResultSchema,
+  /** The GM's override of this roll's total ("GM set to N (rolled M)" on the card, `docs/dice.md`). `roll` itself is untouched, and `degree` is recomputed against `dc` from the new total. `chat.adjustRoll`, GM only. */
+  gmTotal: z.number().int().optional(),
 });
 
 export type ChatStrikeAttackMessage = z.infer<typeof chatStrikeAttackMessageSchema>;
@@ -200,6 +206,8 @@ export const chatStrikeDamageMessageSchema = chatStrikeBaseSchema.extend({
   critical: z.boolean(),
   breakdown: statisticSchema,
   roll: rollResultSchema,
+  /** The GM's override of this roll's total ("GM set to N (rolled M)" on the card, `docs/dice.md`). `roll` itself is untouched -- a strike's damage has no degree to recompute. `chat.adjustRoll`, GM only. */
+  gmTotal: z.number().int().optional(),
 });
 
 export type ChatStrikeDamageMessage = z.infer<typeof chatStrikeDamageMessageSchema>;

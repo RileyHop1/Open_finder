@@ -5,9 +5,20 @@ import type {
   ChatStrikeDamageMessage,
 } from '@hearthtable/core';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ChatRollCard from './ChatRollCard.vue';
+import { useChatStore } from '../stores/chat.js';
+
+vi.mock('../stores/chat.js', () => ({ useChatStore: vi.fn() }));
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+  vi.mocked(useChatStore).mockReturnValue({
+    adjustRoll: vi.fn(),
+  } as unknown as ReturnType<typeof useChatStore>);
+});
 
 const NOW = '2026-09-30T00:00:00.000Z';
 const base = {
@@ -101,7 +112,8 @@ const damage: ChatStrikeDamageMessage = {
 
 const render = (
   message: ChatCheckMessage | ChatStrikeAttackMessage | ChatStrikeDamageMessage,
-) => mount(ChatRollCard, { props: { message, sender: 'Riley' } });
+  isGm = false,
+) => mount(ChatRollCard, { props: { message, sender: 'Riley', isGm } });
 
 describe('a check', () => {
   it('names the character, the statistic and the roller, and reads the result in words', () => {
@@ -183,5 +195,47 @@ describe('strike damage', () => {
         .find('.title')
         .text(),
     ).not.toContain('critical');
+  });
+});
+
+describe('the GM editing a roll', () => {
+  it('shows nothing extra, and no edit control, for a non-GM viewer', () => {
+    const wrapper = render(check, false);
+    expect(wrapper.find('.gm-edit-toggle').exists()).toBe(false);
+  });
+
+  it('shows "GM set to N (rolled M)" once gmTotal is set', () => {
+    const wrapper = render({ ...check, gmTotal: 30 }, true);
+    expect(wrapper.find('.result').text()).toBe(
+      'GM set to 30 (rolled 22) vs DC 20 — Success',
+    );
+  });
+
+  it('offers an edit control to the GM, which sends chat.adjustRoll with the typed total', async () => {
+    const adjustRoll = vi.fn();
+    vi.mocked(useChatStore).mockReturnValue({
+      adjustRoll,
+    } as unknown as ReturnType<typeof useChatStore>);
+    const wrapper = render(check, true);
+
+    await wrapper.find('.gm-edit-toggle').trigger('click');
+    await wrapper.find('.gm-edit input').setValue('30');
+    await wrapper.find('.gm-edit').trigger('submit');
+
+    expect(adjustRoll).toHaveBeenCalledWith(check.id, 30);
+  });
+
+  it('cancels without sending anything', async () => {
+    const adjustRoll = vi.fn();
+    vi.mocked(useChatStore).mockReturnValue({
+      adjustRoll,
+    } as unknown as ReturnType<typeof useChatStore>);
+    const wrapper = render(check, true);
+
+    await wrapper.find('.gm-edit-toggle').trigger('click');
+    await wrapper.find('.gm-edit button[type="button"]').trigger('click');
+
+    expect(wrapper.find('.gm-edit').exists()).toBe(false);
+    expect(adjustRoll).not.toHaveBeenCalled();
   });
 });

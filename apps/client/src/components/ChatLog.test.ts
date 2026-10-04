@@ -382,4 +382,57 @@ describe('ChatLog', () => {
 
     expect(list.scrollTop).toBe(10);
   });
+
+  describe('the GM editing a plain roll', () => {
+    it('shows no edit control for a non-GM viewer', async () => {
+      const seat = makeSeat({ name: 'Riley', isGM: false });
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([makeRollMessage(seat.id)]);
+      vi.mocked(useLobbyStore).mockReturnValue({ seats: [seat], mySeat: seat } as never);
+
+      const wrapper = mountChatLog();
+      await flushPromises();
+
+      expect(wrapper.find('.gm-edit-toggle').exists()).toBe(false);
+    });
+
+    it("shows 'GM set to N (rolled M)' once gmTotal is set", async () => {
+      const seat = makeSeat({ name: 'Riley' });
+      const roll = makeRollMessage(seat.id);
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([
+        { ...roll, gmTotal: 20 } as never,
+      ]);
+      vi.mocked(useLobbyStore).mockReturnValue({ seats: [seat], mySeat: seat } as never);
+
+      const wrapper = mountChatLog();
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('GM set to 20');
+      expect(wrapper.text()).toContain('rolled 13');
+    });
+
+    it('sends chat.adjustRoll with the typed total when the GM submits an edit', async () => {
+      const gm = makeSeat({ name: 'Riley', isGM: true });
+      const roll = makeRollMessage(gm.id);
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([roll]);
+      vi.mocked(useLobbyStore).mockReturnValue({ seats: [gm], mySeat: gm } as never);
+      vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+      const wrapper = mountChatLog();
+      await flushPromises();
+      connectSharedConnection();
+
+      await wrapper.find('.gm-edit-toggle').trigger('click');
+      await wrapper.find('.gm-edit input').setValue('20');
+      await wrapper.find('.gm-edit').trigger('submit');
+      await flushPromises();
+
+      expect(emitOperation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: 'chat.adjustRoll',
+          payload: { messageId: roll.id, total: 20 },
+        }),
+      );
+    });
+  });
 });

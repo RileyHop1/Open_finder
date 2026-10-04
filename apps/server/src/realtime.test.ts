@@ -541,6 +541,128 @@ describe('chat.sendRoll', () => {
   });
 });
 
+describe('chat.adjustRoll', () => {
+  async function connectAsGM(): Promise<ClientSocket> {
+    const seat = makeSeat({ isGM: true, claimedByDeviceToken: 'gm' });
+    store.putSeat(seat);
+    return connect('gm');
+  }
+
+  it('refuses a player: only the GM may edit a roll', async () => {
+    const { socket: sender } = await connectAndClaimSeat('device-a');
+    const rolled = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: '1d20+5' },
+    });
+    expect(rolled.ok).toBe(true);
+    const [message] = store.listDocuments('chatMessage') as [ChatRollMessage];
+
+    const ack = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.adjustRoll',
+      payload: { messageId: message.id, total: 30 },
+    });
+    expect(ack).toEqual({ ok: false, error: 'only the GM can edit a roll' });
+  });
+
+  it("sets gmTotal and broadcasts it, leaving the roll's own total and terms untouched", async () => {
+    const gm = await connectAsGM();
+    const rolled = await emitOperation(gm, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: '1d20+5' },
+    });
+    expect(rolled.ok).toBe(true);
+    const [before] = store.listDocuments('chatMessage') as [ChatRollMessage];
+
+    // Connected only now, so there's no earlier broadcast in flight to race against.
+    const observer = await connect('device-b');
+    const broadcastPromise = waitForBroadcast(observer);
+    const ack = await emitOperation(gm, {
+      id: crypto.randomUUID(),
+      type: 'chat.adjustRoll',
+      payload: { messageId: before.id, total: 30 },
+    });
+    expect(ack.ok).toBe(true);
+
+    const broadcast = await broadcastPromise;
+    const [after] = broadcast.documents as unknown as [ChatRollMessage];
+    expect(after.gmTotal).toBe(30);
+    expect(after.roll.total).toBe(before.roll.total);
+    expect(after.roll.terms).toEqual(before.roll.terms);
+  });
+
+  it('recomputes the degree of success against the stored DC from the new total', async () => {
+    const gm = await connectAsGM();
+    const now = new Date().toISOString();
+    const message = chatCheckMessageSchema.parse({
+      id: crypto.randomUUID(),
+      worldId: store.world.id,
+      type: 'chatMessage',
+      schemaVersion: 1,
+      permissions: { default: 'observer', seats: {} },
+      createdAt: now,
+      updatedAt: now,
+      seatId: crypto.randomUUID(),
+      kind: 'check',
+      actorId: crypto.randomUUID(),
+      actorName: 'Ada',
+      statistic: 'skill:athletics',
+      label: 'Athletics',
+      dc: 15,
+      breakdown: { total: 10, modifiers: [] },
+      roll: {
+        expression: '1d20+10',
+        total: 10,
+        terms: [],
+        natural: 10,
+        degree: 'failure',
+      },
+    });
+    store.putDocument(message);
+
+    const ack = await emitOperation(gm, {
+      id: crypto.randomUUID(),
+      type: 'chat.adjustRoll',
+      payload: { messageId: message.id, total: 20 },
+    });
+    expect(ack.ok).toBe(true);
+
+    const stored = store.getDocument(message.id);
+    expect(stored).toMatchObject({ gmTotal: 20, roll: { total: 10, degree: 'success' } });
+  });
+
+  it('refuses a message that is not a roll', async () => {
+    const gm = await connectAsGM();
+    const sent = await emitOperation(gm, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendMessage',
+      payload: { text: 'hello' },
+    });
+    expect(sent.ok).toBe(true);
+    const [message] = store.listDocuments('chatMessage') as [{ id: string }];
+
+    const ack = await emitOperation(gm, {
+      id: crypto.randomUUID(),
+      type: 'chat.adjustRoll',
+      payload: { messageId: message.id, total: 20 },
+    });
+    expect(ack).toEqual({ ok: false, error: 'this message is not a roll' });
+  });
+
+  it('refuses an unknown message id', async () => {
+    const gm = await connectAsGM();
+    const ack = await emitOperation(gm, {
+      id: crypto.randomUUID(),
+      type: 'chat.adjustRoll',
+      payload: { messageId: crypto.randomUUID(), total: 20 },
+    });
+    expect(ack.ok).toBe(false);
+    expect(ack.error).toMatch(/no chat message found/);
+  });
+});
+
 describe('active world changes', () => {
   it('disconnects every connected socket', async () => {
     const other = createWorld(worldsRoot, 'Other Campaign');

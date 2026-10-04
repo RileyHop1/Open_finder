@@ -14,15 +14,36 @@ import type {
   ChatStrikeAttackMessage,
   ChatStrikeDamageMessage,
 } from '@hearthtable/core';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import { signed, titleCase } from './sheet/format.js';
+import { useChatStore } from '../stores/chat.js';
 
 const props = defineProps<{
   message: ChatCheckMessage | ChatStrikeAttackMessage | ChatStrikeDamageMessage;
   /** The sending seat's name. */
   sender: string;
+  /** Whether this browser's seat is the GM, who alone may edit a roll's total. */
+  isGm: boolean;
 }>();
+
+const chatStore = useChatStore();
+const editing = ref(false);
+const draftTotal = ref('');
+
+function startEditing(): void {
+  draftTotal.value = String(props.message.gmTotal ?? props.message.roll.total);
+  editing.value = true;
+}
+
+async function submitEdit(): Promise<void> {
+  const total = Number.parseInt(draftTotal.value, 10);
+  if (Number.isNaN(total)) {
+    return;
+  }
+  editing.value = false;
+  await chatStore.adjustRoll(props.message.id, total);
+}
 
 const DEGREE_LABELS: Readonly<Record<string, string>> = {
   criticalSuccess: 'Critical success',
@@ -109,11 +130,26 @@ function whyNotApplied(modifier: { suppressedBy?: string | undefined }): string 
     <p v-if="attackStep" class="step">{{ attackStep }}</p>
 
     <p class="result">
-      Total <strong class="total">{{ message.roll.total }}</strong>
+      <template v-if="message.gmTotal !== undefined"
+        >GM set to <strong class="total">{{ message.gmTotal }}</strong> (rolled
+        {{ message.roll.total }})</template
+      >
+      <template v-else
+        >Total <strong class="total">{{ message.roll.total }}</strong></template
+      >
       <template v-if="dcLabel">{{ dcLabel }}</template>
       <template v-if="degree"> — {{ degree }}</template>
       <template v-if="flankingLabel">{{ flankingLabel }}</template>
     </p>
+    <form v-if="isGm && editing" class="gm-edit" @submit.prevent="submitEdit">
+      <label :for="`gm-total-${message.id}`">GM total</label>
+      <input :id="`gm-total-${message.id}`" v-model="draftTotal" type="number" />
+      <button type="submit">Set</button>
+      <button type="button" @click="editing = false">Cancel</button>
+    </form>
+    <button v-else-if="isGm" type="button" class="gm-edit-toggle" @click="startEditing">
+      Edit roll
+    </button>
     <p v-if="damage.length > 0" class="damage">{{ damage.join(', ') }}</p>
     <p v-if="message.roll.natural !== undefined" class="natural">
       d20: {{ message.roll.natural }}
@@ -175,6 +211,26 @@ p {
 
 .total {
   font-size: 1.25rem;
+}
+
+.gm-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.gm-edit input {
+  width: 6rem;
+}
+
+.gm-edit-toggle,
+.gm-edit button {
+  min-height: var(--touch-target-min);
+}
+
+.gm-edit-toggle {
+  margin-top: var(--space-1);
 }
 
 .roll-breakdown summary {
