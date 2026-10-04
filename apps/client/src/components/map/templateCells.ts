@@ -24,7 +24,7 @@ export function cellsFor(
     case 'cone':
       return grid.cone(origin, aim, template.feet);
     case 'line':
-      return grid.line(origin, aim, template.widthFeet);
+      return grid.line(origin, aim, template.widthFeet, template.feet);
     case 'emanation': {
       const source = tokens.find((token) => token.id === template.tokenId);
       return source === undefined

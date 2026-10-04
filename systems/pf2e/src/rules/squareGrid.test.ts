@@ -278,8 +278,14 @@ describe('line', () => {
     return new Set(result.map((c) => `${c.col},${c.row}`));
   }
 
-  it('a 5-foot-wide, 30-foot east line covers a single row of six cells', () => {
-    const result = cellsOf(grid.line(cell(0, 5), cell(5, 5), 5));
+  /** The straight-line feet between two points, on this test's 100px-per-5ft grid. */
+  function feetBetween(a: Point, b: Point): number {
+    return (Math.hypot(b.x - a.x, b.y - a.y) / grid.grid.size) * grid.grid.distance;
+  }
+
+  it('a 5-foot-wide, 25-foot east line covers a single row of six cells', () => {
+    const to = cell(5, 5);
+    const result = cellsOf(grid.line(cell(0, 5), to, 5, feetBetween(cell(0, 5), to)));
     expect(result.size).toBe(6);
     for (let col = 0; col <= 5; col += 1) {
       expect(result.has(`${col},5`)).toBe(true);
@@ -289,14 +295,16 @@ describe('line', () => {
   });
 
   it('widening to 10 feet picks up the row on either side', () => {
-    const result = cellsOf(grid.line(cell(0, 5), cell(5, 5), 10));
+    const to = cell(5, 5);
+    const result = cellsOf(grid.line(cell(0, 5), to, 10, feetBetween(cell(0, 5), to)));
     expect(result.has('2,4')).toBe(true);
     expect(result.has('2,5')).toBe(true);
     expect(result.has('2,6')).toBe(true);
   });
 
   it('runs diagonally the same way, at 45 degrees', () => {
-    const result = cellsOf(grid.line(cell(0, 0), cell(5, 5), 5));
+    const to = cell(5, 5);
+    const result = cellsOf(grid.line(cell(0, 0), to, 5, feetBetween(cell(0, 0), to)));
     for (let i = 0; i <= 5; i += 1) {
       expect(result.has(`${i},${i}`)).toBe(true);
     }
@@ -304,19 +312,33 @@ describe('line', () => {
   });
 
   it('gives the same cells reversed', () => {
-    const forward = grid.line(cell(0, 5), cell(5, 5), 5);
-    const backward = grid.line(cell(5, 5), cell(0, 5), 5);
+    const length = feetBetween(cell(0, 5), cell(5, 5));
+    const forward = grid.line(cell(0, 5), cell(5, 5), 5, length);
+    const backward = grid.line(cell(5, 5), cell(0, 5), 5, length);
     expect(cellsOf(backward)).toEqual(cellsOf(forward));
   });
 
-  it('is empty when from and to are the same point: there is no line to be on', () => {
-    expect(grid.line(cell(3, 3), cell(3, 3), 5)).toEqual([]);
+  it('is empty when from and to are the same point: there is no direction to face', () => {
+    expect(grid.line(cell(3, 3), cell(3, 3), 5, 25)).toEqual([]);
   });
 
   it('does not extend past either endpoint', () => {
-    const result = cellsOf(grid.line(cell(2, 5), cell(4, 5), 5));
+    const to = cell(4, 5);
+    const result = cellsOf(grid.line(cell(2, 5), to, 5, feetBetween(cell(2, 5), to)));
     expect(result.has('1,5')).toBe(false);
     expect(result.has('5,5')).toBe(false);
+  });
+
+  it('stays capped at lengthFeet however far past it the aim point is dragged', () => {
+    const from = cell(0, 5);
+    const nearAim = cell(3, 5);
+    const farAim = cell(50, 5);
+    // 20 feet on a 5ft grid, from a cell's own centre, reaches exactly to col 4's centre.
+    const capped = cellsOf(grid.line(from, nearAim, 5, 20));
+    const draggedFar = cellsOf(grid.line(from, farAim, 5, 20));
+    expect(capped.size).toBe(5);
+    expect(draggedFar).toEqual(capped);
+    expect(draggedFar.has('5,5')).toBe(false);
   });
 });
 

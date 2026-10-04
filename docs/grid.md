@@ -227,9 +227,12 @@ space (an angle test, a perpendicular-distance-and-projection test), never
 corner-inclusion test is the alternative, and memory of which the rules intend
 is unverified -- see [rulings.md](rulings.md).
 
-- **`line(from, to, widthFeet)`**: a rectangle along the segment, `widthFeet`
-  wide, not a capsule with rounded ends -- it does not extend past either
-  endpoint. Empty when `from` equals `to`.
+- **`line(from, to, widthFeet, lengthFeet)`**: a rectangle `lengthFeet` long and
+  `widthFeet` wide, starting at `from` in the direction of `to` -- `to` decides
+  only the direction, the same way `cone`'s `towards` does, so dragging the
+  aim point further than the template's own length can never make the line
+  longer. Not a capsule with rounded ends: it does not extend past either
+  endpoint. Empty when `from` equals `to` (no direction to face).
 - **`cone(origin, towards, lengthFeet)`**: within `lengthFeet` of `origin` by
   plain distance, inside the 90-degree arc facing `towards` (PF2e's fixed cone
   angle; not a parameter). The origin's own cell is always included. Empty when
