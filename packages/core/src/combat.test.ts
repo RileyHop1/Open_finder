@@ -97,7 +97,12 @@ describe('combatantSchema', () => {
     expect(parsed.defeated).toBe(false);
     expect(parsed.hidden).toBe(false);
     expect(parsed.movementGrant).toBe(false);
-    expect(parsed.turn).toEqual({ actionsSpent: 0, reactionUsed: false, attacksMade: 0 });
+    expect(parsed.turn).toEqual({
+      actionsSpent: 0,
+      reactionUsed: false,
+      attacksMade: 0,
+      movementUsed: 0,
+    });
   });
 
   it('keeps an initiative, including a negative one, and the flags', () => {
@@ -123,7 +128,12 @@ describe('combatantSchema', () => {
       ...combatantFields(),
       turn: { actionsSpent: 2 },
     });
-    expect(parsed.turn).toEqual({ actionsSpent: 2, reactionUsed: false, attacksMade: 0 });
+    expect(parsed.turn).toEqual({
+      actionsSpent: 2,
+      reactionUsed: false,
+      attacksMade: 0,
+      movementUsed: 0,
+    });
   });
 
   it('allows spending more actions than a turn has: the app warns and never blocks', () => {

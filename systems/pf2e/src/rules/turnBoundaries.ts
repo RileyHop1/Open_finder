@@ -92,7 +92,12 @@ export interface TurnResult {
   readonly persistentDue: { combatantId: string; entries: PersistentDamage[] }[];
 }
 
-const FRESH_TURN: TurnState = { actionsSpent: 0, reactionUsed: false, attacksMade: 0 };
+const FRESH_TURN: TurnState = {
+  actionsSpent: 0,
+  reactionUsed: false,
+  attacksMade: 0,
+  movementUsed: 0,
+};
 
 /** Whether `condition` lasts until the `boundary` of `combatantId`'s turn. */
 function endsAt(
@@ -112,7 +117,8 @@ function sameTurn(a: TurnState, b: TurnState): boolean {
   return (
     a.actionsSpent === b.actionsSpent &&
     a.reactionUsed === b.reactionUsed &&
-    a.attacksMade === b.attacksMade
+    a.attacksMade === b.attacksMade &&
+    a.movementUsed === b.movementUsed
   );
 }
 

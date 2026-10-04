@@ -722,6 +722,7 @@ describe('nextTurn', () => {
       actionsSpent: 1,
       reactionUsed: false,
       attacksMade: 0,
+      movementUsed: 0,
     });
     const text = documents.find(
       (doc) => (doc as { kind?: string }).kind === 'text',

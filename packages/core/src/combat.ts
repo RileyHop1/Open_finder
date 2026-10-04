@@ -60,6 +60,9 @@ export const MAX_INITIATIVE = 1000;
 /** The largest action count the schema stores: overspending is allowed (never blocked), so this is only a sanity bound. */
 export const MAX_COUNTER = 99;
 
+/** The most feet a turn's `movementUsed` stores: a sanity bound, not a rule -- a turn's Strides are capped by `actionsSpent`, not this. */
+export const MAX_MOVEMENT_FEET = 9999;
+
 /**
  * What a combatant has used this turn. Reset by the server at the start of that
  * combatant's turn (`startOfTurn` in `systems/pf2e`). It lives here, not on the
@@ -72,6 +75,13 @@ export const turnStateSchema = z.object({
   reactionUsed: z.boolean().default(false),
   /** Attacks made this turn; the Multiple Attack Penalty counts these, not actions. */
   attacksMade: z.number().int().min(0).max(MAX_COUNTER).default(0),
+  /**
+   * Feet moved this turn via `token.move` while this combatant is active.
+   * Drives how many Strides a move spends (`stridesFor` in `systems/pf2e`):
+   * the server adds to this and to `actionsSpent` together, in the same
+   * transaction, so the two never drift apart.
+   */
+  movementUsed: z.number().int().min(0).max(MAX_MOVEMENT_FEET).default(0),
 });
 
 export type TurnState = z.infer<typeof turnStateSchema>;
@@ -99,7 +109,12 @@ export const combatantSchema = baseDocumentSchema.extend({
    * combatant's next turn ends. Off by default.
    */
   movementGrant: z.boolean().default(false),
-  turn: turnStateSchema.default({ actionsSpent: 0, reactionUsed: false, attacksMade: 0 }),
+  turn: turnStateSchema.default({
+    actionsSpent: 0,
+    reactionUsed: false,
+    attacksMade: 0,
+    movementUsed: 0,
+  }),
 });
 
 export type Combatant = z.infer<typeof combatantSchema>;
