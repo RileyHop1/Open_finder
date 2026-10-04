@@ -48,3 +48,5 @@ than a tidy file.
 | [0016](0016-in-app-content-import.md) | The GM imports the game content from inside the app | Accepted |
 | [0017](0017-scenes-and-tokens.md) | Scenes and tokens: separate documents, a party-owned current scene, drag previews outside the log | Accepted |
 | [0018](0018-combat-tracker.md) | Combat tracker: server-owned turn state, combatants as documents, expiry inside the turn operation | Accepted |
+| [0019](0019-turn-undo.md) | Turn undo: snapshot the documents, not the operations | Accepted |
+| [0020](0020-rules-text.md) | Rules text: our own AST, converted at import time | Accepted |
