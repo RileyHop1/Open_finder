@@ -18,7 +18,12 @@ import {
 import { setPartyScene } from './party.js';
 import { createScene } from './scenes.js';
 import { moveToken, placeToken } from './tokens.js';
-import { decideUndo, recordTurnBefores, recordTurnUndo } from './turnUndo.js';
+import {
+  decideUndo,
+  recordTurnBefores,
+  recordTurnUndo,
+  undoLastStep,
+} from './turnUndo.js';
 import { createWorld, type UndoStep, type WorldStore } from './worldStore.js';
 
 let worldsRoot: string;
@@ -133,8 +138,9 @@ function table() {
     return placeToken(store, { scene: here, actor, size: 1, x: 350, y: 450 });
   };
   const adaPlayer = makeSeat({ name: 'Ada' });
+  const benPlayer = makeSeat({ name: 'Ben' });
   const ada = place(adaPlayer, 'Ada');
-  const ben = place(makeSeat({ name: 'Ben' }), 'Ben');
+  const ben = place(benPlayer, 'Ben');
   const { combat, combatants } = createCombat(store, gm, { sceneId: here.id });
   const of = (tokenId: string) => combatants.find((c) => c.tokenId === tokenId)!;
   setInitiative(store, gm, { combatantId: of(ada.id).id, initiative: 20 });
@@ -143,7 +149,7 @@ function table() {
   const spendFor = (seat: Seat, tokenId: string, actions = 1) =>
     apply(seat, (s) => spendAction(s, seat, { combatantId: of(tokenId).id, actions }));
   const spend = (seat: Seat, actions = 1) => spendFor(seat, ada.id, actions);
-  return { gm, here, combat, adaPlayer, ada, ben, of, spend, spendFor };
+  return { gm, here, combat, adaPlayer, benPlayer, ada, ben, of, spend, spendFor };
 }
 
 describe('recordTurnUndo', () => {
@@ -236,6 +242,64 @@ describe('recordTurnUndo', () => {
     spendFor(gm, ben.id);
     expect(store.listUndoSteps()).toHaveLength(1);
     apply(gm, (s) => endCombat(s, gm, { combatId: combat.id }));
+    expect(store.listUndoSteps()).toEqual([]);
+  });
+});
+
+describe('undoLastStep', () => {
+  it('writes every document in the step back exactly as it was', () => {
+    const { adaPlayer, combat, ada, of, spend } = table();
+    const combatantBefore = store.getDocument(of(ada.id).id);
+    const tokenBefore = store.getDocument(ada.id);
+    spend(adaPlayer);
+    apply(adaPlayer, (s) => moveToken(s, adaPlayer, { tokenId: ada.id, x: 450, y: 450 }));
+
+    const { documents } = undoLastStep(store, adaPlayer, { combatId: combat.id });
+    expect(documents).toContainEqual(combatantBefore);
+    expect(documents).toContainEqual(tokenBefore);
+    expect(store.getDocument(of(ada.id).id)).toEqual(combatantBefore);
+    expect(store.getDocument(ada.id)).toEqual(tokenBefore);
+    expect(store.listUndoSteps()).toEqual([]);
+  });
+
+  it('un-creates a document the step created', () => {
+    const { gm, adaPlayer, combat, here, spend } = table();
+    spend(adaPlayer);
+    let created: BaseDocument | undefined;
+    apply(gm, (s) => {
+      const actor = createActor(s, gm, { kind: 'npc', name: 'Goblin' });
+      created = placeToken(s, { scene: here, actor, size: 1, x: 750, y: 750 });
+    });
+
+    const { deleted } = undoLastStep(store, gm, { combatId: combat.id });
+    expect(deleted.map((doc) => doc.id)).toContain(created!.id);
+    expect(store.getDocument(created!.id)).toBeUndefined();
+  });
+
+  it('refuses when there is nothing to undo', () => {
+    const { gm, combat } = table();
+    expect(() => undoLastStep(store, gm, { combatId: combat.id })).toThrow(
+      'there is nothing to undo this turn',
+    );
+  });
+
+  it("refuses a player undoing someone else's step, but lets the GM undo anyone's", () => {
+    const { gm, adaPlayer, benPlayer, combat, spend } = table();
+    spend(adaPlayer);
+    expect(() => undoLastStep(store, benPlayer, { combatId: combat.id })).toThrow(
+      'only the GM can undo',
+    );
+    expect(() => undoLastStep(store, gm, { combatId: combat.id })).not.toThrow();
+  });
+
+  it('pops only the newest step, leaving earlier ones for a second undo', () => {
+    const { adaPlayer, combat, spend } = table();
+    spend(adaPlayer);
+    spend(adaPlayer);
+    expect(store.listUndoSteps()).toHaveLength(2);
+    undoLastStep(store, adaPlayer, { combatId: combat.id });
+    expect(store.listUndoSteps()).toHaveLength(1);
+    undoLastStep(store, adaPlayer, { combatId: combat.id });
     expect(store.listUndoSteps()).toEqual([]);
   });
 });

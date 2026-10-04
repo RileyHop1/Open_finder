@@ -143,6 +143,7 @@ export {
   combatPreviousTurnOperationSchema,
   combatSetMovementRulingOperationSchema,
   combatSpendActionOperationSchema,
+  combatUndoOperationSchema,
   actorApplyDamageOperationSchema,
   actorHealOperationSchema,
   actorRollRecoveryOperationSchema,

@@ -686,6 +686,17 @@ export const combatSpendActionOperationSchema = clientOperationSchema.extend({
     ),
 });
 
+/**
+ * Undo the current turn's most recent step: every document it touched goes
+ * back to how it was before that step (ADR 0019). The owner of the step's
+ * seat may undo it only on that combatant's own turn; the GM may undo any
+ * step, at any time. Refused if there is no step to undo.
+ */
+export const combatUndoOperationSchema = clientOperationSchema.extend({
+  type: z.literal('combat.undo'),
+  payload: z.object({ combatId: idSchema }),
+});
+
 /** The most hit points one damage or healing operation may move: a sanity bound. */
 export const MAX_HIT_POINT_CHANGE = 100_000;
 
@@ -781,6 +792,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   combatPreviousTurnOperationSchema,
   combatSetMovementRulingOperationSchema,
   combatSpendActionOperationSchema,
+  combatUndoOperationSchema,
   actorApplyDamageOperationSchema,
   actorHealOperationSchema,
   actorRollRecoveryOperationSchema,
