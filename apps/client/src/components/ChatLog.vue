@@ -8,8 +8,13 @@
  * keyboard and tap, not just mouse hover, unlike a tooltip -- matching the
  * north star's "every roll in chat can be hovered to see exactly how it was
  * calculated."
+ *
+ * Opens scrolled to the newest message, the same way every other chat
+ * client does, and a later message keeps it pinned there -- unless the
+ * reader has scrolled up to read history, in which case a new message
+ * never yanks the view out from under them.
  */
-import { onMounted, ref } from 'vue';
+import { nextTick, onMounted, ref, watch } from 'vue';
 
 import { isPrivateNotice } from './chatNotice.js';
 import ChatRollCard from './ChatRollCard.vue';
@@ -22,8 +27,40 @@ const chatStore = useChatStore();
 const lobbyStore = useLobbyStore();
 const draft = ref('');
 
-onMounted(() => {
-  void chatStore.load(props.worldId);
+const messagesEl = ref<HTMLElement>();
+/** Whether the list should follow new messages down, kept apart from a scroll read every render. */
+let stickToBottom = true;
+/** Close enough to the bottom that a new message should still pull the view down. */
+const NEAR_BOTTOM_PX = 40;
+
+function scrollToBottom(): void {
+  const el = messagesEl.value;
+  if (el !== undefined) {
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function onMessagesScroll(): void {
+  const el = messagesEl.value;
+  if (el !== undefined) {
+    stickToBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+  }
+}
+
+watch(
+  () => chatStore.messages.length,
+  async () => {
+    if (stickToBottom) {
+      await nextTick();
+      scrollToBottom();
+    }
+  },
+);
+
+onMounted(async () => {
+  await chatStore.load(props.worldId);
+  await nextTick();
+  scrollToBottom();
 });
 
 function seatName(seatId: string): string {
@@ -38,6 +75,9 @@ async function handleSubmit(): Promise<void> {
     return;
   }
   draft.value = '';
+  // Sending a message is always a reason to follow it down, even if the
+  // reader had scrolled up to read history first.
+  stickToBottom = true;
   const match = ROLL_COMMAND.exec(value);
   if (match?.[1] !== undefined) {
     await chatStore.sendRoll(match[1]);
@@ -54,7 +94,7 @@ async function handleSubmit(): Promise<void> {
       {{ chatStore.error }}
     </p>
 
-    <ul class="messages" aria-live="polite">
+    <ul ref="messagesEl" class="messages" aria-live="polite" @scroll="onMessagesScroll">
       <li v-for="entry in chatStore.messages" :key="entry.id" class="message">
         <template v-if="'pending' in entry">
           <span class="pending">
