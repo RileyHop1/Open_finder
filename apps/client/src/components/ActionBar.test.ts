@@ -57,6 +57,20 @@ describe('ActionBar', () => {
     expect(wrapper.emitted('basicAction')).toEqual([['stride', 1]]);
   });
 
+  it('shows "Free" for a zero-cost basic action instead of no diamonds at all', () => {
+    const wrapper = mount(ActionBar, {
+      props: {
+        view: view({ basics: [{ slug: 'delay', name: 'Delay', cost: 0 }] }),
+        label: 'Ada',
+        gm: false,
+      },
+    });
+    const basic = wrapper.find('.basics button');
+    expect(basic.text()).toContain('Delay');
+    expect(basic.text()).toContain('Free');
+    expect(basic.text()).not.toContain('◆');
+  });
+
   it('hides the basic actions with no combatant to spend against', () => {
     const wrapper = mount(ActionBar, {
       props: { view: view({ canAct: false }), label: 'Ada', gm: false },

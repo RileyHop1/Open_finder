@@ -70,7 +70,10 @@ function submitFreeform(): void {
     <ul v-if="view.canAct" class="basics">
       <li v-for="basic in view.basics" :key="basic.slug">
         <button type="button" @click="emit('basicAction', basic.slug, basic.cost)">
-          {{ basic.name }} <span aria-hidden="true">{{ '◆'.repeat(basic.cost) }}</span>
+          {{ basic.name }}
+          <span aria-hidden="true">{{
+            basic.cost === 0 ? 'Free' : '◆'.repeat(basic.cost)
+          }}</span>
         </button>
       </li>
     </ul>
