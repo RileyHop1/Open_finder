@@ -27,7 +27,7 @@ const diamonds = computed<boolean[]>(() =>
 </script>
 
 <template>
-  <section class="action-tray" :aria-label="`${label}'s actions`">
+  <section class="action-tray" :aria-label="`${label}'s action tray`">
     <span class="actions" aria-hidden="true">
       <span v-for="(used, i) in diamonds" :key="i" class="diamond" :class="{ used }"
         >◆</span

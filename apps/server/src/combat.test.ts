@@ -765,13 +765,44 @@ describe('nextTurn', () => {
     );
   });
 
-  it('is refused for an ended combat and a non-GM', () => {
+  it('is refused for an ended combat, and for a player who owns nothing in it', () => {
     const { seat, combat } = running();
     expect(() => nextTurn(store, player(), { combatId: combat.id })).toThrow(
-      'only the GM',
+      'permission',
     );
     endCombat(store, seat, { combatId: combat.id });
     expect(() => nextTurn(store, seat, { combatId: combat.id })).toThrow('has ended');
+  });
+
+  it("lets the active combatant's own owner end their own turn (the player's End turn)", () => {
+    const { combat, byName, now } = running();
+    const activeActor = actorSchema.parse(store.getDocument(byName('A').actorId));
+    const owner = player();
+    save({
+      ...activeActor,
+      permissions: {
+        ...activeActor.permissions,
+        seats: { ...activeActor.permissions.seats, [owner.id]: 'owner' },
+      },
+    });
+
+    nextTurn(store, owner, { combatId: combat.id });
+    expect(now()).toMatchObject({ round: 1, activeCombatantId: byName('B').id });
+  });
+
+  it("refuses a player who owns B's actor while A is active -- only the active combatant's owner may end it", () => {
+    const { combat, byName } = running();
+    const bActor = actorSchema.parse(store.getDocument(byName('B').actorId));
+    const bOwner = player();
+    save({
+      ...bActor,
+      permissions: {
+        ...bActor.permissions,
+        seats: { ...bActor.permissions.seats, [bOwner.id]: 'owner' },
+      },
+    });
+
+    expect(() => nextTurn(store, bOwner, { combatId: combat.id })).toThrow('permission');
   });
 });
 
