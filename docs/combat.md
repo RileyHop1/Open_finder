@@ -307,6 +307,26 @@ ticked, reduced) so the table is told and the GM can undo it by hand. The server
   turn has (3, plus quickened, minus slowed) is `actionCapacity`. When a combatant is removed, conditions anchored to
   it are the server's to clean up (B.1).
 
+## Turn undo
+The current turn can be rewound one step at a time (ADR 0019). The server keeps
+the stack in two tables beside the documents, `turn_undo_steps` and
+`turn_undo_documents`, written in the same transaction as the operation they
+shadow (`apps/server/src/turnUndo.ts`):
+
+- **A step opens** when the active combatant's spent actions go up and stay
+  within the turn's capacity. Everything after it on that turn, by anyone (a
+  move, a reaction, the GM's damage, a condition, the GM's over-budget spend),
+  joins that step.
+- **Each step records** every document it touched as it was before the step's
+  first change to it, or as absent if the step created it. Chat messages are
+  never recorded: a roll stays in chat.
+- **The stack is cleared** by any operation after which a different turn is
+  running (next or previous turn, the end of the combat, its deletion), and it
+  is never deeper than the turn's capacity. Nothing is recorded before a turn's
+  first spend.
+
+The `combat.undo` operation that writes a step back is wired in separately.
+
 ## Permissions
 The server derives them and a client never sets them, as for a token
 ([token.md](token.md)), in `apps/server/src/combat.ts`:

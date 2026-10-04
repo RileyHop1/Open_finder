@@ -59,10 +59,13 @@ doesn't arise, and is refused outright on the rare turn where it would.
    joins is the last *in-budget* one, so undoing that step rewinds past the
    overspend along with whatever else was in it, rather than needing a step of
    its own that the cap has no room for.
-5. **The stack lives only for the current turn.** It is cleared on
-   `combat.nextTurn`, `combat.previousTurn`, and `combat.end`, and it is never
-   part of a snapshot or the export archive — it is turn-scoped working state,
-   not campaign history.
+5. **The stack lives only for the current turn.** It is cleared by any
+   operation after which a different turn is running (`combat.nextTurn`,
+   `combat.previousTurn`, `combat.end`, deleting the combat), without those
+   operations having to know undo exists. It is turn-scoped working state, not
+   campaign history. A world export copies the database whole, stack
+   included; that is harmless, since an exported stack still belongs to the
+   turn the exported combat is on.
 6. **Who may undo:** the seat that opened a step may undo it, but only on that
    combatant's own turn (consistent with the existing movement turn-gate). The
    GM may undo any step, at any time — the same "never blocked" escape hatch
