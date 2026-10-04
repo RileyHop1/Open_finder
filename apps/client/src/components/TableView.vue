@@ -707,6 +707,10 @@ async function handleCreate(): Promise<void> {
           @keydown="onResizeKey"
         ></div>
 
+        <p v-if="combat.error" role="alert" class="status status-error">
+          {{ combat.error }}
+        </p>
+
         <TurnControls
           v-if="turnBar?.active"
           :is-gm="lobby.mySeat?.isGM === true"

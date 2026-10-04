@@ -959,10 +959,16 @@ export function countAttack(store: WorldStore, combatant: Combatant): Combatant 
 
 /**
  * Spends or gives back actions and the reaction on a combatant's turn. The
- * combatant's actor's owner or the GM may; it does not have to be that combatant's
- * turn (reactions are not), and an overspend is **never blocked**: the table is told
- * in chat ("Ada has spent 4 of 3 actions"), kept from players when the combatant is
- * hidden. The count is clamped to the schema's sanity bound, not to the capacity.
+ * combatant's actor's owner or the GM may; it does not have to be that
+ * combatant's turn (reactions are not).
+ *
+ * **A player cannot spend past the turn's capacity**: a spend (never a
+ * give-back) that would put `actionsSpent` over `actionCapacity` is refused
+ * outright, before anything is written, naming how many actions are left.
+ * **The GM is never blocked** (CLAUDE.md, "the GM is never blocked"): an
+ * overspend from the GM goes through and is only announced in chat ("Ada has
+ * spent 4 of 3 actions"), kept from players when the combatant is hidden. The
+ * count is clamped to the schema's sanity bound, not to the capacity.
  */
 export function spendAction(
   store: WorldStore,
@@ -977,10 +983,22 @@ export function spendAction(
   loadActiveCombat(store, combatant.combatId);
   const { raw } = loadOwnedDocument(store, seat, combatant.actorId, 'actor', 'combatant');
   const before = combatant.turn;
-  const actionsSpent = Math.min(
-    Math.max(before.actionsSpent + (payload.actions ?? 0), 0),
-    MAX_COUNTER,
-  );
+  const delta = payload.actions ?? 0;
+  const actionsSpent = Math.min(Math.max(before.actionsSpent + delta, 0), MAX_COUNTER);
+  const name = actorSchema.safeParse(raw).data?.name ?? 'Someone';
+
+  const [participant] = participantsOf(store, [combatant]);
+  const capacity = actionCapacity(participant?.conditions ?? []).total;
+
+  if (!seat.isGM && delta > 0 && actionsSpent > capacity) {
+    const left = Math.max(capacity - before.actionsSpent, 0);
+    throw new OperationRejected(
+      left > 0
+        ? `${name} has only ${left} action${left === 1 ? '' : 's'} left this turn.`
+        : `${name} has no actions left this turn.`,
+    );
+  }
+
   const reactionUsed = payload.reaction ?? before.reactionUsed;
   const updated: Combatant = {
     ...combatant,
@@ -990,9 +1008,6 @@ export function spendAction(
   store.putDocument(updated);
 
   const documents: BaseDocument[] = [updated];
-  const [participant] = participantsOf(store, [updated]);
-  const capacity = actionCapacity(participant?.conditions ?? []).total;
-  const name = actorSchema.safeParse(raw).data?.name ?? 'Someone';
   const warnings: string[] = [];
   if (actionsSpent > capacity && actionsSpent > before.actionsSpent) {
     warnings.push(`${name} has spent ${actionsSpent} of ${capacity} actions.`);
