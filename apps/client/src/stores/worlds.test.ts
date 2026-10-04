@@ -106,3 +106,30 @@ describe('activate', () => {
     expect(store.error).toBe('not found');
   });
 });
+
+describe('deactivate', () => {
+  it('clears activeWorldId on success', async () => {
+    const world = makeWorld();
+    vi.mocked(worldsApi.activateWorld).mockResolvedValue(world);
+    vi.mocked(worldsApi.deactivateWorld).mockResolvedValue(undefined);
+
+    const store = useWorldsStore();
+    await store.activate(world.id);
+    await store.deactivate();
+
+    expect(store.activeWorldId).toBeUndefined();
+  });
+
+  it('records an error and leaves activeWorldId unchanged on failure', async () => {
+    const world = makeWorld();
+    vi.mocked(worldsApi.activateWorld).mockResolvedValue(world);
+    vi.mocked(worldsApi.deactivateWorld).mockRejectedValue(new Error('only the GM'));
+
+    const store = useWorldsStore();
+    await store.activate(world.id);
+    await store.deactivate();
+
+    expect(store.activeWorldId).toBe(world.id);
+    expect(store.error).toBe('only the GM');
+  });
+});

@@ -1,6 +1,14 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { activateWorld, createWorld, getActiveWorld, listWorlds } from './worlds.js';
+import { getDeviceToken } from '../realtime/deviceToken.js';
+import {
+  activateWorld,
+  createWorld,
+  deactivateWorld,
+  getActiveWorld,
+  listWorlds,
+} from './worlds.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -112,5 +120,23 @@ describe('getActiveWorld', () => {
   it('still throws on a genuine server error', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500));
     await expect(getActiveWorld()).rejects.toThrow(/500/);
+  });
+});
+
+describe('deactivateWorld', () => {
+  it('posts to the deactivate endpoint with the device token', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await deactivateWorld();
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/worlds/active/deactivate', {
+      method: 'POST',
+      headers: { 'x-device-token': getDeviceToken() },
+    });
+  });
+
+  it('throws when the server refuses', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'only the GM' }, 403));
+    await expect(deactivateWorld()).rejects.toThrow(/403/);
   });
 });

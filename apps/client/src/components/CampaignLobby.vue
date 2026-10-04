@@ -10,21 +10,35 @@
  * seats" screen yet. Owns the one realtime connection this app makes
  * (`connectionStore`) -- `stores/lobby.ts` and `ChatLog`'s own
  * `stores/chat.ts` both react to it, but neither opens it.
+ *
+ * The GM's "Leave campaign" sends everyone at the table back to the
+ * campaign list (the server disconnects every socket on deactivate) --
+ * asked for with the same inline alertdialog the map's exit confirmation
+ * uses, since it affects the whole table, not just this browser.
  */
 import type { Seat } from '@hearthtable/core';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { type ConnectionStatus, useConnectionStore } from '../stores/connection.js';
 import { useLobbyStore } from '../stores/lobby.js';
+import { useWorldsStore } from '../stores/worlds.js';
 import TableView from './TableView.vue';
 
 const props = defineProps<{ worldId: string; worldName: string }>();
 
 const connection = useConnectionStore();
 const store = useLobbyStore();
+const worldsStore = useWorldsStore();
 
 const pinPromptSeatId = ref<string>();
 const pinInput = ref('');
+
+const confirmingLeave = ref(false);
+
+async function leaveCampaign(): Promise<void> {
+  confirmingLeave.value = false;
+  await worldsStore.deactivate();
+}
 
 const newSeatName = ref('');
 const newSeatIsGM = ref(false);
@@ -82,6 +96,32 @@ async function handleCreateSeat(): Promise<void> {
     <h2 id="lobby-heading">{{ worldName }}</h2>
     <p role="status" class="connection-status">{{ statusText }}</p>
     <p v-if="store.error" role="alert" class="status status-error">{{ store.error }}</p>
+    <p v-if="worldsStore.error" role="alert" class="status status-error">
+      {{ worldsStore.error }}
+    </p>
+
+    <button
+      v-if="store.mySeat?.isGM"
+      type="button"
+      class="leave-campaign"
+      @click="confirmingLeave = true"
+    >
+      Back to campaigns
+    </button>
+    <div
+      v-if="confirmingLeave"
+      class="leave-confirm"
+      role="alertdialog"
+      aria-labelledby="leave-question"
+      @keydown.esc.stop="confirmingLeave = false"
+    >
+      <p id="leave-question">
+        Leave <strong>{{ worldName }}</strong
+        >? Everyone at the table is disconnected and sent back to the campaign list.
+      </p>
+      <button type="button" @click="leaveCampaign">Leave campaign</button>
+      <button type="button" @click="confirmingLeave = false">Cancel</button>
+    </div>
 
     <TableView v-if="store.mySeat" :world-id="worldId" :seat-name="store.mySeat.name" />
 
@@ -145,6 +185,26 @@ async function handleCreateSeat(): Promise<void> {
 .connection-status {
   color: var(--color-text-muted);
   font-size: 0.875rem;
+}
+
+.leave-campaign {
+  margin-bottom: var(--space-2);
+}
+
+.leave-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+}
+
+.leave-confirm p {
+  margin: 0;
+  flex-basis: 100%;
 }
 
 .status {

@@ -15,11 +15,12 @@ export function seatRow(page: Page, name: string): Locator {
 
 /**
  * Starts a campaign and leaves the page showing its lobby. The server's active
- * world is process-wide and nothing deactivates it, so only the first spec in a
- * run finds the campaign list; a later one finds the previous spec's lobby. The
- * first path drives the real UI (that flow is milestone 1's own coverage); the
- * second does the same two steps over HTTP, which also disconnects the old
- * world's sockets, exactly as a GM activating another campaign would.
+ * world is process-wide, and no spec here ever leaves one, so only the first
+ * spec in a run finds the campaign list; a later one finds the previous spec's
+ * lobby. The first path drives the real UI (that flow is milestone 1's own
+ * coverage); the second does the same two steps over HTTP, which also
+ * disconnects the old world's sockets, exactly as a GM activating another
+ * campaign (or leaving one, `POST /api/worlds/active/deactivate`) would.
  */
 export async function createAndActivateCampaign(page: Page, name: string): Promise<void> {
   await page.goto('/');

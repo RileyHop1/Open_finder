@@ -9,7 +9,13 @@ import type { World } from '@hearthtable/core';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-import { activateWorld, createWorld, getActiveWorld, listWorlds } from '../api/worlds.js';
+import {
+  activateWorld,
+  createWorld,
+  deactivateWorld,
+  getActiveWorld,
+  listWorlds,
+} from '../api/worlds.js';
 
 function messageOf(caught: unknown, fallback: string): string {
   return caught instanceof Error ? caught.message : fallback;
@@ -58,5 +64,16 @@ export const useWorldsStore = defineStore('worlds', () => {
     }
   }
 
-  return { worlds, activeWorldId, loading, error, refresh, create, activate };
+  /** Leaves the active campaign: back to the campaign list, for everyone at the table. */
+  async function deactivate(): Promise<void> {
+    error.value = undefined;
+    try {
+      await deactivateWorld();
+      activeWorldId.value = undefined;
+    } catch (caught) {
+      error.value = messageOf(caught, 'failed to leave the campaign');
+    }
+  }
+
+  return { worlds, activeWorldId, loading, error, refresh, create, activate, deactivate };
 });
