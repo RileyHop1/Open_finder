@@ -8,6 +8,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:combat": "playwright test -c playwright.combat.config.ts",
     "test:perf": "playwright test -c playwright.perf.config.ts"
   },
   "devDependencies": {

@@ -1,0 +1,11 @@
+{
+  "packId": "pf2e-core",
+  "name": "PF2e Core (test fixture)",
+  "upstream": {
+    "repo": "hearthtable/e2e-fixture",
+    "commit": "0000000000000000000000000000000000000000",
+    "packsChecksum": "sha256:00"
+  },
+  "entryCount": 1,
+  "generatedAt": "2026-01-01T00:00:00.000Z"
+}

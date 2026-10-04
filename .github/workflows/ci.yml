@@ -104,6 +104,8 @@ jobs:
 
       - run: pnpm test:e2e
 
+      - run: pnpm test:combat
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
