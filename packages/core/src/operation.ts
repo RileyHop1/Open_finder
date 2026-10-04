@@ -105,6 +105,26 @@ export const chatSendRollOperationSchema = clientOperationSchema.extend({
   payload: z.object({ expression: z.string().min(1).max(200) }),
 });
 
+/** The largest total a GM may set on a roll by hand: a sanity bound, not a rule. */
+export const MAX_GM_ROLL_TOTAL = 100_000;
+
+/**
+ * The GM's override of a roll already in chat: the card shows "GM set to N
+ * (rolled M)", and where the roll carries a DC, the degree of success is
+ * recomputed from the new total. The roll itself is never changed -- every
+ * term, and its own `total`, stay exactly as rolled (`docs/dice.md`, "The GM
+ * can edit a roll"). Never an undo: `combat.undo` (ADR 0019) leaves every
+ * roll alone, by design, and this is the GM's own fix for one instead. GM
+ * only. Refused for a message that is not a roll.
+ */
+export const chatAdjustRollOperationSchema = clientOperationSchema.extend({
+  type: z.literal('chat.adjustRoll'),
+  payload: z.object({
+    messageId: idSchema,
+    total: z.number().int().min(-MAX_GM_ROLL_TOTAL).max(MAX_GM_ROLL_TOTAL),
+  }),
+});
+
 /**
  * Create an actor. The creating seat becomes its `owner` and everyone else at
  * the table can see it (`observer`); the GM can change either afterwards. The
@@ -746,6 +766,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   seatReleaseOperationSchema,
   chatSendMessageOperationSchema,
   chatSendRollOperationSchema,
+  chatAdjustRollOperationSchema,
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
   actorUpdateOperationSchema,

@@ -148,6 +148,26 @@ un-flattened. See the ChatMessage rule in CLAUDE.md.
 Dropped dice are retained in `terms` and marked dropped, not removed. Seeing the
 die that fortune discarded is most of the appeal of showing the math.
 
+## The GM can edit a roll
+A roll stays in chat exactly as rolled -- `combat.undo` (ADR 0019) never
+restores or removes a chat message, and a roll is never undone by any other
+path either. What the GM has instead is `chat.adjustRoll` (`{messageId,
+total}`, GM only): it sets a `gmTotal` on the message, right next to `roll`,
+and the card shows **"GM set to N (rolled M)"** so the table sees both numbers.
+
+`roll` itself -- every term, its own `total`, `natural` -- is never touched.
+The GM's number is a sibling field, not a replacement, so the breakdown
+disclosure still shows what was actually rolled underneath the GM's call.
+Where the message carries a `dc` (a check or a strike's attack roll), the
+degree of success is recomputed from the new total, using the same
+natural-20/1 shift as any other roll. A strike's damage message has no
+degree to recompute; a plain `/roll` has no `dc` to recompute it against
+either way.
+
+This is the GM's actual override path for a roll the table trusts was wrong
+(a misread modifier, a house-ruled reroll) -- not an undo, and not limited to
+rolls made during a combat turn.
+
 ## Testing
 - Grammar: every production above, plus malformed input producing a typed parse
   error rather than throwing.

@@ -161,6 +161,8 @@ export {
   broadcastSchema,
   chatSendMessageOperationSchema,
   chatSendRollOperationSchema,
+  chatAdjustRollOperationSchema,
+  MAX_GM_ROLL_TOTAL,
   clientOperationSchema,
   clientOperationUnionSchema,
   seatClaimOperationSchema,

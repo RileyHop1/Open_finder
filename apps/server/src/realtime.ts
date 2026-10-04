@@ -35,6 +35,7 @@ import type {
   AnyClientOperation,
   BaseDocument,
   Broadcast,
+  ChatMessage,
   ChatRollMessage,
   ChatTextMessage,
   ClientToServerEvents,
@@ -45,11 +46,12 @@ import type {
 } from '@hearthtable/core';
 import {
   canReadDocument,
+  chatMessageSchema,
   clientOperationUnionSchema,
   sceneSchema,
   tokenSchema,
 } from '@hearthtable/core';
-import { cryptoRandomSource, evaluate, parse } from '@hearthtable/dice';
+import { cryptoRandomSource, degreeOfSuccess, evaluate, parse } from '@hearthtable/dice';
 import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
 
@@ -291,6 +293,47 @@ function handleChatSendRoll(
   return message;
 }
 
+/**
+ * The GM's override of a roll already in chat: the card shows "GM set to N
+ * (rolled M)", and where the message carries a `dc`, `roll.degree` is
+ * recomputed against the new total (`degreeOfSuccess`, including its own
+ * natural-20/1 shift -- the same math any roll already uses). `roll`'s own
+ * fields -- `total`, every term, `natural` -- are untouched, so the card
+ * still shows what was actually rolled underneath the GM's number
+ * (docs/dice.md, "The GM can edit a roll"). GM only; refused for a message
+ * that is not a roll.
+ */
+function handleChatAdjustRoll(
+  store: WorldStore,
+  seat: Seat,
+  payload: { messageId: string; total: number },
+): ChatMessage {
+  if (!seat.isGM) {
+    throw new OperationRejected('only the GM can edit a roll');
+  }
+  const message = chatMessageSchema.safeParse(store.getDocument(payload.messageId));
+  if (!message.success) {
+    throw new OperationRejected(`no chat message found with id ${payload.messageId}`);
+  }
+  if (message.data.kind === 'text') {
+    throw new OperationRejected('this message is not a roll');
+  }
+  const dc = 'dc' in message.data ? message.data.dc : undefined;
+  const natural = message.data.roll.natural;
+  const degree =
+    dc === undefined || natural === undefined
+      ? message.data.roll.degree
+      : degreeOfSuccess(payload.total, dc, natural);
+  const updated: ChatMessage = {
+    ...message.data,
+    updatedAt: new Date().toISOString(),
+    gmTotal: payload.total,
+    roll: degree === undefined ? message.data.roll : { ...message.data.roll, degree },
+  };
+  store.putDocument(updated);
+  return updated;
+}
+
 /** The seat this connection holds, or a rejection: creating or changing a document is attributed to someone. */
 function requireSeat(store: WorldStore, socket: AppSocket): Seat {
   const seat = seatOf(store, socket);
@@ -351,6 +394,11 @@ function dispatch(
       }
       const message = handleChatSendRoll(store, seatId, operation.payload);
       return { seatId, seats: [], documents: [message] };
+    }
+    case 'chat.adjustRoll': {
+      const seat = requireSeat(store, socket);
+      const message = handleChatAdjustRoll(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [message] };
     }
     case 'actor.create': {
       const seat = requireSeat(store, socket);
