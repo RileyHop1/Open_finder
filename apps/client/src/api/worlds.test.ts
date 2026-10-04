@@ -43,8 +43,13 @@ describe('listWorlds', () => {
     expect(worlds).toEqual([world]);
   });
 
-  it('throws when the server responds with an error status', async () => {
+  it('throws the server’s own error text when it responds with one', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500));
+    await expect(listWorlds()).rejects.toThrow('boom');
+  });
+
+  it('falls back to the status code when the body has no error text', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
     await expect(listWorlds()).rejects.toThrow(/500/);
   });
 
@@ -71,7 +76,7 @@ describe('createWorld', () => {
 
   it('throws when the server rejects the request', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'invalid' }, 400));
-    await expect(createWorld('')).rejects.toThrow(/400/);
+    await expect(createWorld('')).rejects.toThrow('invalid');
   });
 });
 
@@ -90,7 +95,7 @@ describe('activateWorld', () => {
 
   it('throws a readable error when the campaign does not exist', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'not found' }, 404));
-    await expect(activateWorld(crypto.randomUUID())).rejects.toThrow(/404/);
+    await expect(activateWorld(crypto.randomUUID())).rejects.toThrow('not found');
   });
 });
 
@@ -111,6 +116,6 @@ describe('getActiveWorld', () => {
 
   it('still throws on a genuine server error', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500));
-    await expect(getActiveWorld()).rejects.toThrow(/500/);
+    await expect(getActiveWorld()).rejects.toThrow('boom');
   });
 });

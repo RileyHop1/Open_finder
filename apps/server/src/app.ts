@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import type { Readable } from 'node:stream';
 
 import type { Seat } from '@hearthtable/core';
+import { sameName } from '@hearthtable/core';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -80,6 +81,9 @@ const WORLD_ARCHIVE_BODY_LIMIT = 4 * 1024 * 1024 * 1024; // 4 GiB
  * could inject into the `Content-Disposition` response header rather than
  * just render oddly.
  */
+/** A campaign or a seat name collides with one already there (ignoring case and surrounding whitespace). */
+class DuplicateNameError extends Error {}
+
 function slugForFilename(name: string): string {
   const slug = name
     .toLowerCase()
@@ -136,6 +140,13 @@ export function createApp(options: AppOptions): FastifyInstance {
         .send({ error: 'invalid request body', issues: parsed.error.issues });
       return;
     }
+    const existing = listWorlds(options.worldsRoot);
+    if (existing.some((world) => sameName(world.name, parsed.data.name))) {
+      await reply
+        .status(409)
+        .send({ error: `a campaign named "${parsed.data.name}" already exists` });
+      return;
+    }
     const store = createWorld(options.worldsRoot, parsed.data.name);
     const { world } = store;
     // Creating a world does not activate it -- these are deliberately
@@ -186,6 +197,13 @@ export function createApp(options: AppOptions): FastifyInstance {
 
     try {
       const seat = withWorldStore(activeWorld, options.worldsRoot, id, (store) => {
+        if (
+          store.listSeats().some((existing) => sameName(existing.name, parsed.data.name))
+        ) {
+          throw new DuplicateNameError(
+            `a seat named "${parsed.data.name}" already exists`,
+          );
+        }
         const now = new Date().toISOString();
         const newSeat: Seat = {
           id: crypto.randomUUID(),
@@ -201,7 +219,11 @@ export function createApp(options: AppOptions): FastifyInstance {
         return newSeat;
       });
       await reply.status(201).send(seat);
-    } catch {
+    } catch (caught) {
+      if (caught instanceof DuplicateNameError) {
+        await reply.status(409).send({ error: caught.message });
+        return;
+      }
       await reply.status(404).send({ error: `no world found with id ${id}` });
     }
   });

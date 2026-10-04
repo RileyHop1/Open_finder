@@ -54,10 +54,12 @@ interface SeatSummary {
 }
 
 async function createTestWorld(): Promise<string> {
+  // Unique per call: campaign names are unique now, and several tests create
+  // more than one world in the same test.
   const response = await app.inject({
     method: 'POST',
     url: '/api/worlds',
-    payload: { name: 'Test Campaign' },
+    payload: { name: `Test Campaign ${crypto.randomUUID()}` },
   });
   return jsonAs<WorldSummary>(response).id;
 }
@@ -155,6 +157,24 @@ describe('POST /api/worlds', () => {
     });
     const response = await app.inject({ method: 'GET', url: '/api/worlds/active' });
     expect(response.statusCode).toBe(404);
+  });
+
+  it('rejects a name already used by another campaign with 409', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/worlds',
+      payload: { name: 'Curse of the Crimson Throne' },
+    });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/worlds',
+      // Same name, different case and surrounding whitespace.
+      payload: { name: ' curse of the crimson throne ' },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(jsonAs<{ error: string }>(response).error).toContain(
+      'curse of the crimson throne',
+    );
   });
 });
 
@@ -307,6 +327,23 @@ describe('POST /api/worlds/:id/seats', () => {
       payload: { name: '', isGM: false },
     });
     expect(response.statusCode).toBe(400);
+  });
+
+  it('rejects a name already used by another seat with 409', async () => {
+    const worldId = await createTestWorld();
+    await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      payload: { name: 'Valeros', isGM: false },
+    });
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/worlds/${worldId}/seats`,
+      // Same name, different case and surrounding whitespace.
+      payload: { name: ' valeros ', isGM: false },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(jsonAs<{ error: string }>(response).error).toContain('valeros');
   });
 
   it('returns 404 for a world that does not exist', async () => {
@@ -534,7 +571,12 @@ describe('GET /api/worlds/:id/export', () => {
   });
 
   it('streams a downloadable archive with a slugified filename', async () => {
-    const worldId = await createTestWorld();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/worlds',
+      payload: { name: 'Slug Me' },
+    });
+    const worldId = jsonAs<WorldSummary>(created).id;
     const response = await app.inject({
       method: 'GET',
       url: `/api/worlds/${worldId}/export`,
@@ -543,7 +585,7 @@ describe('GET /api/worlds/:id/export', () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toBe('application/octet-stream');
     expect(response.headers['content-disposition']).toBe(
-      `attachment; filename="test-campaign-${worldId}.htworld"`,
+      `attachment; filename="slug-me-${worldId}.htworld"`,
     );
     expect(response.rawPayload.length).toBeGreaterThan(0);
   });

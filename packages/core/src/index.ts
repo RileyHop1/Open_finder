@@ -228,6 +228,8 @@ export {
   type PackManifest,
 } from './compendium.js';
 
+export { sameName } from './name.js';
+
 export { tokenDragSchema } from './realtime.js';
 
 export type {

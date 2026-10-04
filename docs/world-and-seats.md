@@ -16,7 +16,7 @@ The top-level container. One world is one campaign, one folder on disk
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id`, `schemaVersion`, `createdAt`, `updatedAt` | — | The shared record trio |
-| `name` | non-empty string | |
+| `name` | non-empty string, unique (case- and whitespace-insensitive) | |
 
 **A World has no `worldId`** — it cannot belong to itself — **and no
 `permissions`** — access to what's inside a world is about what a *seat* can
@@ -43,10 +43,21 @@ controller works in couch co-op.
 | --- | --- | --- |
 | `id`, `schemaVersion`, `createdAt`, `updatedAt` | — | The shared record trio |
 | `worldId` | UUID | Which world this seat belongs to |
-| `name` | non-empty string | What the lobby shows — labeled "character" in the UI even though the schema says `Seat` |
+| `name` | non-empty string, unique within the world (case- and whitespace-insensitive) | What the lobby shows — labeled "character" in the UI even though the schema says `Seat` |
 | `isGM` | boolean | Required; there is no default for who the GM is |
 | `pin` | short string, optional | See "Not a secret" below |
 | `claimedByDeviceToken` | string, optional | Set on first claim; absent until then |
+
+### Unique names
+
+Two seats in the same world, or two campaigns, cannot share a name once
+trimmed and lowercased -- the GM creating a second "Valeros" by mistake gets
+told so, in words, at the point of creation (`app.ts`'s seat and world
+routes, both a 409). `@hearthtable/core`'s `sameName` is the one place that
+comparison is made, so it stays consistent everywhere it's checked. The same
+rule applies to a player **character** actor's name (`actors.ts`'s
+`createActor` and a rename through `actor.update`) -- but not to an NPC or a
+hazard, where two "Goblin"s is an ordinary table, not a mistake.
 
 ### Not a secret
 
