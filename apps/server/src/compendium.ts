@@ -18,10 +18,11 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { PackManifest } from '@hearthtable/core';
-import { packManifestSchema } from '@hearthtable/core';
+import type { PackManifest, TraitEntry } from '@hearthtable/core';
+import { packManifestSchema, traitEntrySchema } from '@hearthtable/core';
 import type { ConditionEntry, Pf2eEntry } from '@hearthtable/pf2e';
 import { pf2eEntrySchema } from '@hearthtable/pf2e';
+import { z } from 'zod';
 
 /** The lightweight view search returns: enough to list and pick, not the whole entry. */
 export interface EntrySummary {
@@ -56,6 +57,16 @@ export interface CompendiumIndex {
   get(packId: string, slug: string): Pf2eEntry | undefined;
   /** Every condition definition by slug, for the merge and clearing rules (`rules/conditionMerge.ts`). Empty before the importer has been run. */
   conditions(): ReadonlyMap<string, ConditionEntry>;
+  /**
+   * The trait glossary (ADR 0020 decision 5, `systems/pf2e`'s
+   * `traitGlossary.ts`): one short entry per trait slug something imported
+   * actually carries. Not a pack -- `<root>/traits.json` is a single flat
+   * array, not a directory with its own manifest -- so this reads that one
+   * file directly rather than going through `buildIndex`'s per-pack loop.
+   * Empty before the importer has been run, the same as every other
+   * compendium answer.
+   */
+  traits(): readonly TraitEntry[];
 }
 
 export const DEFAULT_SEARCH_LIMIT = 50;
@@ -87,13 +98,14 @@ function summarize(entry: Pf2eEntry): EntrySummary {
 
 /** An index with nothing in it: what a server without imported data uses. */
 export function emptyCompendium(): CompendiumIndex {
-  return buildIndex([], [], 0);
+  return buildIndex([], [], 0, []);
 }
 
 function buildIndex(
   entries: readonly IndexedEntry[],
   packs: readonly PackManifest[],
   skipped: number,
+  traits: readonly TraitEntry[],
 ): CompendiumIndex {
   const byKey = new Map(
     entries.map((item) => [`${item.entry.packId}/${item.entry.slug}`, item.entry]),
@@ -143,6 +155,8 @@ function buildIndex(
     get: (packId, slug) => byKey.get(`${packId}/${slug}`),
 
     conditions: () => conditionDefinitions,
+
+    traits: () => traits,
   };
 }
 
@@ -189,7 +203,19 @@ export function loadCompendium(root: string): CompendiumIndex {
     }
   }
 
-  return buildIndex(entries, packs, skipped);
+  let traits: TraitEntry[] = [];
+  if (existsSync(join(root, 'traits.json'))) {
+    const parsed = z
+      .array(traitEntrySchema)
+      .safeParse(readJson(join(root, 'traits.json')));
+    if (parsed.success) {
+      traits = parsed.data;
+    } else {
+      skipped += 1;
+    }
+  }
+
+  return buildIndex(entries, packs, skipped, traits);
 }
 
 /** A compendium whose contents can be replaced while the server runs, after an in-app import. */
@@ -212,6 +238,7 @@ export function createReloadableCompendium(root: string): ReloadableCompendium {
     search: (options) => current.search(options),
     get: (packId, slug) => current.get(packId, slug),
     conditions: () => current.conditions(),
+    traits: () => current.traits(),
     reload() {
       current = loadCompendium(root);
       return current.status();

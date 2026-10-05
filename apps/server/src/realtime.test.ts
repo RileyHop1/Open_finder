@@ -83,6 +83,7 @@ const testCompendium: CompendiumIndex = {
       : undefined;
   },
   conditions: () => new Map(),
+  traits: () => [],
 };
 
 let worldsRoot: string;

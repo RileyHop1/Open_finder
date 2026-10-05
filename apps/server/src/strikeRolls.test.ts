@@ -64,6 +64,7 @@ const compendium: CompendiumIndex = {
   get: (packId, slug): Pf2eEntry | undefined =>
     packId === 'equipment' && slug === SWORD.slug ? SWORD : undefined,
   conditions: () => new Map(),
+  traits: () => [],
 };
 
 function makeSeat(overrides: Partial<Seat> = {}): Seat {

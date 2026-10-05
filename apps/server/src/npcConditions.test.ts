@@ -101,6 +101,7 @@ const compendium: CompendiumIndex = {
   get: (packId, slug): Pf2eEntry | undefined =>
     packId === MONSTER.packId && slug === MONSTER.slug ? MONSTER : undefined,
   conditions: () => conditions,
+  traits: () => [],
 };
 
 const monster = (): Actor =>

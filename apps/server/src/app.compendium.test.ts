@@ -58,6 +58,12 @@ function importedFixture(): string {
       JSON.stringify(gear(slug, name)),
     );
   }
+  writeFileSync(
+    join(dir, 'traits.json'),
+    JSON.stringify([
+      { slug: 'agile', name: 'Agile', text: [{ kind: 'text', value: 'Reduces MAP.' }] },
+    ]),
+  );
   return dir;
 }
 
@@ -127,6 +133,14 @@ describe('with imported content', () => {
     expect(response.json()).toMatchObject({ kind: 'gear', name: 'Rope', slug: 'rope' });
   });
 
+  it('GET /api/compendium/traits returns the whole glossary, not per-slug', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/compendium/traits' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([
+      { slug: 'agile', name: 'Agile', text: [{ kind: 'text', value: 'Reduces MAP.' }] },
+    ]);
+  });
+
   it('returns 404 for an unknown entry, including a path-like slug', async () => {
     for (const url of [
       '/api/compendium/equipment/nope',
@@ -159,6 +173,8 @@ describe('without imported content', () => {
       url: '/api/compendium/equipment/rope',
     });
     expect(entry.statusCode).toBe(404);
+    const traits = await app.inject({ method: 'GET', url: '/api/compendium/traits' });
+    expect(traits.json()).toEqual([]);
   });
 
   it('treats an explicitly empty compendium the same way', async () => {

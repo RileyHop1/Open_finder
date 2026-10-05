@@ -113,13 +113,17 @@ read-only. Rationale and alternatives are in
 | `GET /api/compendium` | `{ available, packs, entryCount, skipped }`. `available` is false until the importer has been run, which lets a UI say so instead of showing an empty list |
 | `GET /api/compendium/search?kind=&q=&limit=` | Summaries `{ packId, slug, name, kind, traits }`. `q` is a case-insensitive substring of the name, names starting with it first. `limit` is 1 to 200, default 50. A malformed query is a 400 |
 | `GET /api/compendium/:packId/:slug` | The full entry, or 404 |
+| `GET /api/compendium/traits` | The whole trait glossary (ADR 0020 decision 5), `TraitEntry[]` -- `[]` before an import. Not keyed by slug: `traits.json` is one flat file, not a pack, so the client fetches it once and looks a slug up itself |
 
 Missing data never stops the server: a missing directory is an empty
 compendium, and a pack with no manifest, an unparseable file, or an entry that
-fails its schema is skipped and counted in `skipped`. A `packId` or `slug` from
-a request is only ever a map key, never part of a filesystem path.
+fails its schema is skipped and counted in `skipped`. The same holds for
+`traits.json` specifically: absent is just an empty glossary, and a malformed
+file is skipped and counted the same way a bad pack entry is. A `packId` or
+`slug` from a request is only ever a map key, never part of a filesystem path.
 
 Tested in `apps/server/src/compendium.test.ts` (loading, the degraded cases,
-lookup, search ranking, kind filter, limits) and `app.compendium.test.ts` (the
-routes, with and without content). Not yet run against a real import; see the
+lookup, search ranking, kind filter, limits, the trait glossary) and
+`app.compendium.test.ts` (the routes, with and without content). Not yet run
+against a real import; see the
 open A.0 spike.
