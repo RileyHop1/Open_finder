@@ -7,13 +7,15 @@
  * `heading`, `strong`, `em`, a list's items), so a `term` buried inside a
  * list item inside a paragraph renders the same way a top-level one does.
  *
- * A `term` node is rendered as plain, marked-up text only -- no tooltip
- * yet. `RulesTerm.vue` (the next PR in this stack) gives it the actual
- * hover/focus/tap popover; this component only needs to know a term
- * exists and show its label, so that PR can swap in the real behavior
- * without this one changing shape.
+ * A `term` node renders as its own `RulesTerm`, which is what makes
+ * nesting work at all: a term's own popover content is itself rendered
+ * through this component (`RulesTerm.vue`), so a term mentioned inside
+ * another term's text gets its own hover/focus/tap popover, stacked on
+ * top rather than replacing the one already open.
  */
 import type { RichText } from '@hearthtable/core';
+
+import RulesTerm from './RulesTerm.vue';
 
 defineProps<{ nodes: RichText }>();
 </script>
@@ -34,13 +36,11 @@ defineProps<{ nodes: RichText }>();
         <RulesText :nodes="item" />
       </li>
     </component>
-    <span v-else-if="node.kind === 'term'" class="rules-term">{{ node.label }}</span>
+    <RulesTerm
+      v-else-if="node.kind === 'term'"
+      :term-kind="node.termKind"
+      :slug="node.slug"
+      :label="node.label"
+    />
   </template>
 </template>
-
-<style scoped>
-.rules-term {
-  text-decoration: underline dotted;
-  text-decoration-thickness: 1px;
-}
-</style>

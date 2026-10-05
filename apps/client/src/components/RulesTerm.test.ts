@@ -208,7 +208,7 @@ describe('RulesTerm', () => {
     expect(wrapper.find('.rules-term-empty').text()).toBe('No details yet.');
   });
 
-  it('renders a nested term inside the popover as its own RulesTerm', async () => {
+  it('renders a nested term inside the popover as its own RulesTerm, with its own popover', async () => {
     const getEntry = vi.fn().mockResolvedValue(
       makeEntry([
         {
@@ -221,7 +221,12 @@ describe('RulesTerm', () => {
         },
       ]),
     );
-    stubStore(getEntry);
+    const getTrait = vi.fn().mockResolvedValue({
+      slug: 'agile',
+      name: 'Agile',
+      text: [{ kind: 'text', value: 'Reduces the second attack penalty.' }],
+    });
+    stubStore(getEntry, getTrait);
 
     const wrapper = render();
     await wrapper.find('.rules-term').trigger('click');
@@ -232,5 +237,17 @@ describe('RulesTerm', () => {
     const nestedTerms = wrapper.findAll('.rules-term-popover .rules-term');
     expect(nestedTerms).toHaveLength(1);
     expect(nestedTerms[0]?.text()).toBe('agile');
+
+    // Clicking it opens its *own* popover, stacked on top -- not swapped in
+    // place of the outer one (this is what a plain `<span>` could never do).
+    await nestedTerms[0]?.trigger('click');
+    await wrapper.vm.$nextTick();
+    await Promise.resolve();
+    await wrapper.vm.$nextTick();
+
+    expect(getTrait).toHaveBeenCalledWith('agile');
+    const popovers = wrapper.findAll('.rules-term-popover');
+    expect(popovers).toHaveLength(2);
+    expect(popovers[1]?.text()).toContain('Reduces the second attack penalty.');
   });
 });

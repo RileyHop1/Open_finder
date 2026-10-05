@@ -1,0 +1,17 @@
+[
+  {
+    "slug": "mental",
+    "name": "Mental",
+    "text": [
+      {
+        "kind": "paragraph",
+        "children": [
+          {
+            "kind": "text",
+            "value": "A mental effect works only against a creature with a mind -- it has no effect on a mindless creature."
+          }
+        ]
+      }
+    ]
+  }
+]

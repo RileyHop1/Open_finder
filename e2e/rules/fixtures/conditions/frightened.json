@@ -1,0 +1,33 @@
+{
+  "id": "00000000-0000-4000-8000-000000000002",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "conditions",
+  "slug": "frightened",
+  "name": "Frightened",
+  "kind": "condition",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [],
+  "description": "",
+  "text": [
+    {
+      "kind": "paragraph",
+      "children": [
+        {
+          "kind": "text",
+          "value": "You are gripped by fear and struggle to keep it from controlling you. You take a status penalty equal to this condition's value to all your checks and DCs. This is a "
+        },
+        { "kind": "term", "termKind": "trait", "slug": "mental", "label": "mental" },
+        { "kind": "text", "value": " effect." }
+      ]
+    }
+  ],
+  "valued": true,
+  "overrides": []
+}
