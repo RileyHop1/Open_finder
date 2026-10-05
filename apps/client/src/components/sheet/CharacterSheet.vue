@@ -21,6 +21,7 @@ import type { ProficiencyRank } from '@hearthtable/pf2e';
 import { ATTRIBUTES, characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { computed, ref } from 'vue';
 
+import RulesTerm from '../RulesTerm.vue';
 import { signed, titleCase } from './format.js';
 import NumberField from './NumberField.vue';
 import RankSelect from './RankSelect.vue';
@@ -148,10 +149,15 @@ const lineage = computed(() =>
         <p v-if="data.conditions.length > 0" class="conditions">
           Conditions:
           <span v-for="condition in data.conditions" :key="condition.slug" class="chip">
-            {{ titleCase(condition.slug) }}
-            <template v-if="condition.value !== undefined">{{
-              condition.value
-            }}</template>
+            <RulesTerm
+              term-kind="condition"
+              :slug="condition.slug"
+              :label="
+                condition.value === undefined
+                  ? titleCase(condition.slug)
+                  : `${titleCase(condition.slug)} ${condition.value}`
+              "
+            />
           </span>
         </p>
         <button

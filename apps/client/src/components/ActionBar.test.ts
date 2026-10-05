@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import ActionBar from './ActionBar.vue';
 import type { ActionBarView } from './actionBarModel.js';
+
+// A basic action's name now renders through `RulesTerm`, which reaches a
+// Pinia store for its tooltip lookup even when nothing opens the tooltip.
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 
 function view(fields: Partial<ActionBarView> = {}): ActionBarView {
   return {
@@ -50,10 +57,10 @@ describe('ActionBar', () => {
     const wrapper = mount(ActionBar, {
       props: { view: view(), label: 'Ada', gm: false },
     });
-    const basic = wrapper.findAll('.basics button')[0];
-    expect(basic?.text()).toContain('Stride');
-    expect(basic?.text()).toContain('◆');
-    await basic?.trigger('click');
+    expect(wrapper.find('.basics .rules-term').text()).toBe('Stride');
+    const spend = wrapper.find('.basics button[aria-label]');
+    expect(spend.text()).toContain('◆');
+    await spend.trigger('click');
     expect(wrapper.emitted('basicAction')).toEqual([['stride', 1]]);
   });
 
@@ -65,10 +72,9 @@ describe('ActionBar', () => {
         gm: false,
       },
     });
-    const basic = wrapper.find('.basics button');
-    expect(basic.text()).toContain('Delay');
-    expect(basic.text()).toContain('Free');
-    expect(basic.text()).not.toContain('◆');
+    expect(wrapper.find('.basics .rules-term').text()).toBe('Delay');
+    const spend = wrapper.find('.basics button[aria-label]');
+    expect(spend.text()).toBe('Free');
   });
 
   it('hides the basic actions with no combatant to spend against', () => {
