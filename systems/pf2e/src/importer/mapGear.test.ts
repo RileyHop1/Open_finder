@@ -109,6 +109,95 @@ describe('mapGear -- success', () => {
       expect(result.entry.level).toBeUndefined();
     }
   });
+
+  it('leaves consumable undefined for an ordinary equipment-type entry', () => {
+    const result = mapGear(makeEntry({}), PROVENANCE, IMPORTED_AT);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.consumable).toBeUndefined();
+    }
+  });
+
+  it('maps a recognized consumable category for a consumable-type entry', () => {
+    const result = mapGear(
+      makeEntry({ consumableType: { value: 'potion' } }, { type: 'consumable' }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.consumable).toEqual({ category: 'potion' });
+    }
+  });
+
+  it("falls back to 'other' for an upstream consumable sub-type outside this project's categories", () => {
+    const result = mapGear(
+      makeEntry({ consumableType: { value: 'mutagen' } }, { type: 'consumable' }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.consumable).toEqual({ category: 'other' });
+    }
+  });
+
+  it('maps multi-use charges when current and max are both usable integers', () => {
+    const result = mapGear(
+      makeEntry(
+        { consumableType: { value: 'wand' }, uses: { value: 1, max: 1 } },
+        { type: 'consumable' },
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.consumable?.uses).toEqual({ current: 1, max: 1 });
+    }
+  });
+
+  it('omits uses (single-use) when max is absent, zero, or current exceeds max', () => {
+    const noUses = mapGear(
+      makeEntry({ consumableType: { value: 'potion' } }, { type: 'consumable' }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    const zeroMax = mapGear(
+      makeEntry(
+        { consumableType: { value: 'wand' }, uses: { value: 0, max: 0 } },
+        { type: 'consumable' },
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    const overMax = mapGear(
+      makeEntry(
+        { consumableType: { value: 'wand' }, uses: { value: 5, max: 1 } },
+        { type: 'consumable' },
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    for (const result of [noUses, zeroMax, overMax]) {
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.entry.consumable?.uses).toBeUndefined();
+      }
+    }
+  });
+
+  it('leaves consumable.spell undefined -- a later PR resolves it against the full entry set', () => {
+    const result = mapGear(
+      makeEntry({ consumableType: { value: 'scroll' } }, { type: 'consumable' }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.consumable?.spell).toBeUndefined();
+    }
+  });
 });
 
 describe('mapGear -- fails closed', () => {
