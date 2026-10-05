@@ -146,6 +146,60 @@ export function extractBoostSlots(boosts: unknown): readonly string[][] {
   return slots;
 }
 
+const DENOMINATION_COPPER_VALUE: Readonly<Record<string, number>> = {
+  pp: 1000,
+  gp: 100,
+  sp: 10,
+  cp: 1,
+};
+
+/**
+ * Upstream's price is `{value: {pp?, gp?, sp?, cp?}}`; this takes that inner
+ * `value` object and converts it to the single copper integer
+ * `priceInCopperSchema` expects (ADR 0021). Returns `undefined` when no
+ * denomination is a usable number, rather than `0`, so "no price listed"
+ * stays distinguishable from "costs nothing" in the coverage report. Used
+ * by `mapWeapon.ts`, `mapArmor.ts`, and `mapGear.ts`.
+ */
+export function mapPriceInCopper(priceValue: unknown): number | undefined {
+  const record = asRecord(priceValue);
+  if (record === undefined) {
+    return undefined;
+  }
+  let totalCopper = 0;
+  let sawAny = false;
+  for (const [denomination, copperPerUnit] of Object.entries(DENOMINATION_COPPER_VALUE)) {
+    const amount = record[denomination];
+    if (typeof amount === 'number' && Number.isFinite(amount)) {
+      totalCopper += amount * copperPerUnit;
+      sawAny = true;
+    }
+  }
+  return sawAny ? totalCopper : undefined;
+}
+
+/**
+ * Upstream's Bulk is `bulk.value`, a string: a whole-number count, `"L"`
+ * for light (0.1), or `"-"` for explicitly no Bulk. Maps onto the number
+ * `bulkSchema` expects; anything else (missing, or a string this doesn't
+ * recognize) returns `undefined` rather than `0`, so "explicitly
+ * negligible" and "couldn't be read" stay distinguishable in the coverage
+ * report. Used by `mapWeapon.ts`, `mapArmor.ts`, and `mapGear.ts`.
+ */
+export function mapBulk(bulkValue: unknown): number | undefined {
+  if (typeof bulkValue !== 'string') {
+    return undefined;
+  }
+  if (bulkValue === 'L') {
+    return 0.1;
+  }
+  if (bulkValue === '-') {
+    return 0;
+  }
+  const parsed = Number.parseInt(bulkValue, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
 const SIZE_CODE_TO_SIZE: Record<string, Size> = {
   tiny: 'tiny',
   sm: 'small',

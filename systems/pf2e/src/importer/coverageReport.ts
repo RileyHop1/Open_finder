@@ -33,6 +33,18 @@ export interface DropRecord {
   readonly round: number;
 }
 
+/**
+ * How many weapon/armor/gear entries came through without a price, Bulk,
+ * or level -- counts only (never which entries), so this is already
+ * aggregate-safe and needs no separate stripped-down projection the way
+ * `drops` and `traitMisses` do. See ADR 0021 and `docs/inventory.md`.
+ */
+export interface ItemEconomyCoverage {
+  readonly missingPrice: number;
+  readonly missingBulk: number;
+  readonly missingLevel: number;
+}
+
 export interface CoverageReport {
   readonly totalEntries: number;
   readonly entriesByPublication: Readonly<Record<string, number>>;
@@ -43,6 +55,7 @@ export interface CoverageReport {
   readonly inlineSyntaxWarnings: readonly string[];
   /** `traitGlossary.ts`'s misses -- trait slugs used by a kept entry with no resolvable lang key, so they fall back to a bare-name tooltip (ADR 0020 decision 6). Slugs, so (like `drops[].slug`) this stays out of `CoverageAggregate` too. */
   readonly traitMisses: readonly string[];
+  readonly itemEconomyCoverage: ItemEconomyCoverage;
 }
 
 export interface CoverageAggregate {
@@ -56,6 +69,7 @@ export interface CoverageAggregate {
   readonly dropsByRound: Readonly<Record<string, number>>;
   readonly inlineSyntaxWarningCount: number;
   readonly traitMissCount: number;
+  readonly itemEconomyCoverage: ItemEconomyCoverage;
 }
 
 function countBy<T>(
@@ -101,6 +115,29 @@ function countInertElements(entries: readonly Pf2eEntry[]): readonly InertElemen
   );
 }
 
+const ITEM_ECONOMY_KINDS = new Set(['weapon', 'armor', 'gear']);
+
+/**
+ * Counts, across weapon/armor/gear entries only (the kinds that carry
+ * these fields -- see ADR 0021), how many came through the importer
+ * without a price, Bulk, or level. Every field is independently optional,
+ * so one entry can count toward more than one of these.
+ */
+function countItemEconomyMisses(entries: readonly Pf2eEntry[]): ItemEconomyCoverage {
+  const itemEntries = entries.filter((entry) => ITEM_ECONOMY_KINDS.has(entry.kind));
+  return {
+    missingPrice: itemEntries.filter(
+      (entry) => !('priceInCopper' in entry) || entry.priceInCopper === undefined,
+    ).length,
+    missingBulk: itemEntries.filter(
+      (entry) => !('bulk' in entry) || entry.bulk === undefined,
+    ).length,
+    missingLevel: itemEntries.filter(
+      (entry) => !('level' in entry) || entry.level === undefined,
+    ).length,
+  };
+}
+
 export function buildCoverageReport(
   entries: readonly Pf2eEntry[],
   drops: readonly DependencyDrop[],
@@ -116,6 +153,7 @@ export function buildCoverageReport(
     entriesByPublication: countBy(entries, (entry) => entry.provenance.publication),
     ruleElementsByKind: countBy(mappedElements, (element) => element.kind),
     inertRuleElements: countInertElements(entries),
+    itemEconomyCoverage: countItemEconomyMisses(entries),
     drops: [...drops]
       .map((drop) => ({
         slug: drop.slug,
@@ -142,6 +180,7 @@ export function aggregateCoverage(report: CoverageReport): CoverageAggregate {
     dropsByKind: countBy(report.drops, (drop) => drop.kind),
     dropsByRound: countBy(report.drops, (drop) => String(drop.round)),
     traitMissCount: report.traitMisses.length,
+    itemEconomyCoverage: report.itemEconomyCoverage,
   };
 }
 
@@ -215,6 +254,11 @@ export function renderCoverageMarkdown(report: CoverageReport): string {
     }
     lines.push('');
   }
+
+  lines.push('## Weapon/armor/gear entries missing price, Bulk, or level', '');
+  lines.push(`- Missing price: ${report.itemEconomyCoverage.missingPrice}`);
+  lines.push(`- Missing Bulk: ${report.itemEconomyCoverage.missingBulk}`);
+  lines.push(`- Missing level: ${report.itemEconomyCoverage.missingLevel}`, '');
 
   return lines.join('\n');
 }

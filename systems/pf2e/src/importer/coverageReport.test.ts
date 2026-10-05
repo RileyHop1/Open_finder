@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { RuleElement } from '@hearthtable/core';
 
 import type { FeatEntry } from '../content/feat.js';
+import type { GearEntry } from '../content/gear.js';
 import {
   aggregateCoverage,
   buildCoverageReport,
@@ -39,6 +40,25 @@ function makeFeat(
     level: 1,
     category: 'general',
     prerequisites: [],
+  };
+}
+
+// Synthetic, invented fixtures throughout (ADR 0013).
+function makeGear(upstreamId: string, overrides: Partial<GearEntry> = {}): GearEntry {
+  return {
+    id: deterministicId(upstreamId),
+    schemaVersion: 1,
+    createdAt: '2026-09-29T00:00:00.000Z',
+    updatedAt: '2026-09-29T00:00:00.000Z',
+    packId: 'equipment',
+    slug: `invented-gear-${upstreamId}`,
+    name: `Invented Gear ${upstreamId}`,
+    kind: 'gear',
+    provenance: { publication: 'Pathfinder Player Core', license: 'ORC', remaster: true },
+    traits: [],
+    ruleElements: [],
+    description: '',
+    ...overrides,
   };
 }
 
@@ -121,6 +141,35 @@ describe('buildCoverageReport', () => {
 
     const withoutMisses = buildCoverageReport([], []);
     expect(withoutMisses.traitMisses).toEqual([]);
+  });
+
+  it('counts weapon/armor/gear entries missing price, bulk, or level, independently', () => {
+    const entries = [
+      makeGear('aaaaaaaaaaaaaaaa', { priceInCopper: 50, bulk: 0.1, level: 0 }),
+      makeGear('bbbbbbbbbbbbbbbb'),
+      makeGear('cccccccccccccccc', { priceInCopper: 10 }),
+    ];
+
+    const report = buildCoverageReport(entries, []);
+
+    expect(report.itemEconomyCoverage).toEqual({
+      missingPrice: 1,
+      missingBulk: 2,
+      missingLevel: 2,
+    });
+  });
+
+  it('does not count a feat (not weapon/armor/gear) toward item economy coverage', () => {
+    const report = buildCoverageReport(
+      [makeFeat('aaaaaaaaaaaaaaaa', 'Pathfinder Player Core')],
+      [],
+    );
+
+    expect(report.itemEconomyCoverage).toEqual({
+      missingPrice: 0,
+      missingBulk: 0,
+      missingLevel: 0,
+    });
   });
 
   it('includes every drop, sorted by round then slug', () => {
@@ -235,6 +284,14 @@ describe('aggregateCoverage', () => {
     expect(aggregate.entriesByPublication).toEqual(report.entriesByPublication);
     expect(aggregate.ruleElementsByKind).toEqual(report.ruleElementsByKind);
     expect(aggregate.inertRuleElements).toEqual(report.inertRuleElements);
+  });
+
+  it('carries itemEconomyCoverage through unchanged -- already counts only', () => {
+    const report = buildCoverageReport([makeGear('aaaaaaaaaaaaaaaa')], []);
+
+    const aggregate = aggregateCoverage(report);
+
+    expect(aggregate.itemEconomyCoverage).toEqual(report.itemEconomyCoverage);
   });
 });
 

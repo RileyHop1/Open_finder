@@ -81,6 +81,34 @@ describe('mapGear -- success', () => {
       expect(result.entry.slug).toBe('invented-gear');
     }
   });
+
+  it('maps price, bulk, and level when present', () => {
+    const result = mapGear(
+      makeEntry({
+        price: { value: { sp: 5 } },
+        bulk: { value: '-' },
+        level: { value: 1 },
+      }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.priceInCopper).toBe(50);
+      expect(result.entry.bulk).toBe(0);
+      expect(result.entry.level).toBe(1);
+    }
+  });
+
+  it('omits price, bulk, and level when absent, rather than defaulting them', () => {
+    const result = mapGear(makeEntry({}), PROVENANCE, IMPORTED_AT);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.priceInCopper).toBeUndefined();
+      expect(result.entry.bulk).toBeUndefined();
+      expect(result.entry.level).toBeUndefined();
+    }
+  });
 });
 
 describe('mapGear -- fails closed', () => {

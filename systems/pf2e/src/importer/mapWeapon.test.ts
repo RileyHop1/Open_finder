@@ -120,6 +120,35 @@ describe('mapWeapon -- success', () => {
       expect(result.entry.slug).toBe('invented-sword');
     }
   });
+
+  it('maps price, bulk, and level when present', () => {
+    const result = mapWeapon(
+      makeEntry({
+        ...baseSystem(),
+        price: { value: { gp: 1, sp: 5 } },
+        bulk: { value: '1' },
+        level: { value: 0 },
+      }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.priceInCopper).toBe(150);
+      expect(result.entry.bulk).toBe(1);
+      expect(result.entry.level).toBe(0);
+    }
+  });
+
+  it('omits price, bulk, and level when absent, rather than defaulting them', () => {
+    const result = mapWeapon(makeEntry(baseSystem()), PROVENANCE, IMPORTED_AT);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.priceInCopper).toBeUndefined();
+      expect(result.entry.bulk).toBeUndefined();
+      expect(result.entry.level).toBeUndefined();
+    }
+  });
 });
 
 describe('mapWeapon -- fails closed', () => {
