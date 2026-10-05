@@ -13,7 +13,7 @@
  * (confirm), matching `dyingChain.ts`'s own module doc, which already
  * admits those numbers were written from memory and never checked against
  * Archives of Nethys -- this page repeats the same ruling, not a separately
- * verified one. The spellcasting-basics page is similar: milestone 7(b)
+ * verified one. The spellcasting-basics page is similar: milestone 8(b)
  * hasn't built spellcasting yet, so there is no in-repo math to check this
  * page's prose against, and it stays at the conceptual level accordingly.
  *

@@ -21,7 +21,7 @@
  * goblin held "until the end of Valeria's turn" is on the goblin, so both
  * functions look at **every** participant's conditions, not only the active
  * one's. Calendar durations (`minutes`, `hours`, `days`) are never touched here:
- * nothing ticks them until the Calendar exists (milestone 13).
+ * nothing ticks them until the Calendar exists (milestone 14).
  *
  * Every change comes back as an event too, so the table is told what happened
  * (a chat card) and the GM can undo it by hand, as CLAUDE.md requires of every

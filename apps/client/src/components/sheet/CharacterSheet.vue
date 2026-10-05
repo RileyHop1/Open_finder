@@ -19,7 +19,7 @@
  * the same `Statistic` `prepared` already computed, never a second
  * recomputation that could disagree. An attribute's own `Statistic` is a
  * degenerate one-modifier case (`attributeStatistic`): this project has no
- * boost/flaw resolution yet (that is milestone 7's character-creation
+ * boost/flaw resolution yet (that is milestone 8's character-creation
  * wizard), so an attribute score is exactly its own stored value with
  * nothing else contributing to it. Showing it through the same popover
  * everything else uses is still correct, and keeps the interaction

@@ -1,7 +1,7 @@
 /**
  * `characterDataSchema`: the PF2e payload stored in an `Actor`'s opaque
  * `system` field (ADR 0014). It holds exactly what the sheet edits by hand
- * today and the milestone 7 wizard writes later, so the two can never
+ * today and the milestone 8 wizard writes later, so the two can never
  * disagree about shape.
  *
  * Everything the rules engine computes -- AC, saves, skill totals, strikes,
@@ -146,7 +146,7 @@ export const characterDataSchema = z
     /**
      * Land speed in feet. Hand-set on the sheet (CLAUDE.md's "a character's
      * Speed is a hand-set sheet field"), not derived from ancestry -- the
-     * wizard (milestone 7) will set it from the chosen ancestry, but nothing
+     * wizard (milestone 8) will set it from the chosen ancestry, but nothing
      * here recomputes it, so a GM's manual override (haste, a feat) never
      * gets silently clobbered by an unrelated edit.
      */
@@ -182,7 +182,7 @@ export type CharacterData = z.infer<typeof characterDataSchema>;
  * every rank untrained, no items, no conditions, 0 HP. What `actor.create`
  * stores for a new character (the server builds it, never a client). Blank on
  * purpose: any starting number here would be an arbitrary game choice, and
- * milestone 7's wizard fills these same fields in properly.
+ * milestone 8's wizard fills these same fields in properly.
  */
 export function newCharacterData(): CharacterData {
   return characterDataSchema.parse({

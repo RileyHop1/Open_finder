@@ -10,7 +10,7 @@
  * Only the combat kinds (`turn`, `rounds`) are ended by the combat tracker
  * (milestone 5). The calendar kinds (`minutes`, `hours`, `days`) are stored so a
  * GM can set them today, but **nothing expires them until the `Calendar` exists
- * (milestone 13)**: until then they end by hand, and the UI says so.
+ * (milestone 14)**: until then they end by hand, and the UI says so.
  */
 
 import { idSchema } from '@hearthtable/core';
@@ -42,7 +42,7 @@ export const conditionDurationSchema = z.discriminatedUnion('type', [
   }),
   /** Until the caster stops sustaining it. Ended by hand until spells are automated. */
   z.object({ type: z.literal('sustained') }),
-  /** Calendar time ("for 10 minutes"). Not ticked until the `Calendar` (milestone 13). */
+  /** Calendar time ("for 10 minutes"). Not ticked until the `Calendar` (milestone 14). */
   z.object({
     type: z.literal('minutes'),
     remaining: z.number().int().min(1).max(MAX_CALENDAR),

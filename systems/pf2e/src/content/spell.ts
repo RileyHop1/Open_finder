@@ -4,7 +4,7 @@
  * into the martial classes' wizard skeleton. This schema carries the data
  * milestone 2 needs to import a spell correctly; the mechanics that consume
  * it (slots by rank, prepared vs. spontaneous, what heightening actually
- * does numerically) are milestone 7(b)'s job, not this one's.
+ * does numerically) are milestone 8(b)'s job, not this one's.
  *
  * Notably absent: a "components" field. The Remaster replaced the legacy
  * verbal/somatic/material component system with two traits --

@@ -14,7 +14,7 @@ import { equipped, goldenCharacter, goldenStatistics } from './goldenCharacter.j
  * Trained; unarmed/simple/martial weapons Expert, advanced Trained; Class
  * DC Trained; all armor Trained. Ability scores and equipment are chosen
  * directly rather than derived through character creation -- which boosts
- * a character receives and from where is milestone 7's wizard, not
+ * a character receives and from where is milestone 8's wizard, not
  * something this fixture models (see `attributes.ts`'s module doc).
  *
  * Since milestone 3 this fixture goes through `prepareCharacter`, the same

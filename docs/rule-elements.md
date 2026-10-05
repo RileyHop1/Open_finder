@@ -62,7 +62,7 @@ purpose: a `flatModifier`'s predicate rides along on the resulting
 decision 6); a `damageDice`'s predicate is evaluated immediately, because
 `@hearthtable/dice`'s `DamageComponent` has no predicate field to defer it
 to. `grantItem` is out of scope here -- granting an item onto a character is
-build-time state (milestone 7), not something resolved on every statistic.
+build-time state (milestone 8), not something resolved on every statistic.
 
 ## Testing
 

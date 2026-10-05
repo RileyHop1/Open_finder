@@ -175,7 +175,7 @@ instead.
 | `turn` | `combatantId`, `boundary` (`start` \| `end`) | At the start or end of that combatant's turn |
 | `rounds` | `remaining` 1-99 | Ticks down at turn boundaries |
 | `sustained` | none | When the caster stops sustaining; by hand until spells are automated |
-| `minutes`, `hours`, `days` | `remaining` | Stored now; **nothing expires them until the `Calendar` (milestone 13)**, so they end by hand and the UI says so |
+| `minutes`, `hours`, `days` | `remaining` | Stored now; **nothing expires them until the `Calendar` (milestone 14)**, so they end by hand and the UI says so |
 
 Not built: "until a condition is met" (until you Recover, until your next daily
 preparations), which needs an explicit trigger design.

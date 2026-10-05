@@ -6,7 +6,7 @@
  * (saves, skills, AC, ...) build statistics from.
  *
  * **Which boosts a character actually gets, and which score each targets,
- * is milestone 7's wizard**, not this module -- PF2e's "no two same-source
+ * is milestone 8's wizard**, not this module -- PF2e's "no two same-source
  * boosts on one score, except the four free ones" rule is a
  * character-creation *flow* constraint, not a property of what a single
  * boost does to a score. This module only has the latter.

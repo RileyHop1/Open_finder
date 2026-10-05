@@ -16,7 +16,7 @@ export const partySchema = baseDocumentSchema
     name: z.string().min(1),
     /** Actor ids in display order -- the order the party bar shows them in. */
     memberIds: z.array(idSchema),
-    /** The level the encounter builder budgets against (milestone 12). */
+    /** The level the encounter builder budgets against (milestone 13). */
     level: z.number().int().min(1).max(20).default(1),
     /**
      * The scene the party is in right now: the one every player's view
