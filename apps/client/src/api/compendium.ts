@@ -2,9 +2,12 @@
  * The client's view of `apps/server`'s read-only compendium routes
  * (ADR 0015). Public reference data, so no device token. Search returns
  * summaries only; the server makes the actual copy onto a character when an
- * item is added, so the browser never needs a full entry.
+ * item is added. `getCompendiumEntry` is the exception: milestone 6's
+ * tooltips (`stores/rules.ts`) need an entry's full `text` to render,
+ * which a summary doesn't carry.
  */
 
+import { compendiumEntrySchema, type CompendiumEntry } from '@hearthtable/core';
 import { z } from 'zod';
 
 export const entrySummarySchema = z.object({
@@ -58,4 +61,24 @@ export function searchCompendium(params: SearchParams = {}): Promise<EntrySummar
     z.array(entrySummarySchema),
     'search the compendium',
   );
+}
+
+/** The full entry, or `undefined` if `packId`/`slug` names none -- a 404 is an expected outcome here (a stale link, a trait with no glossary entry yet), not a failure worth throwing over. */
+export async function getCompendiumEntry(
+  packId: string,
+  slug: string,
+): Promise<CompendiumEntry | undefined> {
+  const response = await fetch(
+    `/api/compendium/${encodeURIComponent(packId)}/${encodeURIComponent(slug)}`,
+  );
+  if (response.status === 404) {
+    return undefined;
+  }
+  if (!response.ok) {
+    throw new Error(
+      `failed to fetch compendium entry: server responded ${response.status}`,
+    );
+  }
+  const body: unknown = await response.json();
+  return compendiumEntrySchema.parse(body);
 }

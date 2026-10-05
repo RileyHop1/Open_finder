@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { isCompendiumAvailable, searchCompendium } from './compendium.js';
+import {
+  getCompendiumEntry,
+  isCompendiumAvailable,
+  searchCompendium,
+} from './compendium.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -64,5 +68,50 @@ describe('searchCompendium', () => {
     await expect(searchCompendium()).rejects.toThrow(/responded 500/);
     fetchMock.mockResolvedValueOnce(jsonResponse([{ name: 'no pack' }]));
     await expect(searchCompendium()).rejects.toThrow();
+  });
+});
+
+describe('getCompendiumEntry', () => {
+  const now = new Date().toISOString();
+  const entry = {
+    id: crypto.randomUUID(),
+    schemaVersion: 1,
+    createdAt: now,
+    updatedAt: now,
+    packId: 'conditions',
+    slug: 'frightened',
+    name: 'Frightened',
+    kind: 'condition',
+    provenance: { publication: 'Pathfinder Player Core', license: 'ORC', remaster: true },
+    traits: [],
+    ruleElements: [],
+    description: '',
+    valued: true,
+    overrides: [],
+  };
+
+  it('fetches the entry at its packId/slug, encoding each', async () => {
+    // compendiumEntrySchema only knows the shared envelope -- a kind-specific
+    // field like condition's own valued/overrides is stripped, not an error.
+    const { valued: _valued, overrides: _overrides, ...baseEntry } = entry;
+    fetchMock.mockResolvedValueOnce(jsonResponse(entry));
+    expect(await getCompendiumEntry('conditions', 'frightened')).toEqual(baseEntry);
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/conditions/frightened');
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(entry));
+    await getCompendiumEntry('a/b', 'c d');
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/a%2Fb/c%20d');
+  });
+
+  it('returns undefined on a 404, rather than throwing', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'not found' }, 404));
+    expect(await getCompendiumEntry('conditions', 'nonexistent')).toBeUndefined();
+  });
+
+  it('throws on any other failed response', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}, 500));
+    await expect(getCompendiumEntry('conditions', 'frightened')).rejects.toThrow(
+      /responded 500/,
+    );
   });
 });
