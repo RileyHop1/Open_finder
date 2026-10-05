@@ -67,7 +67,19 @@ export {
   type ArmorGroup,
 } from './content/armor.js';
 
-export { gearEntrySchema, type GearEntry } from './content/gear.js';
+export {
+  CONSUMABLE_CATEGORIES,
+  consumableCategorySchema,
+  consumableSchema,
+  consumableSpellRefSchema,
+  consumableUsesSchema,
+  gearEntrySchema,
+  type Consumable,
+  type ConsumableCategory,
+  type ConsumableSpellRef,
+  type ConsumableUses,
+  type GearEntry,
+} from './content/gear.js';
 
 export {
   AREA_SHAPES,
