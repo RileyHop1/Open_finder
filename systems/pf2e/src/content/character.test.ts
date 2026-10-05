@@ -71,6 +71,30 @@ describe('characterDataSchema', () => {
     expect(parsed.conditions).toEqual([]);
     expect(parsed.choices).toEqual({});
     expect(parsed.ancestryHp).toBe(0);
+    expect(parsed.coins).toEqual({ pp: 0, gp: 0, sp: 0, cp: 0 });
+  });
+
+  it('accepts an explicit purse', () => {
+    const parsed = characterDataSchema.parse({
+      ...minimal(),
+      coins: { gp: 15, sp: 5 },
+    });
+    expect(parsed.coins).toEqual({ pp: 0, gp: 15, sp: 5, cp: 0 });
+  });
+
+  it('rejects a negative denomination', () => {
+    const result = characterDataSchema.safeParse({ ...minimal(), coins: { gp: -1 } });
+    expect(result.success).toBe(false);
+  });
+
+  it('parses a character stored before coins existed as an empty purse, not a rejection', () => {
+    // A stand-in for a real actor's `system` blob from before this field
+    // existed: everything minimal() already covers, with no `coins` key at
+    // all. This field is purely additive, so no migration is needed for it
+    // to keep parsing (unlike a shape *change*, which ADR 0014 says would be).
+    const storedBeforeCoinsExisted = minimal();
+    const parsed = characterDataSchema.parse(storedBeforeCoinsExisted);
+    expect(parsed.coins).toEqual({ pp: 0, gp: 0, sp: 0, cp: 0 });
   });
 
   it('keeps explicit ranks, including a Lore skill', () => {

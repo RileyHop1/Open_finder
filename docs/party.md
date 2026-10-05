@@ -14,10 +14,10 @@ need one owner for who is in the group and in what order.
 | `memberIds` | array of UUID | Actor ids, in display order (the party bar's order). No duplicates |
 | `level` | integer 1-20, default 1 | The level the encounter builder budgets against (milestone 13) |
 | `sceneId` | UUID, optional | The scene the party is in: the one every player's view follows and whose tokens they may see ([scene.md](scene.md), [ADR 0017](adr/0017-scenes-and-tokens.md)). Absent until the GM first places the party. Whether it names an existing scene is the server's check, not the schema's |
+| `stash` | object, optional | The shared inventory: opaque to core, the same way an `Actor`'s `system` is ([actor.md](actor.md), [ADR 0014](adr/0014-actor-document-shape.md)). `systems/pf2e`'s `partyStashSchema` (`content/partyStash.ts`) is what it actually holds -- a purse plus embedded item copies ([ADR 0021](adr/0021-inventory-economy.md), [inventory.md](inventory.md)). Absent means the same thing an empty object does: nothing in it yet |
 
-Shared inventory is deliberately not modeled yet; it lands with the first
-feature that needs it. Whether an id actually refers to an existing actor is
-the server's check when membership changes, not the schema's.
+Whether an id actually refers to an existing actor is the server's check when
+membership changes, not the schema's.
 
 ## Operations
 
@@ -32,5 +32,7 @@ in the same transaction.
 ## Testing
 
 `packages/core/src/party.test.ts`: a default level of 1, an empty party, member
-order preserved, and rejection of a duplicate member, a malformed id, and a
-level outside 1-20.
+order preserved, rejection of a duplicate member, a malformed id, and a level
+outside 1-20, and that `stash` is left opaque (undefined when absent, kept
+verbatim when present). `systems/pf2e/src/content/partyStash.test.ts` covers
+what it actually holds.
