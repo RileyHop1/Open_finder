@@ -7,7 +7,9 @@ import { resolveDependencies } from './resolveDependencies.js';
 import type { AncestryEntry } from '../content/ancestry.js';
 import type { ClassEntry, ClassFeatureEntry } from '../content/class.js';
 import type { FeatEntry } from '../content/feat.js';
+import type { GearEntry } from '../content/gear.js';
 import type { HeritageEntry } from '../content/heritage.js';
+import type { SpellEntry } from '../content/spell.js';
 
 // Synthetic, invented fixtures throughout (ADR 0013), constructed directly
 // at the draft-entry shape rather than through a mapper -- this pass
@@ -147,6 +149,53 @@ function makeClassFeature(
     description: '',
     classSlug: `invented-class-${upstreamId}`,
     level: 1,
+    ...overrides,
+  };
+}
+
+function makeGear(
+  upstreamId: string,
+  overrides: Partial<DraftEntry<GearEntry>> = {},
+): DraftEntry<GearEntry> {
+  return {
+    id: deterministicId(upstreamId),
+    schemaVersion: 1,
+    createdAt: IMPORTED_AT,
+    updatedAt: IMPORTED_AT,
+    packId: 'equipment',
+    slug: `invented-gear-${upstreamId}`,
+    name: `Invented Gear ${upstreamId}`,
+    kind: 'gear',
+    provenance: PROVENANCE,
+    traits: [],
+    ruleElements: [],
+    description: '',
+    ...overrides,
+  };
+}
+
+function makeSpell(
+  upstreamId: string,
+  overrides: Partial<DraftEntry<SpellEntry>> = {},
+): DraftEntry<SpellEntry> {
+  return {
+    id: deterministicId(upstreamId),
+    schemaVersion: 1,
+    createdAt: IMPORTED_AT,
+    updatedAt: IMPORTED_AT,
+    packId: 'spells',
+    slug: `invented-spell-${upstreamId}`,
+    name: `Invented Spell ${upstreamId}`,
+    kind: 'spell',
+    provenance: PROVENANCE,
+    traits: [],
+    ruleElements: [],
+    description: '',
+    rank: 3,
+    traditions: [],
+    castTime: '2',
+    range: { kind: 'self' },
+    sustained: false,
     ...overrides,
   };
 }
@@ -315,5 +364,77 @@ describe('resolveDependencies -- heritage/ancestry and class-feature/class refer
         round: 1,
       },
     ]);
+  });
+});
+
+describe("resolveDependencies -- a consumable's spell reference", () => {
+  it('keeps consumable.spell when the referenced spell survives', () => {
+    const spell = makeSpell('ffffffffffffffff');
+    const scroll = makeGear('eeeeeeeeeeeeeeee', {
+      consumable: {
+        category: 'scroll',
+        spell: { packId: spell.packId, slug: spell.slug, rank: 3 },
+      },
+    });
+
+    const result = resolveDependencies([scroll, spell]);
+
+    expect(result.drops).toEqual([]);
+    const keptScroll = result.kept.find((entry) => entry.kind === 'gear');
+    expect(
+      keptScroll?.kind === 'gear' ? keptScroll.consumable?.spell : undefined,
+    ).toEqual({
+      packId: spell.packId,
+      slug: spell.slug,
+      rank: 3,
+    });
+  });
+
+  it('clears consumable.spell (keeping the gear entry) when the referenced spell was not imported', () => {
+    const scroll = makeGear('eeeeeeeeeeeeeeee', {
+      consumable: {
+        category: 'scroll',
+        spell: { packId: 'spells', slug: 'excluded-spell', rank: 3 },
+      },
+    });
+
+    const result = resolveDependencies([scroll]);
+
+    expect(result.drops).toEqual([]);
+    expect(result.kept).toHaveLength(1);
+    const keptScroll = result.kept[0];
+    expect(keptScroll?.kind === 'gear' ? keptScroll.consumable : undefined).toEqual({
+      category: 'scroll',
+    });
+  });
+
+  it('clears consumable.spell when the referenced spell is dropped in a later round', () => {
+    const scroll = makeGear('eeeeeeeeeeeeeeee', {
+      consumable: {
+        category: 'scroll',
+        spell: { packId: 'spells', slug: 'invented-spell-ffffffffffffffff', rank: 3 },
+      },
+    });
+    const feature = makeClassFeature('aaaaaaaaaaaaaaaa', { classSlug: 'excluded-class' });
+    const spell = makeSpell('ffffffffffffffff', {
+      ruleElements: [
+        { kind: 'unresolvedGrantItem', uuid: grantUuidFor('aaaaaaaaaaaaaaaa') },
+      ],
+    });
+
+    const result = resolveDependencies([scroll, spell, feature]);
+
+    const keptScroll = result.kept.find((entry) => entry.kind === 'gear');
+    expect(keptScroll?.kind === 'gear' ? keptScroll.consumable : undefined).toEqual({
+      category: 'scroll',
+    });
+  });
+
+  it('leaves an ordinary gear entry (no consumable) untouched', () => {
+    const gear = makeGear('eeeeeeeeeeeeeeee');
+
+    const result = resolveDependencies([gear]);
+
+    expect(result.kept).toEqual([gear]);
   });
 });

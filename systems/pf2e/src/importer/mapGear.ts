@@ -2,14 +2,23 @@
  * Maps an upstream `equipment`/`consumable`/`treasure`/`backpack`-type
  * entry onto a draft `GearEntry`. Beyond the shared envelope fields, this
  * reads price, Bulk, and level the same way `mapWeapon.ts`/`mapArmor.ts`
- * do, and -- for a `consumable`-type entry only -- its category and
- * multi-use charges (milestone 7's inventory economy, ADR 0021).
+ * do, and -- for a `consumable`-type entry only -- the `consumable`
+ * sub-shape (milestone 7's inventory economy, ADR 0021).
  *
- * **`consumable.spell` (a scroll or wand's cast spell) is deliberately not
- * filled here.** Whether that reference survives depends on the full
- * imported entry set, the same way a `grantItem` target does -- a later
- * PR in this milestone adds that resolution step, the same way
- * `resolveDependencies.ts` already does for rule elements.
+ * **`consumable.spell`'s upstream shape is unverified** -- this assumes a
+ * scroll or wand embeds the spell it casts at `system.spell`, itself
+ * shaped like a spell item (`system.spell.system.slug`,
+ * `system.spell.system.level.value` for the cast/heightened rank), the
+ * same way `mapWeapon.ts`'s field paths are flagged. **(confirm)** during
+ * the real-data importer run.
+ *
+ * **The spell reference is only tentatively filled here.** This mapper
+ * sees one entry at a time and cannot yet know whether that spell
+ * actually survived import -- `resolveDependencies.ts` clears `spell`
+ * back out, after the fact, for any reference that didn't (ADR 0021:
+ * "excluded content is excluded whole" for the reference, not the whole
+ * consumable). `packId: 'spells'` is always correct to fill in now: every
+ * spell this importer keeps goes into that one pack (`mapSpell.ts`).
  */
 
 import type { Provenance } from '@hearthtable/core';
@@ -75,12 +84,47 @@ function mapConsumableUses(
   return { current, max };
 }
 
+/** See the module doc's caveat on this shape. Returns undefined on anything unparsable rather than guessing a rank. */
+function mapConsumableSpell(
+  spellValue: unknown,
+): { readonly packId: string; readonly slug: string; readonly rank: number } | undefined {
+  const spellRecord = asRecord(spellValue);
+  if (spellRecord === undefined) {
+    return undefined;
+  }
+  const spellSystem = asRecord(spellRecord.system);
+  const name = spellRecord.name;
+  const rawSlug = spellSystem?.slug;
+  const slug =
+    typeof rawSlug === 'string' && rawSlug.length > 0
+      ? rawSlug
+      : typeof name === 'string' && name.length > 0
+        ? slugify(name)
+        : undefined;
+  const rank =
+    spellSystem === undefined
+      ? undefined
+      : nestedNumberField(spellSystem, 'level', 'value');
+  if (
+    slug === undefined ||
+    rank === undefined ||
+    !Number.isInteger(rank) ||
+    rank < 1 ||
+    rank > 10
+  ) {
+    return undefined;
+  }
+  return { packId: 'spells', slug, rank };
+}
+
 function mapConsumable(system: Record<string, unknown>): Consumable {
   const category = mapConsumableCategory(asRecord(system.consumableType)?.value);
   const uses = mapConsumableUses(system.uses);
+  const spell = mapConsumableSpell(system.spell);
   return {
     category,
     ...(uses !== undefined ? { uses } : {}),
+    ...(spell !== undefined ? { spell } : {}),
   };
 }
 
