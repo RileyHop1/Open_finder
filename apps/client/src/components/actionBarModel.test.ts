@@ -1,11 +1,15 @@
 import type { Actor, Combatant } from '@hearthtable/core';
 import { actorSchema, combatantSchema } from '@hearthtable/core';
 import type { CharacterData, WeaponEntry } from '@hearthtable/pf2e';
-import { newCharacterData } from '@hearthtable/pf2e';
+import {
+  creatureEntrySchema,
+  newCharacterData,
+  newNpcFromCreature,
+} from '@hearthtable/pf2e';
 import { describe, expect, it } from 'vitest';
 
 import { actionBarView } from './actionBarModel.js';
-import { makeNpc } from './sheet/testNpc.js';
+import { BOG_STRANGLER, makeNpc } from './sheet/testNpc.js';
 
 const NOW = '2026-10-01T00:00:00.000Z';
 const base = (type: string) => ({
@@ -104,6 +108,30 @@ describe('actionBarView', () => {
   it('leaves an NPC strike’s reach and range unknown: no weapon entry to read them from', () => {
     const view = actionBarView(makeNpc(), undefined);
     expect(view.strikes[0]).toMatchObject({ reach: false, rangeFeet: undefined });
+  });
+
+  it('carries a weapon’s traits on a character strike, and a strike’s own traits on an NPC’s', () => {
+    const [sword, reachSword] = actionBarView(
+      makeCharacter([SWORD, REACH_SWORD]),
+      undefined,
+    ).strikes;
+    expect(sword?.traits).toEqual([]);
+    expect(reachSword?.traits).toEqual(['reach']);
+
+    // The raw creature data, not `prepareNpc`'s own output, is where an
+    // NPC strike's traits come from (it carries none) -- read by index
+    // against `creature.strikes`, so this checks that index lines up.
+    const creature = creatureEntrySchema.parse({
+      ...BOG_STRANGLER,
+      strikes: [{ ...BOG_STRANGLER.strikes[0], traits: ['agile', 'finesse'] }],
+    });
+    const npc = makeNpc({
+      system: newNpcFromCreature(creature, { packId: 'bestiary', slug: 'invented' }),
+    });
+    expect(actionBarView(npc, undefined).strikes[0]?.traits).toEqual([
+      'agile',
+      'finesse',
+    ]);
   });
 
   it('lists the basic actions, and says whether there is a combatant to spend against', () => {

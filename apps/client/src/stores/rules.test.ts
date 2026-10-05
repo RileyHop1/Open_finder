@@ -1,4 +1,4 @@
-import type { CompendiumEntry } from '@hearthtable/core';
+import type { CompendiumEntry, TraitEntry } from '@hearthtable/core';
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -107,5 +107,69 @@ describe('getEntry', () => {
     vi.mocked(compendiumApi.getCompendiumEntry).mockResolvedValueOnce(entry);
     expect(await store.getEntry('conditions', 'frightened')).toEqual(entry);
     expect(compendiumApi.getCompendiumEntry).toHaveBeenCalledTimes(2);
+  });
+});
+
+function makeTrait(overrides: Partial<TraitEntry> = {}): TraitEntry {
+  return {
+    slug: 'agile',
+    name: 'Agile',
+    text: [{ kind: 'text', value: 'Reduces the Multiple Attack Penalty.' }],
+    ...overrides,
+  };
+}
+
+describe('getTrait', () => {
+  it('fetches the whole glossary once and looks a slug up locally', async () => {
+    const agile = makeTrait();
+    const finesse = makeTrait({ slug: 'finesse', name: 'Finesse' });
+    vi.mocked(compendiumApi.getCompendiumTraits).mockResolvedValue([agile, finesse]);
+
+    const store = useRulesStore();
+    expect(await store.getTrait('agile')).toEqual(agile);
+    expect(await store.getTrait('finesse')).toEqual(finesse);
+    expect(compendiumApi.getCompendiumTraits).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns undefined for a slug the glossary has no entry for, without refetching', async () => {
+    vi.mocked(compendiumApi.getCompendiumTraits).mockResolvedValue([makeTrait()]);
+
+    const store = useRulesStore();
+    expect(await store.getTrait('no-such-trait')).toBeUndefined();
+    expect(await store.getTrait('no-such-trait')).toBeUndefined();
+    expect(compendiumApi.getCompendiumTraits).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares one in-flight request between concurrent callers', async () => {
+    let resolve: (entries: TraitEntry[]) => void = () => undefined;
+    vi.mocked(compendiumApi.getCompendiumTraits).mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+
+    const store = useRulesStore();
+    const first = store.getTrait('agile');
+    const second = store.getTrait('agile');
+    expect(compendiumApi.getCompendiumTraits).toHaveBeenCalledTimes(1);
+
+    const agile = makeTrait();
+    resolve([agile]);
+    expect(await first).toEqual(agile);
+    expect(await second).toEqual(agile);
+  });
+
+  it('does not cache a rejected request, so a later call can retry', async () => {
+    vi.mocked(compendiumApi.getCompendiumTraits).mockRejectedValueOnce(
+      new Error('network error'),
+    );
+
+    const store = useRulesStore();
+    await expect(store.getTrait('agile')).rejects.toThrow('network error');
+
+    const agile = makeTrait();
+    vi.mocked(compendiumApi.getCompendiumTraits).mockResolvedValueOnce([agile]);
+    expect(await store.getTrait('agile')).toEqual(agile);
+    expect(compendiumApi.getCompendiumTraits).toHaveBeenCalledTimes(2);
   });
 });

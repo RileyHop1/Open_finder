@@ -15,6 +15,7 @@ import type { Actor } from '@hearthtable/core';
 import { npcDataSchema, prepareNpc } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
+import RulesTerm from '../RulesTerm.vue';
 import { signed, titleCase } from './format.js';
 import NumberField from './NumberField.vue';
 
@@ -71,7 +72,11 @@ const speeds = computed(() =>
       <p class="muted">
         Creature {{ data.creature.level }} · {{ titleCase(data.creature.size) }}
         <template v-if="data.creature.traits.length > 0">
-          · {{ data.creature.traits.join(', ') }}
+          ·
+          <template v-for="(trait, index) in data.creature.traits" :key="trait">
+            <RulesTerm term-kind="trait" :slug="trait" :label="titleCase(trait)" />
+            <template v-if="index < data.creature.traits.length - 1">, </template>
+          </template>
         </template>
       </p>
       <p v-if="speeds" class="muted">{{ speeds }}</p>

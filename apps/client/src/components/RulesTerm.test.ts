@@ -28,10 +28,14 @@ function makeEntry(text: CompendiumEntry['text']): CompendiumEntry {
   };
 }
 
-function stubStore(getEntry: ReturnType<typeof vi.fn>): void {
-  vi.mocked(useRulesStore).mockReturnValue({ getEntry } as unknown as ReturnType<
-    typeof useRulesStore
-  >);
+function stubStore(
+  getEntry: ReturnType<typeof vi.fn> = vi.fn(),
+  getTrait: ReturnType<typeof vi.fn> = vi.fn(),
+): void {
+  vi.mocked(useRulesStore).mockReturnValue({
+    getEntry,
+    getTrait,
+  } as unknown as ReturnType<typeof useRulesStore>);
 }
 
 beforeEach(() => {
@@ -152,15 +156,42 @@ describe('RulesTerm', () => {
     expect(wrapper.find('.rules-term-popover').exists()).toBe(false);
   });
 
-  it('shows "No details yet" for a trait term, without fetching (no pack mapping yet)', async () => {
+  it('opens a trait term through getTrait, not getEntry, and renders its text', async () => {
     const getEntry = vi.fn();
-    stubStore(getEntry);
+    const getTrait = vi.fn().mockResolvedValue({
+      slug: 'agile',
+      name: 'Agile',
+      text: [{ kind: 'text', value: 'Reduces the Multiple Attack Penalty.' }],
+    });
+    stubStore(getEntry, getTrait);
 
     const wrapper = render({ termKind: 'trait', slug: 'agile', label: 'agile' });
     await wrapper.find('.rules-term').trigger('click');
     await wrapper.vm.$nextTick();
+    await Promise.resolve();
+    await wrapper.vm.$nextTick();
 
+    expect(getTrait).toHaveBeenCalledWith('agile');
     expect(getEntry).not.toHaveBeenCalled();
+    expect(wrapper.find('.rules-term-popover').text()).toContain(
+      'Reduces the Multiple Attack Penalty.',
+    );
+  });
+
+  it('shows "No details yet" for a trait the glossary has no entry for', async () => {
+    const getTrait = vi.fn().mockResolvedValue(undefined);
+    stubStore(vi.fn(), getTrait);
+
+    const wrapper = render({
+      termKind: 'trait',
+      slug: 'no-such-trait',
+      label: 'mystery',
+    });
+    await wrapper.find('.rules-term').trigger('click');
+    await wrapper.vm.$nextTick();
+    await Promise.resolve();
+    await wrapper.vm.$nextTick();
+
     expect(wrapper.find('.rules-term-empty').text()).toBe('No details yet.');
   });
 

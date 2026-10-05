@@ -34,8 +34,14 @@ describe('NpcSheet', () => {
     expect(wrapper.get('h3').text()).toBe('Invented Bog Strangler');
     expect(wrapper.text()).toContain('Creature 3');
     expect(wrapper.text()).toContain('Large');
-    expect(wrapper.text()).toContain('plant, swamp');
+    expect(wrapper.text()).toContain('Plant, Swamp');
     expect(wrapper.text()).toContain('Speed 25 ft, Swim 10 ft');
+  });
+
+  it('shows each trait as its own tooltip term, not one plain joined string', () => {
+    const wrapper = mount(NpcSheet, { props: { actor: makeNpc() } });
+    const terms = wrapper.findAll('.rules-term');
+    expect(terms.map((t) => t.text())).toEqual(['Plant', 'Swamp']);
   });
 
   it('lists the defences, perception, and skills with their totals', () => {
@@ -63,7 +69,8 @@ describe('NpcSheet', () => {
     expect(wrapper.find('button[aria-label="Roll Armor Class"]').exists()).toBe(false);
 
     const read = mount(NpcSheet, { props: { actor: makeNpc() } });
-    expect(read.find('button').exists()).toBe(false);
+    // A trait's own tooltip trigger is still a button -- just not a Roll one.
+    expect(read.find('button[aria-label]').exists()).toBe(false);
   });
 
   it('asks to roll the statistic by its key', async () => {
