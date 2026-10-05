@@ -789,6 +789,16 @@ export const actorAdjustCoinsOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Adjust the party stash's purse by `delta`, the same rules as
+ * `actor.adjustCoins`. GM only, like every other change to the party's
+ * shared stash (`party.ts`).
+ */
+export const partyAdjustCoinsOperationSchema = clientOperationSchema.extend({
+  type: z.literal('party.adjustCoins'),
+  payload: z.object({ delta: coinsDeltaSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -846,6 +856,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorHealOperationSchema,
   actorRollRecoveryOperationSchema,
   actorAdjustCoinsOperationSchema,
+  partyAdjustCoinsOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
