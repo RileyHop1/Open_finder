@@ -26,6 +26,7 @@ import type { ArmorEntry } from '../content/armor.js';
 import type { CharacterData, CharacterItem } from '../content/character.js';
 import type { Attribute } from '../content/common.js';
 import { applyRuleElements } from './applyRuleElements.js';
+import { encumbranceStatus, totalBulk, type EncumbranceStatus } from './bulk.js';
 import type { ConditionTarget } from './conditionModifiers.js';
 import { conditionModifiers } from './conditionModifiers.js';
 import { buildArmorClass, buildSave, SAVE_TYPES } from './defenses.js';
@@ -57,6 +58,8 @@ export interface PreparedCharacter {
   readonly inertItems: readonly InertItem[];
   /** The roll options rule elements activated, for predicates evaluated later (strikes). */
   readonly rollOptions: ReadonlySet<string>;
+  /** Total Bulk from carried items and coins, and whether it crosses either threshold (`bulk.ts`, ADR 0021). Computed only -- applying `encumbered` is the operation layer's job. */
+  readonly encumbrance: EncumbranceStatus;
 }
 
 function isActive(item: CharacterItem): boolean {
@@ -167,5 +170,6 @@ export function prepareCharacter(data: CharacterData): PreparedCharacter {
     strikes: prepareStrikes(data, applied),
     inertItems: findInertItems(data.items),
     rollOptions: applied.rollOptions,
+    encumbrance: encumbranceStatus(totalBulk(data.items, data.coins), attributes.str),
   };
 }

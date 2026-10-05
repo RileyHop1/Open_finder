@@ -742,7 +742,11 @@ ruling from silently drifting.
   rather than just displaying a number the GM can choose to ignore -- and a
   table that wants the hard rule enforced can still just not click through
   the warning.
-- **Golden test:** `systems/pf2e/src/rules/bulk.test.ts`, one golden case per
-  class.
+- **Golden test:** `systems/pf2e/src/rules/bulk.test.ts` (the formula and both
+  thresholds) plus one case in `prepareCharacter.test.ts` exercising the real
+  `CharacterData` → `prepareCharacter` path. Not one case per class: unlike a
+  save or a skill, Bulk's formula does not vary by class, so testing it once
+  through the real pipeline, plus `bulk.ts`'s own unit tests for the edge
+  cases, covers it exactly as well as 16 copies of the same arithmetic would.
 - **Override:** the GM can apply or remove `encumbered` by hand regardless of
   the computed total, and nothing stops a transfer that crosses the maximum.

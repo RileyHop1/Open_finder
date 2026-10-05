@@ -106,6 +106,10 @@ one way. It returns:
 - `inertItems`: items carrying automation we could not map, for the sheet to
   flag "automation not applied" (ADR 0004).
 - `rollOptions`: what rule elements activated.
+- `encumbrance`: total Bulk (every carried item, equipped or not, plus coins
+  by raw count), the `encumberedAt`/`maxBulk` thresholds, and whether either
+  is crossed (`rules/bulk.ts`, [ADR 0021](adr/0021-inventory-economy.md)).
+  Computed only -- nothing here writes the `encumbered` condition
 
 Strikes come from `prepareStrikes` (below) and ride along as `strikes`.
 
