@@ -60,7 +60,7 @@ shape:
 6. **Conditions gain a `duration`**: until the start or end of a named
    combatant's turn, a number of rounds, sustained, or until removed. A condition
    written before this milestone has none and means until removed. Minute and
-   hour durations belong to the `Calendar` (milestone 13) and are not built here.
+   hour durations belong to the `Calendar` (milestone 14) and are not built here.
 7. **The tracker supplies the Multiple Attack Penalty.** While a combatant's turn
    is active, a strike's attack number comes from its attack count and is shown on
    the roll's breakdown. A client may still send an explicit number: that is the

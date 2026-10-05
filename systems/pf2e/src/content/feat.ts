@@ -51,7 +51,7 @@ export const featEntrySchema = compendiumEntrySchema.extend({
    * Free-text prerequisite descriptions ("trained in Athletics", "level
    * 5"), not a structured, machine-checked graph. A real prerequisite
    * graph -- parsed, validated, and driving what the creation wizard shows
-   * as available -- is milestone 7's job; v1's importer only needs to
+   * as available -- is milestone 8's job; v1's importer only needs to
    * carry the text through so the sheet and wizard can display it.
    */
   prerequisites: z.array(z.string().min(1)).readonly().default([]),

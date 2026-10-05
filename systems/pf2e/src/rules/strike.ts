@@ -72,7 +72,7 @@ export interface BuildStrikeAttackOptions {
    * The attribute this strike's ability modifier uses. A non-finesse melee
    * weapon always uses Strength; a ranged weapon always uses Dexterity; a
    * `finesse`-trait weapon's wielder may choose either at character
-   * creation. Resolving that choice is chargen state (milestone 7), not
+   * creation. Resolving that choice is chargen state (milestone 8), not
    * this function's job, so the already-chosen attribute is passed in --
    * the same pattern `buildClassDc`'s `keyAttribute` uses.
    */

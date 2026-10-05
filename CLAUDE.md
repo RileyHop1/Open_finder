@@ -445,7 +445,7 @@ real session.
    elements
 3. **Character sheet:** attributes, proficiency, skills, strikes, conditions;
    `Party` document and the party bar (portraits, HP, conditions). Editable
-   enough to hand-build a character, because milestone 7 (the wizard) is not here yet
+   enough to hand-build a character, because milestone 8 (the wizard) is not here yet
 4. **Scenes:** map upload, grid, tokens, movement, scene `kind`
    (overworld / area / battle) and links between scenes
 5. **Combat tracker:** initiative, turns, three-action economy, MAP, condition
@@ -454,7 +454,11 @@ real session.
 6. **Learn as you play:** rules tooltips, nested tooltips, encyclopedia,
    modifier breakdowns on every number. Before the wizard on purpose: the wizard
    uses this system to explain prerequisites
-7. **Character creation and level-up:** the step-by-step wizard, staged by how
+7. **Loot and inventory:** coins, item prices and Bulk, encumbrance, consumables
+   (potions, scrolls, wands), a party stash, and giving items between characters.
+   Before the wizard on purpose: the wizard's equipment step hands out real
+   starting money and gear, not placeholders
+8. **Character creation and level-up:** the step-by-step wizard, staged by how
    hard each class is to automate rather than by book:
    - (a) **wizard skeleton + the 7 martial classes** — Fighter, Ranger, Rogue,
      Barbarian, Investigator, Monk, Swashbuckler. Feat picks and proficiencies,
@@ -470,21 +474,21 @@ real session.
    — **v1 ships here**
 
 ### post-v1
-8. **Walls and sight:** walls block movement and line of sight, per-token
+9. **Walls and sight:** walls block movement and line of sight, per-token
    vision, fog of war
-9. **Lighting:** light sources, darkvision and low-light vision, concealment
-   from dim light. Directly after walls, because lighting *is* vision in PF2e
-   and the geometry from milestone 8 is most of the work
-10. **Journal:** campaign notes with rich text, pages, permissions, doc links
-11. **Audio:** a shared playlist — tracks, volume, loop, synced play/pause over
+10. **Lighting:** light sources, darkvision and low-light vision, concealment
+    from dim light. Directly after walls, because lighting *is* vision in PF2e
+    and the geometry from milestone 9 is most of the work
+11. **Journal:** campaign notes with rich text, pages, permissions, doc links
+12. **Audio:** a shared playlist — tracks, volume, loop, synced play/pause over
     the existing operation channel. Small by design; see Out of scope
-12. **Encounter builder:** XP budget by party level, bestiary compendium
-13. **Overworld travel:** party marker, travel time, the `Calendar` clock, and
+13. **Encounter builder:** XP budget by party level, bestiary compendium
+14. **Overworld travel:** party marker, travel time, the `Calendar` clock, and
     area ↔ battle map handoff
-14. **Downtime:** activity picker, day counter, roll resolution, journal log
-15. **Events and triggers:** scripted or branching campaign events (our
+15. **Downtime:** activity picker, day counter, roll resolution, journal log
+16. **Events and triggers:** scripted or branching campaign events (our
     differentiator)
-16. **Campaign builder:** prep/play modes, campaign outline tree, templates,
+17. **Campaign builder:** prep/play modes, campaign outline tree, templates,
     visual trigger editor, prep-mode undo/redo, polish pass on all GM tools
 
 ### Definition of done

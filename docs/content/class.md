@@ -35,7 +35,7 @@ table for *which skill* becomes expert at a given level -- "skill
 increases" let the player pick any trained skill to bump, at levels that
 are the same across classes. Only the level-1 starting count
 (`classSkillsSchema.trainedSkillCount`) is class data; the per-level choice
-is milestone 7's wizard, not this schema.
+is milestone 8's wizard, not this schema.
 
 ## `class` fields
 

@@ -131,7 +131,7 @@ export interface BuildClassDcOptions {
   /**
    * The character's chosen key attribute for their class. `class.ts`'s
    * `keyAttributeOptions` may list more than one (a Fighter picks Strength
-   * or Dexterity) -- resolving that choice is chargen state (milestone 7),
+   * or Dexterity) -- resolving that choice is chargen state (milestone 8),
    * not this function's job, so the already-chosen attribute is passed in.
    */
   readonly keyAttribute: Attribute;

@@ -16,7 +16,7 @@ import { goldenCharacter, goldenStatistics } from './goldenCharacter.js';
  * advance: even at a fixed rank, `proficiencyModifier`'s total still grows
  * with level, from the level term alone. Spellcasting proficiency (spell
  * attack/DC) is not modeled here -- Stack D has no builder for it, since
- * full spellcasting is milestone 7's job; a caster's Class DC (asserted
+ * full spellcasting is milestone 8's job; a caster's Class DC (asserted
  * below) and their spell DC are mechanically distinct statistics with
  * their own, different proficiency progressions. Ability scores and
  * equipment are held constant across all three levels, to isolate

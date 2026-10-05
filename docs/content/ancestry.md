@@ -3,7 +3,7 @@
 The three content kinds a character-creation flow picks from first. See
 [../content-model.md](../content-model.md) for the shared vocabulary and
 [../compendium.md](../compendium.md) for the envelope. These schemas carry
-the *data*; the actual step-by-step creation flow is milestone 7's wizard.
+the *data*; the actual step-by-step creation flow is milestone 8's wizard.
 
 ## `ancestry`
 

@@ -19,7 +19,7 @@
  * set.
  *
  * **`grantItem` is out of scope here.** Granting another compendium entry
- * onto a character is character-build state (milestone 7's wizard), not
+ * onto a character is character-build state (milestone 8's wizard), not
  * something resolved every time a statistic is computed.
  */
 
@@ -39,7 +39,7 @@ export interface ApplyRuleElementsOptions {
   /**
    * A `choiceSet` element's already-made choice, keyed by
    * `rollOptionPrefix`. Which choice a player made is character-build
-   * state (milestone 7), not something this module decides -- an entry
+   * state (milestone 8), not something this module decides -- an entry
    * here is only honored if a `choiceSet` element with that prefix is
    * actually present among `items` and lists the chosen value among its
    * own `choices`; anything else is silently ignored rather than adding an

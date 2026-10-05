@@ -12,7 +12,7 @@ need one owner for who is in the group and in what order.
 | `type` | `'party'` | Literal |
 | `name` | non-empty string | |
 | `memberIds` | array of UUID | Actor ids, in display order (the party bar's order). No duplicates |
-| `level` | integer 1-20, default 1 | The level the encounter builder budgets against (milestone 12) |
+| `level` | integer 1-20, default 1 | The level the encounter builder budgets against (milestone 13) |
 | `sceneId` | UUID, optional | The scene the party is in: the one every player's view follows and whose tokens they may see ([scene.md](scene.md), [ADR 0017](adr/0017-scenes-and-tokens.md)). Absent until the GM first places the party. Whether it names an existing scene is the server's check, not the schema's |
 
 Shared inventory is deliberately not modeled yet; it lands with the first

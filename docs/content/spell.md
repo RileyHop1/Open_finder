@@ -4,7 +4,7 @@ PF2e's most structurally complex content kind. See
 [../content-model.md](../content-model.md) for the shared vocabulary and
 [../compendium.md](../compendium.md) for the envelope. This schema carries
 the *data*; the mechanics that consume it (slots by rank, prepared vs.
-spontaneous, what heightening does numerically) are milestone 7(b)'s job.
+spontaneous, what heightening does numerically) are milestone 8(b)'s job.
 
 ## No `components` field **(confirm)**
 

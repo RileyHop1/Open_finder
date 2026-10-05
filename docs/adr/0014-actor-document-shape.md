@@ -18,7 +18,7 @@ Milestone 3 introduces the first two real content documents: `Actor` and
   change a campaign's numbers with no diff in the world. A world is the unit of
   backup and moving to another machine (ADR 0002), so it should not depend on a
   git-ignored folder that exists only on the machine that imported it.
-- **Milestone 7's wizard and milestone 3's hand-building must write the same
+- **Milestone 8's wizard and milestone 3's hand-building must write the same
   data.** Whatever the sheet stores by hand today is what the wizard stores
   later, so the shape cannot be a sheet-only convenience.
 

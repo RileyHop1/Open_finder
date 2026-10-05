@@ -3,7 +3,7 @@
  * `ruleElements` -- a boost is a character-creation-time score adjustment
  * with its own diminishing-returns rule (a fourth boost past 18 is only
  * +1, not +2), a fundamentally different mechanic from a rule element's
- * always-on `Modifier`. Milestone 7's creation wizard is the real consumer;
+ * always-on `Modifier`. Milestone 8's creation wizard is the real consumer;
  * this schema only carries the data through.
  */
 
