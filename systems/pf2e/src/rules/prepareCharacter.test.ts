@@ -217,4 +217,42 @@ describe('prepareCharacter', () => {
     const prepared = prepareCharacter(character({ hp: { current: 7, temp: 3 } }));
     expect(prepared.hp).toMatchObject({ current: 7, temp: 3 });
   });
+
+  it('computes encumbrance from carried items, coins, and Strength -- the golden case for bulk.ts', () => {
+    const rope = gear('Invented Rope', []);
+    const prepared = prepareCharacter(
+      character({
+        // str: 4, so encumberedAt = 9, maxBulk = 14.
+        items: [
+          {
+            id: crypto.randomUUID(),
+            entry: { ...rope, bulk: 6 },
+            equipped: false,
+            quantity: 1,
+          },
+          {
+            id: crypto.randomUUID(),
+            entry: { ...rope, bulk: 1 },
+            equipped: false,
+            quantity: 2,
+          },
+        ],
+        coins: { pp: 0, gp: 1000, sp: 0, cp: 0 },
+      }),
+    );
+    // items: 6 + 1*2 = 8; coins: 1000/1000 = 1; total 9.
+    expect(prepared.encumbrance.totalBulk).toBe(9);
+    expect(prepared.encumbrance.encumberedAt).toBe(9);
+    expect(prepared.encumbrance.maxBulk).toBe(14);
+    expect(prepared.encumbrance.isEncumbered).toBe(false);
+    expect(prepared.encumbrance.exceedsMax).toBe(false);
+  });
+
+  it('counts an unequipped item toward Bulk -- weight does not depend on being worn', () => {
+    const rope = gear('Invented Rope', []);
+    const prepared = prepareCharacter(
+      character({ items: [item({ ...rope, bulk: 10 }, false)] }),
+    );
+    expect(prepared.encumbrance.totalBulk).toBe(10);
+  });
 });

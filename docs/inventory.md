@@ -101,9 +101,11 @@ entirely, rather than carrying a reference to nothing.
 
 - `systems/pf2e/src/rules/coins.test.ts`: conversion to/from copper, making
   change, rejecting an overspend.
-- `systems/pf2e/src/rules/bulk.test.ts` and a golden case per class in
-  `systems/pf2e/src/golden/`: total Bulk, the encumbered threshold crossing
-  in both directions.
+- `systems/pf2e/src/rules/bulk.test.ts`: the formula (items, quantity, coins
+  by raw count) and both thresholds in both directions. One case in
+  `prepareCharacter.test.ts` exercises the real `CharacterData` path; Bulk's
+  formula does not vary by class, so it is not duplicated across the golden
+  set the way a save or a skill is.
 - `packages/core/src/operation.transfer.test.ts`: an item split across two
   holders, a coin transfer, rejecting a transfer the caller does not own and
   one the source cannot cover.
