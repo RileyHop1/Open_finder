@@ -147,6 +147,8 @@ export {
   actorApplyDamageOperationSchema,
   actorHealOperationSchema,
   actorRollRecoveryOperationSchema,
+  actorAdjustCoinsOperationSchema,
+  type CoinsDelta,
   MAX_HIT_POINT_CHANGE,
   sceneAddLinkOperationSchema,
   sceneRemoveLinkOperationSchema,

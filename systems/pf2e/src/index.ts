@@ -325,6 +325,13 @@ export {
 export { ZERO_COINS, coinsSchema, type Coins } from './content/coins.js';
 
 export {
+  adjustCoins,
+  coinsToCopper,
+  copperToCoins,
+  type PartialCoins,
+} from './rules/coins.js';
+
+export {
   newPartyStash,
   partyStashSchema,
   stashItemSchema,

@@ -63,6 +63,7 @@ import {
   updateActor,
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
+import { adjustActorCoins } from './coins.js';
 import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import { settlePersistentDamage } from './persistentDamage.js';
 import { promptReactions } from './reactions.js';
@@ -738,6 +739,11 @@ function dispatch(
         operation.payload,
       );
       return { seatId: seat.id, seats: [], documents };
+    }
+    case 'actor.adjustCoins': {
+      const seat = requireSeat(store, socket);
+      const { documents } = adjustActorCoins(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [...documents] };
     }
     default:
       return assertNever(operation);
