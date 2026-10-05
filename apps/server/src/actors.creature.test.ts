@@ -99,6 +99,7 @@ function compendiumOf(entries: readonly Pf2eEntry[]): CompendiumIndex {
     search: () => [],
     get: (packId, slug) => byKey.get(`${packId}/${slug}`),
     conditions: () => new Map(),
+    traits: () => [],
   };
 }
 

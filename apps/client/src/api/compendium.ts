@@ -7,7 +7,12 @@
  * which a summary doesn't carry.
  */
 
-import { compendiumEntrySchema, type CompendiumEntry } from '@hearthtable/core';
+import {
+  compendiumEntrySchema,
+  traitEntrySchema,
+  type CompendiumEntry,
+  type TraitEntry,
+} from '@hearthtable/core';
 import { z } from 'zod';
 
 export const entrySummarySchema = z.object({
@@ -81,4 +86,19 @@ export async function getCompendiumEntry(
   }
   const body: unknown = await response.json();
   return compendiumEntrySchema.parse(body);
+}
+
+/**
+ * The whole trait glossary (ADR 0020 decision 5), fetched once -- it's one
+ * short flat list (208 entries against a real import), not a per-slug
+ * lookup like `getCompendiumEntry`, because `traits.json` isn't a pack.
+ * `stores/rules.ts` is where this gets cached and turned into a per-slug
+ * lookup for `RulesTerm`.
+ */
+export function getCompendiumTraits(): Promise<TraitEntry[]> {
+  return getJson(
+    '/api/compendium/traits',
+    z.array(traitEntrySchema),
+    'fetch the trait glossary',
+  );
 }

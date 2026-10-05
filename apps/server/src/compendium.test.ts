@@ -236,6 +236,38 @@ describe('conditions', () => {
   });
 });
 
+describe('traits', () => {
+  it('lists the trait glossary, parsed and validated', () => {
+    writeFileSync(
+      join(root, 'traits.json'),
+      JSON.stringify([
+        { slug: 'agile', name: 'Agile', text: [{ kind: 'text', value: 'Reduces MAP.' }] },
+      ]),
+    );
+
+    expect(loadCompendium(root).traits()).toEqual([
+      { slug: 'agile', name: 'Agile', text: [{ kind: 'text', value: 'Reduces MAP.' }] },
+    ]);
+  });
+
+  it('is empty, not an error, with no traits.json at all', () => {
+    expect(loadCompendium(root).traits()).toEqual([]);
+  });
+
+  it('is empty and counted as skipped for a malformed traits.json', () => {
+    writeFileSync(join(root, 'traits.json'), '{ not json');
+
+    const index = loadCompendium(root);
+    expect(index.traits()).toEqual([]);
+    expect(index.status().skipped).toBe(1);
+  });
+
+  it('is empty before anything has been imported', () => {
+    expect(emptyCompendium().traits()).toEqual([]);
+    expect(loadCompendium(join(root, 'never-imported')).traits()).toEqual([]);
+  });
+});
+
 describe('emptyCompendium', () => {
   it('answers every question with nothing', () => {
     const index = emptyCompendium();

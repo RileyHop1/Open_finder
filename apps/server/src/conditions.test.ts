@@ -72,6 +72,7 @@ function compendiumWith(entries: readonly ConditionEntry[]): CompendiumIndex {
     search: () => [],
     get: () => undefined,
     conditions: () => map,
+    traits: () => [],
   };
 }
 

@@ -465,6 +465,11 @@ export function createApp(options: AppOptions): FastifyInstance {
     await reply.status(started === 'started' ? 202 : 409).send(importer.status());
   });
 
+  // The trait glossary (ADR 0020 decision 5): one flat list, not a pack, so
+  // unlike every other compendium route this isn't keyed by `packId`/`slug`
+  // -- the client fetches it once and looks a slug up locally.
+  app.get('/api/compendium/traits', () => compendium.traits());
+
   app.get('/api/compendium/search', async (request, reply) => {
     const parsed = compendiumSearchQuerySchema.safeParse(request.query);
     if (!parsed.success) {

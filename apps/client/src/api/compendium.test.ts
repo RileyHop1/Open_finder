@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getCompendiumEntry,
+  getCompendiumTraits,
   isCompendiumAvailable,
   searchCompendium,
 } from './compendium.js';
@@ -113,5 +114,26 @@ describe('getCompendiumEntry', () => {
     await expect(getCompendiumEntry('conditions', 'frightened')).rejects.toThrow(
       /responded 500/,
     );
+  });
+});
+
+describe('getCompendiumTraits', () => {
+  const trait = {
+    slug: 'agile',
+    name: 'Agile',
+    text: [{ kind: 'text', value: 'Reduces the Multiple Attack Penalty.' }],
+  };
+
+  it('fetches the whole glossary from one route, not per-slug', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse([trait]));
+    expect(await getCompendiumTraits()).toEqual([trait]);
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/traits');
+  });
+
+  it('throws on a failed response and on a malformed body', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}, 500));
+    await expect(getCompendiumTraits()).rejects.toThrow(/responded 500/);
+    fetchMock.mockResolvedValueOnce(jsonResponse([{ slug: 'agile' }]));
+    await expect(getCompendiumTraits()).rejects.toThrow();
   });
 });
