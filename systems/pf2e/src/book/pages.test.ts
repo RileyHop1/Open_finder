@@ -30,6 +30,12 @@ describe('BOOK_PAGES', () => {
       'checks-and-degrees-of-success',
       'multiple-attack-penalty',
       'proficiency',
+      'movement-and-stride',
+      'reactions',
+      'flanking-and-off-guard',
+      'hit-points-dying-and-recovery',
+      'conditions-overview',
+      'spellcasting-basics',
     ]);
     expect(new Set(BOOK_PAGES.map((p) => p.slug)).size).toBe(BOOK_PAGES.length);
     for (const bookPage of BOOK_PAGES) {
@@ -83,5 +89,69 @@ describe('BOOK_PAGES', () => {
     const text = JSON.stringify(page?.text);
     expect(text).toContain('Critical success');
     expect(text).toContain('Critical failure');
+  });
+
+  it('movement-and-stride names Stride and Step as terms, and states the difficult-terrain cost', () => {
+    const page = BOOK_PAGES.find((p) => p.slug === 'movement-and-stride');
+    expect(termsIn(page?.text ?? []).map((t) => [t.termKind, t.slug])).toEqual(
+      expect.arrayContaining([
+        ['action', 'stride'],
+        ['action', 'step'],
+      ]),
+    );
+    const text = JSON.stringify(page?.text);
+    expect(text).toContain('5 feet');
+    expect(text).toContain('10');
+  });
+
+  it('reactions names Reactive Strike and states there is one per turn', () => {
+    const page = BOOK_PAGES.find((p) => p.slug === 'reactions');
+    const text = JSON.stringify(page?.text);
+    expect(text).toContain('Reactive Strike');
+    expect(text).toContain('one reaction');
+  });
+
+  it('flanking-and-off-guard names off-guard and every condition that imposes it on its own', () => {
+    const page = BOOK_PAGES.find((p) => p.slug === 'flanking-and-off-guard');
+    const slugs = termsIn(page?.text ?? []).map((t) => t.slug);
+    expect(slugs).toEqual(
+      expect.arrayContaining([
+        'off-guard',
+        'prone',
+        'restrained',
+        'grabbed',
+        'paralyzed',
+        'confused',
+        'unconscious',
+      ]),
+    );
+    expect(JSON.stringify(page?.text)).toContain('lowers a creature');
+  });
+
+  it('hit-points-dying-and-recovery marks itself (confirm) and names the dying chain conditions', () => {
+    const page = BOOK_PAGES.find((p) => p.slug === 'hit-points-dying-and-recovery');
+    const text = JSON.stringify(page?.text);
+    expect(text).toContain('(confirm)');
+    const slugs = termsIn(page?.text ?? []).map((t) => t.slug);
+    expect(slugs).toEqual(
+      expect.arrayContaining(['dying', 'wounded', 'doomed', 'unconscious']),
+    );
+  });
+
+  it('conditions-overview explains binary vs. valued, and the higher-value merge rule', () => {
+    const page = BOOK_PAGES.find((p) => p.slug === 'conditions-overview');
+    const text = JSON.stringify(page?.text);
+    expect(text).toContain('Binary');
+    expect(text).toContain('Valued');
+    expect(text).toContain('higher one wins');
+  });
+
+  it('spellcasting-basics marks itself (confirm) and names all four traditions', () => {
+    const page = BOOK_PAGES.find((p) => p.slug === 'spellcasting-basics');
+    const text = JSON.stringify(page?.text);
+    expect(text).toContain('(confirm)');
+    for (const tradition of ['arcane', 'divine', 'occult', 'primal']) {
+      expect(text).toContain(tradition);
+    }
   });
 });
