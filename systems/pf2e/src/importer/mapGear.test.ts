@@ -187,15 +187,76 @@ describe('mapGear -- success', () => {
     }
   });
 
-  it('leaves consumable.spell undefined -- a later PR resolves it against the full entry set', () => {
+  it("maps a scroll's embedded spell to a tentative {packId: 'spells', slug, rank}", () => {
     const result = mapGear(
-      makeEntry({ consumableType: { value: 'scroll' } }, { type: 'consumable' }),
+      makeEntry(
+        {
+          consumableType: { value: 'scroll' },
+          spell: { name: 'Fireball', system: { slug: 'fireball', level: { value: 3 } } },
+        },
+        { type: 'consumable' },
+      ),
       PROVENANCE,
       IMPORTED_AT,
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.entry.consumable?.spell).toBeUndefined();
+      expect(result.entry.consumable?.spell).toEqual({
+        packId: 'spells',
+        slug: 'fireball',
+        rank: 3,
+      });
+    }
+  });
+
+  it('derives the spell slug from its name when system.slug is absent', () => {
+    const result = mapGear(
+      makeEntry(
+        {
+          consumableType: { value: 'scroll' },
+          spell: { name: 'Invented Blast', system: { level: { value: 1 } } },
+        },
+        { type: 'consumable' },
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry.consumable?.spell?.slug).toBe('invented-blast');
+    }
+  });
+
+  it('omits spell when absent, or when the rank is missing or out of range', () => {
+    const noSpell = mapGear(
+      makeEntry({ consumableType: { value: 'scroll' } }, { type: 'consumable' }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    const noRank = mapGear(
+      makeEntry(
+        { consumableType: { value: 'scroll' }, spell: { system: { slug: 'fireball' } } },
+        { type: 'consumable' },
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    const rankOutOfRange = mapGear(
+      makeEntry(
+        {
+          consumableType: { value: 'scroll' },
+          spell: { system: { slug: 'fireball', level: { value: 11 } } },
+        },
+        { type: 'consumable' },
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    for (const result of [noSpell, noRank, rankOutOfRange]) {
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.entry.consumable?.spell).toBeUndefined();
+      }
     }
   });
 });

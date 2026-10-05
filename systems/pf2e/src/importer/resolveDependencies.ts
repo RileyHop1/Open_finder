@@ -142,6 +142,39 @@ function resolveEntry(
   return { ...entry, ruleElements };
 }
 
+/**
+ * A scroll or wand's `consumable.spell` is a weaker reference than
+ * `GrantItem`: unlike that or `heritage.ancestrySlug`/`classFeature.classSlug`,
+ * losing it doesn't change what the item mechanically does to anything
+ * this project automates, only what its tooltip can link to. So ADR 0021
+ * has it fail softer than the others -- the reference is dropped, not the
+ * whole consumable (CLAUDE.md's "excluded content is excluded whole"
+ * still applies to the *reference itself*, just not to the item carrying
+ * it). Runs after the fixed-point loop above, against the final `kept`
+ * set, since a spell referenced by a gear entry can itself be dropped in
+ * any round.
+ */
+function clearUnresolvedConsumableSpell(
+  entry: Pf2eEntry,
+  kept: ReadonlyMap<string, DraftPf2eEntry>,
+): Pf2eEntry {
+  if (entry.kind !== 'gear' || entry.consumable?.spell === undefined) {
+    return entry;
+  }
+  const { packId, slug } = entry.consumable.spell;
+  const spellExists = [...kept.values()].some(
+    (candidate) =>
+      candidate.kind === 'spell' &&
+      candidate.packId === packId &&
+      candidate.slug === slug,
+  );
+  if (spellExists) {
+    return entry;
+  }
+  const { spell: _spell, ...consumableWithoutSpell } = entry.consumable;
+  return { ...entry, consumable: consumableWithoutSpell };
+}
+
 export function resolveDependencies(
   entries: readonly DraftPf2eEntry[],
 ): ResolveDependenciesResult {
@@ -164,7 +197,9 @@ export function resolveDependencies(
   }
 
   return {
-    kept: [...kept.values()].map((entry) => resolveEntry(entry, kept)),
+    kept: [...kept.values()]
+      .map((entry) => resolveEntry(entry, kept))
+      .map((entry) => clearUnresolvedConsumableSpell(entry, kept)),
     drops,
   };
 }
