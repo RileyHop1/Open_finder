@@ -332,3 +332,5 @@ export {
 } from './rules/conditionMerge.js';
 
 export { parseBookPage, parseInline } from './book/bookPageParser.js';
+
+export { BOOK_PAGES, type BookPage } from './book/pages.js';
