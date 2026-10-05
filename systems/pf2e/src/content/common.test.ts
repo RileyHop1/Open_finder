@@ -10,7 +10,10 @@ import {
   SIZES,
   actionCostSchema,
   attributeSchema,
+  bulkSchema,
   damageTypeSchema,
+  itemLevelSchema,
+  priceInCopperSchema,
   proficiencyRankSchema,
   raritySchema,
   sizeSchema,
@@ -114,5 +117,53 @@ describe('sizeSchema', () => {
 
   it('rejects a size outside the six categories', () => {
     expect(sizeSchema.safeParse('colossal').success).toBe(false);
+  });
+});
+
+describe('priceInCopperSchema', () => {
+  it('accepts a non-negative integer', () => {
+    expect(priceInCopperSchema.safeParse(150).success).toBe(true);
+    expect(priceInCopperSchema.safeParse(0).success).toBe(true);
+  });
+
+  it('accepts being absent', () => {
+    expect(priceInCopperSchema.safeParse(undefined).success).toBe(true);
+  });
+
+  it('rejects a negative or non-integer value', () => {
+    expect(priceInCopperSchema.safeParse(-1).success).toBe(false);
+    expect(priceInCopperSchema.safeParse(1.5).success).toBe(false);
+  });
+});
+
+describe('bulkSchema', () => {
+  it('accepts zero, a light fraction, and whole numbers', () => {
+    expect(bulkSchema.safeParse(0).success).toBe(true);
+    expect(bulkSchema.safeParse(0.1).success).toBe(true);
+    expect(bulkSchema.safeParse(3).success).toBe(true);
+  });
+
+  it('accepts being absent', () => {
+    expect(bulkSchema.safeParse(undefined).success).toBe(true);
+  });
+
+  it('rejects a negative value', () => {
+    expect(bulkSchema.safeParse(-0.1).success).toBe(false);
+  });
+});
+
+describe('itemLevelSchema', () => {
+  it('accepts a non-negative integer, including 0', () => {
+    expect(itemLevelSchema.safeParse(0).success).toBe(true);
+    expect(itemLevelSchema.safeParse(12).success).toBe(true);
+  });
+
+  it('accepts being absent', () => {
+    expect(itemLevelSchema.safeParse(undefined).success).toBe(true);
+  });
+
+  it('rejects a negative or non-integer value', () => {
+    expect(itemLevelSchema.safeParse(-1).success).toBe(false);
+    expect(itemLevelSchema.safeParse(1.5).success).toBe(false);
   });
 });

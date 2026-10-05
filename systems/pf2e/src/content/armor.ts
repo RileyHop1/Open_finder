@@ -1,14 +1,21 @@
 /**
  * The `armor` content kind. Fields are scoped to what Stack D's AC math
  * needs: the item bonus, the Dexterity cap it imposes, and the penalties
- * and Strength threshold that determine whether those penalties apply.
+ * and Strength threshold that determine whether those penalties apply --
+ * plus the price, Bulk, and level milestone 7's inventory economy needs
+ * (ADR 0021).
  */
 
 import { z } from 'zod';
 
 import { compendiumEntrySchema } from '@hearthtable/core';
 
-import { traitSlugSchema } from './common.js';
+import {
+  bulkSchema,
+  itemLevelSchema,
+  priceInCopperSchema,
+  traitSlugSchema,
+} from './common.js';
 
 /** Armor's proficiency categories -- `unarmored` is its own category, the same pattern `weapon.ts`'s `unarmed` uses. */
 export const ARMOR_CATEGORIES = ['unarmored', 'light', 'medium', 'heavy'] as const;
@@ -39,6 +46,9 @@ export const armorEntrySchema = compendiumEntrySchema.extend({
   speedPenalty: z.number().int().nonpositive().default(0),
   /** Minimum Strength score to avoid checkPenalty/speedPenalty. Absent means no requirement. */
   strength: z.number().int().positive().optional(),
+  priceInCopper: priceInCopperSchema,
+  bulk: bulkSchema,
+  level: itemLevelSchema,
 });
 
 export type ArmorEntry = z.infer<typeof armorEntrySchema>;

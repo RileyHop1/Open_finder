@@ -106,4 +106,33 @@ describe('weaponEntrySchema', () => {
       false,
     );
   });
+
+  it('leaves price, bulk, and level undefined when absent', () => {
+    const result = weaponEntrySchema.safeParse(makeWeapon());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.priceInCopper).toBeUndefined();
+      expect(result.data.bulk).toBeUndefined();
+      expect(result.data.level).toBeUndefined();
+    }
+  });
+
+  it('accepts price, bulk, and level when present', () => {
+    const result = weaponEntrySchema.safeParse(
+      makeWeapon({ priceInCopper: 100, bulk: 1, level: 0 }),
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.priceInCopper).toBe(100);
+      expect(result.data.bulk).toBe(1);
+      expect(result.data.level).toBe(0);
+    }
+  });
+
+  it('rejects a negative price or bulk', () => {
+    expect(weaponEntrySchema.safeParse(makeWeapon({ priceInCopper: -1 })).success).toBe(
+      false,
+    );
+    expect(weaponEntrySchema.safeParse(makeWeapon({ bulk: -1 })).success).toBe(false);
+  });
 });
