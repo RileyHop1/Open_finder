@@ -698,3 +698,51 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/movement.test.ts`.
 - **Override:** the GM can always spend or refund an action by hand through the
   action tray, independent of what a move actually cost.
+
+### Spending coins always makes change from the largest denomination
+- **Rules text:** Player Core, Treasure, coinage: 10 cp = 1 sp, 10 sp = 1 gp,
+  10 gp = 1 pp. The books describe the conversion rate; they do not specify
+  an algorithm for paying an odd amount out of a mixed purse.
+- **The ambiguity:** given `{gp: 1, sp: 2}` and a 5 sp cost, there is more than
+  one coin breakdown that validly deducts 5 sp of value (break the gold piece,
+  or leave it alone and run short on silver).
+- **Our reading:** every spend converts the whole purse to copper, subtracts,
+  and reassembles the remainder greedily from the largest denomination down.
+  This never leaves a payable purchase blocked just because it was not pre-
+  broken into the right denominations, which is how an actual table runs a
+  purse.
+- **Alternative reading:** require exact denominations and reject a spend the
+  current coin breakdown cannot literally cover, pushing "break a gold piece"
+  onto the player as its own action. Rejected: no table actually tracks
+  change this strictly, and it would block an affordable purchase on a
+  bookkeeping technicality.
+- **Why:** automating "making change" is strictly more convenient and changes
+  no number a player would compute differently by hand.
+- **Golden test:** `systems/pf2e/src/rules/coins.test.ts`.
+- **Override:** the GM can set a character's or the stash's coins directly to
+  any value.
+
+### Encumbrance thresholds: 5 + Str to encumbered, 10 + Str to maximum
+- **Rules text:** Player Core, Bulk: a character is encumbered when carrying
+  more than 5 + their Strength modifier Bulk, and cannot carry more than
+  10 + their Strength modifier Bulk at all **(confirm against GM Core: whether
+  exceeding the maximum is a hard block or left to the GM)**.
+- **The ambiguity:** whether exceeding the maximum should be a hard block (the
+  server refuses the pickup or the transfer) or only a displayed warning the
+  GM can ignore.
+- **Our reading:** both thresholds are computed and shown, with the
+  `encumbered` condition applied automatically above 5 + Str. Exceeding the
+  maximum is a warning, not a block, on `inventory.transfer` and `actor.addItem`
+  -- consistent with CLAUDE.md's "every automated result has a GM override
+  path" and with not wanting a false-confirm on the Bulk math to brick a pickup
+  mid-session.
+- **Alternative reading:** hard-block any transfer or pickup that would exceed
+  the maximum.
+- **Why:** a wrong block is worse than a wrong warning -- it stops play outright
+  rather than just displaying a number the GM can choose to ignore -- and a
+  table that wants the hard rule enforced can still just not click through
+  the warning.
+- **Golden test:** `systems/pf2e/src/rules/bulk.test.ts`, one golden case per
+  class.
+- **Override:** the GM can apply or remove `encumbered` by hand regardless of
+  the computed total, and nothing stops a transfer that crosses the maximum.
