@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createActor, deleteActor } from './actors.js';
 import {
   addPartyMember,
+  adjustPartyCoins,
   removeFromParty,
   removePartyMember,
   reorderParty,
@@ -172,5 +173,34 @@ describe('deleting a member', () => {
 
   it('removeFromParty does nothing when no party exists', () => {
     expect(removeFromParty(store, crypto.randomUUID())).toBeUndefined();
+  });
+});
+
+describe('adjustPartyCoins', () => {
+  it('creates the party on first use and gives it the added coins', () => {
+    expect(store.listDocuments('party')).toEqual([]);
+
+    const party = adjustPartyCoins(store, gm(), { delta: { gp: 5 } });
+
+    expect(party.stash).toMatchObject({ coins: { pp: 0, gp: 5, sp: 0, cp: 0 } });
+  });
+
+  it('spends, remaking change, when the stash can cover it', () => {
+    adjustPartyCoins(store, gm(), { delta: { gp: 1 } });
+    const party = adjustPartyCoins(store, gm(), { delta: { cp: -25 } });
+    expect(party.stash).toMatchObject({ coins: { pp: 0, gp: 0, sp: 7, cp: 5 } });
+  });
+
+  it('refuses a spend the stash cannot cover, leaving it unchanged', () => {
+    expect(() => adjustPartyCoins(store, gm(), { delta: { gp: -1 } })).toThrow(
+      /enough coins/,
+    );
+    expect(store.listDocuments('party')).toEqual([]);
+  });
+
+  it('refuses a player', () => {
+    expect(() => adjustPartyCoins(store, makeSeat(), { delta: { gp: 1 } })).toThrow(
+      /only the GM/,
+    );
   });
 });

@@ -1,16 +1,18 @@
 /**
- * Party operations: who is in the adventuring group and in what order. The
- * world has one party, created the first time anything needs it, and only the
- * GM changes it (the party bar's membership is a table decision, not a
- * player's). Players still *see* it: it is `observer` for everyone.
+ * Party operations: who is in the adventuring group, in what order, and
+ * (ADR 0021) the shared stash's purse. The world has one party, created the
+ * first time anything needs it, and only the GM changes it (the party bar's
+ * membership, and the stash, are table decisions, not a player's). Players
+ * still *see* it: it is `observer` for everyone.
  *
  * Membership is cleaned up here as well as edited: deleting an actor takes it
  * out of the party (`removeFromParty`), so the party never lists an actor that
  * no longer exists.
  */
 
-import type { Seat } from '@hearthtable/core';
+import type { CoinsDelta, Seat } from '@hearthtable/core';
 import { actorSchema, partySchema, type Party } from '@hearthtable/core';
+import { adjustCoins, coinsToCopper, partyStashSchema } from '@hearthtable/pf2e';
 
 import { OperationRejected } from './rejection.js';
 import type { WorldStore } from './worldStore.js';
@@ -153,4 +155,30 @@ export function reorderParty(
     );
   }
   return save(store, party, [...payload.memberIds]);
+}
+
+/**
+ * Adjusts the party stash's purse by `delta` (ADR 0021), creating the party
+ * if need be. GM only, like every other change here. Refused outright, with
+ * nothing written, if the delta would take the purse below zero.
+ */
+export function adjustPartyCoins(
+  store: WorldStore,
+  seat: Seat,
+  payload: { delta: CoinsDelta },
+): Party {
+  requireGM(seat);
+  const party = findParty(store) ?? newParty(store);
+  const stash = partyStashSchema.parse(party.stash ?? {});
+  const next = adjustCoins(stash.coins, coinsToCopper(payload.delta));
+  if (next === undefined) {
+    throw new OperationRejected('the party stash does not have enough coins for that');
+  }
+  const updated: Party = {
+    ...party,
+    stash: { ...stash, coins: next },
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+  return updated;
 }

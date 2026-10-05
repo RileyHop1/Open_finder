@@ -21,4 +21,15 @@ describe('party operations', () => {
     expect(op('party.reorder', { memberIds: ['nope'] }).success).toBe(false);
     expect(op('party.reorder', {}).success).toBe(false);
   });
+
+  it('party.adjustCoins accepts any subset of denominations, positive or negative', () => {
+    expect(op('party.adjustCoins', { delta: { gp: 5 } }).success).toBe(true);
+    expect(op('party.adjustCoins', { delta: { gp: -5, sp: 3 } }).success).toBe(true);
+    expect(op('party.adjustCoins', { delta: {} }).success).toBe(true);
+  });
+
+  it('party.adjustCoins rejects a non-integer denomination and a missing delta', () => {
+    expect(op('party.adjustCoins', { delta: { gp: 1.5 } }).success).toBe(false);
+    expect(op('party.adjustCoins', {}).success).toBe(false);
+  });
 });

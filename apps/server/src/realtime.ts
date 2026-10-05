@@ -94,7 +94,12 @@ import {
 import { emptyCompendium } from './compendium.js';
 import { addItem, removeItem, updateItem } from './items.js';
 import { rollActorDamage, rollTrackedStrike } from './strikeRolls.js';
-import { addPartyMember, removePartyMember, reorderParty } from './party.js';
+import {
+  addPartyMember,
+  adjustPartyCoins,
+  removePartyMember,
+  reorderParty,
+} from './party.js';
 import {
   activateScene,
   addSceneLink,
@@ -744,6 +749,11 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const { documents } = adjustActorCoins(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [...documents] };
+    }
+    case 'party.adjustCoins': {
+      const seat = requireSeat(store, socket);
+      const party = adjustPartyCoins(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [party] };
     }
     default:
       return assertNever(operation);
