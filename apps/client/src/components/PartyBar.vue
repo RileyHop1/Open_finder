@@ -27,11 +27,12 @@
  * generic badge list's "+N more", since this is the one state a table must
  * never miss.
  */
-import type { Actor, Seat } from '@hearthtable/core';
+import type { Actor, Seat, Statistic } from '@hearthtable/core';
 import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
 import RulesTerm from './RulesTerm.vue';
+import StatBreakdown from './StatBreakdown.vue';
 import { describeDyingChain } from './sheet/dyingChain.js';
 import { titleCase } from './sheet/format.js';
 
@@ -57,7 +58,14 @@ interface Card {
   readonly initial: string;
   readonly portraitUrl: string | undefined;
   readonly hp:
-    { current: number; max: number; temp: number; percent: number } | undefined;
+    | {
+        current: number;
+        max: number;
+        maxStatistic: Statistic;
+        temp: number;
+        percent: number;
+      }
+    | undefined;
   readonly badges: { slug: string; label: string }[];
   readonly extraBadges: number;
   readonly onTurn: boolean;
@@ -66,10 +74,13 @@ interface Card {
   readonly dyingStatus: string | undefined;
 }
 
-/** "12 / 20 (+5 temp) · at 0": printed in full so the bar is never the only way to read it. */
-function hpText(hp: { current: number; max: number; temp: number }): string {
+/**
+ * " (+5 temp) · at 0": the part of the HP line after the max, printed in
+ * full so the bar is never the only way to read it. The max itself is its
+ * own `StatBreakdown` in the template, not part of this string.
+ */
+function hpSuffix(hp: { current: number; temp: number }): string {
   return [
-    `${hp.current} / ${hp.max}`,
     hp.temp > 0 ? ` (+${hp.temp} temp)` : '',
     hp.current === 0 ? ' · at 0' : '',
   ].join('');
@@ -104,6 +115,7 @@ const cards = computed<Card[]>(() =>
           : {
               current: prepared.hp.current,
               max,
+              maxStatistic: prepared.hp.max,
               temp: prepared.hp.temp,
               percent:
                 max <= 0
@@ -152,7 +164,16 @@ const cards = computed<Card[]>(() =>
             <span class="hp-bar" aria-hidden="true">
               <span class="hp-fill" :style="{ width: `${card.hp.percent}%` }"></span>
             </span>
-            <span class="hp-text">{{ hpText(card.hp) }}</span>
+            <span class="hp-text"
+              >{{ card.hp.current }} /
+              <span @click.stop
+                ><StatBreakdown
+                  label="Maximum Hit Points"
+                  :statistic="card.hp.maxStatistic"
+                  >{{ card.hp.max }}</StatBreakdown
+                ></span
+              >{{ hpSuffix(card.hp) }}</span
+            >
           </template>
           <span v-if="card.badges.length > 0" class="badges">
             <span v-for="badge in card.badges" :key="badge.slug" class="badge">

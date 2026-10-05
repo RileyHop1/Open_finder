@@ -61,16 +61,30 @@ describe('NpcSheet', () => {
     expect(row(wrapper, 'Athletics')?.get('.total').text()).toBe('+9');
   });
 
+  it('opens a statistic’s own breakdown, naming the stat block as its source', async () => {
+    const wrapper = mount(NpcSheet, { props: { actor: makeNpc() } });
+    await row(wrapper, 'Athletics')?.get('.stat-trigger').trigger('click');
+
+    const popover = wrapper.get('.stat-popover');
+    expect(popover.get('h4').text()).toBe('Athletics');
+    expect(popover.text()).toContain('Bonus +11');
+    expect(popover.text()).toContain('Stat block');
+  });
+
   it('offers a Roll on every statistic but Armor Class when rollable', () => {
     const wrapper = mount(NpcSheet, { props: { actor: makeNpc(), rollable: true } });
-    expect(row(wrapper, 'Armor Class')?.find('button').exists()).toBe(false);
+    // Armor Class's own breakdown trigger is still a button -- just not a Roll one.
+    expect(
+      row(wrapper, 'Armor Class')?.find('button[aria-label^="Roll "]').exists(),
+    ).toBe(false);
     wrapper.get('button[aria-label="Roll Perception"]');
     wrapper.get('button[aria-label="Roll Athletics"]');
     expect(wrapper.find('button[aria-label="Roll Armor Class"]').exists()).toBe(false);
 
     const read = mount(NpcSheet, { props: { actor: makeNpc() } });
-    // A trait's own tooltip trigger is still a button -- just not a Roll one.
-    expect(read.find('button[aria-label]').exists()).toBe(false);
+    // A trait's own tooltip trigger and a stat's own breakdown trigger are
+    // still buttons -- just not Roll ones.
+    expect(read.find('button[aria-label^="Roll "]').exists()).toBe(false);
   });
 
   it('asks to roll the statistic by its key', async () => {

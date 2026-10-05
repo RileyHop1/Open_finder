@@ -83,9 +83,23 @@ describe('StrikesPanel', () => {
     expect(wrapper.find('.crit').text()).toContain('1d10 slashing');
   });
 
-  it('is read-only without rollable: numbers, no buttons', () => {
+  it('is read-only without rollable: numbers, no Roll buttons', () => {
     const wrapper = mount(StrikesPanel, { props: { actor: fighter(true) } });
-    expect(wrapper.find('button').exists()).toBe(false);
+    // Each attack's own breakdown trigger is still a button -- just not a Roll one.
+    expect(wrapper.find('button[aria-label^="Roll "]').exists()).toBe(false);
+  });
+
+  it('opens an attack’s own breakdown, separately from rolling it', async () => {
+    const wrapper = mount(StrikesPanel, {
+      props: { actor: fighter(true), rollable: true },
+    });
+    const [first] = wrapper.findAll('.attacks li');
+    await first?.find('.stat-trigger').trigger('click');
+
+    const popover = wrapper.get('.stat-popover');
+    expect(popover.get('h4').text()).toBe('Invented Sword 1st attack');
+    expect(popover.text()).toContain('Bonus +7');
+    expect(wrapper.emitted('attack')).toBeUndefined();
   });
 
   it('emits which attack of the turn was pressed, and normal or critical damage', async () => {
