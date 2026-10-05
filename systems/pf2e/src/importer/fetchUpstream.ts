@@ -31,7 +31,9 @@ export function buildFetchCommands(
     ['init', '-q'],
     ['remote', 'add', 'origin', options.repo],
     ['sparse-checkout', 'init', '--cone'],
-    ['sparse-checkout', 'set', 'packs'],
+    // `static/lang` alongside `packs` -- ADR 0020's trait glossary reads
+    // `static/lang/en.json` under its own pinned checksum.
+    ['sparse-checkout', 'set', 'packs', 'static/lang'],
     // Windows: upstream's packs/ has at least one path deep enough to hit
     // the legacy MAX_PATH limit without this -- hit directly against the
     // real repo during this importer's own development, not a hypothetical.

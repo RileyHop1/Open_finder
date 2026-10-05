@@ -11,7 +11,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { checksumPacks } from './checksum.js';
+import { checksumFile, checksumPacks } from './checksum.js';
 import { runImporter, type RunImporterOptions } from './runImporter.js';
 
 // Synthetic, invented fixtures throughout (ADR 0013) -- a small on-disk
@@ -93,6 +93,18 @@ const DUPLICATE_SLUG_FEAT_FIRST = {
     level: { value: 1 },
     category: 'general',
     publication: PLAYER_CORE_ITEM_PROVENANCE,
+  },
+};
+
+const KEPT_FEAT_WITH_TRAITS = {
+  _id: '9999999999999999',
+  name: 'Invented Feat With Traits',
+  type: 'feat',
+  system: {
+    level: { value: 1 },
+    category: 'general',
+    publication: PLAYER_CORE_ITEM_PROVENANCE,
+    traits: { value: ['agile', 'no-such-trait'] },
   },
 };
 
@@ -235,5 +247,82 @@ describe('runImporter', () => {
       readFileSync(join(outputDir, 'feats', 'invented-duplicated-feat.json'), 'utf8'),
     );
     expect(written).toMatchObject({ name: 'Invented Duplicated Feat (first)' });
+  });
+
+  describe('the trait glossary (ADR 0020)', () => {
+    /** Writes `<upstreamDir>/static/lang/en.json` and returns its checksum. */
+    function setLangFixture(upstreamDir: string, json: Record<string, unknown>): string {
+      const langDir = join(upstreamDir, 'static', 'lang');
+      mkdirSync(langDir, { recursive: true });
+      const langPath = join(langDir, 'en.json');
+      writeFileSync(langPath, JSON.stringify(json));
+      return checksumFile(langPath);
+    }
+
+    it('writes traits.json for every resolvable trait a kept entry carries, and counts the rest as misses', () => {
+      const { upstream, upstreamDir } = setUpstreamFixture([KEPT_FEAT_WITH_TRAITS]);
+      const langChecksum = setLangFixture(upstreamDir, {
+        PF2E: { TraitDescriptionAgile: 'Reduces the Multiple Attack Penalty.' },
+      });
+      const outputDir = makeTempDir();
+
+      const summary = runImporter({
+        upstream: { ...upstream, langChecksum },
+        upstreamDir,
+        outputDir,
+        skipFetch: true,
+        importedAt: '2026-09-29T00:00:00.000Z',
+      });
+
+      expect(summary.coverage.traitMissCount).toBe(1);
+      const traits: unknown = JSON.parse(
+        readFileSync(join(outputDir, 'traits.json'), 'utf8'),
+      );
+      expect(traits).toEqual([
+        {
+          slug: 'agile',
+          name: 'Agile',
+          text: [{ kind: 'text', value: 'Reduces the Multiple Attack Penalty.' }],
+        },
+      ]);
+    });
+
+    it('skips the trait glossary entirely with no langChecksum -- no file, no verification', () => {
+      const { upstream, upstreamDir } = setUpstreamFixture([KEPT_FEAT_WITH_TRAITS]);
+      const outputDir = makeTempDir();
+
+      const summary = runImporter({
+        upstream,
+        upstreamDir,
+        outputDir,
+        skipFetch: true,
+        importedAt: '2026-09-29T00:00:00.000Z',
+      });
+
+      expect(summary.coverage.traitMissCount).toBe(0);
+      expect(existsSync(join(outputDir, 'traits.json'))).toBe(false);
+    });
+
+    it('throws on a lang checksum mismatch, the same as a packs checksum mismatch', () => {
+      const { upstream, upstreamDir } = setUpstreamFixture([KEPT_FEAT_WITH_TRAITS]);
+      setLangFixture(upstreamDir, {
+        PF2E: { TraitDescriptionAgile: 'Reduces the Multiple Attack Penalty.' },
+      });
+      const outputDir = makeTempDir();
+
+      expect(() =>
+        runImporter({
+          upstream: {
+            ...upstream,
+            langChecksum:
+              'sha256:0000000000000000000000000000000000000000000000000000000000000',
+          },
+          upstreamDir,
+          outputDir,
+          skipFetch: true,
+          importedAt: '2026-09-29T00:00:00.000Z',
+        }),
+      ).toThrow(/lang checksum mismatch/);
+    });
   });
 });

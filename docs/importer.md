@@ -22,6 +22,7 @@ targets:
 UPSTREAM_REPO = 'https://github.com/foundryvtt/pf2e.git'
 UPSTREAM_COMMIT = '<40-character SHA>'
 UPSTREAM_PACKS_CHECKSUM = 'sha256:<64 hex characters>'
+UPSTREAM_LANG_CHECKSUM = 'sha256:<64 hex characters>'
 ```
 
 Per [adr/0011-importer-pipeline.md](adr/0011-importer-pipeline.md), both the
@@ -29,14 +30,20 @@ commit and the checksum matter: the commit says *which* upstream state to
 fetch, and the checksum independently verifies *what actually arrived* --
 catching the case where a ref moved (force-push, deletion) and a fetch by
 SHA would otherwise pull different bytes without any diff in this repo.
+`UPSTREAM_LANG_CHECKSUM` is the same idea for a second, independent file --
+`static/lang/en.json`, which [adr/0020-rules-text.md](adr/0020-rules-text.md)
+added as the source for the trait glossary (below). It is optional on
+`RunImporterOptions.upstream`: a caller that omits it (every hermetic test
+but the trait-glossary ones) skips the whole trait-glossary step, rather
+than needing a lang fixture it doesn't care about.
 
 ## Fetching
 
 `fetchUpstream.ts` runs, against a fresh target directory:
 
 1. `git init`, add `origin` pointed at `UPSTREAM_REPO`
-2. `git sparse-checkout init --cone` + `set packs` -- only `packs/` is
-   fetched, not upstream's full working tree
+2. `git sparse-checkout init --cone` + `set packs static/lang` -- only those
+   two directories are fetched, not upstream's full working tree
 3. `git config core.longpaths true` -- upstream has at least one path deep
    enough to hit Windows' legacy `MAX_PATH` limit without this (hit directly
    during this importer's own development, not a hypothetical)
@@ -60,6 +67,13 @@ in. Returns `sha256:<hex>`.
 The importer compares this against `UPSTREAM_PACKS_CHECKSUM` after every
 fetch. A mismatch is a hard failure -- the importer refuses to proceed
 rather than import content nobody has reviewed.
+
+`checksumFile(path)` is the same idea for a single fixed file rather than a
+directory: sha256 over just `static/lang/en.json`'s bytes, no path mixed
+in (unlike `checksumPacks`, there's no directory membership to be sensitive
+to -- it's one pinned file). Compared against `UPSTREAM_LANG_CHECKSUM` the
+same way, and the same hard failure on a mismatch, whenever the trait
+glossary step runs at all (see "The trait glossary" below).
 
 ## Reading
 
@@ -448,6 +462,43 @@ two runs produce byte-identical output; nothing in this module reaches for
 the wall clock, which is exactly what the milestone's "a second run is
 byte-identical" verification step needs to be true.
 
+## The trait glossary (ADR 0020 decision 5)
+
+Traits (`agile`, `finesse`, ...) have no description anywhere in `packs/` --
+upstream keeps that text in `static/lang/en.json` instead, under keys like
+`PF2E.TraitDescriptionAgile`, and that file isn't filtered by source book
+the way `packs/` is. `traitGlossary.ts` is this project's own mitigation:
+it writes a glossary entry **only for a trait slug at least one already
+kept, already-filtered entry carries**, never upstream's full list.
+
+- `flattenLangStrings(json)` flattens `en.json`'s nested object into dotted
+  keys (`'PF2E.TraitDescriptionAgile' -> '...'`), once per run.
+- `traitLangKey(slug)` is the slug-to-key heuristic: upstream derives its
+  key from a trait's *display name*, not its slug, so a weapon-trait slug's
+  parametrized suffix -- a die size (`two-hand-d8`, `deadly-d10`) or a
+  damage-type letter (`versatile-p`) -- has to be stripped before
+  PascalCasing what's left, because the description doesn't vary by it.
+  It's a heuristic, not a lookup table: a slug like `splash-10`, whose own
+  key (`TraitDescriptionSplash10`) keeps its number, won't resolve. A miss
+  is not a failure -- see below.
+- `buildTraitGlossary(traitSlugs, langStrings)` resolves every slug it can,
+  converting each description through the same `htmlToRichText` the
+  content mappers use (trait descriptions carry no inline syntax in
+  practice, so `applyInlineSyntax` isn't needed here), and returns the
+  slugs it couldn't as `misses` -- shown to a player as a bare trait name,
+  never a broken tooltip, per ADR 0020 decision 6.
+- `writeTraitGlossary(entries, outputDir)` writes `<outputDir>/traits.json`:
+  a plain array, no per-entry files and no manifest, unlike `writePacks.ts`
+  -- this is one short, flat list, not a pack a world imports from.
+
+**Skipped entirely with no `langChecksum`.** `runImporter.ts` only runs any
+of this when `options.upstream.langChecksum` is set; every hermetic test
+but the trait-glossary ones cares only about `packs/`, and the real
+importer (`index.ts`) always supplies `UPSTREAM_LANG_CHECKSUM`. Misses feed
+into the coverage report below as `traitMisses` (detailed) /
+`traitMissCount` (aggregate) -- the same detailed/aggregate split every
+other slug-bearing field in that report already uses.
+
 ## The coverage report (ADR 0004 decision 5)
 
 `coverageReport.ts` answers CLAUDE.md's open question -- "which
@@ -557,17 +608,25 @@ To move the pin to a new upstream commit:
 3. Run `checksumPacks` against the fetched `packs/` directory (or read the
    mismatch the CLI itself reports if the old checksum is still in place).
 4. Update `UPSTREAM_PACKS_CHECKSUM` in `upstream.ts` to the result.
-5. Open a reviewed PR with both changes together -- never one without the
-   other, per ADR 0003's "re-importing is a deliberate, reviewed PR."
+5. Run `checksumFile` against the fetched `static/lang/en.json` the same
+   way, and update `UPSTREAM_LANG_CHECKSUM` to that result.
+6. Open a reviewed PR with all three changes together -- never one without
+   the others, per ADR 0003's "re-importing is a deliberate, reviewed PR."
 
 ## Testing
 
 - `checksum.test.ts`: determinism, order-independence, sensitivity to
   content changes and renames, nested directories, and the `sha256:` label
-  format.
+  format, for both `checksumPacks` (a directory) and `checksumFile` (one
+  fixed file, unaffected by its own name).
 - `fetchUpstream.test.ts`: the exact git command sequence -- sparse-checkout
-  before fetch, long paths enabled, checkout after fetch, only `packs/`
-  requested.
+  before fetch, long paths enabled, checkout after fetch, only `packs/` and
+  `static/lang` requested.
+- `traitGlossary.test.ts`: `traitLangKey`'s suffix-stripping heuristic
+  (die-size, bare-number, single-letter, and the "never strip the only
+  segment" edge case), `flattenLangStrings` on nested objects and on
+  non-string/array values, `buildTraitGlossary` resolving, missing,
+  deduplicating and sorting, and `writeTraitGlossary`'s plain-array output.
 - `upstream.test.ts`: the pin is a real 40-character SHA and a real 64-hex
   checksum, not a placeholder.
 - `reader.test.ts`: a well-formed entry read correctly, nested directories

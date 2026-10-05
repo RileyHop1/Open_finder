@@ -66,6 +66,8 @@ export interface UpstreamPin {
   readonly repo: string;
   readonly commit: string;
   readonly packsChecksum: string;
+  /** `static/lang/en.json`'s own checksum (ADR 0020), verified independently of `packsChecksum`. Optional: a caller that only wants `packs/` content (every hermetic test but the trait-glossary ones) can omit it, which skips the whole trait-glossary step in `runImporter.ts` -- see its module doc. */
+  readonly langChecksum?: string;
 }
 
 export interface WritePacksOptions {

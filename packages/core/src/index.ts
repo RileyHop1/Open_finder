@@ -242,6 +242,8 @@ export {
   type TermKind,
 } from './richText.js';
 
+export { traitEntrySchema, type TraitEntry } from './traitEntry.js';
+
 export { sameName } from './name.js';
 
 export { tokenDragSchema } from './realtime.js';

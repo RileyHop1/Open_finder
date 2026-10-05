@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { checksumPacks } from './checksum.js';
+import { checksumFile, checksumPacks } from './checksum.js';
 
 const tempDirs: string[] = [];
 
@@ -87,5 +87,37 @@ describe('checksumPacks', () => {
     const dir = makeTempDir();
     writeFileSync(join(dir, 'a.json'), '{}');
     expect(checksumPacks(dir)).toMatch(/^sha256:[0-9a-f]{64}$/);
+  });
+});
+
+describe('checksumFile', () => {
+  it('is deterministic, and sensitive to content', () => {
+    const dir = makeTempDir();
+    const file = join(dir, 'en.json');
+    writeFileSync(file, '{"a":1}');
+    const before = checksumFile(file);
+    expect(checksumFile(file)).toBe(before);
+
+    writeFileSync(file, '{"a":2}');
+    expect(checksumFile(file)).not.toBe(before);
+  });
+
+  it('is unaffected by the file name, unlike checksumPacks', () => {
+    const dirA = makeTempDir();
+    writeFileSync(join(dirA, 'en.json'), '{"a":1}');
+
+    const dirB = makeTempDir();
+    writeFileSync(join(dirB, 'renamed.json'), '{"a":1}');
+
+    expect(checksumFile(join(dirA, 'en.json'))).toBe(
+      checksumFile(join(dirB, 'renamed.json')),
+    );
+  });
+
+  it('returns the sha256: label prefix', () => {
+    const dir = makeTempDir();
+    const file = join(dir, 'en.json');
+    writeFileSync(file, '{}');
+    expect(checksumFile(file)).toMatch(/^sha256:[0-9a-f]{64}$/);
   });
 });
