@@ -539,7 +539,7 @@ describe('the turn bar', () => {
     await wrapper.get('.token-list button').trigger('click');
     expect(wrapper.find('.action-bar').exists()).toBe(true);
 
-    await wrapper.find('.basics button').trigger('click');
+    await wrapper.find('.basics button[aria-label]').trigger('click');
     await flushPromises();
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
       type: 'combat.spendAction',
@@ -672,7 +672,7 @@ describe('map and character drawer', () => {
     vi.mocked(documentsApi.getParty).mockResolvedValue(makeParty([a.id]));
     const wrapper = await mountTable();
 
-    await wrapper.get('.party-members button').trigger('click');
+    await wrapper.get('.party-members .party-member').trigger('click');
     expect(isShown(wrapper)).toBe(true);
     expect(wrapper.get('.sheet h3').text()).toBe('Anna');
   });
@@ -1205,7 +1205,7 @@ describe('party bar', () => {
     vi.mocked(documentsApi.getParty).mockResolvedValue(makeParty([b.id, a.id]));
 
     const wrapper = await mountTable();
-    const buttons = wrapper.findAll('.party-members button');
+    const buttons = wrapper.findAll('.party-members .party-member');
     expect(buttons.map((x) => x.find('.name').text())).toEqual(['Bram', 'Anna']);
 
     await buttons[0]?.trigger('click');

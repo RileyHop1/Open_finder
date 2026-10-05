@@ -3,12 +3,19 @@ import type { Actor } from '@hearthtable/core';
 import type { CharacterData } from '@hearthtable/pf2e';
 import { newCharacterData } from '@hearthtable/pf2e';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import CharacterSheet from './CharacterSheet.vue';
 import { signed, titleCase } from './format.js';
 
 const NOW = '2026-09-30T00:00:00.000Z';
+
+// Condition chips now render through `RulesTerm`, which reaches a Pinia
+// store for its tooltip lookup even when nothing opens the tooltip.
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 
 function makeActor(
   system: Record<string, unknown>,

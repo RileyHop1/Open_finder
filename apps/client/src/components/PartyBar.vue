@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /**
  * The party bar: one card per member, always on screen (the Owlcat "party
- * bar" in CLAUDE.md's north star). Each card is a single button showing a
- * portrait, the name, hit points as a bar *and* as numbers, and condition
- * badges. Pressing it (click, tap, Enter, or Space) opens that member's
- * sheet.
+ * bar" in CLAUDE.md's north star). Each card shows a portrait, the name,
+ * hit points as a bar *and* as numbers, and condition badges. Pressing the
+ * card (click, tap, Enter, or Space) opens that member's sheet; the card is
+ * a `role="button"` div rather than a real `<button>` because a condition
+ * badge is now its own `RulesTerm` tooltip trigger -- a nested `<button>`
+ * is invalid HTML and fights focus/click handling.
  *
  * Nothing here relies on colour alone: hit points are always printed ("12 /
  * 20"), "at 0" is said in words, and a condition badge is its name and value.
@@ -29,6 +31,7 @@ import type { Actor, Seat } from '@hearthtable/core';
 import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
+import RulesTerm from './RulesTerm.vue';
 import { describeDyingChain } from './sheet/dyingChain.js';
 import { titleCase } from './sheet/format.js';
 
@@ -55,7 +58,7 @@ interface Card {
   readonly portraitUrl: string | undefined;
   readonly hp:
     { current: number; max: number; temp: number; percent: number } | undefined;
-  readonly badges: string[];
+  readonly badges: { slug: string; label: string }[];
   readonly extraBadges: number;
   readonly onTurn: boolean;
   readonly ownerNames: string[];
@@ -83,9 +86,11 @@ const cards = computed<Card[]>(() =>
     const conditions = parsed?.success ? parsed.data.conditions : [];
     const badges = conditions
       .filter((c) => !DYING_CHAIN_SLUGS.includes(c.slug))
-      .map((c) =>
-        c.value === undefined ? titleCase(c.slug) : `${titleCase(c.slug)} ${c.value}`,
-      );
+      .map((c) => ({
+        slug: c.slug,
+        label:
+          c.value === undefined ? titleCase(c.slug) : `${titleCase(c.slug)} ${c.value}`,
+      }));
     return {
       actor,
       initial: actor.name.trim().charAt(0).toUpperCase() || '?',
@@ -120,13 +125,16 @@ const cards = computed<Card[]>(() =>
 <template>
   <ul v-if="cards.length > 0" class="party-members">
     <li v-for="card in cards" :key="card.actor.id">
-      <button
-        type="button"
+      <div
         class="party-member"
         :class="{ 'on-turn': card.onTurn }"
+        role="button"
+        tabindex="0"
         :aria-pressed="card.actor.id === selectedId"
         :aria-current="card.onTurn ? 'true' : undefined"
         @click="emit('select', card.actor.id)"
+        @keydown.enter="emit('select', card.actor.id)"
+        @keydown.space.prevent="emit('select', card.actor.id)"
       >
         <img v-if="card.portraitUrl" class="portrait" :src="card.portraitUrl" alt="" />
         <span v-else class="portrait placeholder" aria-hidden="true">{{
@@ -147,15 +155,15 @@ const cards = computed<Card[]>(() =>
             <span class="hp-text">{{ hpText(card.hp) }}</span>
           </template>
           <span v-if="card.badges.length > 0" class="badges">
-            <span v-for="badge in card.badges" :key="badge" class="badge">{{
-              badge
-            }}</span>
+            <span v-for="badge in card.badges" :key="badge.slug" class="badge">
+              <RulesTerm term-kind="condition" :slug="badge.slug" :label="badge.label" />
+            </span>
             <span v-if="card.extraBadges > 0" class="badge"
               >+{{ card.extraBadges }} more</span
             >
           </span>
         </span>
-      </button>
+      </div>
     </li>
   </ul>
   <p v-else class="empty">No party yet. The GM adds characters to it.</p>
@@ -180,6 +188,8 @@ const cards = computed<Card[]>(() =>
   padding: var(--space-2);
   text-align: left;
   border: 2px solid transparent;
+  cursor: pointer;
+  background: none;
 }
 .party-member.on-turn {
   border-color: #5fb86a;

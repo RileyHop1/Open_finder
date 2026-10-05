@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import type { Actor } from '@hearthtable/core';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import ConditionsPanel from './ConditionsPanel.vue';
 import HitPointsPanel from './HitPointsPanel.vue';
@@ -20,6 +21,12 @@ function withState(
 
 const row = (wrapper: ReturnType<typeof mount>, label: string) =>
   wrapper.findAll('tbody tr').find((tr) => tr.get('th').text() === label);
+
+// ConditionsPanel's conditions now render through `RulesTerm`, which
+// reaches a Pinia store for its tooltip lookup even when nothing opens it.
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 
 describe('NpcSheet', () => {
   it('names the monster, and says what it is', () => {

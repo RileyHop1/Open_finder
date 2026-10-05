@@ -18,6 +18,7 @@
 import { ref } from 'vue';
 
 import type { ActionBarView } from './actionBarModel.js';
+import RulesTerm from './RulesTerm.vue';
 
 defineProps<{
   view: ActionBarView;
@@ -69,11 +70,13 @@ function submitFreeform(): void {
 
     <ul v-if="view.canAct" class="basics">
       <li v-for="basic in view.basics" :key="basic.slug">
-        <button type="button" @click="emit('basicAction', basic.slug, basic.cost)">
-          {{ basic.name }}
-          <span aria-hidden="true">{{
-            basic.cost === 0 ? 'Free' : '◆'.repeat(basic.cost)
-          }}</span>
+        <RulesTerm term-kind="action" :slug="basic.slug" :label="basic.name" />
+        <button
+          type="button"
+          :aria-label="`${basic.name}, ${basic.cost === 0 ? 'free action' : `${basic.cost} action${basic.cost > 1 ? 's' : ''}`}`"
+          @click="emit('basicAction', basic.slug, basic.cost)"
+        >
+          {{ basic.cost === 0 ? 'Free' : '◆'.repeat(basic.cost) }}
         </button>
       </li>
     </ul>
@@ -114,6 +117,11 @@ function submitFreeform(): void {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+.basics li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 .strike-name {
   font-weight: 600;

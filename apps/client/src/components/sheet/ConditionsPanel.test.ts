@@ -2,6 +2,7 @@
 import type { Actor } from '@hearthtable/core';
 import { newCharacterData, type ConditionDuration } from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as compendiumApi from '../../api/compendium.js';
@@ -42,6 +43,9 @@ const definitions = [
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(compendiumApi.searchCompendium).mockResolvedValue(definitions);
+  // Each condition now renders through `RulesTerm`, which reaches a Pinia
+  // store for its tooltip lookup even when nothing opens the tooltip.
+  setActivePinia(createPinia());
 });
 
 async function mountPanel(
@@ -69,7 +73,12 @@ describe('the list', () => {
       'Frightened 2',
       'Off Guard',
     ]);
-    expect(wrapper.find('button, input, select').exists()).toBe(false);
+    // Read-only still has no editing controls -- only each condition's own
+    // tooltip trigger button, which is not one of those.
+    expect(wrapper.find('.condition input, .condition select').exists()).toBe(false);
+    expect(
+      wrapper.findAll('.condition button').every((b) => b.classes('rules-term')),
+    ).toBe(true);
   });
 });
 
@@ -93,7 +102,7 @@ describe('editing', () => {
 
   it('removes a condition, with a button that names it', async () => {
     const wrapper = await mountPanel([{ slug: 'prone' }]);
-    const button = wrapper.find('.condition button');
+    const button = wrapper.find('.condition button[aria-label="Remove Prone"]');
     expect(button.attributes('aria-label')).toBe('Remove Prone');
     await button.trigger('click');
     expect(wrapper.emitted('remove')).toEqual([['prone']]);

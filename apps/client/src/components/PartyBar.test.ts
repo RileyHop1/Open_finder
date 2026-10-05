@@ -2,11 +2,18 @@
 import type { Actor, Seat } from '@hearthtable/core';
 import { newCharacterData } from '@hearthtable/pf2e';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import PartyBar from './PartyBar.vue';
 
 const NOW = '2026-09-30T00:00:00.000Z';
+
+// Condition badges now render through `RulesTerm`, which reaches a Pinia
+// store for its tooltip lookup even when nothing opens the tooltip.
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 const WORLD = crypto.randomUUID();
 
 /** Level 1, Con +2, 8 ancestry HP and 10 per level: max = 8 + (10 + 2) = 20. */
@@ -140,27 +147,25 @@ describe('PartyBar', () => {
   it('opens a member on click, marking the open one as pressed', async () => {
     const [anna, bram] = [member('Anna'), member('Bram')];
     const wrapper = mountBar([anna, bram], bram.id);
-    const buttons = wrapper.findAll('button.party-member');
-    expect(buttons.map((b) => b.attributes('aria-pressed'))).toEqual(['false', 'true']);
+    const cards = wrapper.findAll('.party-member');
+    expect(cards.map((c) => c.attributes('aria-pressed'))).toEqual(['false', 'true']);
 
-    await buttons[0]?.trigger('click');
+    await cards[0]?.trigger('click');
     expect(wrapper.emitted('select')).toEqual([[anna.id]]);
   });
 
   it('marks the acting member’s turn in text, absent for everyone else', () => {
     const [anna, bram] = [member('Anna'), member('Bram')];
     const wrapper = mountBar([anna, bram], undefined, anna.id);
-    const buttons = wrapper.findAll('button.party-member');
-    expect(buttons.map((b) => b.attributes('aria-current'))).toEqual(['true', undefined]);
-    expect(buttons[0]?.text()).toContain('Current turn');
-    expect(buttons[1]?.text()).not.toContain('Current turn');
+    const cards = wrapper.findAll('.party-member');
+    expect(cards.map((c) => c.attributes('aria-current'))).toEqual(['true', undefined]);
+    expect(cards[0]?.text()).toContain('Current turn');
+    expect(cards[1]?.text()).not.toContain('Current turn');
   });
 
   it('marks nobody’s turn with no active combatant', () => {
     const wrapper = mountBar([member('Anna')]);
-    expect(
-      wrapper.find('button.party-member').attributes('aria-current'),
-    ).toBeUndefined();
+    expect(wrapper.find('.party-member').attributes('aria-current')).toBeUndefined();
     expect(wrapper.text()).not.toContain('Current turn');
   });
 
@@ -230,9 +235,23 @@ describe('PartyBar', () => {
     expect(wrapper.find('.badges').exists()).toBe(false);
   });
 
-  it('is built of real buttons, so Enter and Space work and each is at least 44px tall', () => {
-    const wrapper = mountBar([member('Anna')]);
-    expect(wrapper.find('li > button').exists()).toBe(true);
-    expect(wrapper.find('button').attributes('type')).toBe('button');
+  it('is a role="button" card, reachable and selectable by keyboard too', async () => {
+    const anna = member('Anna');
+    const wrapper = mountBar([anna]);
+    const card = wrapper.find('.party-member');
+    expect(card.attributes('role')).toBe('button');
+    expect(card.attributes('tabindex')).toBe('0');
+
+    await card.trigger('keydown', { key: 'Enter' });
+    await card.trigger('keydown', { key: ' ' });
+    expect(wrapper.emitted('select')).toEqual([[anna.id], [anna.id]]);
+  });
+
+  it("nests a condition badge's own tooltip button inside the card without making it a <button>", () => {
+    const wrapper = mountBar([
+      member('Anna', { current: 20 }, {}, [{ slug: 'frightened', value: 2 }]),
+    ]);
+    expect(wrapper.find('.party-member').element.tagName).toBe('DIV');
+    expect(wrapper.find('.badge .rules-term').text()).toBe('Frightened 2');
   });
 });

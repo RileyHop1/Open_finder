@@ -28,6 +28,7 @@ import {
 import { computed, onMounted, ref } from 'vue';
 
 import { type EntrySummary, searchCompendium } from '../../api/compendium.js';
+import RulesTerm from '../RulesTerm.vue';
 import { describeDuration } from './conditionDuration.js';
 import { titleCase } from './format.js';
 import NumberField from './NumberField.vue';
@@ -182,7 +183,13 @@ function submit(): void {
     <p v-if="conditions.length === 0" class="empty">No conditions.</p>
     <ul v-else class="condition-list">
       <li v-for="condition in conditions" :key="condition.slug" class="condition">
-        <span class="condition-name">{{ describe(condition) }}</span>
+        <span class="condition-name">
+          <RulesTerm
+            term-kind="condition"
+            :slug="condition.slug"
+            :label="describe(condition)"
+          />
+        </span>
         <span
           v-if="describeDuration(condition.duration, combatantLabel)"
           class="condition-duration"
