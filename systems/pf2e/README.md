@@ -10,6 +10,10 @@ Foundry separates its core from a game system.
 - **The importer** (`src/importer/`) — converts upstream `foundryvtt/pf2e` JSON into
   our schemas, applying the license filter and the core-four-books scope filter
 - **Sheets** — the PF2e-specific character and creature sheet logic
+- **The reference book** (`src/book/`) — short pages written in our own
+  words, parsed from a small Markdown subset into `RichText`
+  (`docs/rules-reference.md`); unlike everything else here, never touches
+  the importer or a compendium
 - **Golden tests** — reference characters and our own invented creatures with
   hand-computed stats
 

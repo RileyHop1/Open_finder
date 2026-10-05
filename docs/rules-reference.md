@@ -85,9 +85,13 @@ subset (paragraphs, headings, lists, bold/italic) parsed into the same
 {condition:frightened}
 ```
 
-`{kind:slug}` becomes a `term` node with that `kind` and `slug`, and its
-`label` is resolved from the compendium at parse time (so a page never needs
-to spell out a term's display name by hand). This syntax deliberately does
+`{kind:slug}` becomes a `term` node with that `kind` and `slug`. Its `label`
+is the slug, title-cased (`take-cover` -> `Take Cover`) -- not a live
+compendium lookup, so a page parses with no network or import dependency at
+all, which is exactly "works without any import" from the decision above.
+This matches a real term's actual display name in practice, since every
+slug in this project already *is* its display name in kebab-case. This
+syntax deliberately does
 not look like Foundry's own `@UUID[...]` / `[[/r ...]]` -- a book page is
 never confused for upstream content, and it needs none of the escaping those
 forms exist for.

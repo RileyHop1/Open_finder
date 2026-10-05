@@ -330,3 +330,5 @@ export {
   setCondition,
   type ConditionDefinitions,
 } from './rules/conditionMerge.js';
+
+export { parseBookPage, parseInline } from './book/bookPageParser.js';
