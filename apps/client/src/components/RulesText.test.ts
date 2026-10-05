@@ -1,13 +1,20 @@
 // @vitest-environment jsdom
 import type { RichText } from '@hearthtable/core';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import RulesText from './RulesText.vue';
 
 function render(nodes: RichText) {
   return mount(RulesText, { props: { nodes } });
 }
+
+// A `term` node now renders through `RulesTerm`, which reaches a Pinia
+// store for its tooltip lookup even when nothing opens the tooltip.
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 
 describe('RulesText', () => {
   it('renders a plain text node', () => {
@@ -55,12 +62,13 @@ describe('RulesText', () => {
     expect(ordered.find('ol').exists()).toBe(true);
   });
 
-  it('renders a term as marked-up text, with no popover yet', () => {
+  it('renders a term as its own RulesTerm, with a working popover trigger', () => {
     const wrapper = render([
       { kind: 'term', termKind: 'condition', slug: 'frightened', label: 'Frightened' },
     ]);
     const term = wrapper.find('.rules-term');
     expect(term.text()).toBe('Frightened');
+    expect(term.element.tagName).toBe('BUTTON');
   });
 
   it('recurses into nested structure: a term inside a paragraph inside a list item', () => {
