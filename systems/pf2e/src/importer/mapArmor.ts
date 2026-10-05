@@ -23,6 +23,7 @@ import {
 } from '../content/armor.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
+import { htmlToRichText } from './htmlToRichText.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
 import type { UpstreamEntry } from './reader.js';
 import {
@@ -80,6 +81,7 @@ export function mapArmor(
     (value) => traitSlugSchema.safeParse(value).success,
   );
   const description = nestedStringField(system, 'description', 'value') ?? '';
+  const text = htmlToRichText(description);
   const { elements } = mapEntryRuleElements(system.rules);
 
   return {
@@ -97,6 +99,7 @@ export function mapArmor(
       traits,
       ruleElements: elements,
       description,
+      text,
       category,
       ...(typeof group === 'string' ? { group } : {}),
       acBonus,

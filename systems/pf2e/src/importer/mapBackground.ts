@@ -12,6 +12,7 @@ import type { BackgroundEntry } from '../content/background.js';
 import { ATTRIBUTES, traitSlugSchema, type Attribute } from '../content/common.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
+import { htmlToRichText } from './htmlToRichText.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
 import type { UpstreamEntry } from './reader.js';
 import {
@@ -70,6 +71,7 @@ export function mapBackground(
     (value) => traitSlugSchema.safeParse(value).success,
   );
   const description = nestedStringField(system, 'description', 'value') ?? '';
+  const text = htmlToRichText(description);
   const { elements } = mapEntryRuleElements(system.rules);
 
   return {
@@ -87,6 +89,7 @@ export function mapBackground(
       traits,
       ruleElements: elements,
       description,
+      text,
       boostOptions,
       trainedSkills,
     },

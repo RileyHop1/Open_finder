@@ -54,6 +54,7 @@ describe('mapFeat -- success', () => {
         traits: ['general', 'skill'],
         ruleElements: [],
         description: '<p>Do a thing.</p>',
+        text: [{ kind: 'paragraph', children: [{ kind: 'text', value: 'Do a thing.' }] }],
         level: 3,
         category: 'general',
         prerequisites: [],

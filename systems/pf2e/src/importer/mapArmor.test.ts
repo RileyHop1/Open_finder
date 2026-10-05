@@ -53,6 +53,7 @@ describe('mapArmor -- success', () => {
         traits: [],
         ruleElements: [],
         description: '',
+        text: [],
         category: 'light',
         group: 'chain',
         acBonus: 2,

@@ -62,6 +62,7 @@ describe('mapSpell -- success', () => {
         traits: [],
         ruleElements: [],
         description: '<p>Zap.</p>',
+        text: [{ kind: 'paragraph', children: [{ kind: 'text', value: 'Zap.' }] }],
         rank: 1,
         traditions: ['arcane', 'occult'],
         castTime: 'two',

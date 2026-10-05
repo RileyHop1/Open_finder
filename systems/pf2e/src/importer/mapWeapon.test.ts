@@ -61,6 +61,7 @@ describe('mapWeapon -- success', () => {
         traits: [],
         ruleElements: [],
         description: '<p>Sharp.</p>',
+        text: [{ kind: 'paragraph', children: [{ kind: 'text', value: 'Sharp.' }] }],
         category: 'martial',
         group: 'sword',
         damage: { diceNumber: 1, dieFaces: 8, damageType: 'slashing' },

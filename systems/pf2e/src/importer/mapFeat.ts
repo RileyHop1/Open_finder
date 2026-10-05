@@ -18,6 +18,7 @@ import { FEAT_CATEGORIES, type FeatCategory, type FeatEntry } from '../content/f
 import { traitSlugSchema } from '../content/common.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
+import { htmlToRichText } from './htmlToRichText.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
 import type { UpstreamEntry } from './reader.js';
 import {
@@ -87,6 +88,7 @@ export function mapFeat(
     (value) => traitSlugSchema.safeParse(value).success,
   );
   const description = nestedStringField(system, 'description', 'value') ?? '';
+  const text = htmlToRichText(description);
   const prerequisites = mapPrerequisites(asRecord(system.prerequisites)?.value);
   const actionCost = mapActionCost(
     nestedStringField(system, 'actionType', 'value'),
@@ -109,6 +111,7 @@ export function mapFeat(
       traits,
       ruleElements: elements,
       description,
+      text,
       level,
       category,
       ...(actionCost !== undefined ? { actionCost } : {}),
