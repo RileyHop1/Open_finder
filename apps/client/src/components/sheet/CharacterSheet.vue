@@ -14,14 +14,25 @@
  * as one `actor.update`. Direct entry of HP and every rank is also the GM's
  * override path: nothing on the sheet is locked to what the rules compute.
  *
- * The breakdown on every number is milestone 6.
+ * Every number with a modifier list behind it (the defenses, Perception,
+ * skills, attributes, and max HP) is also its own `StatBreakdown` popover --
+ * the same `Statistic` `prepared` already computed, never a second
+ * recomputation that could disagree. An attribute's own `Statistic` is a
+ * degenerate one-modifier case (`attributeStatistic`): this project has no
+ * boost/flaw resolution yet (that is milestone 7's character-creation
+ * wizard), so an attribute score is exactly its own stored value with
+ * nothing else contributing to it. Showing it through the same popover
+ * everything else uses is still correct, and keeps the interaction
+ * consistent across every number on the sheet rather than carving out an
+ * exception for the one kind with nothing (yet) to add up.
  */
-import type { Actor } from '@hearthtable/core';
-import type { ProficiencyRank } from '@hearthtable/pf2e';
+import type { Actor, Statistic } from '@hearthtable/core';
+import type { Attribute, ProficiencyRank } from '@hearthtable/pf2e';
 import { ATTRIBUTES, characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { computed, ref } from 'vue';
 
 import RulesTerm from '../RulesTerm.vue';
+import StatBreakdown from '../StatBreakdown.vue';
 import { signed, titleCase } from './format.js';
 import NumberField from './NumberField.vue';
 import RankSelect from './RankSelect.vue';
@@ -64,6 +75,30 @@ const prepared = computed(() =>
 
 function total(key: string): number {
   return prepared.value?.statistics[key]?.total ?? 0;
+}
+
+/** The same `Statistic` `total()` reads from, for that number's own `StatBreakdown`. */
+function statisticOf(key: string): Statistic {
+  return prepared.value?.statistics[key] ?? { total: 0, modifiers: [] };
+}
+
+/** An attribute's own breakdown: one modifier, itself -- see the module doc. */
+function attributeStatistic(key: Attribute): Statistic {
+  const value = data.value?.attributes[key] ?? 0;
+  return {
+    total: value,
+    modifiers: [
+      {
+        slug: key,
+        label: ATTRIBUTE_NAMES[key] ?? key,
+        type: 'ability',
+        value,
+        source: 'attribute',
+        enabled: true,
+        applied: true,
+      },
+    ],
+  };
 }
 
 function set(path: string, value: unknown): void {
@@ -140,7 +175,12 @@ const lineage = computed(() =>
         <p v-if="lineage" class="lineage">{{ lineage }}</p>
         <p class="hit-points">
           Hit Points
-          <strong>{{ prepared.hp.current }} / {{ prepared.hp.max.total }}</strong>
+          <strong>
+            {{ prepared.hp.current }} /
+            <StatBreakdown label="Maximum Hit Points" :statistic="prepared.hp.max">
+              {{ prepared.hp.max.total }}
+            </StatBreakdown>
+          </strong>
           <span v-if="prepared.hp.temp > 0"> (+{{ prepared.hp.temp }} temporary)</span>
         </p>
         <p class="speed">
@@ -268,7 +308,13 @@ const lineage = computed(() =>
             </template>
             <template v-else>
               <span class="name">{{ ATTRIBUTE_NAMES[key] }}</span>
-              <span class="value">{{ signed(data.attributes[key]) }}</span>
+              <StatBreakdown
+                class="value"
+                :label="ATTRIBUTE_NAMES[key] ?? key"
+                :statistic="attributeStatistic(key)"
+              >
+                {{ signed(data.attributes[key]) }}
+              </StatBreakdown>
             </template>
           </li>
         </ul>
@@ -302,7 +348,9 @@ const lineage = computed(() =>
                 }}</template>
               </td>
               <td class="total">
-                {{ row.bonus ? signed(total(row.key)) : total(row.key) }}
+                <StatBreakdown :label="row.label" :statistic="statisticOf(row.key)">
+                  {{ row.bonus ? signed(total(row.key)) : total(row.key) }}
+                </StatBreakdown>
               </td>
               <td v-if="rollable" class="roll">
                 <button
@@ -392,7 +440,11 @@ const lineage = computed(() =>
                 />
                 <template v-else>{{ titleCase(skill.rank) }}</template>
               </td>
-              <td class="total">{{ signed(total(skill.key)) }}</td>
+              <td class="total">
+                <StatBreakdown :label="skill.label" :statistic="statisticOf(skill.key)">
+                  {{ signed(total(skill.key)) }}
+                </StatBreakdown>
+              </td>
               <td v-if="rollable" class="roll">
                 <button
                   type="button"

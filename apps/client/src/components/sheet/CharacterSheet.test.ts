@@ -155,6 +155,66 @@ describe('CharacterSheet', () => {
   });
 });
 
+describe('stat breakdowns', () => {
+  it('opens a defense’s own breakdown, naming every modifier behind it', async () => {
+    const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    const trigger = rowFor(wrapper, 'Fortitude')?.find('.stat-trigger');
+    await trigger?.trigger('click');
+
+    const popover = wrapper.find('.stat-popover');
+    expect(popover.find('h4').text()).toBe('Fortitude');
+    // Con 2 + trained (2 + level 3) = +7.
+    expect(popover.text()).toContain('Bonus +7');
+    expect(popover.text()).toContain('Constitution');
+    expect(popover.text()).toContain('Trained');
+  });
+
+  it('opens a skill’s own breakdown', async () => {
+    const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    const trigger = rowFor(wrapper, 'Athletics')?.find('.stat-trigger');
+    await trigger?.trigger('click');
+
+    const popover = wrapper.find('.stat-popover');
+    expect(popover.find('h4').text()).toBe('Athletics');
+    expect(popover.text()).toContain('Bonus +9');
+  });
+
+  it('opens an attribute’s own breakdown, even though it is just itself', async () => {
+    const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    const strength = wrapper
+      .findAll('.attributes li')
+      .find((li) => li.text().includes('Strength'));
+    await strength?.find('.stat-trigger').trigger('click');
+
+    const popover = wrapper.find('.stat-popover');
+    expect(popover.find('h4').text()).toBe('Strength');
+    expect(popover.text()).toContain('Bonus +4');
+    expect(popover.text()).toContain('+4 Strength');
+  });
+
+  it('opens the maximum hit points breakdown', async () => {
+    const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    // 8 (ancestry) + 10 (class) * 3 (level) + 2 (Con) * 3 (level) = 44.
+    await wrapper.find('.hit-points .stat-trigger').trigger('click');
+
+    const popover = wrapper.find('.stat-popover');
+    expect(popover.find('h4').text()).toBe('Maximum Hit Points');
+    expect(popover.text()).toContain('Bonus +44');
+  });
+
+  it('does not offer a breakdown for an attribute while editing it (it is an input then, not a number)', async () => {
+    const wrapper = mount(CharacterSheet, {
+      props: { actor: makeActor(level3()), editable: true },
+    });
+    await wrapper.find('.edit-toggle').trigger('click');
+    const strength = wrapper
+      .findAll('.attributes li')
+      .find((li) => li.text().includes('Strength'));
+    expect(strength?.find('.stat-trigger').exists()).toBe(false);
+    expect(strength?.find('input').exists()).toBe(true);
+  });
+});
+
 describe('sheet budget (CLAUDE.md: opens in under 200ms)', () => {
   it('prepares and renders a level 20 character with a full inventory well inside it', () => {
     const base = newCharacterData();
@@ -344,7 +404,8 @@ describe('CharacterSheet roll buttons', () => {
 
   it('has no roll buttons unless the viewer may roll', () => {
     const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
-    expect(wrapper.find('button').exists()).toBe(false);
+    // A stat's own breakdown trigger is still a button -- just not a Roll one.
+    expect(wrapper.find('button[aria-label^="Roll "]').exists()).toBe(false);
   });
 
   it('rolls Perception, each save, and any skill by the key the server expects', async () => {
