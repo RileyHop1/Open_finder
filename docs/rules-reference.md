@@ -28,6 +28,14 @@ same `RulesText` component and can both contain a `term` node that opens the
 exact same tooltip. The player never needs to know which kind of text they're
 reading.
 
+Trait text's own importer step (`traitGlossary.ts`) writes a single
+`traits.json` -- a plain array of `{ slug, name, text }`, not a pack
+directory -- holding **only the traits an already-kept entry actually
+carries**, built from a slug-to-lang-key heuristic that doesn't resolve
+every real trait slug (a miss just means a bare-name tooltip, never a
+broken one). See `docs/importer.md`'s "The trait glossary" section for how
+the heuristic works and why.
+
 ## `RichText`
 Defined in `packages/core` (`packages/core/src/richText.ts`, landing with the
 PR that adds it). A `RichText` is `readonly RichTextNode[]`, where a node is
@@ -114,6 +122,10 @@ encyclopedia from CLAUDE.md's north star.
   inline syntax form, one for an unresolved `@UUID`, one for unrecognized
   markup falling back to plain text, never against real upstream content
   (ADR 0013's hermetic-tests rule applies here the same as everywhere else).
+- Trait glossary (`traitGlossary.test.ts`): the slug-to-lang-key heuristic
+  against hand-authored `en.json` fixtures, a miss counted rather than
+  thrown, and deduplication/sorting -- the real `en.json` is never fetched
+  by a test, only by a real import run.
 - Book page parser: a fixture page per Markdown construct, plus one exercising
   `{kind:slug}`.
 - Component tests (`RulesTerm.test.ts`, `RulesText.test.ts`): opens on

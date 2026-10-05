@@ -16,9 +16,9 @@ describe('buildFetchCommands', () => {
     expect(commands).toContainEqual(['sparse-checkout', 'init', '--cone']);
   });
 
-  it('sparse-checks out only packs/, not the whole working tree', () => {
+  it('sparse-checks out only packs/ and static/lang, not the whole working tree', () => {
     const commands = buildFetchCommands(options);
-    expect(commands).toContainEqual(['sparse-checkout', 'set', 'packs']);
+    expect(commands).toContainEqual(['sparse-checkout', 'set', 'packs', 'static/lang']);
   });
 
   it('enables long paths -- upstream has paths deep enough to need it on Windows', () => {

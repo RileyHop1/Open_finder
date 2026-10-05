@@ -17,7 +17,12 @@
 import { join } from 'node:path';
 
 import { runImporter } from './runImporter.js';
-import { UPSTREAM_COMMIT, UPSTREAM_PACKS_CHECKSUM, UPSTREAM_REPO } from './upstream.js';
+import {
+  UPSTREAM_COMMIT,
+  UPSTREAM_LANG_CHECKSUM,
+  UPSTREAM_PACKS_CHECKSUM,
+  UPSTREAM_REPO,
+} from './upstream.js';
 
 const skipFetch = process.argv.includes('--skip-fetch');
 
@@ -32,6 +37,7 @@ try {
       repo: UPSTREAM_REPO,
       commit: UPSTREAM_COMMIT,
       packsChecksum: UPSTREAM_PACKS_CHECKSUM,
+      langChecksum: UPSTREAM_LANG_CHECKSUM,
     },
     upstreamDir,
     outputDir,
@@ -52,7 +58,8 @@ try {
   for (const pack of summary.packs) {
     console.log(`  ${pack.packId}: ${pack.entryCount}`);
   }
-  console.log(`wrote packs and coverage report to ${outputDir}`);
+  console.log(`  trait slugs with no glossary entry: ${summary.coverage.traitMissCount}`);
+  console.log(`wrote packs, the trait glossary, and the coverage report to ${outputDir}`);
 } catch (error: unknown) {
   console.error(error);
   process.exitCode = 1;

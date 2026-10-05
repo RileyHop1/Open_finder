@@ -115,6 +115,14 @@ describe('buildCoverageReport', () => {
     expect(withoutWarnings.inlineSyntaxWarnings).toEqual([]);
   });
 
+  it('carries traitMisses through, defaulting to empty when none are given', () => {
+    const withMisses = buildCoverageReport([], [], [], ['splash-10']);
+    expect(withMisses.traitMisses).toEqual(['splash-10']);
+
+    const withoutMisses = buildCoverageReport([], []);
+    expect(withoutMisses.traitMisses).toEqual([]);
+  });
+
   it('includes every drop, sorted by round then slug', () => {
     const drops: DependencyDrop[] = [
       {
@@ -206,6 +214,15 @@ describe('aggregateCoverage', () => {
     expect(JSON.stringify(aggregate)).not.toContain('Some Flavor Text');
   });
 
+  it('strips traitMisses down to a bare count', () => {
+    const report = buildCoverageReport([], [], [], ['splash-10', 'two-hand-d12']);
+
+    const aggregate = aggregateCoverage(report);
+
+    expect(aggregate.traitMissCount).toBe(2);
+    expect(JSON.stringify(aggregate)).not.toContain('splash-10');
+  });
+
   it('carries totalEntries, entriesByPublication, ruleElementsByKind, and inertRuleElements through unchanged', () => {
     const entries = [
       makeFeat('aaaaaaaaaaaaaaaa', 'Pathfinder Player Core', [FLAT_MODIFIER]),
@@ -262,6 +279,15 @@ describe('renderCoverageMarkdown', () => {
 
     expect(markdown).toContain("Inline syntax that couldn't be fully resolved (1 total)");
     expect(markdown).toContain('unresolved @UUID with no fallback label: Compendium.x');
+  });
+
+  it('renders trait misses, never dropping them silently', () => {
+    const report = buildCoverageReport([], [], [], ['splash-10']);
+
+    const markdown = renderCoverageMarkdown(report);
+
+    expect(markdown).toContain('Trait slugs with no glossary entry (1 total)');
+    expect(markdown).toContain('`splash-10`');
   });
 
   it('renders "_none_" placeholders for empty sections rather than blank tables', () => {

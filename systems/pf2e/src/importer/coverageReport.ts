@@ -41,6 +41,8 @@ export interface CoverageReport {
   readonly drops: readonly DropRecord[];
   /** `resolveEntryText.ts`'s own warnings -- a matched span of unresolved markup, which may itself be Paizo content, so (like `drops[].slug`) this stays out of `CoverageAggregate`. */
   readonly inlineSyntaxWarnings: readonly string[];
+  /** `traitGlossary.ts`'s misses -- trait slugs used by a kept entry with no resolvable lang key, so they fall back to a bare-name tooltip (ADR 0020 decision 6). Slugs, so (like `drops[].slug`) this stays out of `CoverageAggregate` too. */
+  readonly traitMisses: readonly string[];
 }
 
 export interface CoverageAggregate {
@@ -53,6 +55,7 @@ export interface CoverageAggregate {
   readonly dropsByKind: Readonly<Record<string, number>>;
   readonly dropsByRound: Readonly<Record<string, number>>;
   readonly inlineSyntaxWarningCount: number;
+  readonly traitMissCount: number;
 }
 
 function countBy<T>(
@@ -102,6 +105,7 @@ export function buildCoverageReport(
   entries: readonly Pf2eEntry[],
   drops: readonly DependencyDrop[],
   inlineSyntaxWarnings: readonly string[] = [],
+  traitMisses: readonly string[] = [],
 ): CoverageReport {
   const mappedElements = entries
     .flatMap((entry) => entry.ruleElements)
@@ -121,6 +125,7 @@ export function buildCoverageReport(
       }))
       .sort((a, b) => a.round - b.round || a.slug.localeCompare(b.slug)),
     inlineSyntaxWarnings,
+    traitMisses,
   };
 }
 
@@ -136,6 +141,7 @@ export function aggregateCoverage(report: CoverageReport): CoverageAggregate {
     inlineSyntaxWarningCount: report.inlineSyntaxWarnings.length,
     dropsByKind: countBy(report.drops, (drop) => drop.kind),
     dropsByRound: countBy(report.drops, (drop) => String(drop.round)),
+    traitMissCount: report.traitMisses.length,
   };
 }
 
@@ -193,6 +199,19 @@ export function renderCoverageMarkdown(report: CoverageReport): string {
   } else {
     for (const warning of report.inlineSyntaxWarnings) {
       lines.push(`- ${warning}`);
+    }
+    lines.push('');
+  }
+
+  lines.push(
+    `## Trait slugs with no glossary entry (${report.traitMisses.length} total)`,
+    '',
+  );
+  if (report.traitMisses.length === 0) {
+    lines.push('_none_', '');
+  } else {
+    for (const slug of report.traitMisses) {
+      lines.push(`- \`${slug}\``);
     }
     lines.push('');
   }

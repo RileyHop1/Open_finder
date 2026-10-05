@@ -14,9 +14,10 @@
  */
 
 import type { Provenance } from '@hearthtable/core';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { checksumPacks } from './checksum.js';
+import { checksumFile, checksumPacks } from './checksum.js';
 import {
   aggregateCoverage,
   buildCoverageReport,
@@ -43,6 +44,11 @@ import { readUpstreamEntries, type UpstreamEntry } from './reader.js';
 import { resolveDependencies } from './resolveDependencies.js';
 import { resolveEntryText } from './resolveEntryText.js';
 import { applyScopeFilter } from './scopeFilter.js';
+import {
+  buildTraitGlossary,
+  flattenLangStrings,
+  writeTraitGlossary,
+} from './traitGlossary.js';
 import { writePacks, type UpstreamPin } from './writePacks.js';
 
 type Mapper = (
@@ -176,10 +182,31 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
   const droppedIds = new Set(duplicateDrops.map((drop) => drop.id));
   const written = textResolved.filter((entry) => !droppedIds.has(entry.id));
 
+  // Trait glossary (ADR 0020 decision 5), scoped to exactly the traits
+  // `written` actually carries. Skipped entirely with no `langChecksum` --
+  // every hermetic test but the trait-glossary ones cares only about
+  // `packs/`, and the real importer (`index.ts`) always supplies one.
+  let traitMisses: readonly string[] = [];
+  if (options.upstream.langChecksum !== undefined) {
+    const langPath = join(options.upstreamDir, 'static', 'lang', 'en.json');
+    const langChecksum = checksumFile(langPath);
+    if (langChecksum !== options.upstream.langChecksum) {
+      throw new Error(
+        `upstream lang checksum mismatch: expected ${options.upstream.langChecksum}, got ${langChecksum} -- refusing to import unverified content`,
+      );
+    }
+    const langStrings = flattenLangStrings(JSON.parse(readFileSync(langPath, 'utf8')));
+    const traitSlugs = written.flatMap((entry) => entry.traits);
+    const glossary = buildTraitGlossary(traitSlugs, langStrings);
+    writeTraitGlossary(glossary.entries, options.outputDir);
+    traitMisses = glossary.misses;
+  }
+
   const report = buildCoverageReport(
     written,
     [...dependencyDrops, ...duplicateDrops],
     inlineSyntaxWarnings,
+    traitMisses,
   );
   writeCoverageReport(report, options.outputDir);
 

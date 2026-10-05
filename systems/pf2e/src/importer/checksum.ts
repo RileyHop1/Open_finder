@@ -38,3 +38,14 @@ export function checksumPacks(rootDir: string): string {
   }
   return `sha256:${hash.digest('hex')}`;
 }
+
+/**
+ * Sha256 over a single file's bytes alone -- no path mixed in, unlike
+ * `checksumPacks`, because this pins exactly one fixed, known file
+ * (`static/lang/en.json`, ADR 0020's `UPSTREAM_LANG_CHECKSUM`) rather than
+ * a directory tree whose membership could itself shift.
+ */
+export function checksumFile(filePath: string): string {
+  const hash = createHash('sha256').update(readFileSync(filePath));
+  return `sha256:${hash.digest('hex')}`;
+}
