@@ -120,3 +120,28 @@ export const SIZES = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'] 
 export type Size = (typeof SIZES)[number];
 
 export const sizeSchema = z.enum(SIZES);
+
+/**
+ * An item's price as one integer of copper pieces (1 pp = 1000, 1 gp = 100,
+ * 1 sp = 10), rather than a `{pp, gp, sp, cp}` struct -- see ADR 0021.
+ * Optional: absent means the importer could not read a price, not "free."
+ */
+export const priceInCopperSchema = z.number().int().nonnegative().optional();
+
+/**
+ * An item's Bulk: `0.1` for a *light* item, `0` for negligible, whole
+ * numbers above that. Optional on the schema like `priceInCopperSchema`
+ * above (so an entry imported before this field existed, or one the
+ * importer could not read a value for, still parses); unlike price, an
+ * absent value is meant to be read as `0` (no weight) by the Bulk math that
+ * consumes it (milestone 7), not as "unknown" -- most adventuring gear
+ * genuinely has none. See ADR 0021 and `docs/inventory.md`.
+ */
+export const bulkSchema = z.number().nonnegative().optional();
+
+/**
+ * The level at which an item becomes available, shared by weapons, armor,
+ * and gear the same way a feat already has one (`feat.ts`). Optional:
+ * absent means the importer could not read a level, not "level 0."
+ */
+export const itemLevelSchema = z.number().int().nonnegative().optional();

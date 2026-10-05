@@ -1,16 +1,22 @@
 /**
  * The `weapon` content kind. Fields are scoped to what Stack D's strike
  * math (attack rolls, damage, proficiency lookup) and the sheet's display
- * actually need for v1 -- no bulk, price, or usage entries, none of which
- * anything in this milestone consumes. Add them when a real consumer needs
- * them, not speculatively.
+ * actually need, plus the price, Bulk, and level milestone 7's inventory
+ * economy needs (ADR 0021) -- no usage entries (ammunition count, reload
+ * tracking beyond the `reload` field below), which nothing yet consumes.
+ * Add them when a real consumer needs them, not speculatively.
  */
 
 import { z } from 'zod';
 
 import { compendiumEntrySchema, damageDiceFacesSchema } from '@hearthtable/core';
 
-import { traitSlugSchema } from './common.js';
+import {
+  bulkSchema,
+  itemLevelSchema,
+  priceInCopperSchema,
+  traitSlugSchema,
+} from './common.js';
 
 /** Which proficiency a strike with this weapon uses -- `unarmed` is its own category, not folded into `simple`. */
 export const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced'] as const;
@@ -82,6 +88,9 @@ export const weaponEntrySchema = compendiumEntrySchema.extend({
   range: z.number().int().positive().optional(),
   /** Rounds to reload; absent for a weapon with no reload step (melee, or ranged with none, e.g. a thrown weapon or most bows). */
   reload: z.number().int().nonnegative().optional(),
+  priceInCopper: priceInCopperSchema,
+  bulk: bulkSchema,
+  level: itemLevelSchema,
 });
 
 export type WeaponEntry = z.infer<typeof weaponEntrySchema>;
