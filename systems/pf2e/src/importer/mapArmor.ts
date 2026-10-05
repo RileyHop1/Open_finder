@@ -29,6 +29,9 @@ import type { UpstreamEntry } from './reader.js';
 import {
   asRecord,
   filterValidTraitSlugs,
+  mapBulk,
+  mapPriceInCopper,
+  nestedNumberField,
   nestedStringArrayField,
   nestedStringField,
   slugify,
@@ -71,6 +74,9 @@ export function mapArmor(
   const checkPenalty = system.checkPenalty;
   const speedPenalty = system.speedPenalty;
   const strength = system.strength;
+  const priceInCopper = mapPriceInCopper(asRecord(system.price)?.value);
+  const bulk = mapBulk(asRecord(system.bulk)?.value);
+  const level = nestedNumberField(system, 'level', 'value');
 
   const slug =
     typeof system.slug === 'string' && system.slug.length > 0
@@ -121,6 +127,9 @@ export function mapArmor(
       ...(typeof strength === 'number' && Number.isInteger(strength) && strength > 0
         ? { strength }
         : {}),
+      ...(priceInCopper !== undefined ? { priceInCopper } : {}),
+      ...(bulk !== undefined ? { bulk } : {}),
+      ...(level !== undefined && Number.isInteger(level) && level >= 0 ? { level } : {}),
     },
   };
 }

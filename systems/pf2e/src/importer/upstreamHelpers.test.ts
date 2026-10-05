@@ -4,6 +4,8 @@ import {
   extractBoostSlots,
   filterValidTraitSlugs,
   mapActionCost,
+  mapBulk,
+  mapPriceInCopper,
   nestedNumberField,
   nestedStringArrayField,
   nestedStringField,
@@ -140,5 +142,52 @@ describe('extractBoostSlots', () => {
   it('skips a slot with a malformed value', () => {
     const boosts = { '0': { value: ['dex'] }, '1': { value: 'not an array' } };
     expect(extractBoostSlots(boosts)).toEqual([['dex']]);
+  });
+});
+
+describe('mapPriceInCopper', () => {
+  it('converts a mixed-denomination price to one copper total', () => {
+    expect(mapPriceInCopper({ gp: 1, sp: 5 })).toBe(150);
+  });
+
+  it('converts each denomination independently', () => {
+    expect(mapPriceInCopper({ pp: 1 })).toBe(1000);
+    expect(mapPriceInCopper({ gp: 1 })).toBe(100);
+    expect(mapPriceInCopper({ sp: 1 })).toBe(10);
+    expect(mapPriceInCopper({ cp: 1 })).toBe(1);
+  });
+
+  it('treats an all-zero price as 0 copper, not undefined', () => {
+    expect(mapPriceInCopper({ gp: 0, sp: 0 })).toBe(0);
+  });
+
+  it('returns undefined when every denomination is missing or non-numeric', () => {
+    expect(mapPriceInCopper({})).toBeUndefined();
+    expect(mapPriceInCopper({ gp: 'free' })).toBeUndefined();
+  });
+
+  it('returns undefined for a missing or malformed value', () => {
+    expect(mapPriceInCopper(undefined)).toBeUndefined();
+    expect(mapPriceInCopper('not an object')).toBeUndefined();
+  });
+});
+
+describe('mapBulk', () => {
+  it('parses a whole-number string', () => {
+    expect(mapBulk('2')).toBe(2);
+  });
+
+  it('parses "L" as light (0.1)', () => {
+    expect(mapBulk('L')).toBe(0.1);
+  });
+
+  it('parses "-" as explicitly no Bulk', () => {
+    expect(mapBulk('-')).toBe(0);
+  });
+
+  it('returns undefined for a missing or unrecognized value', () => {
+    expect(mapBulk(undefined)).toBeUndefined();
+    expect(mapBulk('heavy')).toBeUndefined();
+    expect(mapBulk(2)).toBeUndefined();
   });
 });

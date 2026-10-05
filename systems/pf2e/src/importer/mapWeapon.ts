@@ -28,6 +28,9 @@ import type { UpstreamEntry } from './reader.js';
 import {
   asRecord,
   filterValidTraitSlugs,
+  mapBulk,
+  mapPriceInCopper,
+  nestedNumberField,
   nestedStringArrayField,
   nestedStringField,
   parseDieSize,
@@ -100,6 +103,9 @@ export function mapWeapon(
 
   const range = system.range;
   const reload = mapReload(asRecord(system.reload)?.value);
+  const priceInCopper = mapPriceInCopper(asRecord(system.price)?.value);
+  const bulk = mapBulk(asRecord(system.bulk)?.value);
+  const level = nestedNumberField(system, 'level', 'value');
   const slug =
     typeof system.slug === 'string' && system.slug.length > 0
       ? system.slug
@@ -134,6 +140,9 @@ export function mapWeapon(
       hands: mapHands(asRecord(system.usage)?.value),
       ...(typeof range === 'number' && range > 0 ? { range } : {}),
       ...(reload !== undefined ? { reload } : {}),
+      ...(priceInCopper !== undefined ? { priceInCopper } : {}),
+      ...(bulk !== undefined ? { bulk } : {}),
+      ...(level !== undefined && Number.isInteger(level) && level >= 0 ? { level } : {}),
     },
   };
 }
