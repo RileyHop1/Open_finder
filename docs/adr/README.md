@@ -50,3 +50,4 @@ than a tidy file.
 | [0018](0018-combat-tracker.md) | Combat tracker: server-owned turn state, combatants as documents, expiry inside the turn operation | Accepted |
 | [0019](0019-turn-undo.md) | Turn undo: snapshot the documents, not the operations | Accepted |
 | [0020](0020-rules-text.md) | Rules text: our own AST, converted at import time | Accepted |
+| [0021](0021-inventory-economy.md) | Coins are a field, Bulk is computed, transfers are one operation | Accepted |

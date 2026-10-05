@@ -1,0 +1,112 @@
+# Inventory, coins, and Bulk
+
+Money, item weight, and moving loot between a character, another character,
+and the party, per [ADR 0021](adr/0021-inventory-economy.md). This page
+specifies the shape; [actor.md](actor.md) and [party.md](party.md) own the
+documents these fields live on.
+
+## Coins
+
+A character's `system.coins` and the party's `system.stash.coins` are both
+`{pp, gp, sp, cp}`: non-negative integers, default all `0`. Nothing else in
+the data model represents money -- a gear item is never currency (ADR 0021's
+"coins as a field" decision).
+
+**Spending** always resolves to the fewest coins: convert the whole purse to
+copper (`pp * 1000 + gp * 100 + sp * 10 + cp`), subtract, then reassemble
+greedily from the largest denomination down. A character or the stash can
+never go negative; the operation rejects a spend it cannot cover rather than
+leaving a partial deduction.
+
+| Denomination | Copper value |
+| --- | --- |
+| Platinum (pp) | 1000 |
+| Gold (gp) | 100 |
+| Silver (sp) | 10 |
+| Copper (cp) | 1 |
+
+## Item price and Bulk
+
+`WeaponEntry`, `ArmorEntry`, and `GearEntry` each get two new optional fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `priceInCopper` | non-negative integer, optional | One integer, not a struct; display splits it back into denominations. Absent means the importer could not read a price |
+| `bulk` | number, optional, default `0` | `0.1` for a *light* item, `0` for negligible. Absent is treated as `0` (no weight), not as "unknown" -- most adventuring gear genuinely has none |
+
+## Bulk and encumbrance
+
+Total Bulk is **computed**, never stored: sum every carried item's
+`bulk * quantity`, plus one Bulk per 1,000 coins held (any denomination,
+summed before converting). It is resolved alongside the rest of a
+character's statistics (ADR 0008), so a change to an item, a quantity, or a
+future Strength boost is reflected the next time the sheet reads it, with
+nothing to invalidate.
+
+- **Encumbered** at more than `5 + Strength modifier` Bulk.
+- **Maximum carry** is `10 + Strength modifier` Bulk **(confirm against GM
+  Core: whether exceeding maximum is a hard block or a GM call)**.
+
+Crossing the encumbered threshold adds the `encumbered` condition
+automatically; dropping back below removes it. Like any other condition, the
+GM can add or remove it by hand -- the computed threshold decides what the
+server does automatically, not what the character's actual state is allowed
+to be.
+
+## Consumables
+
+A `GearEntry` may carry a `consumable` field:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `category` | `'potion' \| 'elixir' \| 'scroll' \| 'wand' \| 'talisman' \| 'ammo' \| 'other'` | |
+| `uses` | `{current, max}`, optional | Absent means single-use (equivalent to quantity 1 of this stack being consumed) |
+| `spell` | `{packId, slug, rank}`, optional | What a scroll or wand casts. Only present when the spell was actually imported -- see Importer notes |
+
+Using a consumable (`actor.useItem`) decrements `uses.current` (or the
+item's `quantity` when there is no `uses`), and posts a `ChatMessage` with
+the item's name and rules text. If its text contains a dice expression, that
+message's structured roll data is filled the same way any other roll is
+(see [dice.md](dice.md)) -- using a consumable is not a new kind of roll,
+just a new trigger for one. Anything the roll should *do* (heal HP, remove a
+condition) still goes through the existing operations for that (`actor.heal`,
+`actor.removeCondition`); `useItem` only spends the item and posts the card.
+
+## Transfers
+
+`inventory.transfer` moves one of:
+- an item (by id, with an optional `quantity` to split a stack), or
+- an amount of coins (`{pp?, gp?, sp?, cp?}`),
+
+from one holder to another, where a holder is `{kind: 'actor', actorId}` or
+`{kind: 'party'}` (the stash). The caller must own the source holder's actor,
+or be the GM; the GM can move anything. The server checks the source actually
+has what is being moved, then applies both sides inside one transaction --
+see [operations.md](operations.md) for the envelope this follows.
+
+## Importer notes
+
+Price and Bulk are read from upstream's existing `system.price` / `system.bulk`
+fields at import time; a missing or malformed one is left absent (counted in
+the coverage report, not a dropped entry -- a gear item with no listed price
+is still useful without one).
+
+A scroll or wand's spell reference follows the same "excluded content is
+excluded whole" rule as any other cross-entry link (ADR 0011, CLAUDE.md's
+Rules data section): if the target spell was not imported (out of scope, or
+itself dropped), the consumable keeps its `category` and loses `spell`
+entirely, rather than carrying a reference to nothing.
+
+## Testing
+
+- `systems/pf2e/src/rules/coins.test.ts`: conversion to/from copper, making
+  change, rejecting an overspend.
+- `systems/pf2e/src/rules/bulk.test.ts` and a golden case per class in
+  `systems/pf2e/src/golden/`: total Bulk, the encumbered threshold crossing
+  in both directions.
+- `packages/core/src/operation.transfer.test.ts`: an item split across two
+  holders, a coin transfer, rejecting a transfer the caller does not own and
+  one the source cannot cover.
+- Playwright e2e (`test/m7-loot-e2e`, tracking issue
+  [#254](https://github.com/RileyHop1/Open_finder/issues/254)): give, take,
+  and use, across two browser contexts.
