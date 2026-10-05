@@ -19,6 +19,7 @@ import { armorEntrySchema } from './armor.js';
 import { classFeatureEntrySchema } from './class.js';
 import { attributeSchema, proficiencyRankSchema } from './common.js';
 import { conditionDurationSchema } from './conditionDuration.js';
+import { ZERO_COINS, coinsSchema } from './coins.js';
 import { featEntrySchema } from './feat.js';
 import { gearEntrySchema } from './gear.js';
 import { persistentDamageSchema } from './persistentDamage.js';
@@ -151,6 +152,8 @@ export const characterDataSchema = z
      * gets silently clobbered by an unrelated edit.
      */
     speed: z.number().int().nonnegative().default(25),
+    /** The character's purse (ADR 0021, `docs/inventory.md`). Absent in an actor stored before this field existed, which parses as an empty purse -- no migration needed for a purely additive, defaulted field. */
+    coins: coinsSchema.default(ZERO_COINS),
     items: z.array(characterItemSchema).default([]),
     conditions: z.array(appliedConditionSchema).default([]),
     /** Persistent damage still burning; empty when none (`persistentDamage.ts`). */

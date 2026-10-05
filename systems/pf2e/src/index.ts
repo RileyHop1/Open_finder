@@ -322,6 +322,16 @@ export {
   type CharacterRanks,
 } from './content/character.js';
 
+export { ZERO_COINS, coinsSchema, type Coins } from './content/coins.js';
+
+export {
+  newPartyStash,
+  partyStashSchema,
+  stashItemSchema,
+  type PartyStash,
+  type StashItem,
+} from './content/partyStash.js';
+
 export {
   prepareCharacter,
   type InertItem,

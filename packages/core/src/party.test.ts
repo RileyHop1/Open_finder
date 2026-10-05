@@ -49,4 +49,13 @@ describe('partySchema', () => {
     expect(partySchema.safeParse({ ...partyFields(), level: 0 }).success).toBe(false);
     expect(partySchema.safeParse({ ...partyFields(), level: 21 }).success).toBe(false);
   });
+
+  it('leaves stash undefined when absent -- core never looks inside it', () => {
+    expect(partySchema.parse(partyFields()).stash).toBeUndefined();
+  });
+
+  it('accepts any object as stash, opaque to core the same way an Actor.system is', () => {
+    const stash = { coins: { gp: 15 }, items: [] };
+    expect(partySchema.parse({ ...partyFields(), stash }).stash).toEqual(stash);
+  });
 });
