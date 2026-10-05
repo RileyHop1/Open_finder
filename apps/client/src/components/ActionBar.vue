@@ -19,6 +19,7 @@ import { ref } from 'vue';
 
 import type { ActionBarView } from './actionBarModel.js';
 import RulesTerm from './RulesTerm.vue';
+import { titleCase } from './sheet/format.js';
 
 defineProps<{
   view: ActionBarView;
@@ -51,6 +52,15 @@ function submitFreeform(): void {
     <ul v-if="view.strikes.length > 0" class="strikes">
       <li v-for="strike in view.strikes" :key="strike.name">
         <span class="strike-name">{{ strike.name }}</span>
+        <span v-if="strike.traits.length > 0" class="strike-traits">
+          <RulesTerm
+            v-for="trait in strike.traits"
+            :key="trait"
+            term-kind="trait"
+            :slug="trait"
+            :label="titleCase(trait)"
+          />
+        </span>
         <button
           v-for="attack in strike.attacks"
           :key="attack.attackNumber"
@@ -125,6 +135,14 @@ function submitFreeform(): void {
 }
 .strike-name {
   font-weight: 600;
+  margin-right: var(--space-1);
+}
+.strike-traits {
+  margin-right: var(--space-1);
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+}
+.strike-traits .rules-term {
   margin-right: var(--space-1);
 }
 button {

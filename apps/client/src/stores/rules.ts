@@ -11,10 +11,10 @@
  * nothing about one can change out from under an open session.
  */
 
-import type { CompendiumEntry } from '@hearthtable/core';
+import type { CompendiumEntry, TraitEntry } from '@hearthtable/core';
 import { defineStore } from 'pinia';
 
-import { getCompendiumEntry } from '../api/compendium.js';
+import { getCompendiumEntry, getCompendiumTraits } from '../api/compendium.js';
 
 export const useRulesStore = defineStore('rules', () => {
   // `undefined` as a *stored* value (checked via `has`) means "already
@@ -32,8 +32,8 @@ export const useRulesStore = defineStore('rules', () => {
    * same pair returns the cached result (or, while the first fetch is
    * still in flight, the same promise) rather than issuing another
    * request. `undefined` means the server has no such entry -- a stale
-   * term, or a trait with no glossary entry yet -- not a failure; a
-   * genuine network failure rejects instead, for the caller to handle.
+   * term -- not a failure; a genuine network failure rejects instead, for
+   * the caller to handle.
    */
   async function getEntry(
     packId: string,
@@ -59,5 +59,30 @@ export const useRulesStore = defineStore('rules', () => {
     return request;
   }
 
-  return { getEntry };
+  // The trait glossary (ADR 0020 decision 5) is one flat list, not a pack
+  // -- `traits.json` has no per-slug route to call like `getEntry`'s packs
+  // do, so the whole thing is fetched once (the first trait tooltip opened
+  // anywhere pays for it) and every later lookup is a local `Map.get`.
+  let traitsRequest: Promise<ReadonlyMap<string, TraitEntry>> | undefined;
+
+  /**
+   * The trait glossary entry for `slug`, or `undefined` if it has none --
+   * a trait the heuristic in `traitGlossary.ts` couldn't resolve, shown as
+   * a bare name rather than a broken tooltip (ADR 0020 decision 6), not a
+   * failure. A genuine network failure rejects, and -- unlike a resolved
+   * fetch, which is cached forever -- clears `traitsRequest` first, so the
+   * next call retries instead of replaying the same rejection forever.
+   */
+  async function getTrait(slug: string): Promise<TraitEntry | undefined> {
+    traitsRequest ??= getCompendiumTraits()
+      .then((entries) => new Map(entries.map((entry) => [entry.slug, entry])))
+      .catch((error: unknown) => {
+        traitsRequest = undefined;
+        throw error;
+      });
+    const bySlug = await traitsRequest;
+    return bySlug.get(slug);
+  }
+
+  return { getEntry, getTrait };
 });

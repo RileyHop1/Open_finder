@@ -26,6 +26,7 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
         ranged: false,
         reach: false,
         rangeFeet: undefined,
+        traits: ['finesse', 'agile'],
       },
     ],
     basics: [{ slug: 'stride', name: 'Stride', cost: 1 }],

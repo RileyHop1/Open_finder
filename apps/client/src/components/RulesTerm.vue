@@ -9,12 +9,11 @@
  * mentioning a trait, say) opens its own `RulesTerm` and its own popover,
  * stacked on top rather than replacing the one already open.
  *
- * `termKind` maps onto a compendium pack id for the four kinds the importer
- * actually produces entries for (`condition`/`feat`/`spell`/`action`).
- * `trait` has no mapping yet -- traits come from a different source
- * (`static/lang`, not a compendium pack) that a later PR in this stack
- * wires up. Until then a trait term still opens, consistently with every
- * other kind, it just has nothing to show.
+ * `termKind` maps onto a compendium pack id for four of its five kinds
+ * (`condition`/`feat`/`spell`/`action`). `trait` is the exception: a
+ * trait's text comes from the glossary `stores/rules.ts`'s `getTrait`
+ * fetches (ADR 0020 decision 5), not a compendium pack, so it's resolved
+ * separately rather than through `PACK_ID_BY_TERM_KIND`.
  */
 import type { RichText, TermKind } from '@hearthtable/core';
 import { ref } from 'vue';
@@ -47,14 +46,16 @@ async function load(): Promise<void> {
   if (loaded.value) {
     return;
   }
-  const packId = PACK_ID_BY_TERM_KIND[props.termKind];
-  if (packId === undefined) {
-    loaded.value = true;
-    return;
-  }
   try {
-    const entry = await rules.getEntry(packId, props.slug);
-    entryText.value = entry?.text;
+    if (props.termKind === 'trait') {
+      const trait = await rules.getTrait(props.slug);
+      entryText.value = trait?.text;
+    } else {
+      const packId = PACK_ID_BY_TERM_KIND[props.termKind];
+      const entry =
+        packId === undefined ? undefined : await rules.getEntry(packId, props.slug);
+      entryText.value = entry?.text;
+    }
   } catch {
     entryText.value = undefined;
   }

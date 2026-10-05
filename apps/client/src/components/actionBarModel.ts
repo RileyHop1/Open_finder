@@ -41,6 +41,8 @@ export interface ActionBarStrike {
   readonly reach: boolean;
   /** Ranged only: the weapon's range in feet, for the highlight. Undefined when unknown (an NPC's strike -- no weapon entry to read it from). */
   readonly rangeFeet: number | undefined;
+  /** The weapon's or creature strike's own traits, for `RulesTerm` tooltips on the action bar (milestone 6). */
+  readonly traits: readonly string[];
 }
 
 export interface ActionBarView {
@@ -58,7 +60,7 @@ function toBarStrike(
   target: ActionBarStrike['target'],
   name: string,
   attacks: readonly [Statistic, Statistic, Statistic],
-  range: Pick<ActionBarStrike, 'ranged' | 'reach' | 'rangeFeet'>,
+  extra: Pick<ActionBarStrike, 'ranged' | 'reach' | 'rangeFeet' | 'traits'>,
 ): ActionBarStrike {
   const [first, second, third] = attacks;
   return {
@@ -69,22 +71,29 @@ function toBarStrike(
       { label: ATTACK_LABELS[1], attackNumber: 2, total: second.total },
       { label: ATTACK_LABELS[2], attackNumber: 3, total: third.total },
     ],
-    ...range,
+    ...extra,
   };
 }
 
 function strikesOf(actor: Actor): ActionBarStrike[] {
   if (actor.kind === 'npc') {
     const parsed = npcDataSchema.safeParse(actor.system);
-    return parsed.success
-      ? prepareNpc(parsed.data).strikes.map((strike) =>
-          toBarStrike({ strikeKey: strike.key }, strike.name, strike.attacks, {
-            ranged: strike.ranged,
-            reach: false,
-            rangeFeet: undefined,
-          }),
-        )
-      : [];
+    if (!parsed.success) {
+      return [];
+    }
+    // `prepareNpc`'s own output carries no traits (it's rules math, not
+    // display), so they're read from the raw creature data it was built
+    // from instead -- `creature.strikes.map(...)` inside `prepareNpc`
+    // preserves order, so the same index names the same strike.
+    const rawStrikes = parsed.data.creature.strikes;
+    return prepareNpc(parsed.data).strikes.map((strike, index) =>
+      toBarStrike({ strikeKey: strike.key }, strike.name, strike.attacks, {
+        ranged: strike.ranged,
+        reach: false,
+        rangeFeet: undefined,
+        traits: rawStrikes[index]?.traits ?? [],
+      }),
+    );
   }
   const parsed = characterDataSchema.safeParse(actor.system);
   return parsed.success
@@ -94,6 +103,7 @@ function strikesOf(actor: Actor): ActionBarStrike[] {
           ranged: weapon.range !== undefined,
           reach: hasTrait(weapon.traits, 'reach'),
           rangeFeet: weapon.range,
+          traits: weapon.traits,
         });
       })
     : [];
