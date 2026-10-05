@@ -29,6 +29,8 @@ export interface ActionBarAttack {
   readonly label: (typeof ATTACK_LABELS)[number];
   readonly attackNumber: 1 | 2 | 3;
   readonly total: number;
+  /** The same `Statistic` `total` was read from, for this attack's own `StatBreakdown` (milestone 6). */
+  readonly statistic: Statistic;
 }
 
 export interface ActionBarStrike {
@@ -67,9 +69,14 @@ function toBarStrike(
     target,
     name,
     attacks: [
-      { label: ATTACK_LABELS[0], attackNumber: 1, total: first.total },
-      { label: ATTACK_LABELS[1], attackNumber: 2, total: second.total },
-      { label: ATTACK_LABELS[2], attackNumber: 3, total: third.total },
+      { label: ATTACK_LABELS[0], attackNumber: 1, total: first.total, statistic: first },
+      {
+        label: ATTACK_LABELS[1],
+        attackNumber: 2,
+        total: second.total,
+        statistic: second,
+      },
+      { label: ATTACK_LABELS[2], attackNumber: 3, total: third.total, statistic: third },
     ],
     ...extra,
   };

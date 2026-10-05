@@ -10,6 +10,10 @@
  *
  * Like the sheet, this never talks to the server: it emits what was asked for.
  * Unarmed strikes are not modeled yet, and the empty state says so.
+ *
+ * Each attack total is also its own `StatBreakdown`, next to (not instead
+ * of) the Roll button: the two can't share one element, since `StatBreakdown`
+ * is itself a button and a button can't nest inside another one.
  */
 import type { Actor } from '@hearthtable/core';
 import {
@@ -20,6 +24,7 @@ import {
 } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
+import StatBreakdown from '../StatBreakdown.vue';
 import { signed } from './format.js';
 
 const props = defineProps<{ actor: Actor; rollable?: boolean }>();
@@ -74,15 +79,20 @@ function dice(components: readonly { expression: string; damageType: string }[])
 
         <ul class="attacks" :aria-label="`${strike.name} attacks`">
           <li v-for="(attack, index) in strike.attacks" :key="index">
+            <StatBreakdown
+              :label="`${strike.name} ${ATTACK_LABELS[index]} attack`"
+              :statistic="attack"
+            >
+              {{ ATTACK_LABELS[index] }} {{ signed(attack.total) }}
+            </StatBreakdown>
             <button
               v-if="rollable"
               type="button"
               :aria-label="`Roll ${strike.name} ${ATTACK_LABELS[index]} attack, ${signed(attack.total)}`"
               @click="emit('attack', strike.id, (index + 1) as 1 | 2 | 3)"
             >
-              {{ ATTACK_LABELS[index] }} {{ signed(attack.total) }}
+              Roll
             </button>
-            <span v-else>{{ ATTACK_LABELS[index] }} {{ signed(attack.total) }}</span>
           </li>
         </ul>
 
@@ -154,6 +164,12 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+.attacks li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 button {

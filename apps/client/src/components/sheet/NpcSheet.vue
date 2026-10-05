@@ -16,6 +16,7 @@ import { npcDataSchema, prepareNpc } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
 import RulesTerm from '../RulesTerm.vue';
+import StatBreakdown from '../StatBreakdown.vue';
 import { signed, titleCase } from './format.js';
 import NumberField from './NumberField.vue';
 
@@ -49,7 +50,7 @@ const rows = computed(() => {
           {
             key,
             label: key === 'ac' ? 'Armor Class' : titleCase(key),
-            total: statistic.total,
+            statistic,
             /** AC is a number others roll against, not a roll. */
             isBonus: key !== 'ac',
           },
@@ -100,7 +101,13 @@ const speeds = computed(() =>
         :max="prepared.hp.max.total"
         @commit="(n) => emit('change', { 'system.hp.current': n })"
       />
-      <span class="muted">of {{ prepared.hp.max.total }}, the GM's override</span>
+      <span class="muted"
+        >of
+        <StatBreakdown label="Maximum Hit Points" :statistic="prepared.hp.max">{{
+          prepared.hp.max.total
+        }}</StatBreakdown
+        >, the GM's override</span
+      >
     </p>
 
     <table class="statistics">
@@ -114,7 +121,11 @@ const speeds = computed(() =>
       <tbody>
         <tr v-for="row in rows" :key="row.key">
           <th scope="row">{{ row.label }}</th>
-          <td class="total">{{ row.isBonus ? signed(row.total) : row.total }}</td>
+          <td class="total">
+            <StatBreakdown :label="row.label" :statistic="row.statistic">
+              {{ row.isBonus ? signed(row.statistic.total) : row.statistic.total }}
+            </StatBreakdown>
+          </td>
           <td v-if="rollable" class="roll">
             <button
               v-if="row.isBonus"

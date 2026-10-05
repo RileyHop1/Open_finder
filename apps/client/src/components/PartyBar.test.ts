@@ -93,6 +93,15 @@ describe('PartyBar', () => {
     ]);
   });
 
+  it('opens the maximum’s own breakdown, without also opening the card', async () => {
+    const wrapper = mountBar([member('Anna', { current: 12 })]);
+    await wrapper.get('.hp-text .stat-trigger').trigger('click');
+
+    const popover = wrapper.get('.stat-popover');
+    expect(popover.get('h4').text()).toBe('Maximum Hit Points');
+    expect(wrapper.emitted('select')).toBeUndefined();
+  });
+
   it('never draws more than a full bar, or a bar when there is no maximum', () => {
     const over = mountBar([member('Anna', { current: 99 })]);
     expect(over.find('.hp-fill').attributes('style')).toBe('width: 100%;');

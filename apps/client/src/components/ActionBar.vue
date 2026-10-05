@@ -19,6 +19,8 @@ import { ref } from 'vue';
 
 import type { ActionBarView } from './actionBarModel.js';
 import RulesTerm from './RulesTerm.vue';
+import StatBreakdown from './StatBreakdown.vue';
+import { signed } from './sheet/format.js';
 import { titleCase } from './sheet/format.js';
 
 defineProps<{
@@ -61,19 +63,31 @@ function submitFreeform(): void {
             :label="titleCase(trait)"
           />
         </span>
-        <button
+        <span
           v-for="attack in strike.attacks"
           :key="attack.attackNumber"
-          type="button"
-          :aria-label="`${strike.name} ${attack.label} attack, ${attack.total >= 0 ? '+' : ''}${attack.total}`"
-          @click="emit('strike', strike.target, attack.attackNumber)"
+          class="attack"
           @mouseenter="emit('hoverStrike', strike)"
           @mouseleave="emit('unhoverStrike')"
-          @focus="emit('hoverStrike', strike)"
-          @blur="emit('unhoverStrike')"
         >
-          {{ attack.label }} {{ attack.total >= 0 ? '+' : '' }}{{ attack.total }}
-        </button>
+          <StatBreakdown
+            :label="`${strike.name} ${attack.label} attack`"
+            :statistic="attack.statistic"
+            @focusin="emit('hoverStrike', strike)"
+            @focusout="emit('unhoverStrike')"
+          >
+            {{ attack.label }} {{ signed(attack.total) }}
+          </StatBreakdown>
+          <button
+            type="button"
+            :aria-label="`Roll ${strike.name} ${attack.label} attack, ${signed(attack.total)}`"
+            @click="emit('strike', strike.target, attack.attackNumber)"
+            @focus="emit('hoverStrike', strike)"
+            @blur="emit('unhoverStrike')"
+          >
+            Roll
+          </button>
+        </span>
       </li>
     </ul>
     <p v-else class="empty">No strikes.</p>
@@ -128,7 +142,8 @@ function submitFreeform(): void {
   margin: 0;
   padding: 0;
 }
-.basics li {
+.basics li,
+.attack {
   display: flex;
   align-items: center;
   gap: var(--space-1);

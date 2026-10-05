@@ -19,9 +19,24 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
         name: 'Sword',
         target: { itemId: 'item-1' },
         attacks: [
-          { label: '1st', attackNumber: 1, total: 7 },
-          { label: '2nd', attackNumber: 2, total: 2 },
-          { label: '3rd', attackNumber: 3, total: -3 },
+          {
+            label: '1st',
+            attackNumber: 1,
+            total: 7,
+            statistic: { total: 7, modifiers: [] },
+          },
+          {
+            label: '2nd',
+            attackNumber: 2,
+            total: 2,
+            statistic: { total: 2, modifiers: [] },
+          },
+          {
+            label: '3rd',
+            attackNumber: 3,
+            total: -3,
+            statistic: { total: -3, modifiers: [] },
+          },
         ],
         ranged: false,
         reach: false,
@@ -41,10 +56,21 @@ describe('ActionBar', () => {
       props: { view: view(), label: 'Ada', gm: false },
     });
     expect(wrapper.text()).toContain('1st +7');
-    expect(wrapper.text()).toContain('3rd -3');
+    expect(wrapper.text()).toContain('3rd −3');
 
-    await wrapper.find('button[aria-label="Sword 2nd attack, +2"]').trigger('click');
+    await wrapper.find('button[aria-label="Roll Sword 2nd attack, +2"]').trigger('click');
     expect(wrapper.emitted('strike')).toEqual([[{ itemId: 'item-1' }, 2]]);
+  });
+
+  it('opens an attack’s own breakdown, separately from rolling it', async () => {
+    const wrapper = mount(ActionBar, {
+      props: { view: view(), label: 'Ada', gm: false },
+    });
+    await wrapper.get('.stat-trigger').trigger('click');
+
+    const popover = wrapper.get('.stat-popover');
+    expect(popover.get('h4').text()).toBe('Sword 1st attack');
+    expect(wrapper.emitted('strike')).toBeUndefined();
   });
 
   it('says so when there are no strikes', () => {
@@ -111,11 +137,12 @@ describe('ActionBar', () => {
     const wrapper = mount(ActionBar, {
       props: { view: view(), label: 'Ada', gm: false },
     });
-    const button = wrapper.find('button[aria-label="Sword 1st attack, +7"]');
+    const attack = wrapper.get('.attack');
+    const button = wrapper.get('button[aria-label="Roll Sword 1st attack, +7"]');
 
-    await button.trigger('mouseenter');
+    await attack.trigger('mouseenter');
     expect(wrapper.emitted('hoverStrike')).toEqual([[view().strikes[0]]]);
-    await button.trigger('mouseleave');
+    await attack.trigger('mouseleave');
     expect(wrapper.emitted('unhoverStrike')).toHaveLength(1);
 
     await button.trigger('focus');
