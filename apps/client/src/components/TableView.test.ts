@@ -661,7 +661,7 @@ describe('map and character drawer', () => {
     expect(isShown(wrapper)).toBe(true);
     expect(wrapper.get('.map-tools button').attributes('aria-expanded')).toBe('true');
 
-    await wrapper.get('.drawer-close').trigger('click');
+    await wrapper.get('#sheet-pane .drawer-close').trigger('click');
     expect(isShown(wrapper)).toBe(false);
     expect(wrapper.get('.map-tools button').attributes('aria-expanded')).toBe('false');
   });
@@ -699,7 +699,7 @@ describe('map and character drawer', () => {
     expect(isShown(wrapper)).toBe(true);
 
     await wrapper.get('.roster button').trigger('click');
-    await wrapper.get('.drawer-close').trigger('click');
+    await wrapper.get('#sheet-pane .drawer-close').trigger('click');
     await wrapper.get('.map-tools button').trigger('click');
     expect(wrapper.get('.sheet h3').text()).toBe('Anna');
   });
@@ -799,6 +799,82 @@ describe('the GM’s scene drawer', () => {
 
     await banner.get('button').trigger('click');
     expect(wrapper.find('.preview-banner').exists()).toBe(false);
+  });
+});
+
+describe('the Rules drawer', () => {
+  const rulesButton = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
+    wrapper.findAll('.map-tools button').find((b) => b.text() === 'Rules');
+
+  it('is offered to everyone, player and GM alike', async () => {
+    mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
+    const player = await mountTable();
+    expect(rulesButton(player)).toBeDefined();
+  });
+
+  it('opens from the Rules button, closes on Escape, and gives focus back', async () => {
+    const wrapper = await mountTable();
+    const opener = rulesButton(wrapper);
+    expect(opener?.attributes('aria-expanded')).toBe('false');
+    (opener?.element as HTMLButtonElement).focus();
+    await opener?.trigger('click');
+
+    const drawer = wrapper.get('#rules-pane');
+    expect((drawer.element as HTMLElement).style.display).not.toBe('none');
+    expect(rulesButton(wrapper)?.attributes('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(drawer.element);
+
+    await drawer.trigger('keydown', { key: 'Escape' });
+    expect((drawer.element as HTMLElement).style.display).toBe('none');
+    expect(document.activeElement).toBe(opener?.element);
+  });
+
+  it('opens with the ? hotkey, ignored while typing in a text field', async () => {
+    const wrapper = await mountTable();
+    expect((wrapper.get('#rules-pane').element as HTMLElement).style.display).toBe(
+      'none',
+    );
+
+    // A stand-in for any text input on the table (chat's own is stubbed out
+    // of this test's ChatLog) -- `isTypingTarget` only cares what kind of
+    // element the key landed on, not which feature it belongs to.
+    const typingField = document.createElement('input');
+    wrapper.get('.table').element.appendChild(typingField);
+    typingField.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }));
+    await flushPromises();
+    expect((wrapper.get('#rules-pane').element as HTMLElement).style.display).toBe(
+      'none',
+    );
+
+    await wrapper.get('.table').trigger('keydown', { key: '?' });
+    expect((wrapper.get('#rules-pane').element as HTMLElement).style.display).not.toBe(
+      'none',
+    );
+  });
+
+  it('can be open beside the character drawer, but not beside the GM’s Scenes drawer', async () => {
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    const wrapper = await mountTable();
+    const scenesButton = wrapper
+      .findAll('.map-tools button')
+      .find((b) => b.text() === 'Scenes');
+
+    await rulesButton(wrapper)?.trigger('click');
+    await wrapper.get('.map-tools button').trigger('click');
+    expect((wrapper.get('#rules-pane').element as HTMLElement).style.display).not.toBe(
+      'none',
+    );
+    expect((wrapper.get('#sheet-pane').element as HTMLElement).style.display).not.toBe(
+      'none',
+    );
+
+    await scenesButton?.trigger('click');
+    expect((wrapper.get('#scene-pane').element as HTMLElement).style.display).not.toBe(
+      'none',
+    );
+    expect((wrapper.get('#rules-pane').element as HTMLElement).style.display).toBe(
+      'none',
+    );
   });
 });
 

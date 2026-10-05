@@ -16,6 +16,12 @@
  * manager: make, edit, preview, move the party to, and delete scenes), and a
  * banner above the map while they are previewing a scene the players are not on.
  *
+ * Everyone has a **Rules** drawer (milestone 6's encyclopedia, `RulesDrawer.vue`),
+ * sharing that same right edge with Scenes -- only one of the two is ever open
+ * at once, see `toggleSceneDrawer`/`toggleRulesDrawer`. It opens from the
+ * "Rules" button or the `?` hotkey (ignored while typing in chat or a form
+ * field, see `isTypingTarget`).
+ *
  * The drawer overlays the map at every width rather than pushing it, so the
  * map never reflows while someone reads their sheet. The chat sits beside the
  * map from 900px and stacks below that. Tablets are supported and phones are
@@ -43,6 +49,7 @@ import { startActorDrag } from './map/placement.js';
 import { cellsInRange } from './map/rangeHighlight.js';
 import { useMapPaneResize } from './useMapPaneResize.js';
 import MonsterPicker from './scenes/MonsterPicker.vue';
+import RulesDrawer from './RulesDrawer.vue';
 import SceneManager from './scenes/SceneManager.vue';
 import TurnBar from './TurnBar.vue';
 import { turnBarItems } from './turnBarModel.js';
@@ -286,10 +293,24 @@ function barFreeform(label: string, cost: number): void {
   void documents.send('chat.sendMessage', { text: `${bar.label} -- ${label}` });
 }
 
-/** Escape anywhere on the screen skips a pending strike's target. */
+/** Whether `event` was typed into a text input, so a one-key hotkey (`?`) never fires mid-sentence in chat or a form field. */
+function isTypingTarget(event: KeyboardEvent): boolean {
+  const target = event.target;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
+/** Escape anywhere on the screen skips a pending strike's target. `?` opens the Rules drawer (the encyclopedia, CLAUDE.md's north star) -- ignored while typing. */
 function onTableKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && pendingStrike.value !== undefined) {
     swingWithoutTarget();
+  }
+  if (event.key === '?' && !isTypingTarget(event)) {
+    event.preventDefault();
+    toggleRulesDrawer();
   }
 }
 
@@ -451,14 +472,44 @@ const contentVersion = ref(0);
 
 const drawerEl = useTemplateRef<HTMLElement>('drawer');
 const sceneDrawerEl = useTemplateRef<HTMLElement>('sceneDrawer');
+const rulesDrawerEl = useTemplateRef<HTMLElement>('rulesDrawer');
 
-/** The character drawer (open state, focus in and back out) and the GM's scene drawer. */
+/** The character drawer (open state, focus in and back out), the GM's scene drawer, and the Rules drawer (everyone's). */
 const { open: drawerOpen, show: openDrawer, hide: closeDrawer } = useDrawer(drawerEl);
 const {
   open: sceneDrawerOpen,
   show: openSceneDrawer,
   hide: closeSceneDrawer,
 } = useDrawer(sceneDrawerEl);
+const {
+  open: rulesDrawerOpen,
+  show: openRulesDrawer,
+  hide: closeRulesDrawer,
+} = useDrawer(rulesDrawerEl);
+
+/**
+ * Scenes and Rules both slide in from the map's right edge (the character
+ * drawer already owns the left), so only one of the two is ever shown at
+ * once -- opening either one closes the other first, rather than letting
+ * them stack exactly on top of each other.
+ */
+function toggleSceneDrawer(): void {
+  if (sceneDrawerOpen.value) {
+    closeSceneDrawer();
+    return;
+  }
+  closeRulesDrawer();
+  void openSceneDrawer();
+}
+
+function toggleRulesDrawer(): void {
+  if (rulesDrawerOpen.value) {
+    closeRulesDrawer();
+    return;
+  }
+  closeSceneDrawer();
+  void openRulesDrawer();
+}
 
 const mapView = useTemplateRef<InstanceType<typeof MapView>>('mapView');
 
@@ -467,9 +518,14 @@ const placing = ref(false);
 
 /** The GM's "Place on map": the token goes in the middle of the part of the map the open drawers leave visible. */
 async function placeOnMap(actorId: string): Promise<void> {
+  const rightDrawerEl = sceneDrawerOpen.value
+    ? sceneDrawerEl.value
+    : rulesDrawerOpen.value
+      ? rulesDrawerEl.value
+      : undefined;
   await mapView.value?.placeAtCentre(actorId, {
     left: drawerOpen.value ? (drawerEl.value?.offsetWidth ?? 0) : 0,
-    right: sceneDrawerOpen.value ? (sceneDrawerEl.value?.offsetWidth ?? 0) : 0,
+    right: rightDrawerEl?.offsetWidth ?? 0,
   });
 }
 
@@ -622,9 +678,17 @@ async function handleCreate(): Promise<void> {
             type="button"
             aria-controls="scene-pane"
             :aria-expanded="sceneDrawerOpen"
-            @click="sceneDrawerOpen ? closeSceneDrawer() : openSceneDrawer()"
+            @click="toggleSceneDrawer"
           >
             Scenes
+          </button>
+          <button
+            type="button"
+            aria-controls="rules-pane"
+            :aria-expanded="rulesDrawerOpen"
+            @click="toggleRulesDrawer"
+          >
+            Rules
           </button>
         </p>
 
@@ -748,6 +812,26 @@ async function handleCreate(): Promise<void> {
               </button>
             </header>
             <SceneManager :world-id="worldId" />
+          </section>
+        </Transition>
+
+        <Transition name="drawer">
+          <section
+            v-show="rulesDrawerOpen"
+            id="rules-pane"
+            ref="rulesDrawer"
+            class="sheet-pane rules-pane"
+            aria-labelledby="rules-heading"
+            tabindex="-1"
+            @keydown.esc.stop="closeRulesDrawer"
+          >
+            <header class="drawer-header">
+              <h2 id="rules-heading">Rules</h2>
+              <button type="button" class="drawer-close" @click="closeRulesDrawer">
+                Close
+              </button>
+            </header>
+            <RulesDrawer />
           </section>
         </Transition>
 
@@ -1124,6 +1208,13 @@ button[aria-pressed='true'] {
 
 /* The scene drawer comes in from the right, so both can be open without covering each other entirely. */
 .scene-pane {
+  right: 0;
+  left: auto;
+  box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
+}
+
+/* The Rules drawer shares the scene drawer's right-edge slot -- toggleSceneDrawer/toggleRulesDrawer keep only one of the two open at a time, so they never actually overlap. */
+.rules-pane {
   right: 0;
   left: auto;
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
