@@ -755,6 +755,40 @@ export const actorRollRecoveryOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * How much a purse changes by, one denomination at a time -- positive to
+ * receive, negative to spend. Named `pp`/`gp`/`sp`/`cp` directly (ADR 0021)
+ * rather than through a generic "currency" abstraction, the same way
+ * `actor.addItem`'s `packId`/`slug` names a real compendium shape instead
+ * of staying abstractly system-agnostic: an operation payload is allowed to
+ * know the one game system this project ships, the same discipline already
+ * applied to every other operation below. Every field is optional so a
+ * caller only names the denominations it is touching; the server sums
+ * whichever are present and rejects a purse it cannot cover (never a
+ * partial deduction) rather than validating signs here -- a spend and a
+ * receipt are the same shape, just opposite signs.
+ */
+export const coinsDeltaSchema = z.object({
+  pp: z.number().int().optional(),
+  gp: z.number().int().optional(),
+  sp: z.number().int().optional(),
+  cp: z.number().int().optional(),
+});
+
+/** Exported rather than inlined at each call site: `Partial<Coins>` is not the same type under `exactOptionalPropertyTypes` (a Zod `.optional()` field infers as `T | undefined`, not just absent), so handlers take this instead of redeclaring it. */
+export type CoinsDelta = z.infer<typeof coinsDeltaSchema>;
+
+/**
+ * Adjust a character's purse by `delta`. Owner or GM. The server converts
+ * the whole purse to copper, applies the delta, and reassembles the fewest
+ * coins (`docs/inventory.md`); a delta that would take any total below zero
+ * is refused outright, never partially applied.
+ */
+export const actorAdjustCoinsOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.adjustCoins'),
+  payload: z.object({ actorId: idSchema, delta: coinsDeltaSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -811,6 +845,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorApplyDamageOperationSchema,
   actorHealOperationSchema,
   actorRollRecoveryOperationSchema,
+  actorAdjustCoinsOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

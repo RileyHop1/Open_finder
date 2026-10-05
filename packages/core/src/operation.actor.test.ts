@@ -299,3 +299,25 @@ describe('actor condition operations', () => {
     }
   });
 });
+
+describe('actor.adjustCoins', () => {
+  const actorId = id();
+  const op = (payload: unknown) =>
+    clientOperationUnionSchema.safeParse({
+      id: id(),
+      type: 'actor.adjustCoins',
+      payload,
+    });
+
+  it('accepts any subset of denominations, positive or negative', () => {
+    expect(op({ actorId, delta: { gp: 5 } }).success).toBe(true);
+    expect(op({ actorId, delta: { gp: -3, sp: 5, cp: -2 } }).success).toBe(true);
+    expect(op({ actorId, delta: {} }).success).toBe(true);
+  });
+
+  it('rejects a non-integer denomination, a malformed actor id, and a missing delta', () => {
+    expect(op({ actorId, delta: { gp: 1.5 } }).success).toBe(false);
+    expect(op({ actorId: 'nope', delta: { gp: 1 } }).success).toBe(false);
+    expect(op({ actorId }).success).toBe(false);
+  });
+});
