@@ -36,6 +36,7 @@ import type {
 } from '../content/creature.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
+import { htmlToRichText } from './htmlToRichText.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
 import type { UpstreamEntry } from './reader.js';
 import {
@@ -309,6 +310,7 @@ export function mapCreature(
     (value) => traitSlugSchema.safeParse(value).success,
   );
   const description = nestedStringField(system, 'description', 'value') ?? '';
+  const text = htmlToRichText(description);
   const languages =
     details === undefined
       ? []
@@ -333,6 +335,7 @@ export function mapCreature(
       traits,
       ruleElements: elements,
       description,
+      text,
       level,
       size,
       perception,

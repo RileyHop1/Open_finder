@@ -56,6 +56,7 @@ describe('mapClassFeature -- success', () => {
         traits: [],
         ruleElements: [],
         description: '',
+        text: [],
         classSlug: 'invented-vanguard',
         level: 1,
       },

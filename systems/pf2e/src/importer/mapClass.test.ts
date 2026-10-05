@@ -76,6 +76,7 @@ describe('mapClass -- success', () => {
         traits: [],
         ruleElements: [],
         description: '',
+        text: [],
         keyAttributeOptions: ['str'],
         hpPerLevel: 10,
         proficiencies: {

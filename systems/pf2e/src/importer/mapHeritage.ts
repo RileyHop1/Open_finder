@@ -21,6 +21,7 @@ import { traitSlugSchema } from '../content/common.js';
 import type { HeritageEntry } from '../content/heritage.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
+import { htmlToRichText } from './htmlToRichText.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
 import type { UpstreamEntry } from './reader.js';
 import {
@@ -75,6 +76,7 @@ export function mapHeritage(
     (value) => traitSlugSchema.safeParse(value).success,
   );
   const description = nestedStringField(system, 'description', 'value') ?? '';
+  const text = htmlToRichText(description);
   const { elements } = mapEntryRuleElements(system.rules);
 
   return {
@@ -92,6 +94,7 @@ export function mapHeritage(
       traits,
       ruleElements: elements,
       description,
+      text,
       ...(ancestryReference.slug !== undefined
         ? { ancestrySlug: ancestryReference.slug }
         : {}),

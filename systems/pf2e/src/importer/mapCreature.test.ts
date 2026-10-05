@@ -92,6 +92,7 @@ describe('mapCreature -- success', () => {
         traits: ['dragon'],
         ruleElements: [],
         description: '',
+        text: [],
         level: 3,
         size: 'large',
         perception: 10,

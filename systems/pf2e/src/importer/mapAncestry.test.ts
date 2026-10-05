@@ -58,6 +58,7 @@ describe('mapAncestry -- success', () => {
         traits: [],
         ruleElements: [],
         description: '',
+        text: [],
         hp: 8,
         size: 'medium',
         speed: 25,

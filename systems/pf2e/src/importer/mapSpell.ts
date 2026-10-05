@@ -13,9 +13,10 @@
  * out into a per-rank field the way `spellHeighteningSchema` wants. Rather
  * than guess at extracting that structure from HTML, this mapper omits
  * `heightening` entirely -- nothing is lost, since the full prose (including
- * heightening) is still in `description`; it just isn't separately
- * structured yet. Revisit once real data shows what upstream's
- * `system.heightening` actually contains.
+ * heightening) is still in `description` (and, converted, in `text` --
+ * `htmlToRichText` runs on the same string, heightening prose included);
+ * it just isn't separately structured yet. Revisit once real data shows
+ * what upstream's `system.heightening` actually contains.
  */
 
 import type { Provenance } from '@hearthtable/core';
@@ -35,6 +36,7 @@ import {
 } from '../content/spell.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
+import { htmlToRichText } from './htmlToRichText.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
 import type { UpstreamEntry } from './reader.js';
 import {
@@ -167,6 +169,7 @@ export function mapSpell(
       ? system.slug
       : slugify(entry.name);
   const description = nestedStringField(system, 'description', 'value') ?? '';
+  const text = htmlToRichText(description);
   const { elements } = mapEntryRuleElements(system.rules);
 
   return {
@@ -184,6 +187,7 @@ export function mapSpell(
       traits,
       ruleElements: elements,
       description,
+      text,
       rank,
       traditions,
       castTime,

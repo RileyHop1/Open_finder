@@ -48,6 +48,7 @@ describe('mapGear -- success', () => {
         traits: [],
         ruleElements: [],
         description: '<p>Useful.</p>',
+        text: [{ kind: 'paragraph', children: [{ kind: 'text', value: 'Useful.' }] }],
       },
     });
   });

@@ -54,6 +54,7 @@ describe('mapAction -- success', () => {
         traits: ['manipulate'],
         ruleElements: [],
         description: '<p>Do a thing.</p>',
+        text: [{ kind: 'paragraph', children: [{ kind: 'text', value: 'Do a thing.' }] }],
         actionCost: 'two',
       },
     });

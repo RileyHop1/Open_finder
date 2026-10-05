@@ -59,6 +59,7 @@ describe('mapBackground -- success', () => {
         traits: [],
         ruleElements: [],
         description: '',
+        text: [],
         boostOptions: ['str', 'con'],
         trainedSkills: ['athletics'],
       },
