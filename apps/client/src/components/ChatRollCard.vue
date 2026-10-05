@@ -16,7 +16,8 @@ import type {
 } from '@hearthtable/core';
 import { computed, ref } from 'vue';
 
-import { signed, titleCase } from './sheet/format.js';
+import ModifierList from './ModifierList.vue';
+import { signed } from './sheet/format.js';
 import { useChatStore } from '../stores/chat.js';
 
 const props = defineProps<{
@@ -113,12 +114,9 @@ const damage = computed(() =>
   ),
 );
 
-/** Why a modifier did not count, in words. */
-function whyNotApplied(modifier: { suppressedBy?: string | undefined }): string {
-  return modifier.suppressedBy === undefined
-    ? 'not applied'
-    : `not applied: ${titleCase(modifier.suppressedBy)} is better`;
-}
+const modifierHeading = computed(() =>
+  props.message.kind === 'strikeDamage' ? 'Damage modifier' : 'Bonus',
+);
 </script>
 
 <template>
@@ -169,23 +167,7 @@ function whyNotApplied(modifier: { suppressedBy?: string | undefined }): string 
           <template v-else>@{{ term.name }}: {{ term.value }}</template>
         </li>
       </ul>
-      <p class="modifiers-heading">
-        {{ message.kind === 'strikeDamage' ? 'Damage modifier' : 'Bonus' }}
-        {{ signed(message.breakdown.total) }}
-      </p>
-      <ul class="modifiers">
-        <li
-          v-for="modifier in message.breakdown.modifiers"
-          :key="modifier.slug"
-          :class="{ unapplied: !modifier.applied }"
-        >
-          {{ signed(modifier.value) }} {{ modifier.label }}
-          <span class="modifier-type">({{ modifier.type }})</span>
-          <span v-if="!modifier.applied" class="modifier-note">
-            — {{ whyNotApplied(modifier) }}
-          </span>
-        </li>
-      </ul>
+      <ModifierList :statistic="message.breakdown" :heading="modifierHeading" />
     </details>
   </div>
 </template>
@@ -203,9 +185,7 @@ p {
 
 .by,
 .step,
-.natural,
-.modifier-type,
-.modifier-note {
+.natural {
   color: var(--color-text-muted);
 }
 
@@ -240,19 +220,8 @@ p {
   align-items: center;
 }
 
-.terms,
-.modifiers {
+.terms {
   margin: var(--space-1) 0;
   padding-left: var(--space-4);
-}
-
-/* A suppressed modifier is struck through *and* says so in words. */
-.unapplied {
-  text-decoration: line-through;
-}
-
-.unapplied .modifier-note {
-  text-decoration: none;
-  display: inline-block;
 }
 </style>
