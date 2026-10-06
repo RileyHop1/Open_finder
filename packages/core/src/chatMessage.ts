@@ -121,6 +121,8 @@ export type ChatTextMessage = z.infer<typeof chatTextMessageSchema>;
 export const chatRollMessageSchema = chatMessageBaseSchema.extend({
   kind: z.literal('roll'),
   roll: rollResultSchema,
+  /** What the roll is for, from `chat.sendRoll`'s optional `label` (the generic action's description). Absent for a bare `/roll`. */
+  label: z.string().min(1).max(120).optional(),
   /** The GM's override of this roll's total ("GM set to N (rolled M)" on the card, `docs/dice.md`). `roll` itself is untouched: every term, and its own `total`, stay exactly as rolled. `chat.adjustRoll`, GM only. */
   gmTotal: z.number().int().optional(),
 });

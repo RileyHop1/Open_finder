@@ -75,6 +75,24 @@ describe('chatRollMessageSchema', () => {
     expect(chatRollMessageSchema.safeParse(message).success).toBe(true);
   });
 
+  it('carries an optional label, absent for a bare roll', () => {
+    const roll = evaluateExpression('1d20+9');
+    const labelled = {
+      ...baseFields(),
+      kind: 'roll' as const,
+      roll,
+      label: 'Pries it open',
+    };
+    const parsed = chatRollMessageSchema.parse(labelled);
+    expect(parsed.label).toBe('Pries it open');
+    expect(
+      chatRollMessageSchema.parse({ ...baseFields(), kind: 'roll' as const, roll }).label,
+    ).toBeUndefined();
+    expect(chatRollMessageSchema.safeParse({ ...labelled, label: '' }).success).toBe(
+      false,
+    );
+  });
+
   it('rejects a roll message with no `roll` field', () => {
     const message = { ...baseFields(), kind: 'roll' as const };
     expect(chatRollMessageSchema.safeParse(message).success).toBe(false);

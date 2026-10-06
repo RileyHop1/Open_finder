@@ -34,6 +34,7 @@ export interface PendingRoll {
   readonly pending: true;
   readonly kind: 'roll';
   readonly expression: string;
+  readonly label?: string;
 }
 
 /** A real, persisted `ChatMessage`, or a not-yet-confirmed local entry standing in for one. */
@@ -114,11 +115,24 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function sendRoll(expression: string): Promise<void> {
+  async function sendRoll(expression: string, label?: string): Promise<void> {
     const id = crypto.randomUUID();
     error.value = undefined;
-    messages.value = [...messages.value, { id, pending: true, kind: 'roll', expression }];
-    const ack = await connection.sendOperation(id, 'chat.sendRoll', { expression });
+    messages.value = [
+      ...messages.value,
+      {
+        id,
+        pending: true,
+        kind: 'roll',
+        expression,
+        ...(label === undefined ? {} : { label }),
+      },
+    ];
+    const ack = await connection.sendOperation(
+      id,
+      'chat.sendRoll',
+      label === undefined ? { expression } : { expression, label },
+    );
     if (!ack.ok) {
       messages.value = messages.value.filter(
         (entry) => !isPending(entry) || entry.id !== id,

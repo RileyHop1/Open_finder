@@ -54,7 +54,9 @@ sanity bound against a typed-in `/roll 100000d6`, not a rule. Over either cap,
 or under 1 die, `parse` returns a readable `ParseError` the same way a syntax
 error does; it never throws and never hangs the evaluator. `chat.sendRoll`'s
 `expression` field is separately capped at 200 characters so an enormous
-string never reaches the parser at all.
+string never reaches the parser at all. A roll may also carry an optional
+`label` (1 to 120 characters) saying what it is for; it is display text only,
+stored on the `ChatMessage` beside the structured roll and never parsed.
 
 `@references` resolve against a context object supplied by the caller. The dice
 package does not know where `@perception` comes from; it asks.

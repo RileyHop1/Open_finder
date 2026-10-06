@@ -114,6 +114,22 @@ describe('clientOperationUnionSchema -- chat.sendRoll', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('takes an optional label, trimmed, and rejects an empty or over-long one', () => {
+    const parse = (label: string) =>
+      chatSendRollOperationSchema.safeParse({
+        id: crypto.randomUUID(),
+        type: 'chat.sendRoll',
+        payload: { expression: '1d20+7', label },
+      });
+    const ok = parse('  Pries the door open  ');
+    expect(ok.success).toBe(true);
+    if (ok.success) {
+      expect(ok.data.payload.label).toBe('Pries the door open');
+    }
+    expect(parse('   ').success).toBe(false);
+    expect(parse('x'.repeat(121)).success).toBe(false);
+  });
 });
 
 describe('clientOperationUnionSchema -- discrimination', () => {

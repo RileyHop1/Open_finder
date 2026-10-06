@@ -320,7 +320,9 @@ describe('ChatLog', () => {
       await toggle.trigger('click');
       expect(toggle.attributes('aria-expanded')).toBe('false');
       expect(toggle.text()).toBe('Expand');
-      expect((wrapper.get('#chat-body').element as HTMLElement).style.display).toBe('none');
+      expect((wrapper.get('#chat-body').element as HTMLElement).style.display).toBe(
+        'none',
+      );
 
       await toggle.trigger('click');
       expect((wrapper.get('#chat-body').element as HTMLElement).style.display).not.toBe(
@@ -417,6 +419,23 @@ describe('ChatLog', () => {
       await flushPromises();
 
       expect(wrapper.find('.gm-edit-toggle').exists()).toBe(false);
+    });
+
+    it('names what a labelled roll was for, and keeps the plain wording without one', async () => {
+      const seat = makeSeat({ name: 'Riley' });
+      const labelled = { ...makeRollMessage(seat.id), label: 'Pries the door open' };
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([
+        labelled,
+        makeRollMessage(seat.id),
+      ]);
+      vi.mocked(useLobbyStore).mockReturnValue({ seats: [seat], mySeat: seat } as never);
+
+      const wrapper = mountChatLog();
+      await flushPromises();
+
+      const [first, second] = wrapper.findAll('.message');
+      expect(first?.text()).toContain('Riley: Pries the door open (2d6+4):');
+      expect(second?.text()).toContain('Riley rolled 2d6+4:');
     });
 
     it("shows 'GM set to N (rolled M)' once gmTotal is set", async () => {
