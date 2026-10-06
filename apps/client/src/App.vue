@@ -10,27 +10,37 @@
  * way back: it calls `worldsStore.deactivate()`, which clears
  * `activeWorldId`, and this computed switches back to CampaignSelect on
  * its own -- no extra wiring needed here.
+ *
+ * **Map-first (ADR 0022):** once a seat is claimed, `TableView` (inside
+ * `CampaignLobby`) is the whole page -- it positions itself to fill the
+ * viewport on its own. This shell's own header and the `<main>` padding
+ * around it would otherwise show through as dead space around that full-bleed
+ * layout, so both go away for exactly as long as a seat is held.
  */
 import { computed } from 'vue';
 
 import CampaignLobby from './components/CampaignLobby.vue';
 import CampaignSelect from './components/CampaignSelect.vue';
+import { useLobbyStore } from './stores/lobby.js';
 import { useWorldsStore } from './stores/worlds.js';
 
 const worldsStore = useWorldsStore();
+const lobby = useLobbyStore();
 
 const activeWorld = computed(() =>
   worldsStore.worlds.find((world) => world.id === worldsStore.activeWorldId),
 );
+
+const seated = computed(() => lobby.mySeat !== undefined);
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--seated': seated }">
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    <header class="app-header">
+    <header v-if="!seated" class="app-header">
       <h1>Hearthtable</h1>
     </header>
-    <main id="main-content">
+    <main id="main-content" :class="{ 'main--seated': seated }">
       <CampaignLobby
         v-if="activeWorld"
         :world-id="activeWorld.id"
@@ -48,6 +58,12 @@ const activeWorld = computed(() =>
   flex-direction: column;
 }
 
+/* TableView makes itself position: fixed; inset: 0 once seated -- this
+   shell's own box no longer needs to size around it. */
+.app-shell--seated {
+  min-height: 0;
+}
+
 .app-header {
   border-bottom: 1px solid var(--color-border);
   padding: var(--space-3) var(--space-4);
@@ -60,6 +76,10 @@ const activeWorld = computed(() =>
 
 main {
   padding: var(--space-4);
+}
+
+.main--seated {
+  padding: 0;
 }
 
 /**

@@ -147,17 +147,6 @@ describe('CampaignLobby', () => {
     );
   });
 
-  it('shows Release, not Claim, for the seat this connection holds', async () => {
-    const mine = makeSeat({ claimedByDeviceToken: MY_DEVICE_TOKEN });
-    vi.mocked(seatsApi.listSeats).mockResolvedValue([mine]);
-
-    const wrapper = mountLobby();
-    await flushPromises();
-
-    expect(wrapper.text()).toContain('You');
-    expect(wrapper.find('.seat-row button').text()).toBe('Release');
-  });
-
   it('shows the table only while this device holds a seat', async () => {
     vi.mocked(seatsApi.listSeats).mockResolvedValue([makeSeat()]);
     const unseated = mountLobby();
@@ -172,8 +161,11 @@ describe('CampaignLobby', () => {
     await flushPromises();
     expect(seated.find('.table').exists()).toBe(true);
     expect(seated.text()).toContain('Playing as Valeros');
-    // The seat list stays reachable, folded away.
-    expect(seated.find('details.seat-manager').attributes('open')).toBeUndefined();
+    // Map-first (ADR 0022): TableView is the whole page while seated, so
+    // none of this screen's own chrome -- including the seat roster --
+    // renders alongside it.
+    expect(seated.find('details.seat-manager').exists()).toBe(false);
+    expect(seated.find('#lobby-heading').exists()).toBe(false);
   });
 
   it("shows Claimed with no button for someone else's seat", async () => {

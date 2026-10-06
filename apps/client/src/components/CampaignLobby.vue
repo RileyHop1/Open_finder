@@ -92,7 +92,48 @@ async function handleCreateSeat(): Promise<void> {
 </script>
 
 <template>
-  <section aria-labelledby="lobby-heading">
+  <!--
+    "Back to campaigns" stays reachable even while seated (unlike the rest
+    of this screen's own chrome, below) -- a GM mid-session still needs it.
+    feat/gear-menu (next in the UI plan) moves it into the map's own gear
+    menu instead of floating it here above TableView.
+  -->
+  <button
+    v-if="store.mySeat?.isGM"
+    type="button"
+    class="leave-campaign"
+    :class="{ 'leave-campaign--floating': store.mySeat }"
+    @click="confirmingLeave = true"
+  >
+    Back to campaigns
+  </button>
+  <div
+    v-if="confirmingLeave"
+    class="leave-confirm"
+    :class="{ 'leave-confirm--floating': store.mySeat }"
+    role="alertdialog"
+    aria-labelledby="leave-question"
+    @keydown.esc.stop="confirmingLeave = false"
+  >
+    <p id="leave-question">
+      Leave <strong>{{ worldName }}</strong
+      >? Everyone at the table is disconnected and sent back to the campaign list.
+    </p>
+    <button type="button" @click="leaveCampaign">Leave campaign</button>
+    <button type="button" @click="confirmingLeave = false">Cancel</button>
+  </div>
+
+  <TableView v-if="store.mySeat" :world-id="worldId" :seat-name="store.mySeat.name" />
+
+  <!--
+    Map-first (ADR 0022): everything below is this screen's own chrome
+    before a seat is claimed. TableView fills the whole viewport on its
+    own once one is, so none of this renders at the same time as it.
+    While seated, the seat roster below is reachable only by releasing
+    the seat first -- feat/gear-menu (next in the UI plan) puts "Add
+    seat" back within reach without leaving the table.
+  -->
+  <section v-else aria-labelledby="lobby-heading">
     <h2 id="lobby-heading">{{ worldName }}</h2>
     <p role="status" class="connection-status">{{ statusText }}</p>
     <p v-if="store.error" role="alert" class="status status-error">{{ store.error }}</p>
@@ -100,44 +141,20 @@ async function handleCreateSeat(): Promise<void> {
       {{ worldsStore.error }}
     </p>
 
-    <button
-      v-if="store.mySeat?.isGM"
-      type="button"
-      class="leave-campaign"
-      @click="confirmingLeave = true"
-    >
-      Back to campaigns
-    </button>
-    <div
-      v-if="confirmingLeave"
-      class="leave-confirm"
-      role="alertdialog"
-      aria-labelledby="leave-question"
-      @keydown.esc.stop="confirmingLeave = false"
-    >
-      <p id="leave-question">
-        Leave <strong>{{ worldName }}</strong
-        >? Everyone at the table is disconnected and sent back to the campaign list.
-      </p>
-      <button type="button" @click="leaveCampaign">Leave campaign</button>
-      <button type="button" @click="confirmingLeave = false">Cancel</button>
-    </div>
-
-    <TableView v-if="store.mySeat" :world-id="worldId" :seat-name="store.mySeat.name" />
-
-    <!-- Seated players mostly don't need the roster, but the GM adds seats here, so it stays one click away. -->
-    <details class="seat-manager" :open="store.mySeat === undefined">
+    <details class="seat-manager" open>
       <summary>Seats</summary>
       <ul v-if="store.seats.length > 0" class="seat-list">
         <li v-for="seat in store.seats" :key="seat.id" class="seat-row">
           <span class="seat-name">{{ seat.name }}</span>
           <span v-if="seat.isGM" class="gm-badge">GM</span>
 
-          <template v-if="store.mySeat?.id === seat.id">
-            <span class="claimed-badge">You</span>
-            <button type="button" @click="store.releaseSeat()">Release</button>
-          </template>
-          <template v-else-if="seat.claimedByDeviceToken !== undefined">
+          <!--
+            Map-first (ADR 0022): this roster only ever renders while
+            unseated (the sibling v-else above), so a row for "the seat
+            this device holds" cannot occur here -- every seat below is
+            either someone else's or free to claim.
+          -->
+          <template v-if="seat.claimedByDeviceToken !== undefined">
             <span class="claimed-badge">Claimed</span>
           </template>
           <form
@@ -191,6 +208,20 @@ async function handleCreateSeat(): Promise<void> {
   margin-bottom: var(--space-2);
 }
 
+/*
+ * Map-first (ADR 0022): TableView covers the viewport once seated, so a
+ * normal-flow button here would be rendered underneath it. Floating it
+ * (and its confirm dialog) is a stop-gap until feat/gear-menu folds this
+ * into the map's own gear menu instead.
+ */
+.leave-campaign--floating {
+  position: fixed;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 50;
+  margin-bottom: 0;
+}
+
 .leave-confirm {
   display: flex;
   flex-wrap: wrap;
@@ -200,6 +231,16 @@ async function handleCreateSeat(): Promise<void> {
   margin-bottom: var(--space-3);
   border: 2px solid var(--color-accent);
   border-radius: 4px;
+}
+
+.leave-confirm--floating {
+  position: fixed;
+  top: calc(var(--space-2) + 3rem);
+  right: var(--space-2);
+  z-index: 50;
+  max-width: 20rem;
+  margin-bottom: 0;
+  background: var(--color-surface);
 }
 
 .leave-confirm p {

@@ -4,9 +4,12 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Seat } from '@hearthtable/core';
+
 import * as seatsApi from './api/seats.js';
 import * as worldsApi from './api/worlds.js';
 import App from './App.vue';
+import { getDeviceToken } from './realtime/deviceToken.js';
 
 // CampaignLobby (rendered once a campaign is active) opens a real Socket.IO
 // connection on mount -- mocked here (with a stub socket, so the store's own
@@ -23,6 +26,9 @@ vi.mock('./realtime/socket.js', () => ({
 }));
 vi.mock('./api/worlds.js');
 vi.mock('./api/seats.js');
+vi.mock('./realtime/deviceToken.js');
+
+const MY_DEVICE_TOKEN = 'my-device-token';
 
 function makeWorld(overrides: Partial<World> = {}): World {
   const now = new Date().toISOString();
@@ -30,6 +36,20 @@ function makeWorld(overrides: Partial<World> = {}): World {
     id: crypto.randomUUID(),
     name: 'Test Campaign',
     schemaVersion: 1,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function makeSeat(overrides: Partial<Seat> = {}): Seat {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    worldId: crypto.randomUUID(),
+    schemaVersion: 1,
+    name: 'Valeros',
+    isGM: false,
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -47,6 +67,7 @@ beforeEach(() => {
   vi.mocked(worldsApi.listWorlds).mockResolvedValue([]);
   vi.mocked(worldsApi.getActiveWorld).mockResolvedValue(undefined);
   vi.mocked(seatsApi.listSeats).mockResolvedValue([]);
+  vi.mocked(getDeviceToken).mockReturnValue(MY_DEVICE_TOKEN);
 });
 
 describe('App', () => {
@@ -87,5 +108,31 @@ describe('App', () => {
 
     expect(wrapper.text()).toContain('Active Campaign');
     expect(wrapper.text()).not.toContain('New campaign name');
+  });
+
+  it('keeps its own header while a campaign is active but no seat is held yet', async () => {
+    const active = makeWorld({ name: 'Active Campaign' });
+    vi.mocked(worldsApi.listWorlds).mockResolvedValue([active]);
+    vi.mocked(worldsApi.getActiveWorld).mockResolvedValue(active);
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    expect(wrapper.find('header.app-header').exists()).toBe(true);
+  });
+
+  it('hides its own header and main padding once a seat is held -- TableView is map-first (ADR 0022) and fills the page itself', async () => {
+    const active = makeWorld({ name: 'Active Campaign' });
+    vi.mocked(worldsApi.listWorlds).mockResolvedValue([active]);
+    vi.mocked(worldsApi.getActiveWorld).mockResolvedValue(active);
+    vi.mocked(seatsApi.listSeats).mockResolvedValue([
+      makeSeat({ claimedByDeviceToken: MY_DEVICE_TOKEN }),
+    ]);
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    expect(wrapper.find('header.app-header').exists()).toBe(false);
+    expect(wrapper.find('main').classes()).toContain('main--seated');
   });
 });
