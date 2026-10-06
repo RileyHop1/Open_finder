@@ -111,7 +111,7 @@ test('a full combat turn: initiative, turn order, movement gating, a strike with
     await expect(gm.getByRole('heading', { name: 'Brute', level: 3 })).toBeVisible();
     await gm.getByRole('button', { name: 'Close' }).click();
 
-    await gm.getByText('Manage party').click();
+    await openFromGearMenu(gm, 'Manage party');
     await gm.getByLabel('Add to party').selectOption({ label: 'Valeria (character)' });
     await gm.getByRole('button', { name: 'Add', exact: true }).click();
 

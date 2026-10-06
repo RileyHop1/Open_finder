@@ -62,15 +62,17 @@ describe('the menu', () => {
     expect(item(wrapper, 'Release seat')).toBeDefined();
   });
 
-  it('offers Scenes and Back to campaigns only for the GM', async () => {
+  it('offers Scenes, Manage party, and Back to campaigns only for the GM', async () => {
     const player = mountMenu(false);
     await openMenu(player);
     expect(item(player, 'Scenes')).toBeUndefined();
+    expect(item(player, 'Manage party')).toBeUndefined();
     expect(item(player, 'Back to campaigns')).toBeUndefined();
 
     const gm = mountMenu(true);
     await openMenu(gm);
     expect(item(gm, 'Scenes')).toBeDefined();
+    expect(item(gm, 'Manage party')).toBeDefined();
     expect(item(gm, 'Back to campaigns')).toBeDefined();
   });
 
@@ -83,11 +85,15 @@ describe('the menu', () => {
     expect(wrapper.find('[role="menu"]').exists()).toBe(false);
   });
 
-  it('emits for Seats and Back to campaigns', async () => {
+  it('emits for Seats, Manage party, and Back to campaigns', async () => {
     const wrapper = mountMenu(true);
     await openMenu(wrapper);
     await item(wrapper, 'Seats')?.trigger('click');
     expect(wrapper.emitted('seats')).toHaveLength(1);
+
+    await openMenu(wrapper);
+    await item(wrapper, 'Manage party')?.trigger('click');
+    expect(wrapper.emitted('manageParty')).toHaveLength(1);
 
     await openMenu(wrapper);
     await item(wrapper, 'Back to campaigns')?.trigger('click');

@@ -20,7 +20,6 @@ function item(fields: Partial<TurnBarItem> = {}): TurnBarItem {
 }
 
 const baseProps = {
-  active: true,
   showControls: false,
   unseenActing: false,
 };
@@ -74,45 +73,12 @@ describe('TurnBar -- combatants', () => {
     await wrapper.find('button').trigger('click');
     expect(wrapper.emitted('focus')).toEqual([[target.tokenId]]);
   });
-
-  it('shows no list at all while there is no active combat', () => {
-    const wrapper = mount(TurnBar, {
-      props: { ...baseProps, active: false, items: [], round: 0 },
-    });
-    expect(wrapper.find('ol').exists()).toBe(false);
-  });
 });
 
 describe('TurnBar -- the GM’s controls', () => {
-  it('offers only Start combat when none is running, for the GM', () => {
-    const wrapper = mount(TurnBar, {
-      props: {
-        active: false,
-        showControls: true,
-        unseenActing: false,
-        items: [],
-        round: 0,
-      },
-    });
-    const labels = wrapper.findAll('button').map((b) => b.text());
-    expect(labels).toEqual(['Start combat']);
-  });
-
-  it('offers no controls at all for a player, in either state', () => {
-    const noCombat = mount(TurnBar, {
-      props: {
-        active: false,
-        showControls: false,
-        unseenActing: false,
-        items: [],
-        round: 0,
-      },
-    });
-    expect(noCombat.findAll('button')).toHaveLength(0);
-
+  it('offers no controls at all for a player', () => {
     const running = mount(TurnBar, {
       props: {
-        active: true,
         showControls: false,
         unseenActing: false,
         items: [item()],
@@ -123,24 +89,9 @@ describe('TurnBar -- the GM’s controls', () => {
     expect(running.findAll('button')).toHaveLength(1);
   });
 
-  it('emits start', async () => {
-    const start = mount(TurnBar, {
-      props: {
-        active: false,
-        showControls: true,
-        unseenActing: false,
-        items: [],
-        round: 0,
-      },
-    });
-    await start.find('button').trigger('click');
-    expect(start.emitted('start')).toHaveLength(1);
-  });
-
   it('offers no Previous/Next/End buttons here -- TurnControls.vue has those now', () => {
     const wrapper = mount(TurnBar, {
       props: {
-        active: true,
         showControls: true,
         unseenActing: false,
         items: [],
@@ -157,7 +108,6 @@ describe('TurnBar -- the GM’s controls', () => {
     const target = item();
     const gm = mount(TurnBar, {
       props: {
-        active: true,
         showControls: true,
         unseenActing: false,
         items: [target],
@@ -170,7 +120,6 @@ describe('TurnBar -- the GM’s controls', () => {
 
     const player = mount(TurnBar, {
       props: {
-        active: true,
         showControls: false,
         unseenActing: false,
         items: [target],
@@ -184,7 +133,6 @@ describe('TurnBar -- the GM’s controls', () => {
     const target = item();
     const wrapper = mount(TurnBar, {
       props: {
-        active: true,
         showControls: true,
         unseenActing: false,
         items: [target],

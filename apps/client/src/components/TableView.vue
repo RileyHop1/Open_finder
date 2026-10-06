@@ -4,7 +4,12 @@
  * the map fills the screen and everything else is around or over it. Four
  * regions, each a landmark and each reachable by a skip link --
  *
- * - the **party bar** across the top,
+ * - the **top strip** (`#party-bar`): `PartyBar`'s portraits while there is
+ *   no active combat (with the GM's "Start combat" at its end), or
+ *   `TurnBar`'s turn order once one starts, with `TurnControls` (end turn,
+ *   end combat, free movement) at the strip's right end instead. Horizontal
+ *   scroll, not wrap, once either is too crowded to fit (the user's own
+ *   layout call) -- see `turnBar`/`canStartCombat` below,
  * - the **map** in the middle (an empty state until a scene is shown),
  * - the **character sheet**, a drawer that slides over the map's left edge
  *   (the characters this seat can see, a way to make a new one, and the chosen
@@ -19,24 +24,25 @@
  * banner above the map while they are previewing a scene the players are not on.
  *
  * Everyone has a **Rules** drawer (milestone 6's encyclopedia, `RulesDrawer.vue`),
- * sharing that same right edge with Scenes -- only one of the two is ever open
- * at once, see `toggleSceneDrawer`/`toggleRulesDrawer`. It opens from the gear
- * menu's "Rules" item or the `?` hotkey (ignored while typing in chat or a
- * form field, see `isTypingTarget`).
+ * and there is a **Seats** drawer (`SeatRoster.vue`) and the GM's own **Manage
+ * party** drawer (`PartyManager.vue`, moved out of the top strip to keep it
+ * uncluttered) -- all four share the map's right edge, only one open at
+ * once, see `closeOtherRightDrawers`. Rules opens from the gear menu's
+ * "Rules" item or the `?` hotkey (ignored while typing in chat or a form
+ * field, see `isTypingTarget`).
  *
  * The **gear menu** (`GearMenu.vue`) floats top-right over all of this: it
- * holds the Characters/Scenes/Rules/Seats drawer toggles, "Release seat",
- * and the GM's "Back to campaigns", since there's no toolbar row left to
- * put plain buttons in once the map fills the screen (ADR 0022). Seats
- * (`SeatRoster.vue`) shares the same right-edge slot as Scenes and Rules --
- * `closeOtherRightDrawers` keeps only one of the three open at a time.
+ * holds the Characters/Scenes/Rules/Seats/Manage-party drawer toggles,
+ * "Release seat", and the GM's "Back to campaigns", since there's no
+ * toolbar row left to put plain buttons in once the map fills the screen
+ * (ADR 0022).
  *
- * The drawer and the chat panel both overlay the map at every width rather
- * than pushing it, so the map never reflows under either of them. Tablets
- * are supported and phones are not (CLAUDE.md, Targets and budgets), so
- * there is no phone layout. Shown by `CampaignLobby` while this device
- * holds a seat; the lobby owns the realtime connection, this only reads the
- * stores it feeds.
+ * The drawers and the chat panel all overlay the map at every width rather
+ * than pushing it, so the map never reflows under any of them. Tablets are
+ * supported and phones are not (CLAUDE.md, Targets and budgets), so there
+ * is no phone layout. Shown by `CampaignLobby` while this device holds a
+ * seat; the lobby owns the realtime connection, this only reads the stores
+ * it feeds.
  */
 import { resolvePermission } from '@hearthtable/core';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
@@ -94,30 +100,33 @@ async function leaveCampaign(): Promise<void> {
 }
 
 /**
- * The turn bar shows while a combat is running, or, for the GM only, when
- * there is none yet -- that empty state is where "Start combat" lives
- * (CLAUDE.md: nothing else may start one). A player sees nothing until a
- * combat is active.
+ * The top strip (ADR 0022) shows `TurnBar` while a combat is running, or
+ * `PartyBar` otherwise -- defined here only while one is actually active;
+ * `canStartCombat` below covers the GM's own empty state instead of a third
+ * shape of this object (CLAUDE.md: nothing else may start a combat).
  */
 const turnBar = computed(() => {
   const active = combat.activeCombat;
-  const isGM = lobby.mySeat?.isGM === true;
-  if (active?.status === 'active') {
-    return {
-      active: true,
-      round: active.round,
-      freeMovement: active.freeMovement,
-      items: turnBarItems(
-        combat.order,
-        active.activeCombatantId,
-        scenes.shownTokens,
-        documents.actorById,
-        props.worldId,
-      ),
-    };
+  if (active?.status !== 'active') {
+    return undefined;
   }
-  return isGM ? { active: false, round: 0, freeMovement: false, items: [] } : undefined;
+  return {
+    round: active.round,
+    freeMovement: active.freeMovement,
+    items: turnBarItems(
+      combat.order,
+      active.activeCombatantId,
+      scenes.shownTokens,
+      documents.actorById,
+      props.worldId,
+    ),
+  };
 });
+
+/** The GM's "Start combat", shown beside `PartyBar` in the top strip while there is no active combat to show `TurnBar` for instead. */
+const canStartCombat = computed(
+  () => turnBar.value === undefined && lobby.mySeat?.isGM === true,
+);
 
 /**
  * Who can be picked for a condition's "ends at end of X's turn" duration
@@ -494,8 +503,9 @@ const drawerEl = useTemplateRef<HTMLElement>('drawer');
 const sceneDrawerEl = useTemplateRef<HTMLElement>('sceneDrawer');
 const rulesDrawerEl = useTemplateRef<HTMLElement>('rulesDrawer');
 const seatsDrawerEl = useTemplateRef<HTMLElement>('seatsDrawer');
+const partyDrawerEl = useTemplateRef<HTMLElement>('partyDrawer');
 
-/** The character drawer (open state, focus in and back out); the GM's scene drawer; the Rules and Seats drawers (everyone's). */
+/** The character drawer (open state, focus in and back out); the GM's scene and Manage party drawers; the Rules and Seats drawers (everyone's). */
 const { open: drawerOpen, show: openDrawer, hide: closeDrawer } = useDrawer(drawerEl);
 const {
   open: sceneDrawerOpen,
@@ -512,17 +522,23 @@ const {
   show: openSeatsDrawer,
   hide: closeSeatsDrawer,
 } = useDrawer(seatsDrawerEl);
+const {
+  open: partyDrawerOpen,
+  show: openPartyDrawer,
+  hide: closePartyDrawer,
+} = useDrawer(partyDrawerEl);
 
 /**
- * Scenes, Rules, and Seats all slide in from the map's right edge (the
- * character drawer already owns the left), so only one of the three is
- * ever shown at once -- opening any of them closes the other two first,
- * rather than letting them stack exactly on top of each other.
+ * Scenes, Rules, Seats, and Manage party all slide in from the map's right
+ * edge (the character drawer already owns the left), so only one of the
+ * four is ever shown at once -- opening any of them closes the other three
+ * first, rather than letting them stack exactly on top of each other.
  */
-function closeOtherRightDrawers(except: 'scene' | 'rules' | 'seats'): void {
+function closeOtherRightDrawers(except: 'scene' | 'rules' | 'seats' | 'party'): void {
   if (except !== 'scene') closeSceneDrawer();
   if (except !== 'rules') closeRulesDrawer();
   if (except !== 'seats') closeSeatsDrawer();
+  if (except !== 'party') closePartyDrawer();
 }
 
 function toggleSceneDrawer(): void {
@@ -552,6 +568,15 @@ function toggleSeatsDrawer(): void {
   void openSeatsDrawer();
 }
 
+function togglePartyDrawer(): void {
+  if (partyDrawerOpen.value) {
+    closePartyDrawer();
+    return;
+  }
+  closeOtherRightDrawers('party');
+  void openPartyDrawer();
+}
+
 const mapView = useTemplateRef<InstanceType<typeof MapView>>('mapView');
 
 /** True while a character is being dragged out of the roster, so the drawer can get out of the way of the drop. */
@@ -565,7 +590,9 @@ async function placeOnMap(actorId: string): Promise<void> {
       ? rulesDrawerEl.value
       : seatsDrawerOpen.value
         ? seatsDrawerEl.value
-        : undefined;
+        : partyDrawerOpen.value
+          ? partyDrawerEl.value
+          : undefined;
   await mapView.value?.placeAtCentre(actorId, {
     left: drawerOpen.value ? (drawerEl.value?.offsetWidth ?? 0) : 0,
     right: rightDrawerEl?.offsetWidth ?? 0,
@@ -668,6 +695,7 @@ async function handleCreate(): Promise<void> {
       @scenes="toggleSceneDrawer"
       @rules="toggleRulesDrawer"
       @seats="toggleSeatsDrawer"
+      @manage-party="togglePartyDrawer"
       @release-seat="lobby.releaseSeat()"
       @leave-campaign="confirmingLeave = true"
     />
@@ -697,41 +725,50 @@ async function handleCreate(): Promise<void> {
       {{ documents.error }}
     </p>
 
-    <nav id="party-bar" class="party-bar" aria-label="Party" tabindex="-1">
-      <PartyBar
-        :members="documents.members"
-        :selected-id="selectedId"
-        :world-id="worldId"
-        :active-actor-id="combat.activeCombatant?.actorId"
-        :seats="lobby.seats"
-        @select="openSheetOf"
-      />
-      <PartyManager
-        v-if="lobby.mySeat?.isGM"
-        :members="documents.members"
-        :actors="documents.actors"
-        @add="(actorId) => sendParty('party.addMember', { actorId })"
-        @remove="(actorId) => sendParty('party.removeMember', { actorId })"
-        @reorder="(memberIds) => sendParty('party.reorder', { memberIds })"
-      />
-    </nav>
-
-    <div class="table-body">
-      <div class="map-column">
+    <nav id="party-bar" class="top-strip" aria-label="Party or turn order" tabindex="-1">
+      <template v-if="turnBar !== undefined">
         <TurnBar
-          v-if="turnBar !== undefined"
           :items="turnBar.items"
           :round="turnBar.round"
-          :active="turnBar.active"
           :unseen-acting="combat.activeIsUnseen"
           :show-controls="lobby.mySeat?.isGM === true"
           @focus="(tokenId) => mapView?.focusToken(tokenId)"
-          @start="combat.startCombat"
           @set-initiative="
             (combatantId, initiative) => combat.setInitiative(combatantId, initiative)
           "
         />
+        <TurnControls
+          :is-gm="lobby.mySeat?.isGM === true"
+          :can-end-turn="canEndTurn"
+          :free-movement="turnBar.freeMovement"
+          @previous="combat.previousTurn"
+          @next="combat.nextTurn"
+          @end="combat.endCombat"
+          @set-free-movement="combat.setFreeMovement"
+        />
+      </template>
+      <template v-else>
+        <PartyBar
+          :members="documents.members"
+          :selected-id="selectedId"
+          :world-id="worldId"
+          :active-actor-id="combat.activeCombatant?.actorId"
+          :seats="lobby.seats"
+          @select="openSheetOf"
+        />
+        <button
+          v-if="canStartCombat"
+          type="button"
+          class="start-combat"
+          @click="combat.startCombat"
+        >
+          Start combat
+        </button>
+      </template>
+    </nav>
 
+    <div class="table-body">
+      <div class="map-column">
         <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
           You are previewing <strong>{{ scenes.shownScene?.name }}</strong
           >. The players are on <strong>{{ partyScene?.name ?? 'no scene' }}</strong
@@ -769,17 +806,6 @@ async function handleCreate(): Promise<void> {
         <p v-if="combat.error" role="alert" class="status status-error">
           {{ combat.error }}
         </p>
-
-        <TurnControls
-          v-if="turnBar?.active"
-          :is-gm="lobby.mySeat?.isGM === true"
-          :can-end-turn="canEndTurn"
-          :free-movement="turnBar.freeMovement"
-          @previous="combat.previousTurn"
-          @next="combat.nextTurn"
-          @end="combat.endCombat"
-          @set-free-movement="combat.setFreeMovement"
-        />
 
         <ActionTray
           v-if="actionTray !== undefined"
@@ -843,6 +869,33 @@ async function handleCreate(): Promise<void> {
               </button>
             </header>
             <SeatRoster />
+          </section>
+        </Transition>
+
+        <Transition name="drawer">
+          <section
+            v-if="lobby.mySeat?.isGM"
+            v-show="partyDrawerOpen"
+            id="party-manager-pane"
+            ref="partyDrawer"
+            class="sheet-pane party-manager-pane"
+            aria-labelledby="party-manager-heading"
+            tabindex="-1"
+            @keydown.esc.stop="closePartyDrawer"
+          >
+            <header class="drawer-header">
+              <h2 id="party-manager-heading">Manage party</h2>
+              <button type="button" class="drawer-close" @click="closePartyDrawer">
+                Close
+              </button>
+            </header>
+            <PartyManager
+              :members="documents.members"
+              :actors="documents.actors"
+              @add="(actorId) => sendParty('party.addMember', { actorId })"
+              @remove="(actorId) => sendParty('party.removeMember', { actorId })"
+              @reorder="(memberIds) => sendParty('party.reorder', { memberIds })"
+            />
           </section>
         </Transition>
 
@@ -1096,10 +1149,22 @@ async function handleCreate(): Promise<void> {
   color: var(--color-accent-contrast);
 }
 
-.party-bar {
+/* The top strip (ADR 0022): PartyBar or TurnBar, horizontally scrollable
+   once there are too many cards/portraits to fit, per the user's own
+   layout call rather than wrapping to a second row. */
+.top-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: var(--space-2) var(--space-3);
+}
+
+.start-combat {
+  flex: none;
+  min-height: var(--touch-target-min);
 }
 
 .roster {
@@ -1233,11 +1298,12 @@ button[aria-pressed='true'] {
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
 }
 
-/* Rules and Seats both share the scene drawer's right-edge slot --
-   closeOtherRightDrawers keeps only one of the three open at a time, so
-   they never actually overlap. */
+/* Rules, Seats, and Manage party all share the scene drawer's right-edge
+   slot -- closeOtherRightDrawers keeps only one of the four open at a
+   time, so they never actually overlap. */
 .rules-pane,
-.seats-pane {
+.seats-pane,
+.party-manager-pane {
   right: 0;
   left: auto;
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
