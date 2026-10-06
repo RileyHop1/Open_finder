@@ -19,9 +19,16 @@
  * - the **chat** panel (`ChatLog.vue`), a 90%-opacity overlay in the map's
  *   bottom-left corner, with its own "Collapse" toggle.
  *
+ * The **action dock** (`.action-dock`: `ActionTray`, the acting combatant's
+ * actions, and `ActionBar`, the selected token's strikes) is centered over
+ * the map's bottom edge, Owlcat-style, rather than pushing the map up from
+ * below -- see `actionTray`/`actionBar` below. The preview-scene and
+ * targeting banners are the same idea at the map's top edge instead
+ * (`.top-banners`): small overlays, not flow siblings the map has to make
+ * room for.
+ *
  * The GM also has a **Scenes** drawer, from the right edge of the map (the scene
- * manager: make, edit, preview, move the party to, and delete scenes), and a
- * banner above the map while they are previewing a scene the players are not on.
+ * manager: make, edit, preview, move the party to, and delete scenes).
  *
  * Everyone has a **Rules** drawer (milestone 6's encyclopedia, `RulesDrawer.vue`),
  * and there is a **Seats** drawer (`SeatRoster.vue`) and the GM's own **Manage
@@ -769,15 +776,6 @@ async function handleCreate(): Promise<void> {
 
     <div class="table-body">
       <div class="map-column">
-        <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
-          You are previewing <strong>{{ scenes.shownScene?.name }}</strong
-          >. The players are on <strong>{{ partyScene?.name ?? 'no scene' }}</strong
-          >.
-          <button type="button" @click="scenes.previewScene(undefined)">
-            Back to the players' scene
-          </button>
-        </p>
-
         <section
           id="map-pane"
           class="map-pane"
@@ -798,37 +796,53 @@ async function handleCreate(): Promise<void> {
           />
         </section>
 
-        <p v-if="pendingStrike !== undefined" class="targeting-banner" role="status">
-          Choose a target on the map or the token list, or press Escape to swing without
-          one.
-        </p>
+        <div class="top-banners">
+          <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
+            You are previewing <strong>{{ scenes.shownScene?.name }}</strong
+            >. The players are on <strong>{{ partyScene?.name ?? 'no scene' }}</strong
+            >.
+            <button type="button" @click="scenes.previewScene(undefined)">
+              Back to the players' scene
+            </button>
+          </p>
+
+          <p v-if="pendingStrike !== undefined" class="targeting-banner" role="status">
+            Choose a target on the map or the token list, or press Escape to swing without
+            one.
+          </p>
+        </div>
 
         <p v-if="combat.error" role="alert" class="status status-error">
           {{ combat.error }}
         </p>
 
-        <ActionTray
-          v-if="actionTray !== undefined"
-          :view="actionTray.view"
-          :label="actionTray.label"
-          :can-control="actionTray.canControl"
-          :gm="lobby.mySeat?.isGM === true"
-          @spend="spendTrayAction"
-          @set-reaction="setTrayReaction"
-          @undo="combat.undo"
-        />
+        <div
+          v-if="actionTray !== undefined || actionBar !== undefined"
+          class="action-dock"
+        >
+          <ActionTray
+            v-if="actionTray !== undefined"
+            :view="actionTray.view"
+            :label="actionTray.label"
+            :can-control="actionTray.canControl"
+            :gm="lobby.mySeat?.isGM === true"
+            @spend="spendTrayAction"
+            @set-reaction="setTrayReaction"
+            @undo="combat.undo"
+          />
 
-        <ActionBar
-          v-if="actionBar !== undefined"
-          :view="actionBar.view"
-          :label="actionBar.label"
-          :gm="actionBar.gm"
-          @strike="barStrike"
-          @basic-action="barBasicAction"
-          @freeform="barFreeform"
-          @hover-strike="barHoverStrike"
-          @unhover-strike="barUnhoverStrike"
-        />
+          <ActionBar
+            v-if="actionBar !== undefined"
+            :view="actionBar.view"
+            :label="actionBar.label"
+            :gm="actionBar.gm"
+            @strike="barStrike"
+            @basic-action="barBasicAction"
+            @freeform="barFreeform"
+            @hover-strike="barHoverStrike"
+            @unhover-strike="barUnhoverStrike"
+          />
+        </div>
 
         <Transition name="drawer">
           <section
@@ -1266,14 +1280,53 @@ button[aria-pressed='true'] {
   max-width: calc(100% - 2 * var(--space-2));
 }
 
-/* Grows to fill whatever the map column has left over, after its other,
-   content-sized siblings (the turn bar, the action dock). */
+/* Grows to fill the map column: the turn/party strip lives outside it
+   entirely (TableView.vue's own #party-bar, above .table-body), and the
+   banners and action dock below overlay it rather than sharing its flex
+   row -- only a combat error (.status-error, rare) is still a flow
+   sibling. */
 .map-pane {
   flex: 1 1 auto;
   min-height: 16rem;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 4px;
+}
+
+/* Small overlay banners (preview, targeting), centered over the map's top
+   edge rather than pushing it down -- stacked if both happen to show. */
+.top-banners {
+  position: absolute;
+  top: var(--space-2);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-chat-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-2));
+}
+
+/* The action dock (ActionTray, ActionBar): docked bottom-center over the
+   map, Owlcat-style, rather than pushing it up from below. */
+.action-dock {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-2);
+  transform: translateX(-50%);
+  z-index: var(--z-chat-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-2));
+  max-height: 45%;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
 }
 
 .sheet-pane {
@@ -1335,6 +1388,8 @@ button[aria-pressed='true'] {
   padding: var(--space-2) var(--space-3);
   border: 2px solid var(--color-accent);
   border-radius: 4px;
+  background: var(--color-surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
 }
 
 .preview-banner {
@@ -1346,6 +1401,8 @@ button[aria-pressed='true'] {
   padding: var(--space-2) var(--space-3);
   border: 2px solid var(--color-accent);
   border-radius: 4px;
+  background: var(--color-surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
 }
 
 .preview-banner button {

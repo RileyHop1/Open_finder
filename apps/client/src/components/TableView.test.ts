@@ -489,6 +489,8 @@ describe('the turn bar', () => {
 
     const wrapper = await mountTable();
     expect(wrapper.text()).toContain('1 of 3 actions spent');
+    // Docked bottom-center over the map (ADR 0022), not a flow sibling pushing it up.
+    expect(wrapper.find('.action-dock .action-tray').exists()).toBe(true);
 
     await wrapper.find('.action-tray button').trigger('click');
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
@@ -861,6 +863,8 @@ describe('the GM’s scene drawer', () => {
     const banner = wrapper.get('.preview-banner');
     expect(banner.text()).toContain('You are previewing Bog');
     expect(banner.text()).toContain('The players are on Keep');
+    // A small overlay over the map's top edge (ADR 0022), not a flow sibling pushing it down.
+    expect(wrapper.find('.top-banners .preview-banner').exists()).toBe(true);
 
     await banner.get('button').trigger('click');
     expect(wrapper.find('.preview-banner').exists()).toBe(false);
