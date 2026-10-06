@@ -12,11 +12,33 @@
 import type { Coins } from '@hearthtable/pf2e';
 import { ref } from 'vue';
 
+import GiveMenu from './GiveMenu.vue';
+import type { GiveChoice, Recipient } from './giveModel.js';
+
 const DENOMINATIONS = ['pp', 'gp', 'sp', 'cp'] as const;
 type Denomination = (typeof DENOMINATIONS)[number];
 
-defineProps<{ coins: Coins; editable?: boolean }>();
-const emit = defineEmits<{ adjust: [delta: Partial<Record<Denomination, number>>] }>();
+withDefaults(
+  defineProps<{
+    coins: Coins;
+    editable?: boolean;
+    recipients?: readonly Recipient[] | undefined;
+  }>(),
+  { editable: false, recipients: () => [] },
+);
+const emit = defineEmits<{
+  adjust: [delta: Partial<Record<Denomination, number>>];
+  give: [to: string, coins: Partial<Record<Denomination, number>>];
+}>();
+
+const giving = ref(false);
+
+function onGive(choice: GiveChoice): void {
+  giving.value = false;
+  if (choice.coins !== undefined) {
+    emit('give', choice.to, choice.coins);
+  }
+}
 
 const amounts = ref<Record<Denomination, number | undefined>>({
   pp: undefined,
@@ -66,7 +88,23 @@ function submit(sign: 1 | -1): void {
       </label>
       <button type="button" @click="submit(1)">Add</button>
       <button type="button" @click="submit(-1)">Spend</button>
+      <button
+        v-if="recipients.length > 0"
+        type="button"
+        :aria-expanded="giving"
+        @click="giving = !giving"
+      >
+        Give…
+      </button>
     </form>
+    <GiveMenu
+      v-if="editable && giving"
+      :recipients="recipients"
+      coins
+      label="coins"
+      @give="onGive"
+      @cancel="giving = false"
+    />
   </section>
 </template>
 

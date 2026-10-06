@@ -252,6 +252,49 @@ describe('editing', () => {
   });
 });
 
+describe('giving', () => {
+  const recipients = [
+    { id: 'ada', name: 'Ada' },
+    { id: 'party', name: 'Party stash' },
+  ];
+  const mountGive = (editable = true, who: typeof recipients | null = recipients) => {
+    const rope = { ...item('gear', 'Invented Rope'), quantity: 3 };
+    return {
+      rope,
+      wrapper: mount(InventoryPanel, {
+        props: { actor: actorWith([rope]), editable, recipients: who ?? undefined },
+      }),
+    };
+  };
+
+  it('gives part of a stack to the chosen recipient, then closes the form', async () => {
+    const { rope, wrapper } = mountGive();
+    await wrapper.get('button[aria-label="Give Invented Rope"]').trigger('click');
+    await wrapper.get('.give select').setValue('ada');
+    await wrapper.get('.give input[aria-label="How many to give"]').setValue('2');
+    await wrapper.get('form[aria-label="Give Invented Rope"]').trigger('submit');
+    expect(wrapper.emitted('give')).toEqual([[rope.id, 'ada', 2]]);
+    expect(wrapper.find('form[aria-label="Give Invented Rope"]').exists()).toBe(false);
+  });
+
+  it('offers no Give… to a viewer, or when there is no one to give to', () => {
+    expect(mountGive(false).wrapper.find('button[aria-label^="Give "]').exists()).toBe(
+      false,
+    );
+    expect(
+      mountGive(true, null).wrapper.find('button[aria-label^="Give "]').exists(),
+    ).toBe(false);
+  });
+
+  it('passes a coin gift up as giveCoins', async () => {
+    const { wrapper } = mountGive();
+    await wrapper.findAll('.adjust button')[2]?.trigger('click');
+    await wrapper.get('input[aria-label="sp to give"]').setValue('4');
+    await wrapper.get('form[aria-label="Give coins"]').trigger('submit');
+    expect(wrapper.emitted('giveCoins')).toEqual([['ada', { sp: 4 }]]);
+  });
+});
+
 describe('coins', () => {
   it('shows the purse above the items and passes a spend up as a signed change', async () => {
     const actor = actorWith([]);

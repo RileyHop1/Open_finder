@@ -35,9 +35,16 @@ import {
 } from '../../api/compendium.js';
 import { formatItemBulk, formatPrice, formatTotalBulk, titleCase } from './format.js';
 import CoinsRow from './CoinsRow.vue';
+import GiveMenu from './GiveMenu.vue';
+import type { GiveChoice, Recipient } from './giveModel.js';
 import NumberField from './NumberField.vue';
 
-const props = defineProps<{ actor: Actor; editable?: boolean }>();
+const props = defineProps<{
+  actor: Actor;
+  editable?: boolean;
+  /** Who an item or coins can be given to: other characters and the party stash. */
+  recipients?: readonly Recipient[] | undefined;
+}>();
 const emit = defineEmits<{
   add: [packId: string, slug: string];
   equip: [itemId: string, equipped: boolean];
@@ -45,7 +52,19 @@ const emit = defineEmits<{
   remove: [itemId: string];
   /** A signed change to the purse, by denomination (negative spends). */
   coins: [delta: { pp?: number; gp?: number; sp?: number; cp?: number }];
+  /** Give an item (or part of a stack) to `to`: a character's id, or `'party'` for the stash. */
+  give: [itemId: string, to: string, quantity?: number];
+  /** Give coins to `to`. */
+  giveCoins: [to: string, coins: { pp?: number; gp?: number; sp?: number; cp?: number }];
 }>();
+
+/** The item whose Give form is open: one at a time. */
+const giving = ref<string>();
+
+function onGive(itemId: string, choice: GiveChoice): void {
+  giving.value = undefined;
+  emit('give', itemId, choice.to, choice.quantity);
+}
 
 /** The kinds a character can carry, for the picker's filter. */
 const KINDS = ['weapon', 'armor', 'gear', 'feat', 'classFeature', 'spell', 'action'];
@@ -138,7 +157,13 @@ async function search(): Promise<void> {
 
 <template>
   <section v-if="data" class="inventory" aria-labelledby="inventory-heading">
-    <CoinsRow :coins="data.coins" :editable="editable" @adjust="emit('coins', $event)" />
+    <CoinsRow
+      :coins="data.coins"
+      :editable="editable"
+      :recipients="recipients"
+      @adjust="emit('coins', $event)"
+      @give="(to, coins) => emit('giveCoins', to, coins)"
+    />
 
     <h4 id="inventory-heading">Items</h4>
 
@@ -201,12 +226,29 @@ async function search(): Promise<void> {
             @commit="(n) => emit('quantity', item.id, n)"
           />
           <button
+            v-if="recipients && recipients.length > 0"
+            type="button"
+            :aria-label="`Give ${item.entry.name}`"
+            :aria-expanded="giving === item.id"
+            @click="giving = giving === item.id ? undefined : item.id"
+          >
+            Give…
+          </button>
+          <button
             type="button"
             :aria-label="`Remove ${item.entry.name}`"
             @click="emit('remove', item.id)"
           >
             Remove
           </button>
+          <GiveMenu
+            v-if="giving === item.id && recipients"
+            :recipients="recipients"
+            :max-quantity="item.quantity"
+            :label="item.entry.name"
+            @give="(choice) => onGive(item.id, choice)"
+            @cancel="giving = undefined"
+          />
         </template>
         <template v-else>
           <span v-if="WORN.has(item.entry.kind)" class="equip-state">

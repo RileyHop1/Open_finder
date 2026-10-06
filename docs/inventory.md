@@ -31,6 +31,14 @@ denominations and choose **Add** or **Spend**. It sends one `actor.adjustCoins`
 with the signed change; the server makes change, and refuses a spend the purse
 cannot cover with a message in the table's alert (arithmetic, not a ruling).
 
+**Giving** (`GiveMenu.vue`): an owner or the GM gets **Give…** on each item and on
+the coins row. It opens a small inline form: pick a recipient (the other
+characters, then the party stash), and for a stack of two or more how many, or
+for coins how much of each denomination. It sends one `inventory.transfer`
+(`from` the selected character); the server checks they actually have it, and the
+recipient needs no consent. Escape cancels. Taking from the stash and the GM's
+loot hand-out are separate (PRs 15 and 16).
+
 ## Item price and Bulk
 
 `WeaponEntry`, `ArmorEntry`, and `GearEntry` each get two new optional fields:
