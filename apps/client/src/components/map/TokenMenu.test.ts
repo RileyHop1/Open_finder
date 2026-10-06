@@ -20,6 +20,10 @@ const view = (overrides: Partial<TokenView> = {}): TokenView => ({
   movable: true,
   selected: true,
   onTurn: false,
+  hpPercent: undefined,
+  hpHidden: false,
+  npc: false,
+  showHpBar: false,
   ...overrides,
 });
 
@@ -47,6 +51,27 @@ function mountMenu(token = view(), canJoinCombat?: boolean, movementGranted?: bo
 
 const item = (wrapper: ReturnType<typeof mountMenu>, label: string) =>
   wrapper.findAll('[role="menuitem"]').find((b) => b.text() === label);
+
+describe('the HP bar item', () => {
+  it('is offered for a monster, and says what it will do', () => {
+    expect(item(mountMenu(view({ npc: true })), 'Show HP bar to players')).toBeDefined();
+    expect(
+      item(mountMenu(view({ npc: true, showHpBar: true })), 'Hide HP bar from players'),
+    ).toBeDefined();
+  });
+
+  it('is not offered for a character, whose bar is always shown', () => {
+    expect(
+      item(mountMenu(view({ npc: false })), 'Show HP bar to players'),
+    ).toBeUndefined();
+  });
+
+  it('emits toggleHpBar when chosen', async () => {
+    const wrapper = mountMenu(view({ npc: true }));
+    await item(wrapper, 'Show HP bar to players')?.trigger('click');
+    expect(wrapper.emitted('toggleHpBar')).toHaveLength(1);
+  });
+});
 
 describe('the menu', () => {
   it('is a labelled menu with the focus on its first item', async () => {

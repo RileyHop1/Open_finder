@@ -195,3 +195,63 @@ describe('tokenAt', () => {
     expect(tokenAt(views, { x: 149, y: 200 })).toBeUndefined();
   });
 });
+
+describe('HP bars', () => {
+  const hero = { name: 'Valeros', portrait: undefined };
+  const character = { kind: 'character' as const, percent: 60 };
+  const monster = { kind: 'npc' as const, percent: 25 };
+
+  it('shows a character’s bar to everyone, from the actor', () => {
+    const [view] = tokenViews([makeToken()], 100, () => hero, { hpOf: () => character });
+    expect(view).toMatchObject({ hpPercent: 60, hpHidden: false, npc: false });
+  });
+
+  it('gives the GM every monster’s bar, dashed while the players are not shown it', () => {
+    const quiet = makeToken();
+    const shown = makeToken({ showHpBar: true });
+    const [a, b] = tokenViews([quiet, shown], 100, () => hero, {
+      gm: true,
+      hpOf: () => monster,
+    });
+    expect(a).toMatchObject({
+      hpPercent: 25,
+      hpHidden: true,
+      npc: true,
+      showHpBar: false,
+    });
+    expect(b).toMatchObject({
+      hpPercent: 25,
+      hpHidden: false,
+      npc: true,
+      showHpBar: true,
+    });
+  });
+
+  it('gives a player a monster’s bar only from the token’s own percentage', () => {
+    const hidden = makeToken();
+    const shown = makeToken({ showHpBar: true, hpBar: { percent: 40 } });
+    const [a, b] = tokenViews([hidden, shown], 100, () => undefined);
+    expect(a?.hpPercent).toBeUndefined();
+    expect(b).toMatchObject({ hpPercent: 40, hpHidden: false });
+  });
+
+  it('ignores the actor for a player even when the monster’s sheet is readable', () => {
+    const [view] = tokenViews([makeToken()], 100, () => hero, { hpOf: () => monster });
+    expect(view?.hpPercent).toBeUndefined();
+  });
+
+  it('says the health in words, and that the bar is hidden from players', () => {
+    expect(
+      describeToken({ label: 'Goblin', hidden: false, onTurn: false, hpPercent: 40 }),
+    ).toBe('Goblin (40% HP)');
+    expect(
+      describeToken({
+        label: 'Goblin',
+        hidden: false,
+        onTurn: false,
+        hpPercent: 40,
+        hpHidden: true,
+      }),
+    ).toBe('Goblin (40% HP, bar hidden from players)');
+  });
+});

@@ -69,6 +69,14 @@ behind. Changed tokens ride the same broadcast, and a player's copy contains the
 token and never the actor. A character's token carries no `hpBar`: its owner and the
 party read the character actor directly.
 
+**On the map** (`sceneView.ts`, `tokenModel.ts`): a thin bar sits under the token,
+green above half, amber above a quarter, red below, and the token's label says the
+percentage in words. A character's bar comes from the character actor and everyone
+sees it. A monster's comes from the actor for the GM and from `hpBar` for a player.
+The GM sees every monster's bar; one the players are not shown is outlined with
+dashes. The token menu (right click, or the Menu key) has "Show HP bar to players" /
+"Hide HP bar from players" for monsters, which sends `token.update`.
+
 ## Example
 ```ts
 tokenSchema.parse({

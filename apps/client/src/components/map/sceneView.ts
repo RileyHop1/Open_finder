@@ -155,6 +155,30 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
   }
 
   /** A token: a ring with its portrait cut to a circle (or its initials), and its name beneath. */
+  /** The HP bar: a dark track, a fill coloured by how full it is, and a dashed outline when only the GM sees it. */
+  function drawHpBar(view: TokenView, radius: number, height: number): Pixi.Graphics {
+    const percent = view.hpPercent ?? 0;
+    const width = Math.max(view.diameter * 0.8, 24);
+    const left = -width / 2;
+    const top = radius + 4;
+    const bar = new pixi.Graphics().rect(left, top, width, height).fill(0x1a1713);
+    if (percent > 0) {
+      const colour = percent > 50 ? 0x5fb86a : percent > 25 ? 0xe0a93b : 0xd9534f;
+      bar.rect(left, top, (width * percent) / 100, height).fill(colour);
+    }
+    if (view.hpHidden) {
+      const dash = Math.max(height, 6);
+      for (let at = 0; at < width; at += dash * 2) {
+        const length = Math.min(dash, width - at);
+        bar
+          .rect(left + at, top - 2, length, 2)
+          .rect(left + at, top + height, length, 2)
+          .fill(0xece7dc);
+      }
+    }
+    return bar;
+  }
+
   function buildToken(
     view: TokenView,
     portrait: Pixi.Texture | undefined,
@@ -214,6 +238,13 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
       );
     }
 
+    // A thin bar just under the token, its label pushed below it. A bar the players
+    // are not shown (GM only) gets a dashed outline: a shape, not just a colour.
+    const barHeight = view.hpPercent === undefined ? 0 : Math.max(cell * 0.09, 7);
+    if (view.hpPercent !== undefined) {
+      node.addChild(drawHpBar(view, radius, barHeight));
+    }
+
     const name = new pixi.Text({
       text: describeToken(view),
       style: {
@@ -223,7 +254,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
       },
     });
     name.anchor.set(0.5, 0);
-    name.position.set(0, radius + fontSize * 0.2);
+    name.position.set(0, radius + fontSize * 0.2 + (barHeight > 0 ? barHeight + 4 : 0));
     node.addChild(name);
 
     // Faded for a token only the GM can see; the label says so in words too.
@@ -366,6 +397,8 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
           view.hidden,
           view.selected,
           view.onTurn,
+          view.hpPercent,
+          view.hpHidden,
           cell,
           view.portrait,
           bitmap !== undefined,
