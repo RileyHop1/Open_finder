@@ -139,6 +139,25 @@ async function handleSubmit(): Promise<void> {
           :sender="seatName(entry.seatId)"
           :is-gm="lobbyStore.mySeat?.isGM === true"
         />
+        <template v-else-if="entry.kind === 'itemUse'">
+          <span class="sender">{{ entry.actorName }} used {{ entry.itemName }}:</span>
+          <span v-if="entry.text">{{ entry.text }}</span>
+          <details v-if="entry.roll" class="roll-breakdown">
+            <summary>Total: {{ entry.roll.total }}</summary>
+            <ul>
+              <li v-for="(term, index) in entry.roll.terms" :key="index">
+                <template v-if="term.kind === 'die'">
+                  d{{ term.faces }}: {{ term.result
+                  }}<span v-if="!term.kept"> (dropped)</span>
+                </template>
+                <template v-else-if="term.kind === 'constant'">
+                  {{ term.value >= 0 ? '+' : '' }}{{ term.value }}
+                </template>
+                <template v-else>@{{ term.name }}: {{ term.value }}</template>
+              </li>
+            </ul>
+          </details>
+        </template>
         <template v-else>
           <span class="sender"
             >{{ seatName(entry.seatId) }} rolled {{ entry.roll.expression }}:</span

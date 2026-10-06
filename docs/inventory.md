@@ -109,6 +109,12 @@ entirely, rather than carrying a reference to nothing.
 - `packages/core/src/operation.transfer.test.ts`: an item split across two
   holders, a coin transfer, rejecting a transfer the caller does not own and
   one the source cannot cover.
+- `packages/core/src/operation.useItem.test.ts` and
+  `chatMessage.itemUse.test.ts`: the operation's payload shape, and the
+  `itemUse` card with and without a rolled formula.
+- `apps/server/src/useItem.test.ts`: spending a single-use consumable down
+  to removal, decrementing a multi-use one without removing it, refusing an
+  empty wand's last charge, and the owner/GM permission check.
 - Playwright e2e (`test/m7-loot-e2e`, tracking issue
   [#254](https://github.com/RileyHop1/Open_finder/issues/254)): give, take,
   and use, across two browser contexts.

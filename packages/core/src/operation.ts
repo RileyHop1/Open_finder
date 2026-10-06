@@ -866,6 +866,22 @@ export const inventoryTransferOperationSchema = clientOperationSchema
 export type TransferPayload = z.infer<typeof inventoryTransferOperationSchema>['payload'];
 
 /**
+ * Use a consumable: decrements its `uses.current` (or, if it has no `uses`,
+ * its `quantity`) and posts a `ChatMessage` with the item's rules text
+ * (ADR 0021, `docs/inventory.md`). If that text contains a dice expression,
+ * the server rolls it and the card carries the structured result the same
+ * way `chat.sendRoll` does -- using a consumable is not a new kind of roll,
+ * just a new trigger for one. `useItem` only spends the item and posts the
+ * card; anything the roll should *do* (heal HP, remove a condition) goes
+ * through the operation for that already (`actor.heal`,
+ * `actor.removeCondition`). Owner or GM only.
+ */
+export const actorUseItemOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.useItem'),
+  payload: z.object({ actorId: idSchema, itemId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -925,6 +941,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorAdjustCoinsOperationSchema,
   partyAdjustCoinsOperationSchema,
   inventoryTransferOperationSchema,
+  actorUseItemOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
