@@ -22,22 +22,22 @@ export function hpPercent(current: number, max: number): number {
   return Math.min(100, Math.max(0, Math.round((current / max) * 100)));
 }
 
-/** Whether `actor` is a character or a monster, and how full its hit points are; `undefined` for anything without hit points data. */
+/** Whether `actor` is a character or a monster, and its current and maximum hit points; `undefined` for anything without hit points data. */
 export function actorHp(
   actor: Actor,
-): { kind: 'character' | 'npc'; percent: number } | undefined {
+): { kind: 'character' | 'npc'; current: number; max: number } | undefined {
   if (actor.kind === 'character') {
     const data = characterDataSchema.safeParse(actor.system);
     if (data.success) {
       const hp = prepareCharacter(data.data).hp;
-      return { kind: 'character', percent: hpPercent(hp.current, hp.max.total) };
+      return { kind: 'character', current: hp.current, max: hp.max.total };
     }
   }
   if (actor.kind === 'npc') {
     const data = npcDataSchema.safeParse(actor.system);
     if (data.success) {
       const hp = prepareNpc(data.data).hp;
-      return { kind: 'npc', percent: hpPercent(hp.current, hp.max.total) };
+      return { kind: 'npc', current: hp.current, max: hp.max.total };
     }
   }
   return undefined;

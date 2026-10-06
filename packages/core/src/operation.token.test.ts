@@ -65,7 +65,7 @@ describe('token.update', () => {
     expect(update({}).success).toBe(false);
     expect(update({ permissions: { default: 'owner' } }).success).toBe(false);
     expect(update({ x: 100, y: 100 }).success).toBe(false);
-    expect(update({ hpBar: { percent: 100 } }).success).toBe(false);
+    expect(update({ hpBar: { current: 1, max: 2 } }).success).toBe(false);
     expect(update({ actorId: crypto.randomUUID() }).success).toBe(false);
   });
 
