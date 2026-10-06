@@ -62,8 +62,8 @@
  * the lobby owns the realtime connection, this only reads the stores it
  * feeds.
  */
-import type { SituationalModifier } from '@hearthtable/core';
-import { resolvePermission } from '@hearthtable/core';
+import type { HotbarAction, SituationalModifier } from '@hearthtable/core';
+import { emptyHotbar, resolvePermission } from '@hearthtable/core';
 import { parse as parseDice } from '@hearthtable/dice/pure';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
@@ -83,6 +83,7 @@ import {
 } from './actionBarModel.js';
 import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
+import { slotForKey } from './hotbarModel.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import GearMenu from './GearMenu.vue';
@@ -244,6 +245,7 @@ const actionBar = computed(() => {
     view: actionBarView(actor, combatant),
     label: token.name ?? actor.name,
     modifiers: actor.modifiers ?? [],
+    hotbar: actor.hotbar ?? emptyHotbar(),
   };
 });
 
@@ -328,6 +330,9 @@ function barStrike(
 /** Why the last generic action was not sent, shown under its form. */
 const actionError = ref<string>();
 
+/** The action bar, for loading a hotbar slot from a number key. */
+const actionBarEl = useTemplateRef<InstanceType<typeof ActionBar>>('actionBarEl');
+
 /**
  * The generic action (ADR 0023): the player's own description, cost, dice
  * and the switched-on situational modifiers, for anything the system does not model. The dice
@@ -382,14 +387,29 @@ function isTypingTarget(event: KeyboardEvent): boolean {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
 }
 
-/** Escape anywhere on the screen skips a pending strike's target. `?` opens the Rules drawer (the encyclopedia, CLAUDE.md's north star) -- ignored while typing. */
+/** Escape anywhere on the screen skips a pending strike's target. A number key loads its hotbar slot into the action form (never while typing).  `?` opens the Rules drawer (the encyclopedia, CLAUDE.md's north star) -- ignored while typing. */
 function onTableKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && pendingStrike.value !== undefined) {
     swingWithoutTarget();
+  }
+  const slot = slotForKey(event.key);
+  if (
+    slot !== undefined &&
+    !isTypingTarget(event) &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.shiftKey &&
+    actionBar.value?.hotbar[slot] != null
+  ) {
+    event.preventDefault();
+    actionBarEl.value?.loadSlot(slot);
+    return;
   }
   if (event.key === '?' && !isTypingTarget(event)) {
     event.preventDefault();
@@ -466,6 +486,14 @@ function roll(type: string, payload: Record<string, unknown>): void {
       ...(modifiers.length === 0 ? {} : { modifiers }),
       ...payload,
     });
+  }
+}
+
+/** Saves the selected action bar actor's hotbar (ten positions, each an action or empty). */
+function setBarHotbar(hotbar: (HotbarAction | null)[]): void {
+  const bar = actionBar.value;
+  if (bar !== undefined) {
+    void documents.send('actor.setQuickbar', { actorId: bar.actorId, hotbar });
   }
 }
 
@@ -921,13 +949,16 @@ async function handleCreate(): Promise<void> {
 
             <ActionBar
               v-if="actionBar !== undefined"
+              ref="actionBarEl"
               :view="actionBar.view"
               :label="actionBar.label"
               :error="actionError"
               :modifiers="actionBar.modifiers"
+              :hotbar="actionBar.hotbar"
               @strike="barStrike"
               @action="barAction"
               @set-modifiers="setBarModifiers"
+              @set-hotbar="setBarHotbar"
               @hover-strike="barHoverStrike"
               @unhover-strike="barUnhoverStrike"
             />

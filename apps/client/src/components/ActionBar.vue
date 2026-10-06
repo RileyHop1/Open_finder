@@ -18,9 +18,9 @@
  * not just something spent from this bar, so it belongs with the acting
  * combatant's own controls rather than whatever token happens to be selected.
  */
+import type { HotbarAction, SituationalModifier } from '@hearthtable/core';
+import { emptyHotbar } from '@hearthtable/core';
 import { computed, ref } from 'vue';
-
-import type { SituationalModifier } from '@hearthtable/core';
 
 import type {
   ActionBarView,
@@ -28,6 +28,9 @@ import type {
   GenericActionCost,
 } from './actionBarModel.js';
 import { modifierSum } from './actionBarModel.js';
+import ActionHotbar from './ActionHotbar.vue';
+import { defaultSlotName, withSlot } from './hotbarModel.js';
+import SaveToHotbar from './SaveToHotbar.vue';
 import SituationalMods from './SituationalMods.vue';
 import RulesTerm from './RulesTerm.vue';
 import StatBreakdown from './StatBreakdown.vue';
@@ -40,15 +43,18 @@ const props = withDefaults(
     label: string;
     /** The actor's saved situational modifiers; the switched-on ones count toward every roll here. */
     modifiers?: readonly SituationalModifier[];
+    /** The actor's ten saved actions (keys 1 to 9, then 0). */
+    hotbar?: readonly (HotbarAction | null)[];
     /** Why the last action was not sent (bad dice), shown under the form. */
     error?: string | undefined;
   }>(),
-  { modifiers: () => [], error: undefined },
+  { modifiers: () => [], hotbar: emptyHotbar, error: undefined },
 );
 const emit = defineEmits<{
   strike: [target: { itemId: string } | { strikeKey: string }, attackNumber: 1 | 2 | 3];
   action: [action: GenericAction];
   setModifiers: [modifiers: SituationalModifier[]];
+  setHotbar: [hotbar: (HotbarAction | null)[]];
   hoverStrike: [strike: ActionBarView['strikes'][number]];
   unhoverStrike: [];
 }>();
@@ -57,6 +63,39 @@ const actionText = ref('');
 const actionCost = ref<GenericActionCost>(1);
 const actionDice = ref('');
 const modifierTotal = computed(() => modifierSum(props.modifiers));
+
+/** Fills the form from saved slot `index`, so this time's modifiers can be added before spending. */
+function loadSlot(index: number): void {
+  const slot = props.hotbar[index];
+  if (slot === null || slot === undefined) {
+    return;
+  }
+  actionText.value = slot.text;
+  actionCost.value = slot.cost;
+  actionDice.value = slot.dice ?? '';
+}
+
+/** Saves the form's current action to `index` under `name`. */
+function saveSlot(index: number, name: string): void {
+  const dice = actionDice.value.trim();
+  emit(
+    'setHotbar',
+    withSlot(props.hotbar, index, {
+      name,
+      text: actionText.value.trim(),
+      cost: actionCost.value,
+      ...(dice === '' ? {} : { dice }),
+    }),
+  );
+}
+
+const canSave = computed(
+  () => actionText.value.trim() !== '' || actionDice.value.trim() !== '',
+);
+
+// A number key loads its slot: `TableView` owns the key handling (the one place that
+// already knows when the player is typing) and calls this.
+defineExpose({ loadSlot });
 
 function submitAction(): void {
   const text = actionText.value.trim();
@@ -72,85 +111,116 @@ function submitAction(): void {
 
 <template>
   <section class="action-bar" :aria-label="`${label}'s actions`">
-    <ul v-if="view.strikes.length > 0" class="strikes">
-      <li v-for="strike in view.strikes" :key="strike.name">
-        <span class="strike-name">{{ strike.name }}</span>
-        <span v-if="strike.traits.length > 0" class="strike-traits">
-          <RulesTerm
-            v-for="trait in strike.traits"
-            :key="trait"
-            term-kind="trait"
-            :slug="trait"
-            :label="titleCase(trait)"
-          />
-        </span>
-        <span
-          v-for="attack in strike.attacks"
-          :key="attack.attackNumber"
-          class="attack"
-          @mouseenter="emit('hoverStrike', strike)"
-          @mouseleave="emit('unhoverStrike')"
-        >
-          <StatBreakdown
-            :label="`${strike.name} ${attack.label} attack`"
-            :statistic="attack.statistic"
-            @focusin="emit('hoverStrike', strike)"
-            @focusout="emit('unhoverStrike')"
+    <div class="bar-row">
+      <ul v-if="view.strikes.length > 0" class="strikes">
+        <li v-for="strike in view.strikes" :key="strike.name">
+          <span class="strike-name">{{ strike.name }}</span>
+          <span v-if="strike.traits.length > 0" class="strike-traits">
+            <RulesTerm
+              v-for="trait in strike.traits"
+              :key="trait"
+              term-kind="trait"
+              :slug="trait"
+              :label="titleCase(trait)"
+            />
+          </span>
+          <span
+            v-for="attack in strike.attacks"
+            :key="attack.attackNumber"
+            class="attack"
+            @mouseenter="emit('hoverStrike', strike)"
+            @mouseleave="emit('unhoverStrike')"
           >
-            {{ attack.label }} {{ signed(attack.total + modifierTotal) }}
-          </StatBreakdown>
-          <button
-            type="button"
-            :aria-label="`Roll ${strike.name} ${attack.label} attack, ${signed(attack.total + modifierTotal)}`"
-            @click="emit('strike', strike.target, attack.attackNumber)"
-            @focus="emit('hoverStrike', strike)"
-            @blur="emit('unhoverStrike')"
-          >
-            Roll
-          </button>
-        </span>
-      </li>
-    </ul>
-    <p v-else class="empty">No strikes.</p>
+            <StatBreakdown
+              :label="`${strike.name} ${attack.label} attack`"
+              :statistic="attack.statistic"
+              @focusin="emit('hoverStrike', strike)"
+              @focusout="emit('unhoverStrike')"
+            >
+              {{ attack.label }} {{ signed(attack.total + modifierTotal) }}
+            </StatBreakdown>
+            <button
+              type="button"
+              :aria-label="`Roll ${strike.name} ${attack.label} attack, ${signed(attack.total + modifierTotal)}`"
+              @click="emit('strike', strike.target, attack.attackNumber)"
+              @focus="emit('hoverStrike', strike)"
+              @blur="emit('unhoverStrike')"
+            >
+              Roll
+            </button>
+          </span>
+        </li>
+      </ul>
+      <p v-else class="empty">No strikes.</p>
 
-    <form class="action-form" aria-label="Action" @submit.prevent="submitAction">
-      <input
-        id="action-text"
-        v-model="actionText"
-        type="text"
-        aria-label="Action"
-        placeholder="Action"
+      <form class="action-form" aria-label="Action" @submit.prevent="submitAction">
+        <input
+          id="action-text"
+          v-model="actionText"
+          type="text"
+          aria-label="Action"
+          placeholder="Action"
+        />
+        <select
+          v-if="view.canAct"
+          id="action-cost"
+          v-model="actionCost"
+          aria-label="Cost"
+        >
+          <option value="free">Free</option>
+          <option :value="1">◆</option>
+          <option :value="2">◆◆</option>
+          <option :value="3">◆◆◆</option>
+          <option value="reaction">Reaction</option>
+        </select>
+        <input
+          id="action-dice"
+          v-model="actionDice"
+          type="text"
+          autocomplete="off"
+          aria-label="Dice"
+          placeholder="1d20+7"
+        />
+        <button type="submit">Spend</button>
+      </form>
+      <SaveToHotbar
+        :slots="hotbar"
+        :suggested-name="defaultSlotName(actionText, actionDice)"
+        :can-save="canSave"
+        @save="saveSlot"
       />
-      <select v-if="view.canAct" id="action-cost" v-model="actionCost" aria-label="Cost">
-        <option value="free">Free</option>
-        <option :value="1">◆</option>
-        <option :value="2">◆◆</option>
-        <option :value="3">◆◆◆</option>
-        <option value="reaction">Reaction</option>
-      </select>
-      <input
-        id="action-dice"
-        v-model="actionDice"
-        type="text"
-        autocomplete="off"
-        aria-label="Dice"
-        placeholder="1d20+7"
-      />
-      <button type="submit">Spend</button>
-    </form>
-    <SituationalMods :modifiers="modifiers" @update="emit('setModifiers', $event)" />
-    <p v-if="error" role="alert" class="action-error">{{ error }}</p>
+      <SituationalMods :modifiers="modifiers" @update="emit('setModifiers', $event)" />
+      <p v-if="error" role="alert" class="action-error">{{ error }}</p>
+    </div>
+    <ActionHotbar
+      :slots="hotbar"
+      @load="loadSlot"
+      @remove="emit('setHotbar', withSlot(hotbar, $event, null))"
+      @rename="
+        (index, name) => {
+          const slot = hotbar[index];
+          if (slot) {
+            emit('setHotbar', withSlot(hotbar, index, { ...slot, name }));
+          }
+        }
+      "
+    />
   </section>
 </template>
 
 <style scoped>
 .action-bar {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+.bar-row {
+  display: flex;
   flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2);
-  border-top: 1px solid var(--color-border);
 }
 .strikes {
   display: flex;

@@ -49,6 +49,64 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
   };
 }
 
+describe('ActionBar hotbar', () => {
+  const saved = (): (null | {
+    name: string;
+    text: string;
+    cost: 1 | 2;
+    dice?: string;
+  })[] => {
+    const bar: (null | { name: string; text: string; cost: 1 | 2; dice?: string })[] =
+      Array.from({ length: 10 }, () => null);
+    bar[0] = { name: 'Stab', text: 'Sneak attack', cost: 2, dice: '1d6' };
+    return bar;
+  };
+  const mountBar = (hotbar = saved()) =>
+    mount(ActionBar, {
+      props: { view: view(), label: 'Ada', hotbar },
+      attachTo: document.body,
+    });
+  const value = (wrapper: ReturnType<typeof mountBar>, id: string) =>
+    (wrapper.get(id).element as HTMLInputElement).value;
+
+  it('loads a clicked slot into the form, without spending anything', async () => {
+    const wrapper = mountBar();
+    await wrapper.get('button[aria-label="Load Stab, slot 1"]').trigger('click');
+    expect(value(wrapper, '#action-text')).toBe('Sneak attack');
+    expect(value(wrapper, '#action-cost')).toBe('2');
+    expect(value(wrapper, '#action-dice')).toBe('1d6');
+    expect(wrapper.emitted('action')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('saves the form to the chosen slot through the Save popover', async () => {
+    const wrapper = mountBar();
+    await wrapper.get('#action-text').setValue('Trip');
+    await wrapper.get('#action-cost').setValue('1');
+    await wrapper.get('#action-dice').setValue('1d20+5');
+    await wrapper.get('.save-toggle').trigger('click');
+    await wrapper.get('button[aria-label="Slot 3: empty"]').trigger('click');
+    const next = wrapper.emitted('setHotbar')?.[0]?.[0] as unknown[];
+    expect(next[2]).toEqual({ name: 'Trip', text: 'Trip', cost: 1, dice: '1d20+5' });
+    expect(next[0]).toEqual(saved()[0]);
+    wrapper.unmount();
+  });
+
+  it('removes and renames a slot, leaving the others', async () => {
+    const wrapper = mountBar();
+    await wrapper.get('button[aria-label="Remove Stab from slot 1"]').trigger('click');
+    expect((wrapper.emitted('setHotbar')?.[0]?.[0] as unknown[])[0]).toBeNull();
+
+    await wrapper.get('button[aria-label="Load Stab, slot 1"]').trigger('dblclick');
+    await wrapper.get('input[aria-label="Name for slot 1"]').setValue('Backstab');
+    await wrapper.get('input[aria-label="Name for slot 1"]').trigger('keydown.enter');
+    expect((wrapper.emitted('setHotbar')?.[1]?.[0] as { name: string }[])[0]?.name).toBe(
+      'Backstab',
+    );
+    wrapper.unmount();
+  });
+});
+
 describe('ActionBar', () => {
   const mods = [
     { value: 2, label: 'Flanking', active: true },

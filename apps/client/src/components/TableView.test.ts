@@ -712,6 +712,42 @@ describe('the turn bar', () => {
     ]);
   });
 
+  it('loads a hotbar slot from its number key, but never while typing or with a modifier key', async () => {
+    seedActiveCombat({
+      hotbar: [
+        { name: 'Stab', text: 'Sneak attack', cost: 2, dice: '1d6' },
+        ...Array.from({ length: 9 }, () => null),
+      ],
+    });
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    const text = () => (wrapper.get('#action-text').element as HTMLInputElement).value;
+
+    await wrapper.get('.table').trigger('keydown', { key: '1', ctrlKey: true });
+    await wrapper.get('.table').trigger('keydown', { key: '2' });
+    await wrapper.get('#action-dice').trigger('keydown', { key: '1' });
+    expect(text()).toBe('');
+
+    await wrapper.get('.table').trigger('keydown', { key: '1' });
+    expect(text()).toBe('Sneak attack');
+    expect((wrapper.get('#action-dice').element as HTMLInputElement).value).toBe('1d6');
+  });
+
+  it('saves a changed hotbar on the actor', async () => {
+    seedActiveCombat();
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    const hotbar = [
+      { name: 'Stab', text: 'Sneak attack', cost: 2 },
+      ...Array.from({ length: 9 }, () => null),
+    ];
+    wrapper.findComponent(ActionBar).vm.$emit('setHotbar', hotbar);
+    await flushPromises();
+    expect(sentOperations()).toMatchObject([
+      { type: 'actor.setQuickbar', payload: { hotbar } },
+    ]);
+  });
+
   it('spends the default cost with no text and no dice, and posts nothing to chat', async () => {
     const { combatantId } = seedActiveCombat();
     await doAction({ text: '' });
