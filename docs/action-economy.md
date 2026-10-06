@@ -59,7 +59,17 @@ and follow the player to another device. Every switched-on one counts toward
 every roll made from here: the strike buttons show the bonus with them added,
 a strike or sheet check sends them as `modifiers` so the chat breakdown lists
 each one ([operations.md](operations.md)), and the generic action's dice get
-their sum added to the expression. The bar itself is shown only for a
+their sum added to the expression.
+
+**The hotbar** (`Hotbar.vue`, `SaveToHotbar.vue`): ten slots under the action
+row, on keys 1 to 9 then 0, saved on the actor with `actor.setQuickbar`
+([actor.md](actor.md)) so they follow the player to any device. A filled slot
+shows the player's own name for it and its cost. Choosing a slot (click, or its
+number key when not typing) **loads it into the form** rather than running it, so
+the player can switch on this time's modifiers, tweak the dice, and then press
+Spend. **Save** next to Spend asks for a name (offered: the action's text) and a
+slot, each slot labelled with what it would replace. A slot is renamed in place
+(F2 or double click) and removed with its own button; nothing is hover-only. The bar itself is shown only for a
 token this seat controls (the GM, any; a player, one they own) — see
 `docs/combat.md` for where that check lives. Still open, as a follow-up PR
 under the same C.5 item: range highlighting. Movement spending actions landed

@@ -62,8 +62,8 @@
  * the lobby owns the realtime connection, this only reads the stores it
  * feeds.
  */
-import type { SituationalModifier } from '@hearthtable/core';
-import { resolvePermission } from '@hearthtable/core';
+import type { HotbarAction, SituationalModifier } from '@hearthtable/core';
+import { emptyHotbar, resolvePermission } from '@hearthtable/core';
 import { parse as parseDice } from '@hearthtable/dice/pure';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
@@ -244,6 +244,7 @@ const actionBar = computed(() => {
     view: actionBarView(actor, combatant),
     label: token.name ?? actor.name,
     modifiers: actor.modifiers ?? [],
+    hotbar: actor.hotbar ?? emptyHotbar(),
   };
 });
 
@@ -466,6 +467,14 @@ function roll(type: string, payload: Record<string, unknown>): void {
       ...(modifiers.length === 0 ? {} : { modifiers }),
       ...payload,
     });
+  }
+}
+
+/** Saves the selected action bar actor's hotbar (ten positions, each an action or empty). */
+function setBarHotbar(hotbar: (HotbarAction | null)[]): void {
+  const bar = actionBar.value;
+  if (bar !== undefined) {
+    void documents.send('actor.setQuickbar', { actorId: bar.actorId, hotbar });
   }
 }
 
@@ -925,9 +934,11 @@ async function handleCreate(): Promise<void> {
               :label="actionBar.label"
               :error="actionError"
               :modifiers="actionBar.modifiers"
+              :hotbar="actionBar.hotbar"
               @strike="barStrike"
               @action="barAction"
               @set-modifiers="setBarModifiers"
+              @set-hotbar="setBarHotbar"
               @hover-strike="barHoverStrike"
               @unhover-strike="barUnhoverStrike"
             />
