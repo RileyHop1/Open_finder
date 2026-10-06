@@ -17,6 +17,8 @@ small row and a hidden token is simply a document a player may not read
 | `x`, `y` | number 0-32000 | The token's **centre**, in scene pixels ([scene.md](scene.md)). Fractions are allowed; a grid scene snaps before sending |
 | `size` | integer 1-12, default 1 | The footprint in grid squares per side. Core does not know what a creature size is: `systems/pf2e` maps Medium to 1, Large to 2, and so on ([grid.md](grid.md), Token size) |
 | `hidden` | boolean, default `false` | Whether players can see it |
+| `showHpBar` | boolean, default `false` | Whether players see this token's HP bar. The GM's per-token switch: monster bars start hidden, a character's bar is always shown |
+| `hpBar` | `{ percent: 0-100 }`, optional | The health a player may see, as a percentage of maximum. **Server-maintained**: a client cannot set it, and it exists so a player gets a percentage and never the NPC's stat block (NPC actors are not readable by players) |
 
 ## Why the centre
 A footprint of 2x2 has no single "cell", and a gridless scene has no cells at
@@ -35,8 +37,8 @@ affected tokens in the same transaction (`tokenPermissions` in
   the party is moving to: a row of tokens at the arrival point or the scene's
   centre, one cell apart and snapped to the scene's grid.
 - `token.create` puts any actor's token on any scene, at a point snapped to the
-  grid, optionally hidden. `token.update` hides or shows it, resizes it, or gives
-  it a map label. `token.delete` takes it off the scene.
+  grid, optionally hidden. `token.update` hides or shows it, resizes it, gives
+  it a map label, or turns its HP bar on or off for players. `token.delete` takes it off the scene.
 - Deleting an actor deletes its tokens, on every scene.
 - `token.move` moves one. The GM may move any token; a player may move a token
   they can see **and whose actor they own**, so a character's owner moves their own

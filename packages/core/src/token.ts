@@ -31,6 +31,15 @@ export const tokenSchema = baseDocumentSchema.extend({
   size: z.number().int().min(1).max(MAX_TOKEN_SIZE).default(1),
   /** Whether players can see it. The server derives the permissions from this and the scene, never the client. */
   hidden: z.boolean().default(false),
+  /** Whether players see this token's HP bar. A character's bar is always shown; this is the GM's per-token switch for a monster, off by default. */
+  showHpBar: z.boolean().default(false),
+  /**
+   * The health a player may see, as a percentage of maximum HP. **Server-maintained**
+   * and never set by a client (`token.update` has no such field): it exists so a
+   * player can read "this goblin is at 40%" without ever receiving the NPC's stat
+   * block. Absent until the server first fills it.
+   */
+  hpBar: z.object({ percent: z.number().min(0).max(100) }).optional(),
 });
 
 export type Token = z.infer<typeof tokenSchema>;

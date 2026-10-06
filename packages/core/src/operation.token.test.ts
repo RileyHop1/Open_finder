@@ -46,6 +46,7 @@ describe('token.update', () => {
     expect(update({ hidden: true }).success).toBe(true);
     expect(update({ size: 2 }).success).toBe(true);
     expect(update({ name: 'Goblin 2' }).success).toBe(true);
+    expect(update({ showHpBar: true }).success).toBe(true);
     expect(update({ hidden: false, size: 3, name: 'Boss' }).success).toBe(true);
   });
 
@@ -64,6 +65,7 @@ describe('token.update', () => {
     expect(update({}).success).toBe(false);
     expect(update({ permissions: { default: 'owner' } }).success).toBe(false);
     expect(update({ x: 100, y: 100 }).success).toBe(false);
+    expect(update({ hpBar: { percent: 100 } }).success).toBe(false);
     expect(update({ actorId: crypto.randomUUID() }).success).toBe(false);
   });
 
