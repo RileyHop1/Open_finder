@@ -47,8 +47,9 @@ differently:
    and an optional situational modifier. It posts one labelled card and spends
    its cost. Anything unmodelled goes through it, and that is the expected
    path, not a fallback. The preset per-basic-action buttons are removed from
-   the action bar. Their data (`BASIC_ACTIONS`) stays for tooltips and the
-   encyclopedia.
+   the action bar, and so is their data (`BASIC_ACTIONS`): the action bar was
+   its only caller, so keeping it would be dead code. Encyclopedia tooltips
+   read the imported `actions` pack, not that list.
 5. **The Owlcat north star still governs presentation:** portraits, hover to
    learn, and breakdowns on every number. It no longer governs enforcement.
 

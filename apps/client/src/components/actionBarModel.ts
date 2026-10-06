@@ -2,25 +2,22 @@
  * What the action bar shows for the selected token's actor: its strikes, each
  * with the three Multiple Attack Penalty variants precomputed (the same
  * numbers `StrikesPanel.vue` already shows, from `prepareCharacter`/
- * `prepareNpc`), and the hand-picked basic actions (`BASIC_ACTIONS`). Kept
- * apart from the component so the strike-variant math is testable without
- * mounting anything.
+ * `prepareNpc`). Kept apart from the component so the strike-variant math is
+ * testable without mounting anything. Everything that is not a strike goes
+ * through the generic action form (ADR 0023), which has no data of its own.
  *
  * `canAct` says whether there is a combatant to spend actions against: a
  * strike still rolls without one (as `StrikesPanel` always has), it just
- * costs nothing, and the basic actions -- which only ever spend, never roll
- * -- have nothing to do.
+ * costs nothing, and the generic action's cost picker has nothing to spend.
  */
 
 import type { Actor, Combatant } from '@hearthtable/core';
 import type { Statistic } from '@hearthtable/core';
 import {
-  BASIC_ACTIONS,
   characterDataSchema,
   npcDataSchema,
   prepareCharacter,
   prepareNpc,
-  type BasicAction,
 } from '@hearthtable/pf2e';
 
 const ATTACK_LABELS = ['1st', '2nd', '3rd'] as const;
@@ -49,8 +46,23 @@ export interface ActionBarStrike {
 
 export interface ActionBarView {
   readonly strikes: readonly ActionBarStrike[];
-  readonly basics: readonly BasicAction[];
   readonly canAct: boolean;
+}
+
+/** What a generic action costs: nothing, a reaction, or 1 to 3 actions. */
+export type GenericActionCost = 'free' | 'reaction' | 1 | 2 | 3;
+
+/**
+ * The generic action form's submission (ADR 0023): anything the system does
+ * not model, described by the player. `dice` is raw text for the server to
+ * roll (empty for none); `modifier` is a situational bonus or penalty added
+ * to it.
+ */
+export interface GenericAction {
+  readonly text: string;
+  readonly cost: GenericActionCost;
+  readonly dice: string;
+  readonly modifier: number;
 }
 
 /** PF2e traits are sometimes a compound slug (`deadly-d10`): a plain trait never has a dash-number tail. */
@@ -122,7 +134,6 @@ export function actionBarView(
 ): ActionBarView {
   return {
     strikes: strikesOf(actor),
-    basics: BASIC_ACTIONS,
     canAct: combatant !== undefined,
   };
 }

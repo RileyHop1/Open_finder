@@ -30,8 +30,6 @@ export {
 
 export { actionEntrySchema, type ActionEntry } from './content/action.js';
 
-export { BASIC_ACTIONS, type BasicAction } from './content/basicActions.js';
-
 export {
   FEAT_CATEGORIES,
   featCategorySchema,

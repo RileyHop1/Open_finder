@@ -134,10 +134,9 @@ describe('actionBarView', () => {
     ]);
   });
 
-  it('lists the basic actions, and says whether there is a combatant to spend against', () => {
+  it('says whether there is a combatant to spend against', () => {
     const noCombat = actionBarView(makeCharacter(), undefined);
     expect(noCombat.canAct).toBe(false);
-    expect(noCombat.basics.map((b) => b.name)).toContain('Stride');
 
     const inCombat = actionBarView(makeCharacter(), makeCombatant());
     expect(inCombat.canAct).toBe(true);

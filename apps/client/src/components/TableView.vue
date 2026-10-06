@@ -63,6 +63,7 @@
  * feeds.
  */
 import { resolvePermission } from '@hearthtable/core';
+import { parse as parseDice } from '@hearthtable/dice/pure';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
 import { uploadAsset } from '../api/assets.js';
@@ -72,7 +73,11 @@ import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
 import { useWorldsStore } from '../stores/worlds.js';
 import ActionBar from './ActionBar.vue';
-import { actionBarView, type ActionBarStrike } from './actionBarModel.js';
+import {
+  actionBarView,
+  type ActionBarStrike,
+  type GenericAction,
+} from './actionBarModel.js';
 import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
 import ChatLog from './ChatLog.vue';
@@ -216,7 +221,7 @@ const selectedToken = computed(() => {
 });
 
 /**
- * The action bar: the map-selected token's strikes and basic actions, across
+ * The action bar: the map-selected token's strikes and generic action form, across
  * the bottom of the map. Selecting a token is still unrestricted (it also
  * drives the ruler and the keyboard token list, for any token), so the bar
  * itself checks ownership -- the GM, any token; a player, only one of an
@@ -242,7 +247,6 @@ const actionBar = computed(() => {
     combatantId: combatant?.id,
     view: actionBarView(actor, combatant),
     label: token.name ?? actor.name,
-    gm: seat.isGM,
   };
 });
 
@@ -322,22 +326,52 @@ function barStrike(
   };
 }
 
-/** A basic action from the bar: only ever spends (no roll), and only while a combat is active. */
-function barBasicAction(_slug: string, cost: number): void {
-  const combatantId = actionBar.value?.combatantId;
-  if (combatantId !== undefined) {
-    void combat.spendAction(combatantId, cost);
-  }
-}
+/** Why the last generic action was not sent, shown under its form. */
+const actionError = ref<string>();
 
-/** The GM's freeform action: spends its chosen cost and announces what it was in chat. */
-function barFreeform(label: string, cost: number): void {
+/**
+ * The generic action (ADR 0023): the player's own description, cost, dice
+ * and situational modifier, for anything the system does not model. The dice
+ * are checked first so a typo never spends the action; then, while a combat
+ * is active, the cost is spent (a refused spend stops here -- the combat
+ * store already shows why); then it posts one labelled roll, or a plain
+ * message when there are no dice.
+ */
+async function barAction(action: GenericAction): Promise<void> {
   const bar = actionBar.value;
-  if (bar?.combatantId === undefined) {
+  if (bar === undefined) {
     return;
   }
-  void combat.spendAction(bar.combatantId, cost);
-  void documents.send('chat.sendMessage', { text: `${bar.label} -- ${label}` });
+  actionError.value = undefined;
+  const sign = action.modifier < 0 ? '-' : '+';
+  const expression =
+    action.dice === ''
+      ? undefined
+      : action.modifier === 0
+        ? action.dice
+        : `${action.dice}${sign}${Math.abs(action.modifier)}`;
+  if (expression !== undefined) {
+    const parsed = parseDice(expression);
+    if (!parsed.ok) {
+      actionError.value = `Those dice don't work: ${parsed.error.message}`;
+      return;
+    }
+  }
+  if (bar.combatantId !== undefined && action.cost !== 'free') {
+    const spent =
+      action.cost === 'reaction'
+        ? await combat.setReaction(bar.combatantId, true)
+        : await combat.spendAction(bar.combatantId, action.cost);
+    if (!spent) {
+      return;
+    }
+  }
+  const label = `${bar.label} -- ${action.text}`;
+  if (expression === undefined) {
+    void documents.send('chat.sendMessage', { text: label });
+  } else {
+    void documents.send('chat.sendRoll', { expression, label });
+  }
 }
 
 /** Whether `event` was typed into a text input, so a one-key hotkey (`?`) never fires mid-sentence in chat or a form field. */
@@ -872,10 +906,9 @@ async function handleCreate(): Promise<void> {
               v-if="actionBar !== undefined"
               :view="actionBar.view"
               :label="actionBar.label"
-              :gm="actionBar.gm"
+              :error="actionError"
               @strike="barStrike"
-              @basic-action="barBasicAction"
-              @freeform="barFreeform"
+              @action="barAction"
               @hover-strike="barHoverStrike"
               @unhover-strike="barUnhoverStrike"
             />

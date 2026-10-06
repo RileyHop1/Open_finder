@@ -29,7 +29,7 @@
  *   Upstream renders an action's cost as a private-use-area codepoint in an
  *   icon font this project doesn't ship; keeping that codepoint as plain
  *   text would show literal tofu. Action cost is already shown elsewhere
- *   (the action bar's own ◆ icons, `basicActions.ts`), so nothing is lost
+ *   (the action bar's own ◆ cost picker), so nothing is lost
  *   by dropping it here.
  * - Anything else unrecognized (`div`, `a`, `hr`, `img`, a `span` with no
  *   `action-glyph` class, ...) is **transparent**: its own children are

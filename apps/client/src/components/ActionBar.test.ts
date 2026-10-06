@@ -6,8 +6,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import ActionBar from './ActionBar.vue';
 import type { ActionBarView } from './actionBarModel.js';
 
-// A basic action's name now renders through `RulesTerm`, which reaches a
-// Pinia store for its tooltip lookup even when nothing opens the tooltip.
+// A strike's trait names render through `RulesTerm`, which reaches a Pinia
+// store for its tooltip lookup even when nothing opens the tooltip.
 beforeEach(() => {
   setActivePinia(createPinia());
 });
@@ -44,7 +44,6 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
         traits: ['finesse', 'agile'],
       },
     ],
-    basics: [{ slug: 'stride', name: 'Stride', cost: 1 }],
     canAct: true,
     ...fields,
   };
@@ -53,7 +52,7 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
 describe('ActionBar', () => {
   it('shows each strike’s three MAP variants and emits which was clicked', async () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false },
+      props: { view: view(), label: 'Ada' },
     });
     expect(wrapper.text()).toContain('1st +7');
     expect(wrapper.text()).toContain('3rd −3');
@@ -64,7 +63,7 @@ describe('ActionBar', () => {
 
   it('opens an attack’s own breakdown, separately from rolling it', async () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false },
+      props: { view: view(), label: 'Ada' },
     });
     await wrapper.get('.stat-trigger').trigger('click');
 
@@ -75,67 +74,70 @@ describe('ActionBar', () => {
 
   it('says so when there are no strikes', () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view({ strikes: [] }), label: 'Ada', gm: false },
+      props: { view: view({ strikes: [] }), label: 'Ada' },
     });
     expect(wrapper.text()).toContain('No strikes');
   });
 
-  it('lists basic actions with their cost, and emits the slug and cost on click', async () => {
-    const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false },
-    });
-    expect(wrapper.find('.basics .rules-term').text()).toBe('Stride');
-    const spend = wrapper.find('.basics button[aria-label]');
-    expect(spend.text()).toContain('◆');
-    await spend.trigger('click');
-    expect(wrapper.emitted('basicAction')).toEqual([['stride', 1]]);
-  });
-
-  it('shows "Free" for a zero-cost basic action instead of no diamonds at all', () => {
-    const wrapper = mount(ActionBar, {
-      props: {
-        view: view({ basics: [{ slug: 'delay', name: 'Delay', cost: 0 }] }),
-        label: 'Ada',
-        gm: false,
-      },
-    });
-    expect(wrapper.find('.basics .rules-term').text()).toBe('Delay');
-    const spend = wrapper.find('.basics button[aria-label]');
-    expect(spend.text()).toBe('Free');
-  });
-
-  it('hides the basic actions with no combatant to spend against', () => {
-    const wrapper = mount(ActionBar, {
-      props: { view: view({ canAct: false }), label: 'Ada', gm: false },
-    });
+  it('has no per-action buttons: strikes and the one generic action form only', () => {
+    const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
     expect(wrapper.find('.basics').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Stride');
+    expect(wrapper.find('form.action-form').exists()).toBe(true);
   });
 
-  it('shows "Other action" only for the GM, and emits its label and cost', async () => {
-    const player = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false },
-    });
-    expect(player.find('.freeform').exists()).toBe(false);
-
-    const gm = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: true },
-    });
-    await gm.find('#freeform-label').setValue('Pries the door open');
-    await gm.find('#freeform-cost').setValue(2);
-    await gm.find('.freeform').trigger('submit');
-    expect(gm.emitted('freeform')).toEqual([['Pries the door open', 2]]);
+  it('offers the generic action to anyone, and emits its text, cost, dice and modifier', async () => {
+    const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
+    await wrapper.find('#action-text').setValue('  Pries the door open ');
+    await wrapper.find('#action-cost').setValue('2');
+    await wrapper.find('#action-dice').setValue('1d20+7');
+    await wrapper.find('#action-modifier').setValue('-2');
+    await wrapper.find('form.action-form').trigger('submit');
+    expect(wrapper.emitted('action')).toEqual([
+      [{ text: 'Pries the door open', cost: 2, dice: '1d20+7', modifier: -2 }],
+    ]);
+    expect((wrapper.find('#action-text').element as HTMLInputElement).value).toBe('');
   });
 
-  it('hides "Other action" with no combatant to spend against, even for the GM', () => {
+  it('can be free or a reaction, and defaults to a modifier of zero with no dice', async () => {
+    const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
+    await wrapper.find('#action-text').setValue('Shield Block');
+    await wrapper.find('#action-cost').setValue('reaction');
+    await wrapper.find('form.action-form').trigger('submit');
+    await wrapper.find('#action-text').setValue('Talk');
+    await wrapper.find('#action-cost').setValue('free');
+    await wrapper.find('form.action-form').trigger('submit');
+    expect(wrapper.emitted('action')).toEqual([
+      [{ text: 'Shield Block', cost: 'reaction', dice: '', modifier: 0 }],
+      [{ text: 'Talk', cost: 'free', dice: '', modifier: 0 }],
+    ]);
+  });
+
+  it('does not submit an empty description', async () => {
+    const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
+    await wrapper.find('#action-text').setValue('   ');
+    await wrapper.find('form.action-form').trigger('submit');
+    expect(wrapper.emitted('action')).toBeUndefined();
+  });
+
+  it('hides the cost picker with no combatant to spend against, but keeps the form', () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view({ canAct: false }), label: 'Ada', gm: true },
+      props: { view: view({ canAct: false }), label: 'Ada' },
     });
-    expect(wrapper.find('.freeform').exists()).toBe(false);
+    expect(wrapper.find('#action-cost').exists()).toBe(false);
+    expect(wrapper.find('form.action-form').exists()).toBe(true);
+  });
+
+  it('shows why an action was not sent', () => {
+    const wrapper = mount(ActionBar, {
+      props: { view: view(), label: 'Ada', error: 'Those dice don’t work' },
+    });
+    expect(wrapper.get('[role="alert"]').text()).toContain('dice');
   });
 
   it('emits hoverStrike on mouseenter or focus, and unhoverStrike on mouseleave or blur', async () => {
     const wrapper = mount(ActionBar, {
-      props: { view: view(), label: 'Ada', gm: false },
+      props: { view: view(), label: 'Ada' },
     });
     const attack = wrapper.get('.attack');
     const button = wrapper.get('button[aria-label="Roll Sword 1st attack, +7"]');
