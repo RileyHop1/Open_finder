@@ -272,6 +272,19 @@ describe('moveToken', () => {
   });
 });
 
+describe('clearError', () => {
+  it('dismisses a refusal without touching anything else', async () => {
+    const { store, onBog } = await table();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: false, error: 'not yours' });
+    await store.moveToken(onBog.id, 400, 500);
+    expect(store.error).toBe('not yours');
+
+    store.clearError();
+
+    expect(store.error).toBeUndefined();
+  });
+});
+
 describe('drag previews from other seats', () => {
   const drag = (tokenId: string, x: number, y: number) =>
     handlers.get('token.drag')?.({ tokenId, x, y } as never);

@@ -274,6 +274,11 @@ export const useScenesStore = defineStore('scenes', () => {
     return ack.ok;
   }
 
+  /** Dismisses the current `error`, by hand (the map's toast's own close button) or because something else made it stale (the turn changed). */
+  function clearError(): void {
+    error.value = undefined;
+  }
+
   /** Sends an operation that is not optimistic (the server decides the result) and records a rejection in `error`. Returns whether it was accepted. */
   async function send(type: string, payload: unknown): Promise<boolean> {
     error.value = undefined;
@@ -340,5 +345,6 @@ export const useScenesStore = defineStore('scenes', () => {
     sendDrag,
     setLocalDrag,
     clearLocalDrag,
+    clearError,
   };
 });

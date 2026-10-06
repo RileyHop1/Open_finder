@@ -205,6 +205,26 @@ describe('activeCombat and order', () => {
     expect(store.activeIsUnseen).toBe(true);
   });
 
+  it('clears a stale movement-refusal toast on the map when the turn moves on', async () => {
+    const { combat, slow } = await table();
+    const scenes = useScenesStore();
+    scenes.error = 'Ada has no actions left this turn.';
+
+    await broadcast([{ ...combat, activeCombatantId: slow.id }], []);
+
+    expect(scenes.error).toBeUndefined();
+  });
+
+  it('leaves the toast alone when nothing about whose turn it is changes', async () => {
+    const { combat } = await table();
+    const scenes = useScenesStore();
+    scenes.error = 'Ada has no actions left this turn.';
+
+    await broadcast([{ ...combat, round: 2 }], []);
+
+    expect(scenes.error).toBe('Ada has no actions left this turn.');
+  });
+
   it('removes a combatant on its tombstone', async () => {
     const { store, slow } = await table();
     await broadcast([], [tombstone(slow)]);

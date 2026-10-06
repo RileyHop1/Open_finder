@@ -144,6 +144,19 @@ export const useCombatStore = defineStore('combat', () => {
     },
   );
 
+  // A movement-budget refusal ("only N actions left") is only true for the
+  // turn it happened on -- once the turn moves on, the refusal no longer
+  // describes anything real, so the map's toast for it goes with it rather
+  // than sitting there until someone notices and dismisses it by hand.
+  watch(
+    () => activeCombat.value?.activeCombatantId,
+    (next, previous) => {
+      if (next !== previous) {
+        scenes.clearError();
+      }
+    },
+  );
+
   /** Sends an operation that is not optimistic (the server decides) and records a rejection in `error`. Returns whether it was accepted. */
   async function send(type: string, payload: unknown): Promise<boolean> {
     error.value = undefined;

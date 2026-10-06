@@ -132,6 +132,7 @@ import { ARROW_DIRECTIONS, type Direction, dragTarget, stepToken } from './token
 import TemplateList from './TemplateList.vue';
 import TokenList from './TokenList.vue';
 import TokenMenu from './TokenMenu.vue';
+import ToastNotice from '../ToastNotice.vue';
 
 /** A portrait is a small picture in a circle: this is more than enough, and keeps a big upload from costing GPU memory. */
 const PORTRAIT_TEXTURE_SIZE = 256;
@@ -1617,7 +1618,12 @@ onBeforeUnmount(() => {
       <button type="button" @click="setPlacingTemplate(false)">Cancel</button>
     </form>
     <p class="visually-hidden" role="status">{{ announcement }}</p>
-    <p v-if="scenes.error" class="map-note map-error" role="alert">{{ scenes.error }}</p>
+    <ToastNotice
+      v-if="scenes.error"
+      kind="error"
+      :message="scenes.error"
+      @dismiss="scenes.clearError()"
+    />
     <p v-if="imageError" class="map-note" role="status">
       The map picture could not be loaded, so a blank map is shown.
     </p>
@@ -1762,15 +1768,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-}
-
-.map-error {
-  top: var(--space-2);
-  right: auto;
-  bottom: auto;
-  left: var(--space-2);
-  background: var(--color-danger);
-  color: var(--color-accent-contrast);
 }
 
 .map-note {
