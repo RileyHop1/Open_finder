@@ -113,6 +113,7 @@ import {
 import { OperationRejected } from './rejection.js';
 import { recordPreviousDocuments } from './previousDocuments.js';
 import { createDragLimiter, previewTokenDrag } from './tokenDrag.js';
+import { syncTokenHpBars } from './tokenHpBars.js';
 import { createToken, deleteToken, gridFor, moveToken, updateToken } from './tokens.js';
 import { recordTurnBefores, recordTurnUndo, undoLastStep } from './turnUndo.js';
 import { broadcastFor, operationsFor } from './visibility.js';
@@ -825,13 +826,18 @@ function handleOperation(
   try {
     const { appliedOperation, seats, documents, deleted } = store.transaction(() => {
       const recorded = recordPreviousDocuments(store, previous);
-      const result = dispatch(
+      const dispatched = dispatch(
         turnBefores === undefined ? recorded : recordTurnBefores(recorded, turnBefores),
         compendium,
         deviceToken,
         socket,
         parsed.data,
       );
+      // Token HP bars follow monster hit points here, so no operation has to remember them.
+      const result = {
+        ...dispatched,
+        documents: syncTokenHpBars(store, dispatched.documents),
+      };
       if (turnBefores !== undefined) {
         recordTurnUndo(store, turnBefores, result.seatId ?? '');
       }

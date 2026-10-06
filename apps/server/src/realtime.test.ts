@@ -11,8 +11,13 @@ import type {
   Seat,
   TokenDrag,
 } from '@hearthtable/core';
-import { chatCheckMessageSchema, sceneSchema, tokenSchema } from '@hearthtable/core';
-import { creatureEntrySchema } from '@hearthtable/pf2e';
+import {
+  actorSchema,
+  chatCheckMessageSchema,
+  sceneSchema,
+  tokenSchema,
+} from '@hearthtable/core';
+import { creatureEntrySchema, newNpcFromCreature } from '@hearthtable/pf2e';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -1536,6 +1541,43 @@ describe('token.create, token.update, token.delete', () => {
     expect(show.forPlayer.documents.map((d) => d.id)).toEqual([heroToken.id]);
     expect(show.forPlayer.documents[0]).toMatchObject({ hidden: false });
     expect(show.forPlayer.deleted).toEqual([]);
+  });
+
+  it("gives players an NPC token's health as a percentage only, and only once the GM shows the bar", async () => {
+    const { table, sceneId } = await inTheCrypt();
+    // A bare NPC has no hit points to report and is public, so make this one a creature's: monster stats, GM-only.
+    const bareId = await newNpc(table, 'Guard');
+    const bare = actorSchema.parse(store.getDocument(bareId));
+    store.putDocument({
+      ...bare,
+      permissions: { default: 'none', seats: {} },
+      system: { ...newNpcFromCreature(BOG_STRANGLER) },
+    } as BaseDocument);
+    const actorId = bareId;
+    const made = await send(table.gm, table, op('token.create', { sceneId, actorId }));
+    const tokenId = made.forGm.documents[0]?.id ?? '';
+    // Bars start hidden: no percentage reaches anyone.
+    expect(made.forPlayer.documents[0]).not.toHaveProperty('hpBar');
+
+    const shown = await send(
+      table.gm,
+      table,
+      op('token.update', { tokenId, changes: { showHpBar: true } }),
+    );
+    expect(tokenSchema.parse(shown.forPlayer.documents[0]).hpBar).toEqual({
+      percent: 100,
+    });
+
+    const hurt = await send(
+      table.gm,
+      table,
+      op('actor.applyDamage', { actorId, amount: 1 }),
+    );
+    // The player hears about the token, never the NPC's own document.
+    expect(hurt.forPlayer.documents.map((d) => d.id)).not.toContain(actorId);
+    const heard = hurt.forPlayer.documents.find((d) => d.id === tokenId);
+    expect(tokenSchema.parse(heard).hpBar?.percent).toBeLessThan(100);
+    expect(JSON.stringify(hurt.forPlayer)).not.toContain('"hp"');
   });
 
   it('keeps a hidden token from the player from the moment it is created, and shows an ordinary one', async () => {
