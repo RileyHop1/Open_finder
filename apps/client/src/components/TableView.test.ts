@@ -457,7 +457,7 @@ describe('the turn bar', () => {
     );
   });
 
-  it('shows the active combatant’s action tray, and spends an action for the GM', async () => {
+  it('shows the active combatant’s action tray, and marks the reaction for the GM', async () => {
     const scene = sceneWithParty();
     const actor = makeActor('Ada');
     const token = tokenSchema.parse({
@@ -509,14 +509,14 @@ describe('the turn bar', () => {
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
 
     const wrapper = await mountTable();
-    expect(wrapper.text()).toContain('1 of 3 actions spent');
+    expect(wrapper.text()).toContain('1/3 actions');
     // Docked bottom-center over the map (ADR 0022), not a flow sibling pushing it up.
     expect(wrapper.find('.action-dock .action-tray').exists()).toBe(true);
 
     await wrapper.find('.action-tray button').trigger('click');
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
       type: 'combat.spendAction',
-      payload: { combatantId: combatant.id, actions: 1 },
+      payload: { combatantId: combatant.id, reaction: true },
     });
   });
 
@@ -701,6 +701,21 @@ describe('the turn bar', () => {
     ]);
   });
 
+  it('spends the default cost with no text and no dice, and posts nothing to chat', async () => {
+    const { combatantId } = seedActiveCombat();
+    await doAction({ text: '' });
+    expect(sentOperations()).toMatchObject([
+      { type: 'combat.spendAction', payload: { combatantId, actions: 1 } },
+    ]);
+    expect(sentOperations()).toHaveLength(1);
+  });
+
+  it('does nothing for a free action with no text and no dice', async () => {
+    seedActiveCombat();
+    await doAction({ text: '', cost: 'free' });
+    expect(sentOperations()).toEqual([]);
+  });
+
   it('checks the dice before spending anything, and says what is wrong', async () => {
     seedActiveCombat();
     const wrapper = await doAction({ text: 'Mumble', cost: '1', dice: 'not dice' });
@@ -719,7 +734,7 @@ describe('the turn bar', () => {
     expect(sentOperations()[0]?.type).toBe('combat.spendAction');
   });
 
-  it('sends combat.undo for the active combat when the tray’s "Undo last action" is clicked', async () => {
+  it('sends combat.undo for the active combat when the tray’s "Undo" is clicked', async () => {
     const scene = sceneWithParty();
     const actor = makeActor('Ada');
     const token = tokenSchema.parse({
@@ -772,7 +787,7 @@ describe('the turn bar', () => {
     const wrapper = await mountTable();
     const undoButton = wrapper
       .findAll('.action-tray button')
-      .find((button) => button.text() === 'Undo last action');
+      .find((button) => button.text() === 'Undo');
     await undoButton?.trigger('click');
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
       type: 'combat.undo',

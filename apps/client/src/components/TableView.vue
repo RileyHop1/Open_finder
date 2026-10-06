@@ -198,13 +198,6 @@ const canEndTurn = computed(
 );
 
 /** No-op once the active combatant has changed since the tray was rendered. */
-function spendTrayAction(actions: number): void {
-  const combatantId = actionTray.value?.combatantId;
-  if (combatantId !== undefined) {
-    void combat.spendAction(combatantId, actions);
-  }
-}
-
 function setTrayReaction(used: boolean): void {
   const combatantId = actionTray.value?.combatantId;
   if (combatantId !== undefined) {
@@ -366,7 +359,10 @@ async function barAction(action: GenericAction): Promise<void> {
       return;
     }
   }
-  const label = `${bar.label} -- ${action.text}`;
+  if (expression === undefined && action.text === '') {
+    return;
+  }
+  const label = action.text === '' ? bar.label : `${bar.label} -- ${action.text}`;
   if (expression === undefined) {
     void documents.send('chat.sendMessage', { text: label });
   } else {
@@ -896,8 +892,6 @@ async function handleCreate(): Promise<void> {
               :view="actionTray.view"
               :label="actionTray.label"
               :can-control="actionTray.canControl"
-              :gm="lobby.mySeat?.isGM === true"
-              @spend="spendTrayAction"
               @set-reaction="setTrayReaction"
               @undo="combat.undo"
             />
@@ -1447,12 +1441,11 @@ button[aria-pressed='true'] {
 .action-dock {
   z-index: var(--z-overlay);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   gap: var(--space-2);
   max-width: 100%;
-  max-height: 45%;
-  overflow-y: auto;
+  overflow-x: auto;
   border: var(--overlay-border);
   border-radius: var(--overlay-radius);
   background: var(--color-surface);

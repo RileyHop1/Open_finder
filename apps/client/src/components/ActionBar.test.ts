@@ -113,11 +113,14 @@ describe('ActionBar', () => {
     ]);
   });
 
-  it('does not submit an empty description', async () => {
+  it('submits with no description, so Spend alone spends the cost', async () => {
     const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
     await wrapper.find('#action-text').setValue('   ');
     await wrapper.find('form.action-form').trigger('submit');
-    expect(wrapper.emitted('action')).toBeUndefined();
+    expect(wrapper.emitted('action')).toEqual([
+      [{ text: '', cost: 1, dice: '', modifier: 0 }],
+    ]);
+    expect(wrapper.get('button[type="submit"]').text()).toBe('Spend');
   });
 
   it('hides the cost picker with no combatant to spend against, but keeps the form', () => {
