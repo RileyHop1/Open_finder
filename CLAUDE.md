@@ -486,9 +486,15 @@ real session.
 14. **Overworld travel:** party marker, travel time, the `Calendar` clock, and
     area ↔ battle map handoff
 15. **Downtime:** activity picker, day counter, roll resolution, journal log
-16. **Events and triggers:** scripted or branching campaign events (our
+16. **Runes and crafting:** item runes (potency, striking, resilient, and
+    property runes) and etching, feeding into the existing modifier resolver
+    (ADR 0008) the same way any other item does; the Craft downtime activity
+    (milestone 15) gets its real formula instead of a generic roll. Cut from
+    milestone 7 on purpose — runes are an item-customization subsystem, not
+    the "carry, price, and pass around items" one loot and inventory covers
+17. **Events and triggers:** scripted or branching campaign events (our
     differentiator)
-17. **Campaign builder:** prep/play modes, campaign outline tree, templates,
+18. **Campaign builder:** prep/play modes, campaign outline tree, templates,
     visual trigger editor, prep-mode undo/redo, polish pass on all GM tools
 
 ### Definition of done
