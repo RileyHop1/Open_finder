@@ -21,6 +21,7 @@ import {
   addSeat,
   claimSeat,
   createAndActivateCampaign,
+  openFromGearMenu,
   waitForConnected,
 } from '../tests/helpers.js';
 
@@ -80,7 +81,7 @@ test('a full combat turn: initiative, turn order, movement gating, a strike with
 
     // --- The player builds a martial character and arms her with the
     // fixture's one weapon. ---
-    await player.getByRole('button', { name: 'Characters', exact: true }).click();
+    await openFromGearMenu(player, 'Characters');
     await player.getByLabel('New character name').fill('Valeria');
     await player.getByRole('button', { name: 'Create character' }).click();
     await expect(
@@ -104,7 +105,7 @@ test('a full combat turn: initiative, turn order, movement gating, a strike with
 
     // --- The GM makes a second combatant, adds the party, and opens a
     // battle map with both on it. ---
-    await gm.getByRole('button', { name: 'Characters', exact: true }).click();
+    await openFromGearMenu(gm, 'Characters');
     await gm.getByLabel('New character name').fill('Brute');
     await gm.getByRole('button', { name: 'Create character' }).click();
     await expect(gm.getByRole('heading', { name: 'Brute', level: 3 })).toBeVisible();
@@ -114,12 +115,12 @@ test('a full combat turn: initiative, turn order, movement gating, a strike with
     await gm.getByLabel('Add to party').selectOption({ label: 'Valeria (character)' });
     await gm.getByRole('button', { name: 'Add', exact: true }).click();
 
-    await gm.getByRole('button', { name: 'Scenes', exact: true }).click();
+    await openFromGearMenu(gm, 'Scenes');
     await makeScene(gm, 'Arena', 'Battle map');
     await sceneRow(gm, 'Arena').getByRole('button', { name: 'Move party here' }).click();
     await expect(player.locator('.map-surface')).toBeVisible();
 
-    await gm.getByRole('button', { name: 'Characters', exact: true }).click();
+    await openFromGearMenu(gm, 'Characters');
     await gm.getByRole('button', { name: 'Place Brute on the map' }).click();
     await expect(player.locator('.token-list li')).toHaveCount(2);
 

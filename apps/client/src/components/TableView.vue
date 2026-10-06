@@ -8,8 +8,9 @@
  * - the **map** in the middle (an empty state until a scene is shown),
  * - the **character sheet**, a drawer that slides over the map's left edge
  *   (the characters this seat can see, a way to make a new one, and the chosen
- *   character's sheet). Opened by the "Characters" button or by pressing a
- *   party card; Escape or "Close" shuts it and puts focus back where it was,
+ *   character's sheet). Opened by the gear menu's "Characters" item or by
+ *   pressing a party card; Escape or "Close" shuts it and puts focus back
+ *   where it was,
  * - the **chat** panel on the right.
  *
  * The GM also has a **Scenes** drawer, from the right edge of the map (the scene
@@ -18,9 +19,14 @@
  *
  * Everyone has a **Rules** drawer (milestone 6's encyclopedia, `RulesDrawer.vue`),
  * sharing that same right edge with Scenes -- only one of the two is ever open
- * at once, see `toggleSceneDrawer`/`toggleRulesDrawer`. It opens from the
- * "Rules" button or the `?` hotkey (ignored while typing in chat or a form
- * field, see `isTypingTarget`).
+ * at once, see `toggleSceneDrawer`/`toggleRulesDrawer`. It opens from the gear
+ * menu's "Rules" item or the `?` hotkey (ignored while typing in chat or a
+ * form field, see `isTypingTarget`).
+ *
+ * The **gear menu** (`GearMenu.vue`) floats top-right over all of this: it
+ * holds the Characters/Scenes/Rules drawer toggles and "Release seat",
+ * since there's no toolbar row left to put plain buttons in once the map
+ * fills the screen (ADR 0022).
  *
  * The drawer overlays the map at every width rather than pushing it, so the
  * map never reflows while someone reads their sheet. The chat sits beside the
@@ -43,6 +49,7 @@ import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
+import GearMenu from './GearMenu.vue';
 import MapView from './map/MapView.vue';
 import { gridForScene } from './map/mapGrid.js';
 import { startActorDrag } from './map/placement.js';
@@ -618,9 +625,16 @@ async function handleCreate(): Promise<void> {
       <a href="#chat-pane">Skip to chat</a>
     </div>
 
+    <GearMenu
+      :is-gm="lobby.mySeat?.isGM === true"
+      @characters="drawerOpen ? closeDrawer() : openDrawer()"
+      @scenes="toggleSceneDrawer"
+      @rules="toggleRulesDrawer"
+      @release-seat="lobby.releaseSeat()"
+    />
+
     <p class="playing-as">
       Playing as <strong>{{ seatName }}</strong>
-      <button type="button" @click="lobby.releaseSeat()">Release seat</button>
     </p>
 
     <ContentImportPanel v-if="lobby.mySeat?.isGM" @imported="contentVersion += 1" />
@@ -650,34 +664,6 @@ async function handleCreate(): Promise<void> {
 
     <div class="table-body">
       <div class="map-column">
-        <p class="map-tools">
-          <button
-            type="button"
-            aria-controls="sheet-pane"
-            :aria-expanded="drawerOpen"
-            @click="drawerOpen ? closeDrawer() : openDrawer()"
-          >
-            Characters
-          </button>
-          <button
-            v-if="lobby.mySeat?.isGM"
-            type="button"
-            aria-controls="scene-pane"
-            :aria-expanded="sceneDrawerOpen"
-            @click="toggleSceneDrawer"
-          >
-            Scenes
-          </button>
-          <button
-            type="button"
-            aria-controls="rules-pane"
-            :aria-expanded="rulesDrawerOpen"
-            @click="toggleRulesDrawer"
-          >
-            Rules
-          </button>
-        </p>
-
         <TurnBar
           v-if="turnBar !== undefined"
           :items="turnBar.items"
@@ -1144,16 +1130,8 @@ button[aria-pressed='true'] {
   min-height: 0;
 }
 
-.map-tools {
-  margin: 0;
-}
-
-.map-tools button {
-  min-height: var(--touch-target-min);
-}
-
 /* Grows to fill whatever the map column has left over, after its other,
-   content-sized siblings (the toolbar, the turn bar, the action dock). */
+   content-sized siblings (the turn bar, the action dock). */
 .map-pane {
   flex: 1 1 auto;
   min-height: 16rem;

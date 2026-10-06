@@ -22,6 +22,7 @@ import {
   addSeat,
   claimSeat,
   createAndActivateCampaign,
+  openFromGearMenu,
   waitForConnected,
 } from '../tests/helpers.js';
 
@@ -36,7 +37,7 @@ test('the Rules drawer finds a condition, its tooltip nests a trait, and AC show
   await claimSeat(page, 'Valeros');
 
   // --- A character to open a sheet on. ---
-  await page.getByRole('button', { name: 'Characters', exact: true }).click();
+  await openFromGearMenu(page, 'Characters');
   await page.getByLabel('New character name').fill('Valeria');
   await page.getByRole('button', { name: 'Create character' }).click();
   await expect(page.getByRole('heading', { name: 'Valeria', level: 3 })).toBeVisible();

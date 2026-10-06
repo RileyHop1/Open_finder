@@ -19,6 +19,7 @@ import {
   addSeat,
   claimSeat,
   createAndActivateCampaign,
+  openFromGearMenu,
   waitForConnected,
 } from './helpers.js';
 
@@ -68,7 +69,7 @@ test('a player builds a character, the GM adds it to the party, and they play wi
     );
 
     // --- The player opens the character drawer, makes a character, and hand-builds it. ---
-    await player.getByRole('button', { name: 'Characters', exact: true }).click();
+    await openFromGearMenu(player, 'Characters');
     await player.getByLabel('New character name').fill('Valeria');
     await player.getByRole('button', { name: 'Create character' }).click();
     // It opens by itself once the server has created it.
@@ -85,7 +86,7 @@ test('a player builds a character, the GM adds it to the party, and they play wi
     await expect(skillTotal(player, 'Athletics')).toHaveText('+7');
 
     // --- The GM sees the new character, and adds it to the party. ---
-    await gm.getByRole('button', { name: 'Characters', exact: true }).click();
+    await openFromGearMenu(gm, 'Characters');
     await expect(gm.getByRole('button', { name: 'Valeria (character)' })).toBeVisible();
     await gm.getByText('Manage party').click();
     await gm.getByLabel('Add to party').selectOption({ label: 'Valeria (character)' });
