@@ -141,6 +141,7 @@ describe('ActionBar', () => {
     const wrapper = mount(ActionBar, {
       props: { view: view(), label: 'Ada', modifiers: mods },
     });
+    await wrapper.get('.mods-toggle').trigger('click');
     await wrapper.findAll('.mods input[type="checkbox"]')[2]?.setValue(true);
     expect(wrapper.emitted('setModifiers')?.[0]?.[0]).toEqual([
       mods[0],
