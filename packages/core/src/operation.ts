@@ -12,7 +12,11 @@ import { z } from 'zod';
 import { actorKindSchema } from './actor.js';
 import { MAX_INITIATIVE } from './combat.js';
 import { baseDocumentSchema } from './document.js';
-import { hotbarSchema, situationalModifiersSchema } from './quickbar.js';
+import {
+  hotbarSchema,
+  rollModifiersSchema,
+  situationalModifiersSchema,
+} from './quickbar.js';
 import { idSchema, timestampSchema } from './record.js';
 import { MAX_SCENE_PIXELS, sceneGridChangesSchema, sceneKindSchema } from './scene.js';
 import { seatSchema } from './seat.js';
@@ -328,6 +332,8 @@ export const actorRollCheckOperationSchema = clientOperationSchema.extend({
     actorId: idSchema,
     statistic: z.string().min(1).max(80),
     dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
+    /** The roller's situational modifiers that count, added to the roll (ADR 0023). */
+    modifiers: rollModifiersSchema.optional(),
   }),
 });
 
@@ -368,6 +374,8 @@ export const actorRollStrikeOperationSchema = clientOperationSchema.extend({
       attackNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
       dc: z.number().int().min(0).max(MAX_ROLL_DC).optional(),
       targetTokenId: idSchema.optional(),
+      /** The roller's situational modifiers that count, added to the attack (ADR 0023). */
+      modifiers: rollModifiersSchema.optional(),
     })
     .refine(hasOneStrikeTarget, { message: STRIKE_TARGET_MESSAGE }),
 });

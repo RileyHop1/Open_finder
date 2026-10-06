@@ -113,6 +113,22 @@ function swordsman(equipped = true) {
 }
 
 describe('rollActorStrike', () => {
+  it('adds the roller’s situational modifiers to the attack and shows each in the breakdown', () => {
+    const { owner, actorId, itemId } = swordsman();
+    const message = rollActorStrike(store, owner, fixed(10), {
+      actorId,
+      itemId,
+      attackNumber: 1,
+      modifiers: [{ value: 2, label: 'Flanking' }, { value: -1 }],
+    });
+    expect(message.breakdown.total).toBe(8);
+    expect(message.roll).toMatchObject({ expression: '1d20+8', total: 18 });
+    expect(message.breakdown.modifiers.slice(-2)).toMatchObject([
+      { label: 'Flanking', value: 2, type: 'untyped', applied: true },
+      { label: 'Situational', value: -1, type: 'untyped', applied: true },
+    ]);
+  });
+
   it('rolls the first attack with the prepared bonus and stores it as chat', () => {
     const { owner, actorId, itemId, name } = swordsman();
     const message = rollActorStrike(store, owner, fixed(10), {

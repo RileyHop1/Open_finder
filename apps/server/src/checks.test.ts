@@ -58,6 +58,30 @@ function athlete() {
 }
 
 describe('rollActorCheck', () => {
+  it('adds the roller’s situational modifiers, and leaves the roll alone without any', () => {
+    const { owner, actorId } = athlete();
+    const plain = rollActorCheck(store, owner, fixed(11), {
+      actorId,
+      statistic: 'skill:athletics',
+      modifiers: [],
+    });
+    expect(plain.breakdown.total).toBe(7);
+
+    const message = rollActorCheck(store, owner, fixed(11), {
+      actorId,
+      statistic: 'skill:athletics',
+      modifiers: [{ value: 2, label: 'Bless' }, { value: 1 }],
+    });
+    expect(message.breakdown.total).toBe(10);
+    expect(message.roll).toMatchObject({ expression: '1d20+10', total: 21 });
+    expect(message.breakdown.modifiers.map((m) => [m.label, m.value])).toEqual(
+      expect.arrayContaining([
+        ['Bless', 2],
+        ['Situational', 1],
+      ]),
+    );
+  });
+
   it('rolls the resolved skill and stores a structured check message', () => {
     const { owner, actorId } = athlete();
 

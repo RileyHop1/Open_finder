@@ -10,8 +10,14 @@
  * Multiple Attack Penalty step and a damage roll).
  */
 
-import type { Actor, ChatCheckMessage, Seat, Statistic } from '@hearthtable/core';
-import { actorSchema } from '@hearthtable/core';
+import type {
+  Actor,
+  ChatCheckMessage,
+  RollModifier,
+  Seat,
+  Statistic,
+} from '@hearthtable/core';
+import { actorSchema, withSituational } from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
 import {
   characterDataSchema,
@@ -64,17 +70,23 @@ export function rollActorCheck(
   store: WorldStore,
   seat: Seat,
   rng: RandomSource,
-  payload: { actorId: string; statistic: string; dc?: number | undefined },
+  payload: {
+    actorId: string;
+    statistic: string;
+    dc?: number | undefined;
+    modifiers?: RollModifier[] | undefined;
+  },
   options: { gmOnly?: boolean } = {},
 ): ChatCheckMessage {
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
   const actor: Actor = actorSchema.parse(raw);
   const isRollable =
     ROLLABLE.has(payload.statistic) || payload.statistic.startsWith('skill:');
-  const statistic = isRollable ? preparedStatistics(actor)[payload.statistic] : undefined;
-  if (statistic === undefined) {
+  const prepared = isRollable ? preparedStatistics(actor)[payload.statistic] : undefined;
+  if (prepared === undefined) {
     throw new OperationRejected(`${payload.statistic} cannot be rolled as a check`);
   }
+  const statistic = withSituational(prepared, payload.modifiers);
 
   const { roll } = rollCheck({
     statistic,
