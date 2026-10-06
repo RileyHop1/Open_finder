@@ -489,7 +489,7 @@ export const tokenCreateOperationSchema = clientOperationSchema.extend({
 });
 
 /**
- * The fields `token.update` may change, each optional so two edits to different
+ * The fields `token.update` may change (`hpBar` is not one: the server owns it), each optional so two edits to different
  * fields never overwrite each other. `name` is a label for the map, or `null`
  * to go back to the actor's name. Position is not here: moving has its own
  * operation. Unknown keys are refused and so is an empty change.
@@ -497,6 +497,7 @@ export const tokenCreateOperationSchema = clientOperationSchema.extend({
 export const tokenChangesSchema = z
   .object({
     hidden: z.boolean(),
+    showHpBar: z.boolean(),
     size: z.number().int().min(1).max(MAX_TOKEN_SIZE),
     name: z.string().trim().min(1).max(100).nullable(),
   })
