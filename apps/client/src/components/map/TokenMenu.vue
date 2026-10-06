@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * The GM's menu for one token: hide it from the players or show it, change its
- * name or size, or take it off the map. It opens over the token from a right
+ * The GM's menu for one token: hide it from the players or show it, show or hide a
+ * monster's HP bar, change its name or size, or take it off the map. It opens over the token from a right
  * click, or from the keyboard (the Menu key, or Shift+F10, with the token
  * selected), so nothing here needs a pointer. It only asks: `MapView` sends the
  * operations and says what happened.
@@ -36,6 +36,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   close: [];
   toggleHidden: [];
+  toggleHpBar: [];
   remove: [];
   addToCombat: [];
   toggleMovementGrant: [];
@@ -118,6 +119,11 @@ function save(): void {
       <li role="none">
         <button type="button" role="menuitem" @click="emit('toggleHidden')">
           {{ token.hidden ? 'Show to players' : 'Hide from players' }}
+        </button>
+      </li>
+      <li v-if="token.npc" role="none">
+        <button type="button" role="menuitem" @click="emit('toggleHpBar')">
+          {{ token.showHpBar ? 'Hide HP bar from players' : 'Show HP bar to players' }}
         </button>
       </li>
       <li role="none">

@@ -42,6 +42,14 @@ export interface TokenView {
   readonly selected: boolean;
   /** Whose combatant is acting right now. Never true outside an active combat. */
   readonly onTurn: boolean;
+  /** How full the HP bar is (0-100), or `undefined` when this seat is shown none. */
+  readonly hpPercent: number | undefined;
+  /** GM only: a bar the players cannot see, drawn dashed so the GM can tell. */
+  readonly hpHidden: boolean;
+  /** Whether this is a monster whose bar the GM may show or hide (a character's is always shown). */
+  readonly npc: boolean;
+  /** Whether players are shown this token's bar (the GM's switch). */
+  readonly showHpBar: boolean;
 }
 
 /** Whether `seat` may move a token of `actor` (ADR 0017: owners and the GM; the actor is undefined when this seat cannot see it). */
@@ -70,6 +78,32 @@ export interface TokenViewOptions {
   readonly canMove?: ((actorId: string) => boolean) | undefined;
   /** The active combatant's token, if any; drives `onTurn`. */
   readonly activeTokenId?: string | undefined;
+  /** Whether this seat is the GM, who sees every bar. */
+  readonly gm?: boolean | undefined;
+  /** The actor's kind and fullness, for an actor this seat can read. */
+  readonly hpOf?:
+    | ((actorId: string) => { kind: 'character' | 'npc'; percent: number } | undefined)
+    | undefined;
+}
+
+/**
+ * The bar to draw for one token. A character's comes from the actor and is shown to
+ * everyone who can read it. A monster's comes from the actor for the GM (dashed when
+ * the players are not shown it), and from the token's server-maintained `hpBar` for
+ * a player, so a player is never handed more than a percentage.
+ */
+function hpBarOf(
+  token: Token,
+  info: { kind: 'character' | 'npc'; percent: number } | undefined,
+  gm: boolean,
+): { percent: number | undefined; hidden: boolean } {
+  if (info?.kind === 'character') {
+    return { percent: info.percent, hidden: false };
+  }
+  if (gm && info?.kind === 'npc') {
+    return { percent: info.percent, hidden: !token.showHpBar };
+  }
+  return { percent: token.hpBar?.percent, hidden: false };
 }
 
 export function tokenViews(
@@ -81,6 +115,8 @@ export function tokenViews(
   return tokens.map((token) => {
     const actor = actorOf(token.actorId);
     const label = token.name ?? actor?.name ?? UNKNOWN_LABEL;
+    const info = options.hpOf?.(token.actorId);
+    const bar = hpBarOf(token, info, options.gm === true);
     return {
       id: token.id,
       actorId: token.actorId,
@@ -96,17 +132,25 @@ export function tokenViews(
       movable: options.canMove?.(token.actorId) ?? false,
       selected: token.id === options.selectedId,
       onTurn: token.id === options.activeTokenId,
+      hpPercent: bar.percent,
+      hpHidden: bar.hidden,
+      npc: info?.kind === 'npc',
+      showHpBar: token.showHpBar,
     };
   });
 }
 
-/** The words a list or a screen reader gets for a token: its label, and "hidden" when that is true (never colour or fading alone). */
+/** The words a list or a screen reader gets for a token: its label, "hidden" and its health when those are true (never colour or fading alone). */
 export function describeToken(
-  view: Pick<TokenView, 'label' | 'hidden' | 'onTurn'>,
+  view: Pick<TokenView, 'label' | 'hidden' | 'onTurn'> &
+    Partial<Pick<TokenView, 'hpPercent' | 'hpHidden'>>,
 ): string {
   const suffix = [
     view.hidden ? 'hidden' : undefined,
     view.onTurn ? 'current turn' : undefined,
+    view.hpPercent === undefined
+      ? undefined
+      : `${view.hpPercent}% HP${view.hpHidden === true ? ', bar hidden from players' : ''}`,
   ]
     .filter((word) => word !== undefined)
     .join(', ');

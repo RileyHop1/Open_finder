@@ -31,6 +31,7 @@ import type { Actor, Seat, Statistic } from '@hearthtable/core';
 import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
+import { hpPercent } from './actorHp.js';
 import RulesTerm from './RulesTerm.vue';
 import StatBreakdown from './StatBreakdown.vue';
 import { describeDyingChain } from './sheet/dyingChain.js';
@@ -117,10 +118,7 @@ const cards = computed<Card[]>(() =>
               max,
               maxStatistic: prepared.hp.max,
               temp: prepared.hp.temp,
-              percent:
-                max <= 0
-                  ? 0
-                  : Math.min(100, Math.round((prepared.hp.current / max) * 100)),
+              percent: hpPercent(prepared.hp.current, max),
             },
       badges: badges.slice(0, MAX_BADGES),
       extraBadges: Math.max(0, badges.length - MAX_BADGES),

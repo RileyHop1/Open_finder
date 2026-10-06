@@ -133,6 +133,7 @@ import TemplateList from './TemplateList.vue';
 import TokenList from './TokenList.vue';
 import TokenMenu from './TokenMenu.vue';
 import ToastNotice from '../ToastNotice.vue';
+import { actorHp } from '../actorHp.js';
 
 /** A portrait is a small picture in a circle: this is more than enough, and keeps a big upload from costing GPU memory. */
 const PORTRAIT_TEXTURE_SIZE = 256;
@@ -255,6 +256,11 @@ const views = computed(() =>
       selectedId: selectedId.value,
       canMove: (actorId) => canMoveToken(lobby.mySeat, documents.actorById(actorId)),
       activeTokenId: combat.activeCombatant?.tokenId,
+      gm: lobby.mySeat?.isGM === true,
+      hpOf: (actorId) => {
+        const actor = documents.actorById(actorId);
+        return actor === undefined ? undefined : actorHp(actor);
+      },
     },
   ),
 );
@@ -1035,7 +1041,7 @@ function closeMenu(): void {
 
 /** Sends one change to the menu's token and says what happened. */
 async function tokenChange(
-  changes: { hidden?: boolean; name?: string | null; size?: number },
+  changes: { hidden?: boolean; showHpBar?: boolean; name?: string | null; size?: number },
   said: (token: TokenView) => string,
 ): Promise<void> {
   const token = menuToken.value;
@@ -1046,6 +1052,16 @@ async function tokenChange(
   ) {
     announcement.value = said(token);
   }
+}
+
+/** Shows the menu's monster's HP bar to the players, or hides it again. */
+async function toggleHpBar(): Promise<void> {
+  const shown = menuToken.value?.showHpBar === true;
+  await tokenChange({ showHpBar: !shown }, (token) =>
+    shown
+      ? `${token.label}'s HP bar hidden from the players.`
+      : `${token.label}'s HP bar shown to the players.`,
+  );
 }
 
 /** Joins the menu's token to the active combat, hidden exactly as the token already is. */
@@ -1446,6 +1462,7 @@ onBeforeUnmount(() => {
               : `${token.label} hidden from the players.`,
           )
         "
+        @toggle-hp-bar="toggleHpBar"
         @remove="removeToken"
         @add-to-combat="addTokenToCombat"
         @toggle-movement-grant="toggleMovementGrant"
