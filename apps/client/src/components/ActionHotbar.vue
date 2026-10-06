@@ -114,7 +114,7 @@ function finishRename(index: number): void {
   grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
   gap: var(--space-1);
   list-style: none;
-  margin: var(--space-1) 0 0;
+  margin: 0;
   padding: var(--space-1);
   border: var(--overlay-border);
   border-radius: var(--overlay-radius);
