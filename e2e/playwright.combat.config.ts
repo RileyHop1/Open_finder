@@ -16,7 +16,7 @@
  * concurrently) specifically so the two existing specs keep asserting an
  * honestly empty compendium.
  */
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 
 import base from './playwright.config.js';
 
@@ -32,19 +32,10 @@ export default defineConfig({
   // A long scenario: two full characters, a scene, and a full combat turn.
   timeout: 90_000,
   use: { ...base.use, actionTimeout: 10_000 },
-  projects: [
-    {
-      name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        // The turn bar, action tray, action bar, map and sheet are all on
-        // screen together here, more at once than any other spec -- the
-        // default 1280x720 viewport overlaps the sheet's strike list over
-        // the action bar's, and Playwright refuses to click through that.
-        viewport: { width: 1280, height: 1600 },
-      },
-    },
-  ],
+  // No viewport override: the action dock and the top strip (ADR 0022,
+  // feat/bottom-action-dock) both overlay the map now instead of stacking
+  // it taller than the default viewport, so `base`'s own project (the
+  // default 1280x720) is enough.
   webServer: [
     {
       ...baseServer,
