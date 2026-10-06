@@ -1666,6 +1666,36 @@ describe('editing a character', () => {
     });
   });
 
+  it('gives coins to another character or the stash with one inventory.transfer', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const hero = makeActor('Anna');
+    const friend = makeActor('Bo');
+    vi.mocked(documentsApi.listActors).mockResolvedValue([hero, friend]);
+    const wrapper = await mountTable();
+    await wrapper.find('.roster button').trigger('click');
+
+    expect(wrapper.findAll('.give option').length).toBe(0);
+    await wrapper.findAll('.coins .adjust button')[2]?.trigger('click');
+    expect(wrapper.findAll('.give option').map((o) => o.text())).toEqual([
+      'Bo',
+      'Party stash',
+    ]);
+    await wrapper.get('.give input[aria-label="gp to give"]').setValue('5');
+    await wrapper.get('.give select').setValue('party');
+    await wrapper.get('form[aria-label="Give coins"]').trigger('submit');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'inventory.transfer',
+      payload: {
+        from: { kind: 'actor', actorId: hero.id },
+        to: { kind: 'party' },
+        coins: { gp: 5 },
+      },
+    });
+  });
+
   it('sends actor.adjustCoins with the signed change from the coins row', async () => {
     mySeat = seat({ isGM: true });
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });

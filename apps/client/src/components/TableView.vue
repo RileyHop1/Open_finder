@@ -595,6 +595,37 @@ function sendItem(type: string, payload: Record<string, unknown>): void {
   }
 }
 
+/** Who the selected character can give items or coins to: the other characters, then the party stash (ADR 0021). */
+const giveRecipients = computed(() => [
+  ...documents.actors
+    .filter((actor) => actor.kind === 'character' && actor.id !== selectedId.value)
+    .map((actor) => ({ id: actor.id, name: actor.name })),
+  { id: 'party', name: 'Party stash' },
+]);
+
+/** Gives an item (or part of a stack) or coins from the selected character to `to` (a character id, or `'party'`) with one `inventory.transfer`; the server checks they have it. */
+function give(
+  to: string,
+  item?: { itemId: string; quantity?: number | undefined },
+  coins?: Record<string, number>,
+): void {
+  if (selectedId.value === undefined) {
+    return;
+  }
+  void documents.send('inventory.transfer', {
+    from: { kind: 'actor', actorId: selectedId.value },
+    to: to === 'party' ? { kind: 'party' } : { kind: 'actor', actorId: to },
+    ...(item === undefined
+      ? { coins }
+      : {
+          item: {
+            itemId: item.itemId,
+            ...(item.quantity === undefined ? {} : { quantity: item.quantity }),
+          },
+        }),
+  });
+}
+
 /** Bumped when an import finishes, so panels that listed content (the item picker, the condition picker) look again. */
 const contentVersion = ref(0);
 
@@ -1235,6 +1266,7 @@ async function handleCreate(): Promise<void> {
                 :key="`inventory-${contentVersion}`"
                 :actor="selected"
                 :editable="canEdit"
+                :recipients="giveRecipients"
                 @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
                 @equip="
                   (itemId, equipped) => sendItem('actor.updateItem', { itemId, equipped })
@@ -1244,6 +1276,8 @@ async function handleCreate(): Promise<void> {
                 "
                 @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
                 @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
+                @give="(itemId, to, quantity) => give(to, { itemId, quantity })"
+                @give-coins="(to, coins) => give(to, undefined, coins)"
               />
             </section>
           </section>

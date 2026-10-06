@@ -41,6 +41,22 @@ describe('CoinsRow', () => {
     expect(wrapper.emitted('adjust')).toEqual([[{ sp: -3 }]]);
   });
 
+  it('offers Give… only with someone to give to, and passes the choice up', async () => {
+    expect(mountRow().text()).not.toContain('Give…');
+    const wrapper = mount(CoinsRow, {
+      props: {
+        coins,
+        editable: true,
+        recipients: [{ id: 'party', name: 'Party stash' }],
+      },
+    });
+    await wrapper.findAll('.adjust button')[2]?.trigger('click');
+    await wrapper.get('input[aria-label="gp to give"]').setValue('2');
+    await wrapper.get('form[aria-label="Give coins"]').trigger('submit');
+    expect(wrapper.emitted('give')).toEqual([['party', { gp: 2 }]]);
+    expect(wrapper.find('form[aria-label="Give coins"]').exists()).toBe(false);
+  });
+
   it('sends nothing for an empty form, a zero, or a fraction', async () => {
     const wrapper = mountRow();
     await wrapper.findAll('.adjust button')[0]?.trigger('click');
