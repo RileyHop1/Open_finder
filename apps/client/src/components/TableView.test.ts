@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as assetsApi from '../api/assets.js';
 import * as compendiumApi from '../api/compendium.js';
 import * as documentsApi from '../api/documents.js';
+import * as worldsApi from '../api/worlds.js';
 import { createSocket, emitOperation } from '../realtime/socket.js';
 import { useConnectionStore } from '../stores/connection.js';
 import { useLobbyStore } from '../stores/lobby.js';
@@ -23,6 +24,7 @@ vi.mock('../stores/lobby.js', () => ({ useLobbyStore: vi.fn() }));
 vi.mock('../api/assets.js');
 vi.mock('../api/compendium.js');
 vi.mock('../api/documents.js');
+vi.mock('../api/worlds.js');
 vi.mock('../realtime/socket.js');
 
 const NOW = '2026-09-30T00:00:00.000Z';
@@ -59,6 +61,8 @@ function makeParty(memberIds: string[]): Party {
 }
 
 const releaseSeat = vi.fn();
+const claimSeat = vi.fn();
+const createSeat = vi.fn();
 let mySeat: Seat | undefined;
 let handlers: Map<string, (...args: never[]) => void>;
 
@@ -77,6 +81,10 @@ beforeEach(() => {
   vi.mocked(documentsApi.listCombatants).mockResolvedValue([]);
   vi.mocked(useLobbyStore).mockReturnValue({
     releaseSeat,
+    claimSeat,
+    createSeat,
+    seats: [],
+    error: undefined,
     get mySeat() {
       return mySeat;
     },
@@ -160,6 +168,51 @@ describe('layout', () => {
     expect(wrapper.find('.playing-as').text()).toContain('Valeros');
     await selectFromGearMenu(wrapper, 'Release seat');
     expect(releaseSeat).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the Seats drawer', () => {
+  it("opens from the gear menu's Seats item and shows the roster, closes on Escape", async () => {
+    const wrapper = await mountTable();
+    await selectFromGearMenu(wrapper, 'Seats');
+
+    const drawer = wrapper.get('#seats-pane');
+    expect((drawer.element as HTMLElement).style.display).not.toBe('none');
+    expect(drawer.find('.seat-roster').exists()).toBe(true);
+
+    await drawer.trigger('keydown', { key: 'Escape' });
+    expect((drawer.element as HTMLElement).style.display).toBe('none');
+    expect(document.activeElement).toBe(wrapper.get('.gear-button').element);
+  });
+});
+
+describe('leaving the campaign', () => {
+  it('offers "Back to campaigns" only to the GM, and asks before leaving', async () => {
+    mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
+    const player = await mountTable();
+    await openGearMenu(player);
+    expect(gearMenuItem(player, 'Back to campaigns')).toBeUndefined();
+
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    vi.mocked(worldsApi.deactivateWorld).mockResolvedValue(undefined);
+    const gm = await mountTable();
+    await selectFromGearMenu(gm, 'Back to campaigns');
+    expect(worldsApi.deactivateWorld).not.toHaveBeenCalled();
+    const dialog = gm.get('[role="alertdialog"]');
+    expect(dialog.text()).toContain('Leave this campaign?');
+
+    await dialog.get('button').trigger('click');
+    await flushPromises();
+    expect(worldsApi.deactivateWorld).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels without leaving', async () => {
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    const wrapper = await mountTable();
+    await selectFromGearMenu(wrapper, 'Back to campaigns');
+    await wrapper.findAll('[role="alertdialog"] button')[1]?.trigger('click');
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false);
+    expect(worldsApi.deactivateWorld).not.toHaveBeenCalled();
   });
 });
 

@@ -60,11 +60,23 @@ export async function claimSeat(page: Page, name: string): Promise<void> {
   await expect(page.getByText(`Playing as ${name}`)).toBeVisible();
 }
 
-/** Seated players see the roster folded away (it stays reachable for a GM adding seats). */
+/**
+ * Opens the seat roster: the unseated lobby's own `<details>` (folded open
+ * already, but not every caller can assume that), or, once seated, the
+ * gear menu's "Seats" drawer (ADR 0022's map-first shell leaves no roster
+ * in the page outside it).
+ */
 export async function openSeats(page: Page): Promise<void> {
-  const seats = page.locator('details.seat-manager');
-  if ((await seats.getAttribute('open')) === null) {
-    await seats.locator('summary').click();
+  const details = page.locator('details.seat-manager');
+  if ((await details.count()) > 0) {
+    if ((await details.getAttribute('open')) === null) {
+      await details.locator('summary').click();
+    }
+    return;
+  }
+  const pane = page.locator('#seats-pane');
+  if ((await pane.count()) === 0 || !(await pane.isVisible())) {
+    await openFromGearMenu(page, 'Seats');
   }
 }
 
