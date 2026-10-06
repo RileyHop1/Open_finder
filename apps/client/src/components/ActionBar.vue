@@ -7,11 +7,13 @@
  * and -- while a combat is active -- spends 1 action. Everything else goes
  * through the generic action (ADR 0023, "calculate, don't enforce"): the
  * player says what they do, picks its cost (only while a combat is active),
- * and may add dice and a situational modifier of their own. There are no
+ * and may add dice and a situational modifier of their own. Its one button,
+ * Spend, also stands in for a bare "spend an action": with no text and no dice
+ * it spends the cost and posts nothing. There are no
  * per-action buttons because the system does not try to model every action;
  * the table rules on the rest. Hovering or focusing a strike's attack button highlights its range
  * on the map (never only on hover, so a keyboard user gets it from focus
- * too); losing hover or focus clears it. "Undo last action" lives on the
+ * too); losing hover or focus clears it. "Undo" lives on the
  * action tray instead (ADR 0019): it undoes the current turn's whole step,
  * not just something spent from this bar, so it belongs with the acting
  * combatant's own controls rather than whatever token happens to be selected.
@@ -48,9 +50,6 @@ const actionModifier = ref<number>();
 
 function submitAction(): void {
   const text = actionText.value.trim();
-  if (text === '') {
-    return;
-  }
   emit('action', {
     text,
     cost: actionCost.value,
@@ -106,46 +105,38 @@ function submitAction(): void {
     </ul>
     <p v-else class="empty">No strikes.</p>
 
-    <form
-      class="action-form"
-      aria-label="Do something else"
-      @submit.prevent="submitAction"
-    >
-      <label for="action-text">Action</label>
+    <form class="action-form" aria-label="Action" @submit.prevent="submitAction">
       <input
         id="action-text"
         v-model="actionText"
         type="text"
-        required
-        placeholder="What do they do?"
+        aria-label="Action"
+        placeholder="Action"
       />
-      <template v-if="view.canAct">
-        <label for="action-cost">Cost</label>
-        <select id="action-cost" v-model="actionCost">
-          <option value="free">Free</option>
-          <option :value="1">◆</option>
-          <option :value="2">◆◆</option>
-          <option :value="3">◆◆◆</option>
-          <option value="reaction">Reaction</option>
-        </select>
-      </template>
-      <label for="action-dice">Dice</label>
+      <select v-if="view.canAct" id="action-cost" v-model="actionCost" aria-label="Cost">
+        <option value="free">Free</option>
+        <option :value="1">◆</option>
+        <option :value="2">◆◆</option>
+        <option :value="3">◆◆◆</option>
+        <option value="reaction">Reaction</option>
+      </select>
       <input
         id="action-dice"
         v-model="actionDice"
         type="text"
         autocomplete="off"
+        aria-label="Dice"
         placeholder="1d20+7"
       />
-      <label for="action-modifier">Modifier</label>
       <input
         id="action-modifier"
         v-model.number="actionModifier"
         type="number"
         step="1"
+        aria-label="Modifier"
         placeholder="+0"
       />
-      <button type="submit">Do it</button>
+      <button type="submit">Spend</button>
     </form>
     <p v-if="error" role="alert" class="action-error">{{ error }}</p>
   </section>
@@ -154,7 +145,7 @@ function submitAction(): void {
 <style scoped>
 .action-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);
@@ -162,7 +153,7 @@ function submitAction(): void {
 }
 .strikes {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2);
   list-style: none;
   margin: 0;
@@ -190,12 +181,11 @@ button {
 }
 .action-form {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-1);
 }
 .action-error {
-  flex-basis: 100%;
   margin: 0;
   color: var(--color-danger);
 }

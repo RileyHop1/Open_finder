@@ -16,107 +16,52 @@ function view(fields: Partial<ActionTrayView> = {}): ActionTrayView {
 }
 
 describe('ActionTray', () => {
-  it('shows actions spent of capacity and the reaction, in words', () => {
-    const wrapper = mount(ActionTray, {
-      props: { view: view({ spent: 1 }), label: 'Ada', canControl: false, gm: false },
-    });
-    expect(wrapper.text()).toContain('1 of 3 actions spent');
-    expect(wrapper.text()).toContain('Reaction available');
+  const mountTray = (fields: Partial<ActionTrayView> = {}, canControl = false) =>
+    mount(ActionTray, { props: { view: view(fields), label: 'Ada', canControl } });
+
+  it('shows actions spent of capacity and the reaction, briefly, in words', () => {
+    const wrapper = mountTray({ spent: 1 });
+    expect(wrapper.text()).toContain('1/3 actions');
+    expect(wrapper.text()).toContain('reaction ready');
     expect(wrapper.findAll('.diamond.used')).toHaveLength(1);
   });
 
   it('says the reaction is used', () => {
-    const wrapper = mount(ActionTray, {
-      props: {
-        view: view({ reactionUsed: true }),
-        label: 'Ada',
-        canControl: false,
-        gm: false,
-      },
-    });
-    expect(wrapper.text()).toContain('Reaction used');
+    expect(mountTray({ reactionUsed: true }).text()).toContain('reaction used');
   });
 
   it('names the restricted quickened action without counting it toward the warning', () => {
-    const wrapper = mount(ActionTray, {
-      props: {
-        view: view({ capacity: { total: 4, quickenedExtra: true }, spent: 4 }),
-        label: 'Ada',
-        canControl: false,
-        gm: false,
-      },
+    const wrapper = mountTray({
+      capacity: { total: 4, quickenedExtra: true },
+      spent: 4,
     });
-    expect(wrapper.text()).toContain('plus a restricted one');
+    expect(wrapper.text()).toContain('+1 restricted');
     expect(wrapper.find('.warning').exists()).toBe(false);
   });
 
   it('warns in text and an icon on overspend, never only by colour', () => {
-    const wrapper = mount(ActionTray, {
-      props: {
-        view: view({ spent: 5, overspent: 2 }),
-        label: 'Ada',
-        canControl: false,
-        gm: false,
-      },
-    });
-    const warning = wrapper.find('.warning');
+    const warning = mountTray({ spent: 5, overspent: 2 }).find('.warning');
     expect(warning.text()).toContain('⚠');
-    expect(warning.text()).toContain('2 actions over');
+    expect(warning.text()).toContain('+2 over');
   });
 
-  it('hides the control buttons without canControl, GM or not', () => {
-    const wrapper = mount(ActionTray, {
-      props: { view: view(), label: 'Ada', canControl: false, gm: true },
-    });
-    expect(wrapper.find('button').exists()).toBe(false);
+  it('hides its buttons without canControl', () => {
+    expect(mountTray().find('button').exists()).toBe(false);
   });
 
-  it('spends an action, toggles the reaction, and undoes the last step, for an owner', async () => {
-    const wrapper = mount(ActionTray, {
-      props: { view: view({ spent: 1 }), label: 'Ada', canControl: true, gm: false },
-    });
-    // No GM, so no "Give back an action": Spend, Spend reaction, Give back reaction, Undo.
+  it('has only Reaction and Undo, for an owner or the GM', async () => {
+    const wrapper = mountTray({ spent: 1 }, true);
     const buttons = wrapper.findAll('button');
-    expect(buttons).toHaveLength(4);
+    expect(buttons.map((b) => b.text())).toEqual(['Reaction', 'Undo']);
     await buttons[0]?.trigger('click');
-    expect(wrapper.emitted('spend')).toEqual([[1]]);
-    await buttons[1]?.trigger('click');
     expect(wrapper.emitted('setReaction')).toEqual([[true]]);
-    await buttons[3]?.trigger('click');
+    await buttons[1]?.trigger('click');
     expect(wrapper.emitted('undo')).toEqual([[]]);
   });
 
-  it('gives the GM alone "Give back an action", a flat manual override', async () => {
-    const wrapper = mount(ActionTray, {
-      props: { view: view({ spent: 1 }), label: 'Ada', canControl: true, gm: true },
-    });
-    const buttons = wrapper.findAll('button');
-    expect(buttons).toHaveLength(5);
-    expect(buttons[1]?.text()).toBe('Give back an action');
-    await buttons[1]?.trigger('click');
-    expect(wrapper.emitted('spend')).toEqual([[-1]]);
-  });
-
-  it('disables give-back at zero spent and the reaction buttons once already in that state', () => {
-    const wrapper = mount(ActionTray, {
-      props: {
-        view: view({ spent: 0, reactionUsed: false }),
-        label: 'Ada',
-        canControl: true,
-        gm: true,
-      },
-    });
-    const buttons = wrapper.findAll('button');
-    expect(buttons[1]?.attributes('disabled')).toBeDefined();
-    expect(buttons[3]?.attributes('disabled')).toBeDefined();
-  });
-
-  it('always shows "Undo last action" when it may control the tray, with no state check', () => {
-    const wrapper = mount(ActionTray, {
-      props: { view: view(), label: 'Ada', canControl: true, gm: false },
-    });
-    const buttons = wrapper.findAll('button');
-    expect(buttons.at(-1)?.text()).toBe('Undo last action');
-    expect(buttons.at(-1)?.attributes('disabled')).toBeUndefined();
+  it('disables Reaction once it is used, and never disables Undo', () => {
+    const used = mountTray({ reactionUsed: true }, true).findAll('button');
+    expect(used[0]?.attributes('disabled')).toBeDefined();
+    expect(used[1]?.attributes('disabled')).toBeUndefined();
   });
 });

@@ -29,13 +29,15 @@ GM has turn-based movement on (that is the GM's own switch, see
 
 **Implemented in M5 C.4**: `apps/client/src/components/ActionTray.vue` shows
 the acting combatant's ◆◆◆ (filled by `actionsSpent`) and ↺, both with a text
-count, plus a quickened extra marked "restricted". Spend and the reaction
-toggle are for the combatant's actor's owner or the GM; hidden entirely while
-no combat is active. A spend that would cross the turn's `actionCapacity` is
-never refused (for anyone); it goes through and is announced in chat ("Ada has
-spent 4 of 3 actions"). "Give back an action" (`combat.spendAction` with a
-negative count) is the GM's own manual override for a number the automation
-got wrong — not an undo, and shown to the GM only.
+count ("2/3 actions · reaction ready"), plus a quickened extra marked
+"restricted". Its **Reaction** and **Undo** buttons are for the combatant's
+actor's owner or the GM; the whole tray is hidden while no combat is active.
+Actions are spent from the action bar's **Spend** button, not the tray. A spend
+that would cross the turn's `actionCapacity` is never refused (for anyone); it
+goes through, the tray shows "⚠ +1 over", and chat announces it ("Ada has spent
+4 of 3 actions"). There is no separate "give back" button: **Undo** takes back
+the last step. (The server still accepts a negative `combat.spendAction`; no
+button sends it.)
 
 **Implemented in M5 C.5a**: `apps/client/src/components/ActionBar.vue`, across
 the bottom of the map for whatever token is selected. A strike (its three MAP
@@ -45,8 +47,9 @@ active, also spends 1 action. Everything else is the **generic action**
 (ADR 0023, which removed the preset basic-action buttons and the GM-only
 "Other action"): any seat that controls the token describes what they do,
 picks a cost (Free, ◆, ◆◆, ◆◆◆, Reaction; shown only while a combat is
-active), and may add dice and a situational modifier. It spends the cost,
-then posts one labelled roll or a plain chat line. The bar itself is shown only for a
+active), and may add dice and a situational modifier. **Spend** spends the cost, then
+posts one labelled roll or a plain chat line; with no text and no dice it just
+spends the cost and says nothing. The tray, strikes and form sit in one row. The bar itself is shown only for a
 token this seat controls (the GM, any; a player, one they own) — see
 `docs/combat.md` for where that check lives. Still open, as a follow-up PR
 under the same C.5 item: range highlighting. Movement spending actions landed
@@ -54,7 +57,7 @@ separately, in `token.move` itself (`combat.ts`'s `spendMovement`,
 [combat.md](combat.md)) rather than on this bar, since a move is dragged on
 the map, not clicked here.
 
-**Implemented in M5 C.5b, redesigned under ADR 0019**: "Undo last action" on
+**Implemented in M5 C.5b, redesigned under ADR 0019**: "Undo" on
 the action tray sends `combat.undo` (owner-or-GM, same as the tray's other
 controls). It is a thin client over the server's own turn-undo stack
 (`apps/server/src/turnUndo.ts`, [combat.md](combat.md), "Turn undo"), not a
