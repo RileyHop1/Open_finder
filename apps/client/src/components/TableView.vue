@@ -47,7 +47,6 @@ import MapView from './map/MapView.vue';
 import { gridForScene } from './map/mapGrid.js';
 import { startActorDrag } from './map/placement.js';
 import { cellsInRange } from './map/rangeHighlight.js';
-import { useMapPaneResize } from './useMapPaneResize.js';
 import MonsterPicker from './scenes/MonsterPicker.vue';
 import RulesDrawer from './RulesDrawer.vue';
 import SceneManager from './scenes/SceneManager.vue';
@@ -566,19 +565,6 @@ onMounted(() => {
   void combat.load(props.worldId);
 });
 
-/**
- * The map pane's height, resizable by the GM or a player: the turn bar, the
- * action tray, and the action bar all sit around the map now, and a fixed
- * height could starve one of them off screen.
- */
-const {
-  height: mapPaneHeight,
-  startResize,
-  onKey: onResizeKey,
-  maxHeightNow: maxMapPaneHeightNow,
-  MIN_MAP_PANE_HEIGHT,
-} = useMapPaneResize();
-
 // A deleted character cannot stay selected.
 watch(
   () => documents.actors,
@@ -721,7 +707,6 @@ async function handleCreate(): Promise<void> {
           aria-label="Map"
           tabindex="-1"
           data-testid="map-pane"
-          :style="{ height: `${Math.round(mapPaneHeight)}px` }"
         >
           <MapView
             ref="mapView"
@@ -740,20 +725,6 @@ async function handleCreate(): Promise<void> {
           Choose a target on the map or the token list, or press Escape to swing without
           one.
         </p>
-
-        <div
-          class="map-resize-handle"
-          role="separator"
-          aria-orientation="horizontal"
-          aria-label="Resize the map. Arrow keys resize, Home and End jump to the smallest and largest size."
-          aria-controls="map-pane"
-          :aria-valuenow="Math.round(mapPaneHeight)"
-          :aria-valuemin="MIN_MAP_PANE_HEIGHT"
-          :aria-valuemax="Math.round(maxMapPaneHeightNow())"
-          tabindex="0"
-          @pointerdown="startResize"
-          @keydown="onResizeKey"
-        ></div>
 
         <p v-if="combat.error" role="alert" class="status status-error">
           {{ combat.error }}
@@ -1017,10 +988,20 @@ async function handleCreate(): Promise<void> {
 </template>
 
 <style scoped>
+/**
+ * Map-first (ADR 0022): once seated, this is the whole page -- `App.vue`
+ * and `CampaignLobby.vue` hide their own chrome rather than this sitting
+ * inside their padded, scrolling page.
+ */
 .table {
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-2);
+  overflow: hidden;
+  background: var(--color-bg);
 }
 
 /* Invisible until focused, like the app-level skip link (App.vue). */
@@ -1132,18 +1113,26 @@ button[aria-pressed='true'] {
   padding-top: var(--space-3);
 }
 
-/* The chat sits beside the map from 900px; narrower stacks. */
+/* The chat sits beside the map from 900px; narrower stacks. The map column
+   stretches to the body's full height (the grid default) so the map pane
+   can grow to fill it -- see .map-pane below; the chat column opts back
+   out of that (.chat-pane below) and stays its own content height. */
 .table-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 @media (min-width: 900px) {
   .table-body {
     grid-template-columns: minmax(0, 1fr) 22rem;
-    align-items: start;
   }
+}
+
+.chat-pane {
+  align-self: start;
 }
 
 /* The map column is the drawer's positioning box: the drawer overlays the map. */
@@ -1152,6 +1141,7 @@ button[aria-pressed='true'] {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-height: 0;
 }
 
 .map-tools {
@@ -1162,33 +1152,14 @@ button[aria-pressed='true'] {
   min-height: var(--touch-target-min);
 }
 
+/* Grows to fill whatever the map column has left over, after its other,
+   content-sized siblings (the toolbar, the turn bar, the action dock). */
 .map-pane {
-  /* The inline style sets the real height (resizable); this is only a pre-JS fallback. */
-  height: calc(100vh - 14rem);
-  min-height: 24rem;
+  flex: 1 1 auto;
+  min-height: 16rem;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 4px;
-}
-
-/* A thin grip with a taller invisible hit area, so it's easy to grab without looking huge. */
-.map-resize-handle {
-  position: relative;
-  flex: none;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--color-border);
-  cursor: ns-resize;
-  touch-action: none;
-}
-.map-resize-handle::before {
-  content: '';
-  position: absolute;
-  inset: -10px 0;
-}
-.map-resize-handle:focus-visible {
-  outline: 2px solid currentcolor;
-  outline-offset: 2px;
 }
 
 .sheet-pane {

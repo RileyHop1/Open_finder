@@ -8,6 +8,7 @@ const pixi = vi.hoisted(() => {
   const instances: {
     init: ReturnType<typeof vi.fn>;
     destroy: ReturnType<typeof vi.fn>;
+    resize: ReturnType<typeof vi.fn>;
     canvas: HTMLCanvasElement;
   }[] = [];
   return { instances, failInit: false, holdInit: undefined as Promise<void> | undefined };
@@ -23,6 +24,7 @@ vi.mock('pixi.js', () => ({
       }
     });
     destroy = vi.fn();
+    resize = vi.fn();
     constructor() {
       pixi.instances.push(this);
     }
@@ -109,5 +111,56 @@ describe('MapCanvas', () => {
     await flushPromises();
 
     expect(pixi.instances[0]?.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('resizing when the box changes without a window resize', () => {
+    const observed: { callback: ResizeObserverCallback }[] = [];
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+
+    beforeEach(() => {
+      observed.length = 0;
+      observe.mockClear();
+      disconnect.mockClear();
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(callback: ResizeObserverCallback) {
+            observed.push({ callback });
+          }
+          observe = observe;
+          disconnect = disconnect;
+          unobserve = vi.fn();
+        },
+      );
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('resizes the pixi application when its box is observed to change', async () => {
+      pretendWebGL2(true);
+      const wrapper = mount(MapCanvas, { attachTo: document.body });
+      await flushPromises();
+      const app = pixi.instances[0];
+
+      expect(observe).toHaveBeenCalledWith(
+        wrapper.get('[data-testid="map-canvas"]').element,
+      );
+      observed[0]?.callback([] as never, {} as ResizeObserver);
+
+      expect(app?.resize).toHaveBeenCalledTimes(1);
+      wrapper.unmount();
+    });
+
+    it('disconnects the observer when the component goes away', async () => {
+      pretendWebGL2(true);
+      const wrapper = mount(MapCanvas, { attachTo: document.body });
+      await flushPromises();
+      wrapper.unmount();
+
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    });
   });
 });

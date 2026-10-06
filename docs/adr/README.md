@@ -51,3 +51,4 @@ than a tidy file.
 | [0019](0019-turn-undo.md) | Turn undo: snapshot the documents, not the operations | Accepted |
 | [0020](0020-rules-text.md) | Rules text: our own AST, converted at import time | Accepted |
 | [0021](0021-inventory-economy.md) | Coins are a field, Bulk is computed, transfers are one operation | Accepted |
+| [0022](0022-map-first-table-layout.md) | Map-first table layout: the map fills the screen, everything else overlays it | Accepted |
