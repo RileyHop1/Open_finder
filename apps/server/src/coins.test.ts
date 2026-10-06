@@ -55,7 +55,9 @@ describe('adjustActorCoins', () => {
     });
 
     expect(documents[0]?.id).toBe(actorId);
-    expect(coinsOf(actorId)).toEqual({ pp: 0, gp: 15, sp: 0, cp: 0 });
+    // Reassembled to the fewest coins (adjustCoins, "makes change" even on a
+    // gain, not only a spend): 15 gp is 1500 cp, which is 1 pp + 5 gp.
+    expect(coinsOf(actorId)).toEqual({ pp: 1, gp: 5, sp: 0, cp: 0 });
   });
 
   it('lets the GM adjust a purse the GM does not own', () => {

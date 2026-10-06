@@ -82,8 +82,8 @@ function makeSeat(overrides: Partial<Seat> = {}): Seat {
 
 const gm = () => makeSeat({ name: 'GM', isGM: true });
 
-function ownedCharacter(seat: Seat = makeSeat()) {
-  const actor = createActor(store, seat, { kind: 'character', name: 'Hero' });
+function ownedCharacter(seat: Seat = makeSeat(), name = `Hero ${crypto.randomUUID()}`) {
+  const actor = createActor(store, seat, { kind: 'character', name });
   return actor.id;
 }
 
