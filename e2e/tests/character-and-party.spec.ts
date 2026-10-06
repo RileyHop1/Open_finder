@@ -59,7 +59,10 @@ test('a player builds a character, the GM adds it to the party, and they play wi
     await claimSeat(player, 'Valeros');
 
     // --- Nothing is imported (the config points at an empty compendium), so the
-    // GM is offered the import button, in plain words, and the player is not. ---
+    // GM is offered the import button, in plain words, and the player is not.
+    // The GM's import panel lives in its own gear-menu drawer now
+    // (`feat/chrome-into-gear-menu`), not a row above the map. ---
+    await openFromGearMenu(gm, 'Game content');
     await expect(
       gm.getByRole('heading', { name: 'This table has no game content yet' }),
     ).toBeVisible();

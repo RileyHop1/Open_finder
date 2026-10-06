@@ -11,9 +11,9 @@ afterEach(() => {
   }
 });
 
-function mountMenu(isGm = false) {
+function mountMenu(isGm = false, seatName = 'Valeros') {
   const wrapper = mount(GearMenu, {
-    props: { isGm },
+    props: { isGm, seatName },
     attachTo: document.body,
   });
   mounted.push(wrapper);
@@ -53,6 +53,12 @@ describe('the menu', () => {
     expect(document.activeElement).toBe(wrapper.findAll('[role="menuitem"]')[0]?.element);
   });
 
+  it('shows who you are playing as, as a header line above the items', async () => {
+    const wrapper = mountMenu(false, 'Valeros');
+    await openMenu(wrapper);
+    expect(wrapper.find('.gear-seat').text()).toContain('Valeros');
+  });
+
   it('always offers Characters, Rules, Seats, and Release seat', async () => {
     const wrapper = mountMenu();
     await openMenu(wrapper);
@@ -62,17 +68,19 @@ describe('the menu', () => {
     expect(item(wrapper, 'Release seat')).toBeDefined();
   });
 
-  it('offers Scenes, Manage party, and Back to campaigns only for the GM', async () => {
+  it('offers Scenes, Manage party, Game content, and Back to campaigns only for the GM', async () => {
     const player = mountMenu(false);
     await openMenu(player);
     expect(item(player, 'Scenes')).toBeUndefined();
     expect(item(player, 'Manage party')).toBeUndefined();
+    expect(item(player, 'Game content')).toBeUndefined();
     expect(item(player, 'Back to campaigns')).toBeUndefined();
 
     const gm = mountMenu(true);
     await openMenu(gm);
     expect(item(gm, 'Scenes')).toBeDefined();
     expect(item(gm, 'Manage party')).toBeDefined();
+    expect(item(gm, 'Game content')).toBeDefined();
     expect(item(gm, 'Back to campaigns')).toBeDefined();
   });
 
@@ -85,7 +93,7 @@ describe('the menu', () => {
     expect(wrapper.find('[role="menu"]').exists()).toBe(false);
   });
 
-  it('emits for Seats, Manage party, and Back to campaigns', async () => {
+  it('emits for Seats, Manage party, Game content, and Back to campaigns', async () => {
     const wrapper = mountMenu(true);
     await openMenu(wrapper);
     await item(wrapper, 'Seats')?.trigger('click');
@@ -94,6 +102,10 @@ describe('the menu', () => {
     await openMenu(wrapper);
     await item(wrapper, 'Manage party')?.trigger('click');
     expect(wrapper.emitted('manageParty')).toHaveLength(1);
+
+    await openMenu(wrapper);
+    await item(wrapper, 'Game content')?.trigger('click');
+    expect(wrapper.emitted('gameContent')).toHaveLength(1);
 
     await openMenu(wrapper);
     await item(wrapper, 'Back to campaigns')?.trigger('click');

@@ -56,8 +56,12 @@ export async function addSeat(page: Page, name: string, isGM: boolean): Promise<
 
 export async function claimSeat(page: Page, name: string): Promise<void> {
   await seatRow(page, name).getByRole('button', { name: 'Claim' }).click();
-  // Holding a seat opens the table; the seat list folds into "Seats".
-  await expect(page.getByText(`Playing as ${name}`)).toBeVisible();
+  // Holding a seat opens the table; the seat list folds into "Seats", and
+  // "Playing as <name>" becomes the gear menu's own header line
+  // (`feat/chrome-into-gear-menu`) rather than a row above the map.
+  await page.getByRole('button', { name: 'Table menu' }).click();
+  await expect(page.locator('.gear-seat')).toHaveText(`Playing as ${name}`);
+  await page.keyboard.press('Escape');
 }
 
 /**

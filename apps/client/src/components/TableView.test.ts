@@ -163,10 +163,11 @@ describe('layout', () => {
     expect(documentsApi.listActors).toHaveBeenCalledWith(WORLD);
   });
 
-  it('says who you are playing as, and releases the seat from the gear menu', async () => {
+  it('says who you are playing as in the gear menu, and releases the seat from it', async () => {
     const wrapper = await mountTable();
-    expect(wrapper.find('.playing-as').text()).toContain('Valeros');
-    await selectFromGearMenu(wrapper, 'Release seat');
+    await openGearMenu(wrapper);
+    expect(wrapper.find('.gear-seat').text()).toContain('Valeros');
+    await gearMenuItem(wrapper, 'Release seat')?.trigger('click');
     expect(releaseSeat).toHaveBeenCalledTimes(1);
   });
 });
@@ -230,6 +231,26 @@ describe('the Manage party drawer', () => {
     const drawer = gm.get('#party-manager-pane');
     expect((drawer.element as HTMLElement).style.display).not.toBe('none');
     expect(drawer.find('.party-manager').exists()).toBe(true);
+
+    await drawer.trigger('keydown', { key: 'Escape' });
+    expect((drawer.element as HTMLElement).style.display).toBe('none');
+    expect(document.activeElement).toBe(gm.get('.gear-button').element);
+  });
+});
+
+describe('the Game content drawer', () => {
+  it('is offered to the GM only, from the gear menu', async () => {
+    mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
+    const player = await mountTable();
+    await openGearMenu(player);
+    expect(gearMenuItem(player, 'Game content')).toBeUndefined();
+    expect(player.find('#content-pane').exists()).toBe(false);
+
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    const gm = await mountTable();
+    await selectFromGearMenu(gm, 'Game content');
+    const drawer = gm.get('#content-pane');
+    expect((drawer.element as HTMLElement).style.display).not.toBe('none');
 
     await drawer.trigger('keydown', { key: 'Escape' });
     expect((drawer.element as HTMLElement).style.display).toBe('none');

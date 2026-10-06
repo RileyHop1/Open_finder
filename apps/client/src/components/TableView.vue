@@ -1,16 +1,20 @@
 <script setup lang="ts">
 /**
  * The table: what a player sees once they hold a seat. It is **map-first**:
- * the map fills the screen and everything else is around or over it. Four
- * regions, each a landmark and each reachable by a skip link --
+ * the map fills the screen and *everything* else overlays it -- there is no
+ * page chrome left in flow at all (`feat/chrome-into-gear-menu` moved the
+ * last of it, "Playing as" and the GM's content-import panel, into the gear
+ * menu). Landmarks, each reachable by a skip link --
  *
- * - the **top strip** (`#party-bar`): `PartyBar`'s portraits while there is
- *   no active combat (with the GM's "Start combat" at its end), or
- *   `TurnBar`'s turn order once one starts, with `TurnControls` (end turn,
- *   end combat, free movement) at the strip's right end instead. Horizontal
- *   scroll, not wrap, once either is too crowded to fit (the user's own
- *   layout call) -- see `turnBar`/`canStartCombat` below,
- * - the **map** in the middle (an empty state until a scene is shown),
+ * - the **top strip** (`#party-bar`), inside `.top-stack`, over the map's
+ *   top edge: `PartyBar`'s portraits while there is no active combat (with
+ *   the GM's "Start combat" at its end), or `TurnBar`'s turn order once one
+ *   starts, with `TurnControls` (end turn, end combat, free movement) at
+ *   the strip's right end instead. Horizontal scroll, not wrap, once either
+ *   is too crowded to fit (the user's own layout call) -- see
+ *   `turnBar`/`canStartCombat` below. The preview-scene and targeting
+ *   banners (`.top-banners`) stack directly below it, same column,
+ * - the **map** filling the rest (an empty state until a scene is shown),
  * - the **character sheet**, a drawer that slides over the map's left edge
  *   (the characters this seat can see, a way to make a new one, and the chosen
  *   character's sheet). Opened by the gear menu's "Characters" item or by
@@ -25,36 +29,37 @@
  * below -- see `actionTray`/`actionBar` below. It centers within
  * `.action-dock-rail`, the strip right of chat rather than the column's
  * full width, so the two overlays never run into each other regardless of
- * viewport width. The preview-scene and targeting banners are the same
- * idea at the map's top edge instead (`.top-banners`): small overlays, not
- * flow siblings the map has to make room for. Every floating panel shares
- * one look (`--overlay-border`/`--overlay-radius`/`--overlay-shadow`,
+ * viewport width (`.top-stack` uses the same trick for the top strip, just
+ * full-width since nothing else shares its row). Every floating panel
+ * shares one look (`--overlay-border`/`--overlay-radius`/`--overlay-shadow`,
  * `styles/tokens.css`) and one z-index scale, rather than each picking its
  * own.
  *
  * The GM also has a **Scenes** drawer, from the right edge of the map (the scene
- * manager: make, edit, preview, move the party to, and delete scenes).
+ * manager: make, edit, preview, move the party to, and delete scenes), and
+ * a **Game content** drawer (`ContentImportPanel.vue`: the GM's import
+ * button, used to be its own row above the map).
  *
  * Everyone has a **Rules** drawer (milestone 6's encyclopedia, `RulesDrawer.vue`),
  * and there is a **Seats** drawer (`SeatRoster.vue`) and the GM's own **Manage
  * party** drawer (`PartyManager.vue`, moved out of the top strip to keep it
- * uncluttered) -- all four share the map's right edge, only one open at
+ * uncluttered) -- all five share the map's right edge, only one open at
  * once, see `closeOtherRightDrawers`. Rules opens from the gear menu's
  * "Rules" item or the `?` hotkey (ignored while typing in chat or a form
  * field, see `isTypingTarget`).
  *
- * The **gear menu** (`GearMenu.vue`) floats top-right over all of this: it
- * holds the Characters/Scenes/Rules/Seats/Manage-party drawer toggles,
- * "Release seat", and the GM's "Back to campaigns", since there's no
- * toolbar row left to put plain buttons in once the map fills the screen
- * (ADR 0022).
+ * The **gear menu** (`GearMenu.vue`) floats top-right over all of this: a
+ * "Playing as <seat>" header line, then the Characters/Scenes/Rules/Seats/
+ * Manage-party/Game-content drawer toggles, "Release seat", and the GM's
+ * "Back to campaigns" -- there's no toolbar row left to put plain buttons,
+ * or even plain text, in once the map fills the whole screen (ADR 0022).
  *
- * The drawers and the chat panel all overlay the map at every width rather
- * than pushing it, so the map never reflows under any of them. Tablets are
- * supported and phones are not (CLAUDE.md, Targets and budgets), so there
- * is no phone layout. Shown by `CampaignLobby` while this device holds a
- * seat; the lobby owns the realtime connection, this only reads the stores
- * it feeds.
+ * Every overlay sits on top of the map at every width rather than pushing
+ * it, so the map never reflows under any of them. Tablets are supported
+ * and phones are not (CLAUDE.md, Targets and budgets), so there is no
+ * phone layout. Shown by `CampaignLobby` while this device holds a seat;
+ * the lobby owns the realtime connection, this only reads the stores it
+ * feeds.
  */
 import { resolvePermission } from '@hearthtable/core';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
@@ -516,8 +521,9 @@ const sceneDrawerEl = useTemplateRef<HTMLElement>('sceneDrawer');
 const rulesDrawerEl = useTemplateRef<HTMLElement>('rulesDrawer');
 const seatsDrawerEl = useTemplateRef<HTMLElement>('seatsDrawer');
 const partyDrawerEl = useTemplateRef<HTMLElement>('partyDrawer');
+const contentDrawerEl = useTemplateRef<HTMLElement>('contentDrawer');
 
-/** The character drawer (open state, focus in and back out); the GM's scene and Manage party drawers; the Rules and Seats drawers (everyone's). */
+/** The character drawer (open state, focus in and back out); the GM's scene, Manage party, and Game content drawers; the Rules and Seats drawers (everyone's). */
 const { open: drawerOpen, show: openDrawer, hide: closeDrawer } = useDrawer(drawerEl);
 const {
   open: sceneDrawerOpen,
@@ -539,18 +545,27 @@ const {
   show: openPartyDrawer,
   hide: closePartyDrawer,
 } = useDrawer(partyDrawerEl);
+const {
+  open: contentDrawerOpen,
+  show: openContentDrawer,
+  hide: closeContentDrawer,
+} = useDrawer(contentDrawerEl);
 
 /**
- * Scenes, Rules, Seats, and Manage party all slide in from the map's right
- * edge (the character drawer already owns the left), so only one of the
- * four is ever shown at once -- opening any of them closes the other three
- * first, rather than letting them stack exactly on top of each other.
+ * Scenes, Rules, Seats, Manage party, and Game content all slide in from
+ * the map's right edge (the character drawer already owns the left), so
+ * only one of the five is ever shown at once -- opening any of them closes
+ * the other four first, rather than letting them stack exactly on top of
+ * each other.
  */
-function closeOtherRightDrawers(except: 'scene' | 'rules' | 'seats' | 'party'): void {
+function closeOtherRightDrawers(
+  except: 'scene' | 'rules' | 'seats' | 'party' | 'content',
+): void {
   if (except !== 'scene') closeSceneDrawer();
   if (except !== 'rules') closeRulesDrawer();
   if (except !== 'seats') closeSeatsDrawer();
   if (except !== 'party') closePartyDrawer();
+  if (except !== 'content') closeContentDrawer();
 }
 
 function toggleSceneDrawer(): void {
@@ -589,6 +604,15 @@ function togglePartyDrawer(): void {
   void openPartyDrawer();
 }
 
+function toggleContentDrawer(): void {
+  if (contentDrawerOpen.value) {
+    closeContentDrawer();
+    return;
+  }
+  closeOtherRightDrawers('content');
+  void openContentDrawer();
+}
+
 const mapView = useTemplateRef<InstanceType<typeof MapView>>('mapView');
 
 /** True while a character is being dragged out of the roster, so the drawer can get out of the way of the drop. */
@@ -604,7 +628,9 @@ async function placeOnMap(actorId: string): Promise<void> {
         ? seatsDrawerEl.value
         : partyDrawerOpen.value
           ? partyDrawerEl.value
-          : undefined;
+          : contentDrawerOpen.value
+            ? contentDrawerEl.value
+            : undefined;
   await mapView.value?.placeAtCentre(actorId, {
     left: drawerOpen.value ? (drawerEl.value?.offsetWidth ?? 0) : 0,
     right: rightDrawerEl?.offsetWidth ?? 0,
@@ -703,18 +729,16 @@ async function handleCreate(): Promise<void> {
 
     <GearMenu
       :is-gm="lobby.mySeat?.isGM === true"
+      :seat-name="seatName"
       @characters="drawerOpen ? closeDrawer() : openDrawer()"
       @scenes="toggleSceneDrawer"
       @rules="toggleRulesDrawer"
       @seats="toggleSeatsDrawer"
       @manage-party="togglePartyDrawer"
+      @game-content="toggleContentDrawer"
       @release-seat="lobby.releaseSeat()"
       @leave-campaign="confirmingLeave = true"
     />
-
-    <p class="playing-as">
-      Playing as <strong>{{ seatName }}</strong>
-    </p>
 
     <div
       v-if="confirmingLeave"
@@ -731,56 +755,78 @@ async function handleCreate(): Promise<void> {
       <button type="button" @click="confirmingLeave = false">Cancel</button>
     </div>
 
-    <ContentImportPanel v-if="lobby.mySeat?.isGM" @imported="contentVersion += 1" />
-
     <p v-if="documents.error" role="alert" class="status status-error">
       {{ documents.error }}
     </p>
 
-    <nav id="party-bar" class="top-strip" aria-label="Party or turn order" tabindex="-1">
-      <template v-if="turnBar !== undefined">
-        <TurnBar
-          :items="turnBar.items"
-          :round="turnBar.round"
-          :unseen-acting="combat.activeIsUnseen"
-          :show-controls="lobby.mySeat?.isGM === true"
-          @focus="(tokenId) => mapView?.focusToken(tokenId)"
-          @set-initiative="
-            (combatantId, initiative) => combat.setInitiative(combatantId, initiative)
-          "
-        />
-        <TurnControls
-          :is-gm="lobby.mySeat?.isGM === true"
-          :can-end-turn="canEndTurn"
-          :free-movement="turnBar.freeMovement"
-          @previous="combat.previousTurn"
-          @next="combat.nextTurn"
-          @end="combat.endCombat"
-          @set-free-movement="combat.setFreeMovement"
-        />
-      </template>
-      <template v-else>
-        <PartyBar
-          :members="documents.members"
-          :selected-id="selectedId"
-          :world-id="worldId"
-          :active-actor-id="combat.activeCombatant?.actorId"
-          :seats="lobby.seats"
-          @select="openSheetOf"
-        />
-        <button
-          v-if="canStartCombat"
-          type="button"
-          class="start-combat"
-          @click="combat.startCombat"
-        >
-          Start combat
-        </button>
-      </template>
-    </nav>
-
     <div class="table-body">
       <div class="map-column">
+        <div class="top-stack">
+          <nav
+            id="party-bar"
+            class="top-strip"
+            aria-label="Party or turn order"
+            tabindex="-1"
+          >
+            <template v-if="turnBar !== undefined">
+              <TurnBar
+                :items="turnBar.items"
+                :round="turnBar.round"
+                :unseen-acting="combat.activeIsUnseen"
+                :show-controls="lobby.mySeat?.isGM === true"
+                @focus="(tokenId) => mapView?.focusToken(tokenId)"
+                @set-initiative="
+                  (combatantId, initiative) =>
+                    combat.setInitiative(combatantId, initiative)
+                "
+              />
+              <TurnControls
+                :is-gm="lobby.mySeat?.isGM === true"
+                :can-end-turn="canEndTurn"
+                :free-movement="turnBar.freeMovement"
+                @previous="combat.previousTurn"
+                @next="combat.nextTurn"
+                @end="combat.endCombat"
+                @set-free-movement="combat.setFreeMovement"
+              />
+            </template>
+            <template v-else>
+              <PartyBar
+                :members="documents.members"
+                :selected-id="selectedId"
+                :world-id="worldId"
+                :active-actor-id="combat.activeCombatant?.actorId"
+                :seats="lobby.seats"
+                @select="openSheetOf"
+              />
+              <button
+                v-if="canStartCombat"
+                type="button"
+                class="start-combat"
+                @click="combat.startCombat"
+              >
+                Start combat
+              </button>
+            </template>
+          </nav>
+
+          <div class="top-banners">
+            <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
+              You are previewing <strong>{{ scenes.shownScene?.name }}</strong
+              >. The players are on <strong>{{ partyScene?.name ?? 'no scene' }}</strong
+              >.
+              <button type="button" @click="scenes.previewScene(undefined)">
+                Back to the players' scene
+              </button>
+            </p>
+
+            <p v-if="pendingStrike !== undefined" class="targeting-banner" role="status">
+              Choose a target on the map or the token list, or press Escape to swing
+              without one.
+            </p>
+          </div>
+        </div>
+
         <section
           id="map-pane"
           class="map-pane"
@@ -800,22 +846,6 @@ async function handleCreate(): Promise<void> {
             @pick-target="confirmTarget"
           />
         </section>
-
-        <div class="top-banners">
-          <p v-if="scenes.isPreviewing" class="preview-banner" role="status">
-            You are previewing <strong>{{ scenes.shownScene?.name }}</strong
-            >. The players are on <strong>{{ partyScene?.name ?? 'no scene' }}</strong
-            >.
-            <button type="button" @click="scenes.previewScene(undefined)">
-              Back to the players' scene
-            </button>
-          </p>
-
-          <p v-if="pendingStrike !== undefined" class="targeting-banner" role="status">
-            Choose a target on the map or the token list, or press Escape to swing without
-            one.
-          </p>
-        </div>
 
         <p v-if="combat.error" role="alert" class="status status-error">
           {{ combat.error }}
@@ -937,6 +967,27 @@ async function handleCreate(): Promise<void> {
               </button>
             </header>
             <RulesDrawer />
+          </section>
+        </Transition>
+
+        <Transition name="drawer">
+          <section
+            v-if="lobby.mySeat?.isGM"
+            v-show="contentDrawerOpen"
+            id="content-pane"
+            ref="contentDrawer"
+            class="sheet-pane content-pane"
+            aria-labelledby="content-heading"
+            tabindex="-1"
+            @keydown.esc.stop="closeContentDrawer"
+          >
+            <header class="drawer-header">
+              <h2 id="content-heading">Game content</h2>
+              <button type="button" class="drawer-close" @click="closeContentDrawer">
+                Close
+              </button>
+            </header>
+            <ContentImportPanel @imported="contentVersion += 1" />
           </section>
         </Transition>
 
@@ -1153,13 +1204,6 @@ async function handleCreate(): Promise<void> {
   color: var(--color-text);
 }
 
-.playing-as {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0;
-}
-
 .status {
   padding: var(--space-2) var(--space-3);
   border-radius: 4px;
@@ -1178,9 +1222,12 @@ async function handleCreate(): Promise<void> {
   align-items: center;
   gap: var(--space-3);
   overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  max-width: 100%;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   padding: var(--space-2) var(--space-3);
+  background: var(--overlay-bg);
+  box-shadow: var(--overlay-shadow);
 }
 
 .start-combat {
@@ -1291,11 +1338,10 @@ button[aria-pressed='true'] {
   max-height: 100%;
 }
 
-/* Grows to fill the map column: the turn/party strip lives outside it
-   entirely (TableView.vue's own #party-bar, above .table-body), and the
-   banners and action dock below overlay it rather than sharing its flex
-   row -- only a combat error (.status-error, rare) is still a flow
-   sibling. */
+/* Grows to fill the map column: the top strip, banners, and action dock
+   all overlay it (`.top-stack`, `.action-dock-rail`) rather than sharing
+   its flex row -- only a combat error (.status-error, rare) is still a
+   flow sibling. */
 .map-pane {
   flex: 1 1 auto;
   min-height: 16rem;
@@ -1304,19 +1350,41 @@ button[aria-pressed='true'] {
   border-radius: 4px;
 }
 
-/* Small overlay banners (preview, targeting), centered over the map's top
-   edge rather than pushing it down -- stacked if both happen to show. */
-.top-banners {
+/* The top-centre overlay: the party/turn-order strip, then the preview and
+   targeting banners stacked right below it -- one column, so the two
+   don't have to separately agree on a top offset. `left`/`right` (rather
+   than `left: 50%` plus a transform) give this a real width to center
+   its children *within*, the same reason `.action-dock-rail` does it
+   below -- a shrink-to-fit box has nothing for a child's own `max-width:
+   100%` to resolve against. */
+.top-stack {
   position: absolute;
   top: var(--space-2);
-  left: 50%;
-  transform: translateX(-50%);
+  left: var(--space-2);
+  right: var(--space-2);
   z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  max-width: calc(100% - 2 * var(--space-2));
+  /* The stack's own box spans the full width so its children have a real
+     width to center within, but most of that box is empty space either
+     side of the centred content -- `.action-dock-rail` hits the same
+     problem below. `pointer-events: none` here, `auto` on the actual
+     content, stops that empty space from blocking clicks to the map. */
+  pointer-events: none;
+}
+
+.top-stack > * {
+  pointer-events: auto;
+}
+
+.top-banners {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
 }
 
 /* The action dock's rail: the strip of the map column to the right of
@@ -1379,12 +1447,13 @@ button[aria-pressed='true'] {
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
 }
 
-/* Rules, Seats, and Manage party all share the scene drawer's right-edge
-   slot -- closeOtherRightDrawers keeps only one of the four open at a
-   time, so they never actually overlap. */
+/* Rules, Seats, Manage party, and Game content all share the scene
+   drawer's right-edge slot -- closeOtherRightDrawers keeps only one of the
+   five open at a time, so they never actually overlap. */
 .rules-pane,
 .seats-pane,
-.party-manager-pane {
+.party-manager-pane,
+.content-pane {
   right: 0;
   left: auto;
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);

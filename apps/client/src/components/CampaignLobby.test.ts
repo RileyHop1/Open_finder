@@ -159,7 +159,10 @@ describe('CampaignLobby', () => {
     const seated = mountLobby();
     await flushPromises();
     expect(seated.find('.table').exists()).toBe(true);
-    expect(seated.text()).toContain('Playing as Valeros');
+    // "Playing as" is the gear menu's own header line now
+    // (`feat/chrome-into-gear-menu`), not a row shown on the page itself.
+    await seated.find('.gear-button').trigger('click');
+    expect(seated.find('.gear-seat').text()).toContain('Playing as Valeros');
     // Map-first (ADR 0022): TableView is the whole page while seated, so
     // none of this screen's own chrome -- including the seat roster --
     // renders alongside it.
