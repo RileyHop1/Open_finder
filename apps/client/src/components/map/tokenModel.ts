@@ -141,6 +141,13 @@ export function tokenViews(
   });
 }
 
+/** The text drawn under a token on the map: just its name and health (`Goblin 12/40`). Hidden and on-turn are already shown by fading and a ring, so they stay out of it; `describeToken` has them in words. */
+export function tokenCaption(view: Pick<TokenView, 'label' | 'hp'>): string {
+  return view.hp === undefined
+    ? view.label
+    : `${view.label} ${view.hp.current}/${view.hp.max}`;
+}
+
 /** The words a list or a screen reader gets for a token: its label, health as `12/40`, and "hidden" or "current turn" when true (never colour or fading alone). */
 export function describeToken(
   view: Pick<TokenView, 'label' | 'hidden' | 'onTurn'> & Partial<Pick<TokenView, 'hp'>>,
