@@ -233,12 +233,14 @@ describe('ActionBar', () => {
     expect(wrapper.find('.action-bar > .mods').exists()).toBe(true);
   });
 
-  it('hides the cost picker with no combatant to spend against, but keeps the form', () => {
+  it('always shows the cost picker, even with no combatant to spend against', () => {
     const wrapper = mount(ActionBar, {
       props: { view: view({ canAct: false }), label: 'Ada' },
     });
-    expect(wrapper.find('#action-cost').exists()).toBe(false);
-    expect(wrapper.find('form.action-form').exists()).toBe(true);
+    expect(wrapper.find('#action-cost').exists()).toBe(true);
+    expect(wrapper.get('#action-cost').attributes('title')).toContain(
+      'only during a combat',
+    );
   });
 
   it('shows why an action was not sent', () => {

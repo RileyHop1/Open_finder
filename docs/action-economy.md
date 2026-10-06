@@ -61,15 +61,19 @@ a strike or sheet check sends them as `modifiers` so the chat breakdown lists
 each one ([operations.md](operations.md)), and the generic action's dice get
 their sum added to the expression.
 
-**The hotbar** (`ActionHotbar.vue`, `SaveToHotbar.vue`): ten slots in a **bar of their own**, a second box stacked under the action bar at the same width (a grid of equal slots that wraps to a second row when narrow, so saving or clearing one never reshapes it). The form and Save button stay on the action bar; a slot or number key loads into the form, and an empty slot's "+" saves the form there, on keys 1 to 9 then 0, saved on the actor with `actor.setQuickbar`
-([actor.md](actor.md)) so they follow the player to any device. A filled slot
-shows the player's own name for it and its cost. Choosing a slot (click, or its
-number key when not typing) **loads it into the form** rather than running it, so
-the player can switch on this time's modifiers, tweak the dice, and then press
-Spend. **Save** next to Spend asks for a name (offered: the action's text) and a
-slot, each slot labelled with what it would replace; with something in the form,
-an empty slot also offers a "+" that saves there directly. A slot is renamed in place
-(F2 or double click) and removed with its own button; nothing is hover-only. The bar itself is shown only for a
+**The hotbar** (`ActionHotbar.vue`, `SaveToHotbar.vue`): ten slots on keys 1 to 9 then 0,
+saved on the actor with `actor.setQuickbar` ([actor.md](actor.md)) so they follow the
+player to any device. It is a **bar of its own**, stacked under the action bar at the
+same width, a grid of equal slots. A slot shows only the player's name for the action,
+cut to a fixed width when long, so no slot ever changes size. Choosing a slot (click, or
+its number key when not typing) **loads it into the form** rather than running it, so
+the player can switch on this time's modifiers, tweak the dice, and then press Spend.
+Everything else is in the slot's **▾ dropdown**: what it does, its cost and dice, and
+**Rename**, **Remove** and a **Hotkey** picker (moving to an occupied key swaps the
+two). **Save** next to Spend asks for a name (offered: the action's text) and a slot,
+each slot labelled with what it would replace; with something in the form, an empty slot
+also offers a "+" that saves there directly. Nothing is hover-only. The generic action's
+**Cost** picker is always shown (it only spends actions during a combat). The bar itself is shown only for a
 token this seat controls (the GM, any; a player, one they own) — see
 `docs/combat.md` for where that check lives. Still open, as a follow-up PR
 under the same C.5 item: range highlighting. Movement spending actions landed

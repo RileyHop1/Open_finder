@@ -774,6 +774,25 @@ describe('the turn bar', () => {
     });
   });
 
+  it('moves a hotbar slot to another key through its dropdown, trading places', async () => {
+    seedActiveCombat({
+      hotbar: [
+        { name: 'Stab', text: 'Sneak attack', cost: 2 },
+        { name: 'Trip', text: 'Trip', cost: 1 },
+        ...Array.from({ length: 8 }, () => null),
+      ],
+    });
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    await wrapper.get('button[aria-label="Details for Stab, slot 1"]').trigger('click');
+    await wrapper.get('select[aria-label="Hotkey for Stab"]').setValue('1');
+    await flushPromises();
+    const hotbar = (sentOperations()[0]?.payload as { hotbar: { name: string }[] })
+      .hotbar;
+    expect(hotbar[0]?.name).toBe('Trip');
+    expect(hotbar[1]?.name).toBe('Stab');
+  });
+
   it('removes and renames a hotbar slot, saving the rest unchanged', async () => {
     seedActiveCombat({
       hotbar: [
@@ -783,7 +802,11 @@ describe('the turn bar', () => {
     });
     const wrapper = await mountTable();
     await wrapper.get('.token-list button').trigger('click');
-    await wrapper.get('button[aria-label="Remove Stab from slot 1"]').trigger('click');
+    await wrapper.get('button[aria-label="Details for Stab, slot 1"]').trigger('click');
+    await wrapper
+      .findAll('.hotbar-bar .details button')
+      .find((b) => b.text() === 'Remove')
+      ?.trigger('click');
     await flushPromises();
     expect((sentOperations()[0]?.payload as { hotbar: unknown[] }).hotbar[0]).toBeNull();
   });

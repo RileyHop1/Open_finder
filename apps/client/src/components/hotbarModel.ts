@@ -42,3 +42,14 @@ export function defaultSlotName(text: string, dice: string): string {
   const source = text.trim() === '' ? dice.trim() : text.trim();
   return source.slice(0, 24);
 }
+
+/** `slots` with positions `a` and `b` swapped: moving a saved action to another key (an occupied key trades places). */
+export function swapSlots(
+  slots: readonly (HotbarAction | null)[],
+  a: number,
+  b: number,
+): (HotbarAction | null)[] {
+  return slots.map((slot, i) =>
+    i === a ? (slots[b] ?? null) : i === b ? (slots[a] ?? null) : slot,
+  );
+}

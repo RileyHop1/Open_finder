@@ -6,7 +6,7 @@
  * (the GM, any; a player, one they own). Clicking a strike variant rolls it
  * and -- while a combat is active -- spends 1 action. Everything else goes
  * through the generic action (ADR 0023, "calculate, don't enforce"): the
- * player says what they do, picks its cost (only while a combat is active),
+ * player says what they do, picks its cost (always shown; only spent while a combat is active),
  * and may add dice and a situational modifier of their own. Its one button,
  * Spend, also stands in for a bare "spend an action": with no text and no dice
  * it spends the cost and posts nothing. There are no
@@ -172,10 +172,14 @@ function submitAction(): void {
           placeholder="Action"
         />
         <select
-          v-if="view.canAct"
           id="action-cost"
           v-model="actionCost"
           aria-label="Cost"
+          :title="
+            view.canAct
+              ? 'How many actions this spends'
+              : 'How many actions this costs (spent only during a combat)'
+          "
         >
           <option value="free">Free</option>
           <option :value="1">◆</option>

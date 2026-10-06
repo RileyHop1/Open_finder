@@ -84,7 +84,7 @@ import {
 import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
 import ActionHotbar from './ActionHotbar.vue';
-import { slotForKey, withSlot } from './hotbarModel.js';
+import { slotForKey, swapSlots, withSlot } from './hotbarModel.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import GearMenu from './GearMenu.vue';
@@ -495,6 +495,14 @@ function setBarHotbar(hotbar: (HotbarAction | null)[]): void {
   const bar = actionBar.value;
   if (bar !== undefined) {
     void documents.send('actor.setQuickbar', { actorId: bar.actorId, hotbar });
+  }
+}
+
+/** Moves a saved action to another key, trading places with whatever is there. */
+function moveHotbarSlot(from: number, to: number): void {
+  const hotbar = actionBar.value?.hotbar;
+  if (hotbar !== undefined) {
+    setBarHotbar(swapSlots(hotbar, from, to));
   }
 }
 
@@ -1014,6 +1022,7 @@ async function handleCreate(): Promise<void> {
             @save-to="(index) => actionBarEl?.saveCurrentTo(index)"
             @remove="(index) => setBarHotbar(withSlot(actionBar!.hotbar, index, null))"
             @rename="renameHotbarSlot"
+            @move="moveHotbarSlot"
           />
         </div>
 

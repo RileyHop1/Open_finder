@@ -5,6 +5,7 @@ import {
   defaultSlotName,
   slotForKey,
   slotKey,
+  swapSlots,
   withSlot,
 } from './hotbarModel.js';
 
@@ -48,5 +49,17 @@ describe('defaultSlotName', () => {
     expect(defaultSlotName('  Sneak attack ', '1d6')).toBe('Sneak attack');
     expect(defaultSlotName('', ' 1d6 ')).toBe('1d6');
     expect(defaultSlotName('x'.repeat(40), '')).toHaveLength(24);
+  });
+});
+
+describe('swapSlots', () => {
+  it('moves an action to an empty key, or trades places with an occupied one, without mutating', () => {
+    const a = { name: 'A', text: 'a', cost: 1 as const };
+    const b = { name: 'B', text: 'b', cost: 2 as const };
+    const original = [a, null, b];
+    expect(swapSlots(original, 0, 1)).toEqual([null, a, b]);
+    expect(swapSlots(original, 0, 2)).toEqual([b, null, a]);
+    expect(swapSlots(original, 1, 1)).toEqual(original);
+    expect(original).toEqual([a, null, b]);
   });
 });
