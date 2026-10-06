@@ -141,7 +141,7 @@ async function selectFromGearMenu(
 describe('layout', () => {
   it('has a party bar, a map, a character pane, and a chat pane, each a named landmark', async () => {
     const wrapper = await mountTable();
-    expect(wrapper.find('nav[aria-label="Party"]').exists()).toBe(true);
+    expect(wrapper.find('nav[aria-label="Party or turn order"]').exists()).toBe(true);
     expect(wrapper.find('section[aria-label="Map"]').exists()).toBe(true);
     expect(wrapper.find('section[aria-labelledby="sheet-heading"]').exists()).toBe(true);
     expect(wrapper.find('#chat-pane').text()).toContain('chat');
@@ -216,6 +216,27 @@ describe('leaving the campaign', () => {
   });
 });
 
+describe('the Manage party drawer', () => {
+  it('is offered to the GM only, from the gear menu', async () => {
+    mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
+    const player = await mountTable();
+    await openGearMenu(player);
+    expect(gearMenuItem(player, 'Manage party')).toBeUndefined();
+    expect(player.find('#party-manager-pane').exists()).toBe(false);
+
+    mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
+    const gm = await mountTable();
+    await selectFromGearMenu(gm, 'Manage party');
+    const drawer = gm.get('#party-manager-pane');
+    expect((drawer.element as HTMLElement).style.display).not.toBe('none');
+    expect(drawer.find('.party-manager').exists()).toBe(true);
+
+    await drawer.trigger('keydown', { key: 'Escape' });
+    expect((drawer.element as HTMLElement).style.display).toBe('none');
+    expect(document.activeElement).toBe(gm.get('.gear-button').element);
+  });
+});
+
 describe('the turn bar', () => {
   it('is absent while no combat is active, and shown with one', async () => {
     const scene = sceneSchema.parse({
@@ -279,17 +300,18 @@ describe('the turn bar', () => {
     return scene;
   }
 
-  it('offers the GM "Start combat" with none running, and nothing to a player', async () => {
+  it('offers the GM "Start combat" beside the party bar with none running, and nothing to a player', async () => {
     sceneWithParty();
     mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
     const gm = await mountTable();
-    expect(gm.find('[data-testid="turn-bar"]').exists()).toBe(true);
-    expect(gm.text()).toContain('Start combat');
+    expect(gm.find('[data-testid="turn-bar"]').exists()).toBe(false);
+    expect(gm.find('.start-combat').exists()).toBe(true);
     gm.unmount();
 
     mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
     const player = await mountTable();
     expect(player.find('[data-testid="turn-bar"]').exists()).toBe(false);
+    expect(player.find('.start-combat').exists()).toBe(false);
   });
 
   it('sends combat.create then combat.start when the GM clicks Start combat', async () => {
@@ -299,7 +321,7 @@ describe('the turn bar', () => {
     vi.mocked(emitOperation).mockResolvedValueOnce({ ok: true });
 
     const wrapper = await mountTable();
-    await wrapper.find('[data-testid="turn-bar"] button').trigger('click');
+    await wrapper.find('.start-combat').trigger('click');
     await flushPromises();
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
       type: 'combat.create',
@@ -1306,7 +1328,7 @@ describe('a monster’s sheet', () => {
 describe('party bar', () => {
   it('shows an empty message with no party', async () => {
     const wrapper = await mountTable();
-    expect(wrapper.find('.party-bar').text()).toContain('No party yet');
+    expect(wrapper.find('.top-strip').text()).toContain('No party yet');
   });
 
   it('lists the members in party order and opens one on click', async () => {

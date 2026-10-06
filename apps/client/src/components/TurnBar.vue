@@ -1,22 +1,22 @@
 <script setup lang="ts">
 /**
- * The turn bar: the combatants in turn order across the top of the map, the one
- * with the action first and marked "Acting now" in words (never colour alone).
- * Each portrait is a button that selects and centres that token. It is an
- * ordinary list, so Tab, Enter, and a screen reader all work.
+ * The turn bar: the combatants in turn order across the top of the table (ADR
+ * 0022's top strip), the one with the action first and marked "Acting now" in
+ * words (never colour alone). Each portrait is a button that selects and
+ * centres that token. It is an ordinary list, so Tab, Enter, and a screen
+ * reader all work.
  *
  * It shows only what this seat can read. A creature the table cannot see taking
  * its turn appears as one line, "Someone is acting".
  *
- * **The GM's switch** (CLAUDE.md: combat only happens when the GM starts it)
- * lives here too, as `showControls`: with no active combat it is the only way
- * onto the wire ("Start combat"), plus a direct initiative override per
- * combatant (the manual path every automated roll gets) once one is running.
- * A player is never passed `showControls`, so these do not exist for them,
- * not merely hidden. Only turn *order* lives here -- ending a turn, ending
- * the combat, and the free-movement switch are `TurnControls.vue`'s, down
- * with the action bar, since those are things you do each turn rather than
- * facts about the order itself.
+ * Only rendered while a combat is active -- the top strip shows `PartyBar`
+ * instead otherwise, and the GM's "Start combat" lives there too, beside
+ * `PartyBar`, rather than as a state of this component. `showControls` (the
+ * GM only) is just the per-combatant initiative override (the manual path
+ * every automated roll gets) -- ending a turn, ending the combat, and the
+ * free-movement switch are `TurnControls.vue`'s, at this strip's other end,
+ * since those are things you do each turn rather than facts about the order
+ * itself.
  */
 import { reactive } from 'vue';
 
@@ -26,14 +26,11 @@ defineProps<{
   items: readonly TurnBarItem[];
   round: number;
   unseenActing: boolean;
-  /** Whether a combat is running (round/items apply) or there is none yet to show. */
-  active: boolean;
-  /** Whether this seat is the GM: shows "Start combat" and the initiative override. */
+  /** Whether this seat is the GM: shows the per-combatant initiative override. */
   showControls: boolean;
 }>();
 const emit = defineEmits<{
   focus: [tokenId: string];
-  start: [];
   setInitiative: [combatantId: string, initiative: number];
 }>();
 
@@ -50,15 +47,9 @@ function submitOverride(combatantId: string): void {
 
 <template>
   <section class="turn-bar" aria-label="Turn order" data-testid="turn-bar">
-    <p v-if="!active && showControls" class="round">No combat is running.</p>
-    <button v-if="!active && showControls" type="button" @click="emit('start')">
-      Start combat
-    </button>
-    <template v-if="active">
-      <p class="round">Round {{ round }}</p>
-      <p v-if="unseenActing" class="unseen" role="status">Someone is acting</p>
-    </template>
-    <ol v-if="active">
+    <p class="round">Round {{ round }}</p>
+    <p v-if="unseenActing" class="unseen" role="status">Someone is acting</p>
+    <ol>
       <li
         v-for="item in items"
         :key="item.id"
@@ -108,11 +99,15 @@ function submitOverride(combatantId: string): void {
 </template>
 
 <style scoped>
+/* No overflow of its own: the top strip (TableView.vue's .top-strip,
+   ADR 0022) is the one scroll container, shared with TurnControls beside
+   it, rather than nesting a second horizontal scrollbar inside it. */
 .turn-bar {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 0.75rem;
-  overflow-x: auto;
+  min-width: 0;
   padding: 0.25rem 0.5rem;
 }
 .round,

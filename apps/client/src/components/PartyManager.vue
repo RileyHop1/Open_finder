@@ -8,7 +8,10 @@
  * line so it is heard as well as seen.
  *
  * It never talks to the server: it emits what the GM asked for and
- * `TableView` sends the party operation.
+ * `TableView` sends the party operation. Mounted inside the table's
+ * gear-menu "Manage party" drawer, which already gives it an open/close
+ * affordance and a heading, so this is a plain panel rather than its own
+ * `<details>`.
  */
 import type { Actor } from '@hearthtable/core';
 import { computed, ref } from 'vue';
@@ -64,9 +67,7 @@ function add(): void {
 </script>
 
 <template>
-  <details class="party-manager">
-    <summary>Manage party</summary>
-
+  <div class="party-manager">
     <p v-if="members.length === 0" class="empty">Nobody is in the party yet.</p>
     <ol v-else class="members">
       <li v-for="(member, index) in members" :key="member.id">
@@ -111,21 +112,10 @@ function add(): void {
     </form>
 
     <p class="announcement" role="status">{{ announcement }}</p>
-  </details>
+  </div>
 </template>
 
 <style scoped>
-.party-manager {
-  margin-top: var(--space-2);
-}
-
-.party-manager summary {
-  cursor: pointer;
-  min-height: var(--touch-target-min);
-  display: flex;
-  align-items: center;
-}
-
 .members {
   list-style-position: inside;
   margin: var(--space-2) 0;

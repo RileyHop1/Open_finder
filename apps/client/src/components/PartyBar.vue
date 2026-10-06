@@ -191,10 +191,16 @@ const cards = computed<Card[]>(() =>
 </template>
 
 <style scoped>
+/* No wrap, and no overflow of its own: the top strip (TableView.vue's
+   .top-strip, ADR 0022) is the one scroll container, once there are too
+   many cards to fit (CLAUDE.md's north star, "character portraits always
+   on screen"). */
 .party-members {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
   gap: var(--space-2);
+  min-width: 0;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -202,6 +208,7 @@ const cards = computed<Card[]>(() =>
 
 .party-member {
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--space-2);
   min-width: 11rem;

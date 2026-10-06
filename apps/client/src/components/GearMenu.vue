@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
  * The table's own menu, for everything that isn't the map: opening the
- * character sheet, GM scene, Rules, or Seats drawers, releasing the
- * current seat, and the GM's "Back to campaigns". Lives floated over the
- * map (ADR 0022, `feat/fullscreen-table-shell`) since the screen no longer
- * has a toolbar row to put these buttons in.
+ * character sheet, GM scene, Rules, Seats, or Manage party drawers,
+ * releasing the current seat, and the GM's "Back to campaigns". Lives
+ * floated over the map (ADR 0022, `feat/fullscreen-table-shell`) since the
+ * screen no longer has a toolbar row to put these buttons in.
  *
  * A plain `menu` button: arrow keys, Home and End move between items, and
  * Escape closes it and returns focus to the gear button -- the same
@@ -21,7 +21,7 @@
 import { nextTick, ref, useTemplateRef } from 'vue';
 
 defineProps<{
-  /** Whether the GM-only items (Scenes, Back to campaigns) should show. */
+  /** Whether the GM-only items (Scenes, Manage party, Back to campaigns) should show. */
   isGm: boolean;
 }>();
 
@@ -30,6 +30,7 @@ const emit = defineEmits<{
   scenes: [];
   rules: [];
   seats: [];
+  manageParty: [];
   releaseSeat: [];
   leaveCampaign: [];
 }>();
@@ -67,7 +68,14 @@ function items(): HTMLElement[] {
  * button.
  */
 function select(
-  item: 'characters' | 'scenes' | 'rules' | 'seats' | 'releaseSeat' | 'leaveCampaign',
+  item:
+    | 'characters'
+    | 'scenes'
+    | 'rules'
+    | 'seats'
+    | 'manageParty'
+    | 'releaseSeat'
+    | 'leaveCampaign',
 ): void {
   close();
   switch (item) {
@@ -82,6 +90,9 @@ function select(
       break;
     case 'seats':
       emit('seats');
+      break;
+    case 'manageParty':
+      emit('manageParty');
       break;
     case 'releaseSeat':
       emit('releaseSeat');
@@ -149,6 +160,11 @@ function onFocusOut(event: FocusEvent): void {
       </li>
       <li role="none">
         <button type="button" role="menuitem" @click="select('seats')">Seats</button>
+      </li>
+      <li v-if="isGm" role="none">
+        <button type="button" role="menuitem" @click="select('manageParty')">
+          Manage party
+        </button>
       </li>
       <li role="none">
         <button type="button" role="menuitem" @click="select('releaseSeat')">

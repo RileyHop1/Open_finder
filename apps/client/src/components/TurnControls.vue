@@ -50,9 +50,13 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
+/* Flex: none and nowrap -- sits at the right end of the top strip
+   (TableView.vue's .top-strip, ADR 0022), which scrolls horizontally
+   rather than wrapping this to a second row. */
 .turn-controls {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
