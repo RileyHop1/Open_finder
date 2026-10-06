@@ -65,6 +65,7 @@
 import type { HotbarAction, SituationalModifier } from '@hearthtable/core';
 import { emptyHotbar, resolvePermission } from '@hearthtable/core';
 import { parse as parseDice } from '@hearthtable/dice/pure';
+import { partyStashSchema } from '@hearthtable/pf2e';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
 import { uploadAsset } from '../api/assets.js';
@@ -109,6 +110,7 @@ import DyingPanel from './sheet/DyingPanel.vue';
 import PortraitPicker from './sheet/PortraitPicker.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
 import InventoryPanel from './sheet/InventoryPanel.vue';
+import PartyStashPanel from './sheet/PartyStashPanel.vue';
 import StrikesPanel from './sheet/StrikesPanel.vue';
 
 const props = defineProps<{ worldId: string; seatName: string }>();
@@ -634,6 +636,46 @@ function give(
           },
         }),
   });
+}
+
+/** The party's shared stash, once there is a party. */
+const stash = computed(() => {
+  const parsed = partyStashSchema.safeParse(documents.party?.stash ?? {});
+  return documents.party === undefined || !parsed.success ? undefined : parsed.data;
+});
+
+/** The party members the GM can hand stash items and coins to. */
+const stashRecipients = computed(() =>
+  documents.members.map((actor) => ({ id: actor.id, name: actor.name })),
+);
+
+/** Moves an item (or part of a stack) or coins out of the stash to character `to`, GM only (the server enforces it). */
+async function takeFromStash(
+  to: string,
+  item?: { itemId: string; quantity?: number | undefined },
+  coins?: Record<string, number>,
+): Promise<boolean> {
+  return documents.send('inventory.transfer', {
+    from: { kind: 'party' },
+    to: { kind: 'actor', actorId: to },
+    ...(item === undefined
+      ? { coins }
+      : {
+          item: {
+            itemId: item.itemId,
+            ...(item.quantity === undefined ? {} : { quantity: item.quantity }),
+          },
+        }),
+  });
+}
+
+/** Splits the stash's coins evenly: one transfer of `share` to each member, stopping at the first the server refuses. The remainder stays in the stash. */
+async function splitStash(share: Record<string, number>): Promise<void> {
+  for (const member of documents.members) {
+    if (!(await takeFromStash(member.id, undefined, share))) {
+      return;
+    }
+  }
 }
 
 /** Bumped when an import finishes, so panels that listed content (the item picker, the condition picker) look again. */
@@ -1299,6 +1341,15 @@ async function handleCreate(): Promise<void> {
                 @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
                 @give="(itemId, to, quantity) => give(to, { itemId, quantity })"
                 @give-coins="(to, coins) => give(to, undefined, coins)"
+              />
+              <PartyStashPanel
+                v-if="stash !== undefined"
+                :stash="stash"
+                :is-gm="lobby.mySeat?.isGM === true"
+                :recipients="stashRecipients"
+                @take="(itemId, to, quantity) => takeFromStash(to, { itemId, quantity })"
+                @take-coins="(to, coins) => takeFromStash(to, undefined, coins)"
+                @split="splitStash"
               />
             </section>
           </section>

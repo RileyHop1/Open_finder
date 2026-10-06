@@ -39,6 +39,14 @@ for coins how much of each denomination. It sends one `inventory.transfer`
 recipient needs no consent. Escape cancels. Taking from the stash and the GM's
 loot hand-out are separate (PRs 15 and 16).
 
+**The party stash on screen** (`PartyStashPanel.vue`, under a character's items on
+their sheet): everyone at the table sees the shared purse and items. Players put
+things in with **Give…** ("Party stash" is a recipient). Taking out is the GM's call,
+as the server requires for any stash change: the GM can **Give…** an item (or part of
+a stack) or coins to any party member, or **Split evenly**, which sends each member
+an equal portion of the coins (worked out in copper, with change made) and leaves
+any remainder in the stash. The split is one `inventory.transfer` per member.
+
 ## Item price and Bulk
 
 `WeaponEntry`, `ArmorEntry`, and `GearEntry` each get two new optional fields:
