@@ -59,6 +59,16 @@ tells players nothing, so it never announces that it exists. A token the GM
 pre-places on a scene the party has not reached is invisible until the party
 arrives.
 
+## HP bars
+Players never receive an NPC actor, so a monster's health reaches them as a
+percentage on its token. `syncTokenHpBars` (`apps/server/src/tokenHpBars.ts`) runs
+inside every operation's transaction: for each NPC token whose `showHpBar` is on it
+keeps `hpBar.percent` (`current / max`, rounded, 0-100, temp HP ignored) in step with
+the actor, and clears `hpBar` when the bar is off, so a hidden bar leaves no number
+behind. Changed tokens ride the same broadcast, and a player's copy contains the
+token and never the actor. A character's token carries no `hpBar`: its owner and the
+party read the character actor directly.
+
 ## Example
 ```ts
 tokenSchema.parse({
