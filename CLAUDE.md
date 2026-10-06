@@ -4,7 +4,9 @@
 A free, open-source, self-hostable virtual tabletop (VTT) for Pathfinder 2E.
 Architecture and UX follow Foundry VTT's proven concepts (worlds, documents,
 compendiums, system plugins), rebuilt from scratch. Goal: as easy to pick up
-as a video game, with the rules handled for you, at no cost.
+as a video game, with the math handled for you and the rulings left to the
+table, at no cost. It is a tabletop engine, not a rules simulation — see
+Automation boundary.
 
 **"Hearthtable" is a placeholder**, used so that the package scope, database
 filename, and Docker tag are not TBD. Renaming later is a pure-churn PR, so
@@ -26,7 +28,34 @@ Owlcat patterns to borrow:
 - **Game-style character creation and level-up** (see Player experience)
 
 Key difference: Owlcat's games are single-player; this is a shared table.
-The GM is the director and can always override the automation.
+The GM is the director and can always override the automation. Owlcat is the
+reference for how the table *looks and teaches*, not for how much it
+*enforces*: a computer game can refuse a move, a tabletop never should.
+
+## Automation boundary
+**Calculate and offer; never enforce.** This is the line Foundry's PF2e system
+draws, and it is ours too (`docs/adr/0023-calculate-dont-enforce.md`). Trying
+to simulate every rule is a project no solo maintainer finishes, and every gap
+in a simulation becomes a player who cannot do the thing the table agreed on.
+- **Automate the math:** statistics and modifiers (ADR 0008), degree of
+  success against a known DC, damage totals, Bulk, the things a player would
+  otherwise add up by hand and get wrong
+- **Offer application as one click, never apply silently:** a damage card has
+  an "apply" button; a condition is added from a menu. The person clicking is
+  the one making the ruling
+- **Never block a player on a rules check.** Action budgets, movement,
+  prerequisites, and encumbrance are tracked and *shown* — an overspend reads
+  "−1 action" with a marker — but the server never refuses an operation
+  because the rules engine disagrees. Permissions (who may act on what) are
+  still enforced; rules are not
+- **Everyone has a generic action:** describe it, pick its cost, roll your own
+  dice with your own situational modifiers. Anything the system does not model
+  goes through it, and that is the expected path, not a fallback
+- **The GM override path stays** (see GM experience): every automated number
+  can still be adjusted, re-rolled, or set by hand
+- When deciding whether to automate something new, ask "does this save the
+  table arithmetic, or does it make a ruling?" Automate the first; offer the
+  second as a button or leave it to the table
 
 ## Out of scope
 Foundry's surface area is enormous and "stay small" only means something if the
@@ -91,10 +120,13 @@ not as a convention — see `docs/adr/0006-content-scope-core-books.md`.
 
 ## Rulings and ambiguity
 Even inside the core books there are interactions the community argues about, and
-"the rules are handled for you" is a promise that has to survive those. The
+"the math is handled for you" is a promise that has to survive those. The
 policy:
 - **Automate the unambiguous reading.** Most of the rules are not actually in
   dispute.
+- **When in doubt, leave it to the table.** A ruling the app does not make is
+  one the GM makes in a second; a ruling the app makes wrongly is one a player
+  has to argue with software about (see Automation boundary).
 - **Where the rules are genuinely ambiguous, do not guess silently.** Implement
   the most common reading, and make sure the GM override path (see GM experience)
   is available on it. A wrong number the player trusts is worse than a visible
@@ -338,7 +370,8 @@ See `docs/adr/0005-concurrency.md`.
 ### Rule elements
 Rules automation is data-driven: "rule elements" on items add modifiers, apply
 conditions, change damage. Never hardcode logic per feat. This is the highest-risk
-decision in the project — see `docs/adr/0004-rule-elements.md`.
+decision in the project — see `docs/adr/0004-rule-elements.md`. Rule elements
+compute numbers; they never refuse an action (see Automation boundary).
 - We define **our own** rule-element schema in `packages/core`. The importer maps
   upstream types onto it.
 - **v1 supports a subset:** flat modifiers, damage dice, roll options, granted
@@ -377,9 +410,10 @@ The rules should teach themselves, the way they do in a video game.
   journals. Text comes from the ORC-licensed compendium data
 - **Character building and level-ups feel like a game:** a step-by-step
   wizard (ancestry → background → class → ...) with art slots, clear previews
-  of what each choice gives, only valid options shown, and prerequisites
-  explained instead of hidden. Level-up highlights exactly what's new and
-  what needs a choice
+  of what each choice gives, valid options shown first, and prerequisites
+  explained instead of hidden. An off-list pick is allowed with a visible
+  warning (the GM decides, per Automation boundary), not refused. Level-up
+  highlights exactly what's new and what needs a choice
 - **Show the math:** click any number (AC, a skill bonus, a roll) to see
   the breakdown of where each modifier comes from
 
@@ -427,7 +461,7 @@ Milestones are **goals, not PRs.** Each one is split into many small PRs
 breakdown as a checklist in a GitHub issue and get it approved.
 
 **v1's goal is a playable game**: a table can sit down, make characters, put
-tokens on a map, and run a full session with the rules handled. Everything that
+tokens on a map, and run a full session with the math handled. Everything that
 is not required for that is post-v1 — valuable, planned, but not blocking a first
 real session.
 
