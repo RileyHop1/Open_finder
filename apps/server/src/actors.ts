@@ -12,7 +12,14 @@
  *   (`writeGuard.ts`).
  */
 
-import type { Actor, BaseDocument, Party, Seat } from '@hearthtable/core';
+import type {
+  Actor,
+  BaseDocument,
+  HotbarAction,
+  SituationalModifier,
+  Party,
+  Seat,
+} from '@hearthtable/core';
 import {
   actorSchema,
   applyChanges,
@@ -293,4 +300,31 @@ export function deleteActor(
     party: removeFromParty(store, payload.actorId),
     tokens: deleteTokensOf(store, payload.actorId),
   };
+}
+
+/**
+ * Replaces the saved situational modifiers and/or hotbar of actor `actorId`
+ * (ADR 0023). The actor's owner or the GM only, like any change to an actor;
+ * each list the payload names is stored whole, validated by the same schema the
+ * operation used, and the other list is left as it was.
+ */
+export function setQuickbar(
+  store: WorldStore,
+  seat: Seat,
+  payload: {
+    actorId: string;
+    modifiers?: SituationalModifier[] | undefined;
+    hotbar?: (HotbarAction | null)[] | undefined;
+  },
+): Actor {
+  const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
+  const actor = actorSchema.parse(raw);
+  const updated: Actor = {
+    ...actor,
+    ...(payload.modifiers === undefined ? {} : { modifiers: payload.modifiers }),
+    ...(payload.hotbar === undefined ? {} : { hotbar: payload.hotbar }),
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+  return updated;
 }

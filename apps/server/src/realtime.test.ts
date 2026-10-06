@@ -810,6 +810,41 @@ describe('actor.create and actor.delete', () => {
     }
   });
 
+  it('saves modifiers and a hotbar for the owner, keeps the other list, and refuses a non-owner', async () => {
+    const table = await seatedTable();
+    const { owner, other } = table;
+    const everyone = allSockets(table);
+    const created = everyone.map(nextBroadcast);
+    await emitOperation(owner, op('actor.create', { kind: 'character', name: 'Hero' }));
+    const actorId = (await Promise.all(created))[0]?.documents[0]?.id ?? '';
+
+    const hotbar = [
+      { name: 'Stab', text: 'Sneak attack', cost: 2, dice: '1d6' },
+      ...Array.from({ length: 9 }, () => null),
+    ];
+    const heard = everyone.map(nextBroadcast);
+    expect(
+      await emitOperation(owner, op('actor.setQuickbar', { actorId, hotbar })),
+    ).toEqual({ ok: true });
+    for (const broadcast of await Promise.all(heard)) {
+      expect(broadcast.documents[0]).toMatchObject({ id: actorId, hotbar });
+    }
+
+    const modifiers = [{ value: 2, label: 'Flanking', active: true }];
+    expect(
+      await emitOperation(owner, op('actor.setQuickbar', { actorId, modifiers })),
+    ).toEqual({ ok: true });
+    // Sending one list leaves the other as it was.
+    expect(store.getDocument(actorId)).toMatchObject({ modifiers, hotbar });
+
+    const refused = await emitOperation(
+      other,
+      op('actor.setQuickbar', { actorId, modifiers: [] }),
+    );
+    expect(refused.ok).toBe(false);
+    expect(store.getDocument(actorId)).toMatchObject({ modifiers });
+  });
+
   it('refuses an update from a non-owner and from an invalid change, logging neither', async () => {
     const table = await seatedTable();
     const { owner, other } = table;

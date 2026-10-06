@@ -9,6 +9,7 @@
 import { z } from 'zod';
 
 import { baseDocumentSchema } from './document.js';
+import { hotbarSchema, situationalModifiersSchema } from './quickbar.js';
 
 /** What sort of thing an actor is. Hazards join the same document type rather than getting their own (CLAUDE.md: "Actor: PC, NPC, hazard"). */
 export const ACTOR_KINDS = ['character', 'npc', 'hazard'] as const;
@@ -29,6 +30,10 @@ export const actorSchema = baseDocumentSchema.extend({
   portrait: z.string().min(1).optional(),
   /** The game system's own data. Opaque to core; see ADR 0014. */
   system: z.record(z.string(), z.unknown()),
+  /** Situational modifiers the player keeps ready ("Flanking +2"), switched on or off per roll. Absent until first saved. Changed only through `actor.setQuickbar`. */
+  modifiers: situationalModifiersSchema.optional(),
+  /** The saved-action hotbar: ten slots, keys 1 to 9 then 0. Absent until first saved. Changed only through `actor.setQuickbar`. */
+  hotbar: hotbarSchema.optional(),
 });
 
 export type Actor = z.infer<typeof actorSchema>;
