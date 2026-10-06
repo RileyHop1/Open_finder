@@ -21,6 +21,7 @@ const previewScene = vi.fn<(id: string | undefined) => void>();
 const send = vi.fn<(type: string, payload: unknown) => Promise<boolean>>();
 const placeToken =
   vi.fn<(actorId: string, at?: { x: number; y: number }) => Promise<boolean>>();
+const clearError = vi.fn<() => void>();
 const state = reactive<{
   shownScene: Scene | undefined;
   scenes: Scene[];
@@ -34,6 +35,7 @@ const state = reactive<{
   setLocalDrag: typeof setLocalDrag;
   clearLocalDrag: typeof clearLocalDrag;
   sendDrag: typeof sendDrag;
+  clearError: typeof clearError;
 }>({
   shownScene: undefined,
   scenes: [],
@@ -47,6 +49,7 @@ const state = reactive<{
   setLocalDrag,
   clearLocalDrag,
   sendDrag,
+  clearError,
 });
 const lobby = reactive<{ mySeat: Seat | undefined }>({ mySeat: undefined });
 vi.mock('../../stores/lobby.js', () => ({ useLobbyStore: () => lobby }));
@@ -831,6 +834,16 @@ describe('selecting and moving tokens', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('permission');
     // Nothing is announced as moved, and the earlier message is not left standing.
     expect(wrapper.get('.visually-hidden').text()).toBe('');
+  });
+
+  it("dismisses the refusal toast via its own close button, through the store's clearError", async () => {
+    const { wrapper } = await setup(GM);
+    state.error = 'you do not have permission to move this token';
+    await flushPromises();
+
+    await wrapper.get('.toast-dismiss').trigger('click');
+
+    expect(clearError).toHaveBeenCalledTimes(1);
   });
 });
 

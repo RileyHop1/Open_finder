@@ -52,9 +52,9 @@ function turnBarRow(page: Page, name: RegExp | string): Locator {
   return page.locator('[data-testid="turn-bar"] ol li').filter({ hasText: name });
 }
 
-/** The move-refusal note on the map, while it is showing one. */
+/** The move-refusal toast on the map, while it is showing one. */
 function moveError(page: Page): Locator {
-  return page.locator('.map-note.map-error');
+  return page.locator('.toast-notice.toast-notice--error');
 }
 
 test('a full combat turn: initiative, turn order, movement gating, a strike with MAP, and a condition expiring', async ({
