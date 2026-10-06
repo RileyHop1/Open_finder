@@ -11,7 +11,12 @@
  * costs nothing, and the generic action's cost picker has nothing to spend.
  */
 
-import type { Actor, Combatant } from '@hearthtable/core';
+import type {
+  Actor,
+  Combatant,
+  RollModifier,
+  SituationalModifier,
+} from '@hearthtable/core';
 import type { Statistic } from '@hearthtable/core';
 import {
   characterDataSchema,
@@ -55,14 +60,30 @@ export type GenericActionCost = 'free' | 'reaction' | 1 | 2 | 3;
 /**
  * The generic action form's submission (ADR 0023): anything the system does
  * not model, described by the player. `dice` is raw text for the server to
- * roll (empty for none); `modifier` is a situational bonus or penalty added
- * to it.
+ * roll (empty for none). Situational modifiers are not part of it: the table
+ * adds the player's switched-on ones to the dice.
  */
 export interface GenericAction {
   readonly text: string;
   readonly cost: GenericActionCost;
   readonly dice: string;
-  readonly modifier: number;
+}
+
+/** The sum of the modifiers that are switched on. */
+export function modifierSum(modifiers: readonly SituationalModifier[]): number {
+  return modifiers.reduce((sum, m) => (m.active ? sum + m.value : sum), 0);
+}
+
+/** What a roll carries: the switched-on modifiers, without their on/off flag. */
+export function activeModifiers(
+  modifiers: readonly SituationalModifier[] | undefined,
+): RollModifier[] {
+  return (modifiers ?? [])
+    .filter((m) => m.active)
+    .map((m) => ({
+      value: m.value,
+      ...(m.label === undefined ? {} : { label: m.label }),
+    }));
 }
 
 /** PF2e traits are sometimes a compound slug (`deadly-d10`): a plain trait never has a dash-number tail. */

@@ -16,6 +16,7 @@ import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
 import { ACTOR_DRAG_TYPE } from './map/placement.js';
 import { makeNpc } from './sheet/testNpc.js';
+import ActionBar from './ActionBar.vue';
 import TableView from './TableView.vue';
 
 // The lobby store (releasing a seat) and the chat panel are other components'
@@ -30,7 +31,7 @@ vi.mock('../realtime/socket.js');
 const NOW = '2026-09-30T00:00:00.000Z';
 const WORLD = crypto.randomUUID();
 
-function makeActor(name: string): Actor {
+function makeActor(name: string, fields: Partial<Actor> = {}): Actor {
   return {
     id: crypto.randomUUID(),
     worldId: WORLD,
@@ -42,6 +43,7 @@ function makeActor(name: string): Actor {
     kind: 'character',
     name,
     system: newCharacterData(),
+    ...fields,
   };
 }
 
@@ -585,9 +587,9 @@ describe('the turn bar', () => {
   });
 
   /** An active combat with Ada's token in it, seated as the GM, ready to select from the token list. */
-  function seedActiveCombat(): { combatantId: string } {
+  function seedActiveCombat(actorFields: Partial<Actor> = {}): { combatantId: string } {
     const scene = sceneWithParty();
-    const actor = makeActor('Ada');
+    const actor = makeActor('Ada', actorFields);
     const token = tokenSchema.parse({
       id: crypto.randomUUID(),
       worldId: WORLD,
@@ -637,12 +639,7 @@ describe('the turn bar', () => {
   }
 
   /** Mounts the table, selects Ada's token, and fills and submits the generic action form. */
-  async function doAction(fields: {
-    text: string;
-    cost?: string;
-    dice?: string;
-    modifier?: string;
-  }) {
+  async function doAction(fields: { text: string; cost?: string; dice?: string }) {
     const wrapper = await mountTable();
     expect(wrapper.find('.action-bar').exists()).toBe(false);
     await wrapper.get('.token-list button').trigger('click');
@@ -655,9 +652,6 @@ describe('the turn bar', () => {
     if (fields.dice !== undefined) {
       await wrapper.get('#action-dice').setValue(fields.dice);
     }
-    if (fields.modifier !== undefined) {
-      await wrapper.get('#action-modifier').setValue(fields.modifier);
-    }
     await wrapper.get('form.action-form').trigger('submit');
     await flushPromises();
     return wrapper;
@@ -668,20 +662,25 @@ describe('the turn bar', () => {
       .mocked(emitOperation)
       .mock.calls.map((call) => call[1] as { type: string; payload: unknown });
 
-  it('spends the cost and posts one labelled roll for a generic action with dice and a modifier', async () => {
-    const { combatantId } = seedActiveCombat();
+  it('spends the cost and posts one labelled roll for a generic action, adding the switched-on modifiers', async () => {
+    const { combatantId } = seedActiveCombat({
+      modifiers: [
+        { value: 2, label: 'Flanking', active: true },
+        { value: -4, label: 'Prone', active: false },
+        { value: -1, active: true },
+      ],
+    });
     await doAction({
       text: 'Pries the door open',
       cost: '2',
       dice: '1d20+7',
-      modifier: '-2',
     });
 
     expect(sentOperations()).toMatchObject([
       { type: 'combat.spendAction', payload: { combatantId, actions: 2 } },
       {
         type: 'chat.sendRoll',
-        payload: { expression: '1d20+7-2', label: 'Ada -- Pries the door open' },
+        payload: { expression: '1d20+7+1', label: 'Ada -- Pries the door open' },
       },
     ]);
   });
@@ -698,6 +697,18 @@ describe('the turn bar', () => {
     await doAction({ text: 'Talk to the guard', cost: 'free' });
     expect(sentOperations()).toMatchObject([
       { type: 'chat.sendMessage', payload: { text: 'Ada -- Talk to the guard' } },
+    ]);
+  });
+
+  it('saves a changed modifier list on the actor', async () => {
+    seedActiveCombat();
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    const modifiers = [{ value: 2, label: 'Flanking', active: true }];
+    wrapper.findComponent(ActionBar).vm.$emit('setModifiers', modifiers);
+    await flushPromises();
+    expect(sentOperations()).toMatchObject([
+      { type: 'actor.setQuickbar', payload: { modifiers } },
     ]);
   });
 

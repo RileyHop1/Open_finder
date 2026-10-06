@@ -62,6 +62,7 @@
  * the lobby owns the realtime connection, this only reads the stores it
  * feeds.
  */
+import type { SituationalModifier } from '@hearthtable/core';
 import { resolvePermission } from '@hearthtable/core';
 import { parse as parseDice } from '@hearthtable/dice/pure';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
@@ -75,6 +76,8 @@ import { useWorldsStore } from '../stores/worlds.js';
 import ActionBar from './ActionBar.vue';
 import {
   actionBarView,
+  activeModifiers,
+  modifierSum,
   type ActionBarStrike,
   type GenericAction,
 } from './actionBarModel.js';
@@ -240,6 +243,7 @@ const actionBar = computed(() => {
     combatantId: combatant?.id,
     view: actionBarView(actor, combatant),
     label: token.name ?? actor.name,
+    modifiers: actor.modifiers ?? [],
   };
 });
 
@@ -277,9 +281,11 @@ function fireStrike(targetTokenId: string | undefined): void {
   if (pending === undefined) {
     return;
   }
+  const modifiers = activeModifiers(documents.actorById(pending.actorId)?.modifiers);
   void documents.send('actor.rollStrike', {
     actorId: pending.actorId,
     ...pending.target,
+    ...(modifiers.length === 0 ? {} : { modifiers }),
     attackNumber: pending.attackNumber,
     ...(pending.dc === undefined ? {} : { dc: pending.dc }),
     ...(targetTokenId === undefined ? {} : { targetTokenId }),
@@ -324,7 +330,7 @@ const actionError = ref<string>();
 
 /**
  * The generic action (ADR 0023): the player's own description, cost, dice
- * and situational modifier, for anything the system does not model. The dice
+ * and the switched-on situational modifiers, for anything the system does not model. The dice
  * are checked first so a typo never spends the action; then, while a combat
  * is active, the cost is spent (a refused spend stops here -- the combat
  * store already shows why); then it posts one labelled roll, or a plain
@@ -336,13 +342,13 @@ async function barAction(action: GenericAction): Promise<void> {
     return;
   }
   actionError.value = undefined;
-  const sign = action.modifier < 0 ? '-' : '+';
+  const bonus = modifierSum(bar.modifiers);
   const expression =
     action.dice === ''
       ? undefined
-      : action.modifier === 0
+      : bonus === 0
         ? action.dice
-        : `${action.dice}${sign}${Math.abs(action.modifier)}`;
+        : `${action.dice}${bonus < 0 ? '-' : '+'}${Math.abs(bonus)}`;
   if (expression !== undefined) {
     const parsed = parseDice(expression);
     if (!parsed.ok) {
@@ -450,7 +456,24 @@ const dcPayload = computed(() =>
 /** Rolls are made by the server (it resolves the statistic and rolls the die); the result arrives in chat. */
 function roll(type: string, payload: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
-    void documents.send(type, { actorId: selectedId.value, ...payload });
+    // A check carries the roller's switched-on situational modifiers (ADR 0023).
+    const modifiers =
+      type === 'actor.rollCheck'
+        ? activeModifiers(documents.actorById(selectedId.value)?.modifiers)
+        : [];
+    void documents.send(type, {
+      actorId: selectedId.value,
+      ...(modifiers.length === 0 ? {} : { modifiers }),
+      ...payload,
+    });
+  }
+}
+
+/** Saves the selected action bar actor's situational modifiers (they follow the player to any device). */
+function setBarModifiers(modifiers: SituationalModifier[]): void {
+  const bar = actionBar.value;
+  if (bar !== undefined) {
+    void documents.send('actor.setQuickbar', { actorId: bar.actorId, modifiers });
   }
 }
 
@@ -901,8 +924,10 @@ async function handleCreate(): Promise<void> {
               :view="actionBar.view"
               :label="actionBar.label"
               :error="actionError"
+              :modifiers="actionBar.modifiers"
               @strike="barStrike"
               @action="barAction"
+              @set-modifiers="setBarModifiers"
               @hover-strike="barHoverStrike"
               @unhover-strike="barUnhoverStrike"
             />

@@ -47,9 +47,19 @@ active, also spends 1 action. Everything else is the **generic action**
 (ADR 0023, which removed the preset basic-action buttons and the GM-only
 "Other action"): any seat that controls the token describes what they do,
 picks a cost (Free, ◆, ◆◆, ◆◆◆, Reaction; shown only while a combat is
-active), and may add dice and a situational modifier. **Spend** spends the cost, then
+active), and may add dice. **Spend** spends the cost, then
 posts one labelled roll or a plain chat line; with no text and no dice it just
-spends the cost and says nothing. The tray, strikes and form sit in one row. The bar itself is shown only for a
+spends the cost and says nothing. The tray, strikes and form sit in one row.
+
+**Situational modifiers** (ADR 0023): a "Mods +3" button in the same row opens
+a small list (`SituationalMods.vue`) of the actor's saved modifiers, each with an
+on/off checkbox, a remove button, and an optional label ("Flanking"), plus a row
+to add one. They are saved on the actor (`actor.setQuickbar`, [actor.md](actor.md))
+and follow the player to another device. Every switched-on one counts toward
+every roll made from here: the strike buttons show the bonus with them added,
+a strike or sheet check sends them as `modifiers` so the chat breakdown lists
+each one ([operations.md](operations.md)), and the generic action's dice get
+their sum added to the expression. The bar itself is shown only for a
 token this seat controls (the GM, any; a player, one they own) — see
 `docs/combat.md` for where that check lives. Still open, as a follow-up PR
 under the same C.5 item: range highlighting. Movement spending actions landed
