@@ -27,29 +27,29 @@ describe('tokenSchema', () => {
     expect(parsed.name).toBeUndefined();
   });
 
-  it('hides the HP bar from players by default and keeps a server-set percentage', () => {
+  it('hides the HP bar from players by default and keeps server-set hit points', () => {
     const parsed = tokenSchema.parse(tokenFields());
     expect(parsed.showHpBar).toBe(false);
     expect(parsed.hpBar).toBeUndefined();
     const shown = tokenSchema.parse({
       ...tokenFields(),
       showHpBar: true,
-      hpBar: { percent: 40 },
+      hpBar: { current: 12, max: 40 },
     });
-    expect(shown).toMatchObject({ showHpBar: true, hpBar: { percent: 40 } });
+    expect(shown).toMatchObject({ showHpBar: true, hpBar: { current: 12, max: 40 } });
   });
 
-  it('rejects an HP percentage outside 0 to 100', () => {
-    for (const percent of [-1, 101, Number.NaN]) {
-      expect(
-        tokenSchema.safeParse({ ...tokenFields(), hpBar: { percent } }).success,
-      ).toBe(false);
+  it('rejects negative or fractional hit points, and reads an old percent shape as absent', () => {
+    for (const hpBar of [
+      { current: -1, max: 40 },
+      { current: 1.5, max: 40 },
+      { current: 1, max: -2 },
+    ]) {
+      expect(tokenSchema.parse({ ...tokenFields(), hpBar }).hpBar).toBeUndefined();
     }
-    for (const percent of [0, 100]) {
-      expect(
-        tokenSchema.safeParse({ ...tokenFields(), hpBar: { percent } }).success,
-      ).toBe(true);
-    }
+    expect(
+      tokenSchema.parse({ ...tokenFields(), hpBar: { percent: 40 } }).hpBar,
+    ).toBeUndefined();
   });
 
   it('keeps a label, a footprint, and the hidden flag', () => {

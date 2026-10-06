@@ -34,12 +34,16 @@ export const tokenSchema = baseDocumentSchema.extend({
   /** Whether players see this token's HP bar. A character's bar is always shown; this is the GM's per-token switch for a monster, off by default. */
   showHpBar: z.boolean().default(false),
   /**
-   * The health a player may see, as a percentage of maximum HP. **Server-maintained**
-   * and never set by a client (`token.update` has no such field): it exists so a
-   * player can read "this goblin is at 40%" without ever receiving the NPC's stat
-   * block. Absent until the server first fills it.
+   * The health a player may see: current and maximum hit points. **Server-maintained**
+   * and never set by a client (`token.update` has no such field), so a player can read
+   * "12/40" on a shown monster without ever receiving its stat block. Absent until the
+   * server first fills it. An old stored `{ percent }` from before this shape reads as
+   * absent and is refilled the next time the monster or token changes.
    */
-  hpBar: z.object({ percent: z.number().min(0).max(100) }).optional(),
+  hpBar: z
+    .object({ current: z.number().int().min(0), max: z.number().int().min(0) })
+    .optional()
+    .catch(undefined),
 });
 
 export type Token = z.infer<typeof tokenSchema>;

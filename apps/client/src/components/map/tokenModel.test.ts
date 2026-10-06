@@ -198,12 +198,16 @@ describe('tokenAt', () => {
 
 describe('HP bars', () => {
   const hero = { name: 'Valeros', portrait: undefined };
-  const character = { kind: 'character' as const, percent: 60 };
-  const monster = { kind: 'npc' as const, percent: 25 };
+  const character = { kind: 'character' as const, current: 24, max: 40 };
+  const monster = { kind: 'npc' as const, current: 10, max: 40 };
 
   it('shows a character’s bar to everyone, from the actor', () => {
     const [view] = tokenViews([makeToken()], 100, () => hero, { hpOf: () => character });
-    expect(view).toMatchObject({ hpPercent: 60, hpHidden: false, npc: false });
+    expect(view).toMatchObject({
+      hp: { current: 24, max: 40 },
+      hpHidden: false,
+      npc: false,
+    });
   });
 
   it('gives the GM every monster’s bar, dashed while the players are not shown it', () => {
@@ -214,44 +218,48 @@ describe('HP bars', () => {
       hpOf: () => monster,
     });
     expect(a).toMatchObject({
-      hpPercent: 25,
+      hp: { current: 10, max: 40 },
       hpHidden: true,
       npc: true,
       showHpBar: false,
     });
     expect(b).toMatchObject({
-      hpPercent: 25,
+      hp: { current: 10, max: 40 },
       hpHidden: false,
       npc: true,
       showHpBar: true,
     });
   });
 
-  it('gives a player a monster’s bar only from the token’s own percentage', () => {
+  it('gives a player a monster’s bar only from the token’s own hit points', () => {
     const hidden = makeToken();
-    const shown = makeToken({ showHpBar: true, hpBar: { percent: 40 } });
+    const shown = makeToken({ showHpBar: true, hpBar: { current: 16, max: 40 } });
     const [a, b] = tokenViews([hidden, shown], 100, () => undefined);
-    expect(a?.hpPercent).toBeUndefined();
-    expect(b).toMatchObject({ hpPercent: 40, hpHidden: false });
+    expect(a?.hp).toBeUndefined();
+    expect(b).toMatchObject({ hp: { current: 16, max: 40 }, hpHidden: false });
   });
 
   it('ignores the actor for a player even when the monster’s sheet is readable', () => {
     const [view] = tokenViews([makeToken()], 100, () => hero, { hpOf: () => monster });
-    expect(view?.hpPercent).toBeUndefined();
+    expect(view?.hp).toBeUndefined();
   });
 
-  it('says the health in words, and that the bar is hidden from players', () => {
-    expect(
-      describeToken({ label: 'Goblin', hidden: false, onTurn: false, hpPercent: 40 }),
-    ).toBe('Goblin (40% HP)');
+  it('says the health as current/max, briefly', () => {
     expect(
       describeToken({
         label: 'Goblin',
         hidden: false,
         onTurn: false,
-        hpPercent: 40,
-        hpHidden: true,
+        hp: { current: 16, max: 40 },
       }),
-    ).toBe('Goblin (40% HP, bar hidden from players)');
+    ).toBe('Goblin 16/40');
+    expect(
+      describeToken({
+        label: 'Goblin',
+        hidden: true,
+        onTurn: true,
+        hp: { current: 16, max: 40 },
+      }),
+    ).toBe('Goblin 16/40 (hidden, current turn)');
   });
 });

@@ -1,8 +1,8 @@
 /**
- * Keeps each token's `hpBar` (the percentage a player may see) in step with its
- * monster's hit points. Players never receive an NPC actor (its permissions are
- * `none`), so a token carries the one number they are allowed -- never the stat
- * block, never the maximum.
+ * Keeps each token's `hpBar` (the hit points a player may see, current and
+ * maximum) in step with its monster's. Players never receive an NPC actor (its
+ * permissions are `none`), so a token carries the two numbers they are allowed --
+ * never the stat block.
  *
  * `syncTokenHpBars` runs inside `handleOperation`'s transaction after every
  * operation, so no code path that changes hit points, a token's `showHpBar`, or
@@ -18,16 +18,11 @@ import { npcDataSchema, prepareNpc } from '@hearthtable/pf2e';
 
 import type { WorldStore } from './worldStore.js';
 
-/** `current` as a whole percentage of `max`, kept within 0 to 100. A maximum of 0 or less reads as empty. */
-export function hpPercent(current: number, max: number): number {
-  if (max <= 0) {
-    return 0;
-  }
-  return Math.min(100, Math.max(0, Math.round((current / max) * 100)));
-}
-
-/** The percentage `token` should carry, or `undefined` when it should carry none. */
-function desiredPercent(store: WorldStore, token: Token): number | undefined {
+/** The hit points `token` should carry, or `undefined` when it should carry none. */
+function desiredHp(
+  store: WorldStore,
+  token: Token,
+): { current: number; max: number } | undefined {
   if (!token.showHpBar) {
     return undefined;
   }
@@ -39,7 +34,9 @@ function desiredPercent(store: WorldStore, token: Token): number | undefined {
   if (!data.success) {
     return undefined;
   }
-  return hpPercent(data.data.hp.current, prepareNpc(data.data).hp.max.total);
+  const max = Math.max(0, Math.round(prepareNpc(data.data).hp.max.total));
+  const current = Math.min(max, Math.max(0, Math.round(data.data.hp.current)));
+  return { current, max };
 }
 
 /**
@@ -72,14 +69,14 @@ export function syncTokenHpBars(
       continue;
     }
     const token = parsed.data;
-    const percent = desiredPercent(store, token);
-    if (percent === token.hpBar?.percent) {
+    const hp = desiredHp(store, token);
+    if (hp?.current === token.hpBar?.current && hp?.max === token.hpBar?.max) {
       continue;
     }
     const { hpBar: _stale, ...rest } = token;
     const updated: Token = {
       ...rest,
-      ...(percent === undefined ? {} : { hpBar: { percent } }),
+      ...(hp === undefined ? {} : { hpBar: hp }),
       updatedAt: new Date().toISOString(),
     };
     store.putDocument(updated);

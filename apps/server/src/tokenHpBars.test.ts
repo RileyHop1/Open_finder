@@ -8,7 +8,7 @@ import type { CreatureEntry } from '@hearthtable/pf2e';
 import { newNpcFromCreature } from '@hearthtable/pf2e';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { hpPercent, syncTokenHpBars } from './tokenHpBars.js';
+import { syncTokenHpBars } from './tokenHpBars.js';
 import { createWorld, type WorldStore } from './worldStore.js';
 
 let worldsRoot: string;
@@ -102,22 +102,8 @@ function setHp(actor: Actor, current: number): Actor {
   return next;
 }
 
-describe('hpPercent', () => {
-  it('rounds to a whole percentage and stays within 0 to 100', () => {
-    expect(hpPercent(40, 40)).toBe(100);
-    expect(hpPercent(10, 40)).toBe(25);
-    expect(hpPercent(1, 3)).toBe(33);
-    expect(hpPercent(-5, 40)).toBe(0);
-    expect(hpPercent(60, 40)).toBe(100);
-  });
-
-  it('reads a maximum of zero as empty rather than dividing by it', () => {
-    expect(hpPercent(5, 0)).toBe(0);
-  });
-});
-
 describe('syncTokenHpBars', () => {
-  it('leaves a token with its bar off carrying no percentage', () => {
+  it('leaves a token with its bar off carrying no hit points', () => {
     const actor = npc();
     const token = tokenFor(actor);
     expect(syncTokenHpBars(store, [actor])).toEqual([actor]);
@@ -128,9 +114,9 @@ describe('syncTokenHpBars', () => {
     const actor = npc();
     const token = tokenFor(actor, { showHpBar: true });
     const documents = syncTokenHpBars(store, [token]);
-    expect(stored(token.id).hpBar).toEqual({ percent: 100 });
+    expect(stored(token.id).hpBar).toEqual({ current: 40, max: 40 });
     expect(documents).toHaveLength(1);
-    expect(documents[0]).toMatchObject({ id: token.id, hpBar: { percent: 100 } });
+    expect(documents[0]).toMatchObject({ id: token.id, hpBar: { current: 40, max: 40 } });
   });
 
   it('follows the monster as it is hurt and healed, replacing nothing else', () => {
@@ -139,16 +125,16 @@ describe('syncTokenHpBars', () => {
     syncTokenHpBars(store, [token]);
 
     const hurt = syncTokenHpBars(store, [setHp(actor, 10)]);
-    expect(stored(token.id).hpBar).toEqual({ percent: 25 });
+    expect(stored(token.id).hpBar).toEqual({ current: 10, max: 40 });
     expect(hurt.map((d: BaseDocument) => d.id).sort()).toEqual(
       [actor.id, token.id].sort(),
     );
 
     syncTokenHpBars(store, [setHp(actor, 40)]);
-    expect(stored(token.id).hpBar).toEqual({ percent: 100 });
+    expect(stored(token.id).hpBar).toEqual({ current: 40, max: 40 });
   });
 
-  it('clears the percentage when the GM turns the bar off, so no number is left behind', () => {
+  it('clears the hit points when the GM turns the bar off, so no number is left behind', () => {
     const actor = npc();
     const token = tokenFor(actor, { showHpBar: true });
     syncTokenHpBars(store, [token]);
@@ -158,7 +144,14 @@ describe('syncTokenHpBars', () => {
     expect(stored(token.id).hpBar).toBeUndefined();
   });
 
-  it('writes nothing when the percentage has not changed', () => {
+  it('keeps current within the maximum, however high a hand edit put it', () => {
+    const actor = npc();
+    const token = tokenFor(actor, { showHpBar: true });
+    syncTokenHpBars(store, [setHp(actor, 99)]);
+    expect(stored(token.id).hpBar).toEqual({ current: 40, max: 40 });
+  });
+
+  it('writes nothing when the hit points have not changed', () => {
     const actor = npc();
     const token = tokenFor(actor, { showHpBar: true });
     syncTokenHpBars(store, [token]);
@@ -176,12 +169,12 @@ describe('syncTokenHpBars', () => {
     const c = tokenFor(other, { showHpBar: true });
     syncTokenHpBars(store, [a, b, c]);
     syncTokenHpBars(store, [setHp(actor, 20)]);
-    expect(stored(a.id).hpBar).toEqual({ percent: 50 });
-    expect(stored(b.id).hpBar).toEqual({ percent: 50 });
-    expect(stored(c.id).hpBar).toEqual({ percent: 100 });
+    expect(stored(a.id).hpBar).toEqual({ current: 20, max: 40 });
+    expect(stored(b.id).hpBar).toEqual({ current: 20, max: 40 });
+    expect(stored(c.id).hpBar).toEqual({ current: 40, max: 40 });
   });
 
-  it('gives a character token no percentage: its owner reads the actor itself', () => {
+  it('gives a character token no hit points: its owner reads the actor itself', () => {
     const character = npc('character');
     const token = tokenFor(character, { showHpBar: true });
     syncTokenHpBars(store, [token]);

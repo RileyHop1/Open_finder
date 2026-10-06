@@ -23,6 +23,7 @@ import type * as Pixi from 'pixi.js';
 import { type Camera, gridAlpha, type Size, worldTransform } from './camera.js';
 import { type ExitView, exitRadius } from './exitModel.js';
 import { FALLBACK_MAX_TEXTURE_SIZE } from './mapImage.js';
+import { hpPercent } from '../actorHp.js';
 import { describeToken, type TokenView } from './tokenModel.js';
 
 export interface SceneView {
@@ -157,7 +158,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
   /** A token: a ring with its portrait cut to a circle (or its initials), and its name beneath. */
   /** The HP bar: a dark track, a fill coloured by how full it is, and a dashed outline when only the GM sees it. */
   function drawHpBar(view: TokenView, radius: number, height: number): Pixi.Graphics {
-    const percent = view.hpPercent ?? 0;
+    const percent = view.hp === undefined ? 0 : hpPercent(view.hp.current, view.hp.max);
     const width = Math.max(view.diameter * 0.8, 24);
     const left = -width / 2;
     const top = radius + 4;
@@ -240,8 +241,8 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
 
     // A thin bar just under the token, its label pushed below it. A bar the players
     // are not shown (GM only) gets a dashed outline: a shape, not just a colour.
-    const barHeight = view.hpPercent === undefined ? 0 : Math.max(cell * 0.09, 7);
-    if (view.hpPercent !== undefined) {
+    const barHeight = view.hp === undefined ? 0 : Math.max(cell * 0.09, 7);
+    if (view.hp !== undefined) {
       node.addChild(drawHpBar(view, radius, barHeight));
     }
 
@@ -397,7 +398,8 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
           view.hidden,
           view.selected,
           view.onTurn,
-          view.hpPercent,
+          view.hp?.current,
+          view.hp?.max,
           view.hpHidden,
           cell,
           view.portrait,

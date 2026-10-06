@@ -20,7 +20,7 @@ const view = (overrides: Partial<TokenView> = {}): TokenView => ({
   movable: true,
   selected: true,
   onTurn: false,
-  hpPercent: undefined,
+  hp: undefined,
   hpHidden: false,
   npc: false,
   showHpBar: false,

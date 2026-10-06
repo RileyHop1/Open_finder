@@ -18,7 +18,7 @@ small row and a hidden token is simply a document a player may not read
 | `size` | integer 1-12, default 1 | The footprint in grid squares per side. Core does not know what a creature size is: `systems/pf2e` maps Medium to 1, Large to 2, and so on ([grid.md](grid.md), Token size) |
 | `hidden` | boolean, default `false` | Whether players can see it |
 | `showHpBar` | boolean, default `false` | Whether players see this token's HP bar. The GM's per-token switch: monster bars start hidden, a character's bar is always shown |
-| `hpBar` | `{ percent: 0-100 }`, optional | The health a player may see, as a percentage of maximum. **Server-maintained**: a client cannot set it, and it exists so a player gets a percentage and never the NPC's stat block (NPC actors are not readable by players) |
+| `hpBar` | `{ current, max }` (integers 0 or more), optional | The hit points a player may see, so a shown monster reads `12/40`. **Server-maintained**: a client cannot set it, and it exists so a player gets two numbers and never the NPC's stat block (NPC actors are not readable by players). An old stored `{ percent }` reads as absent and is refilled the next time the monster or token changes |
 
 ## Why the centre
 A footprint of 2x2 has no single "cell", and a gridless scene has no cells at
@@ -60,21 +60,23 @@ pre-places on a scene the party has not reached is invisible until the party
 arrives.
 
 ## HP bars
-Players never receive an NPC actor, so a monster's health reaches them as a
-percentage on its token. `syncTokenHpBars` (`apps/server/src/tokenHpBars.ts`) runs
-inside every operation's transaction: for each NPC token whose `showHpBar` is on it
-keeps `hpBar.percent` (`current / max`, rounded, 0-100, temp HP ignored) in step with
-the actor, and clears `hpBar` when the bar is off, so a hidden bar leaves no number
-behind. Changed tokens ride the same broadcast, and a player's copy contains the
-token and never the actor. A character's token carries no `hpBar`: its owner and the
-party read the character actor directly.
+Players never receive an NPC actor, so a monster's health reaches them as
+`hpBar: { current, max }` on its token. `syncTokenHpBars`
+(`apps/server/src/tokenHpBars.ts`) runs inside every operation's transaction: for
+each NPC token whose `showHpBar` is on it keeps `hpBar` in step with the actor
+(current clamped to 0 through max, temp HP ignored), and clears it when the bar is
+off, so a hidden bar leaves no number behind. **Showing a monster's bar therefore
+tells players its maximum HP**, a deliberate choice. Changed tokens ride the same
+broadcast, and a player's copy contains the token and never the actor. A
+character's token carries no `hpBar`: its owner and the party read the character
+actor directly.
 
 **On the map** (`sceneView.ts`, `tokenModel.ts`): a thin bar sits under the token,
-green above half, amber above a quarter, red below, and the token's label says the
-percentage in words. A character's bar comes from the character actor and everyone
-sees it. A monster's comes from the actor for the GM and from `hpBar` for a player.
-The GM sees every monster's bar; one the players are not shown is outlined with
-dashes. The token menu (right click, or the Menu key) has "Show HP bar to players" /
+green above half, amber above a quarter, red below, and the token's label reads
+`Goblin 12/40`. A character's bar comes from the character actor and everyone sees
+it. A monster's comes from the actor for the GM and from `hpBar` for a player. The
+GM sees every monster's bar; one the players are not shown is outlined with dashes.
+The token menu (right click, or the Menu key) has "Show HP bar to players" /
 "Hide HP bar from players" for monsters, which sends `token.update`.
 
 ## Example
