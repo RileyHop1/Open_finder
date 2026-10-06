@@ -50,6 +50,36 @@ function view(fields: Partial<ActionBarView> = {}): ActionBarView {
 }
 
 describe('ActionBar', () => {
+  const mods = [
+    { value: 2, label: 'Flanking', active: true },
+    { value: 1, active: true },
+    { value: -4, label: 'Prone', active: false },
+  ];
+
+  it('adds the switched-on modifiers to each strike’s shown bonus, so what you see is what is rolled', () => {
+    const wrapper = mount(ActionBar, {
+      props: { view: view(), label: 'Ada', modifiers: mods },
+    });
+    expect(wrapper.text()).toContain('1st +10');
+    expect(wrapper.find('button[aria-label="Roll Sword 1st attack, +10"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.get('.mods-toggle').text()).toBe('Mods +3');
+  });
+
+  it('passes the modifier list’s changes up as setModifiers', async () => {
+    const wrapper = mount(ActionBar, {
+      props: { view: view(), label: 'Ada', modifiers: mods },
+    });
+    await wrapper.get('.mods-toggle').trigger('click');
+    await wrapper.findAll('.mods-panel input[type="checkbox"]')[2]?.setValue(true);
+    expect(wrapper.emitted('setModifiers')?.[0]?.[0]).toEqual([
+      mods[0],
+      mods[1],
+      { value: -4, label: 'Prone', active: true },
+    ]);
+  });
+
   it('shows each strike’s three MAP variants and emits which was clicked', async () => {
     const wrapper = mount(ActionBar, {
       props: { view: view(), label: 'Ada' },
@@ -86,20 +116,19 @@ describe('ActionBar', () => {
     expect(wrapper.find('form.action-form').exists()).toBe(true);
   });
 
-  it('offers the generic action to anyone, and emits its text, cost, dice and modifier', async () => {
+  it('offers the generic action to anyone, and emits its text, cost and dice', async () => {
     const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
     await wrapper.find('#action-text').setValue('  Pries the door open ');
     await wrapper.find('#action-cost').setValue('2');
     await wrapper.find('#action-dice').setValue('1d20+7');
-    await wrapper.find('#action-modifier').setValue('-2');
     await wrapper.find('form.action-form').trigger('submit');
     expect(wrapper.emitted('action')).toEqual([
-      [{ text: 'Pries the door open', cost: 2, dice: '1d20+7', modifier: -2 }],
+      [{ text: 'Pries the door open', cost: 2, dice: '1d20+7' }],
     ]);
     expect((wrapper.find('#action-text').element as HTMLInputElement).value).toBe('');
   });
 
-  it('can be free or a reaction, and defaults to a modifier of zero with no dice', async () => {
+  it('can be free or a reaction, and has no dice by default', async () => {
     const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
     await wrapper.find('#action-text').setValue('Shield Block');
     await wrapper.find('#action-cost').setValue('reaction');
@@ -108,8 +137,8 @@ describe('ActionBar', () => {
     await wrapper.find('#action-cost').setValue('free');
     await wrapper.find('form.action-form').trigger('submit');
     expect(wrapper.emitted('action')).toEqual([
-      [{ text: 'Shield Block', cost: 'reaction', dice: '', modifier: 0 }],
-      [{ text: 'Talk', cost: 'free', dice: '', modifier: 0 }],
+      [{ text: 'Shield Block', cost: 'reaction', dice: '' }],
+      [{ text: 'Talk', cost: 'free', dice: '' }],
     ]);
   });
 
@@ -117,9 +146,7 @@ describe('ActionBar', () => {
     const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
     await wrapper.find('#action-text').setValue('   ');
     await wrapper.find('form.action-form').trigger('submit');
-    expect(wrapper.emitted('action')).toEqual([
-      [{ text: '', cost: 1, dice: '', modifier: 0 }],
-    ]);
+    expect(wrapper.emitted('action')).toEqual([[{ text: '', cost: 1, dice: '' }]]);
     expect(wrapper.get('button[type="submit"]').text()).toBe('Spend');
   });
 

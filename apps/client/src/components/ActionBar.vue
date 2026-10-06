@@ -18,27 +18,37 @@
  * not just something spent from this bar, so it belongs with the acting
  * combatant's own controls rather than whatever token happens to be selected.
  */
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+
+import type { SituationalModifier } from '@hearthtable/core';
 
 import type {
   ActionBarView,
   GenericAction,
   GenericActionCost,
 } from './actionBarModel.js';
+import { modifierSum } from './actionBarModel.js';
+import SituationalMods from './SituationalMods.vue';
 import RulesTerm from './RulesTerm.vue';
 import StatBreakdown from './StatBreakdown.vue';
 import { signed } from './sheet/format.js';
 import { titleCase } from './sheet/format.js';
 
-defineProps<{
-  view: ActionBarView;
-  label: string;
-  /** Why the last action was not sent (bad dice), shown under the form. */
-  error?: string | undefined;
-}>();
+const props = withDefaults(
+  defineProps<{
+    view: ActionBarView;
+    label: string;
+    /** The actor's saved situational modifiers; the switched-on ones count toward every roll here. */
+    modifiers?: readonly SituationalModifier[];
+    /** Why the last action was not sent (bad dice), shown under the form. */
+    error?: string | undefined;
+  }>(),
+  { modifiers: () => [], error: undefined },
+);
 const emit = defineEmits<{
   strike: [target: { itemId: string } | { strikeKey: string }, attackNumber: 1 | 2 | 3];
   action: [action: GenericAction];
+  setModifiers: [modifiers: SituationalModifier[]];
   hoverStrike: [strike: ActionBarView['strikes'][number]];
   unhoverStrike: [];
 }>();
@@ -46,7 +56,7 @@ const emit = defineEmits<{
 const actionText = ref('');
 const actionCost = ref<GenericActionCost>(1);
 const actionDice = ref('');
-const actionModifier = ref<number>();
+const modifierTotal = computed(() => modifierSum(props.modifiers));
 
 function submitAction(): void {
   const text = actionText.value.trim();
@@ -54,11 +64,9 @@ function submitAction(): void {
     text,
     cost: actionCost.value,
     dice: actionDice.value.trim(),
-    modifier: actionModifier.value ?? 0,
   });
   actionText.value = '';
   actionDice.value = '';
-  actionModifier.value = undefined;
 }
 </script>
 
@@ -89,11 +97,11 @@ function submitAction(): void {
             @focusin="emit('hoverStrike', strike)"
             @focusout="emit('unhoverStrike')"
           >
-            {{ attack.label }} {{ signed(attack.total) }}
+            {{ attack.label }} {{ signed(attack.total + modifierTotal) }}
           </StatBreakdown>
           <button
             type="button"
-            :aria-label="`Roll ${strike.name} ${attack.label} attack, ${signed(attack.total)}`"
+            :aria-label="`Roll ${strike.name} ${attack.label} attack, ${signed(attack.total + modifierTotal)}`"
             @click="emit('strike', strike.target, attack.attackNumber)"
             @focus="emit('hoverStrike', strike)"
             @blur="emit('unhoverStrike')"
@@ -128,16 +136,9 @@ function submitAction(): void {
         aria-label="Dice"
         placeholder="1d20+7"
       />
-      <input
-        id="action-modifier"
-        v-model.number="actionModifier"
-        type="number"
-        step="1"
-        aria-label="Modifier"
-        placeholder="+0"
-      />
       <button type="submit">Spend</button>
     </form>
+    <SituationalMods :modifiers="modifiers" @update="emit('setModifiers', $event)" />
     <p v-if="error" role="alert" class="action-error">{{ error }}</p>
   </section>
 </template>
@@ -188,9 +189,6 @@ button {
 .action-error {
   margin: 0;
   color: var(--color-danger);
-}
-.action-form input[type='number'] {
-  width: 5rem;
 }
 .empty {
   color: var(--color-text-muted);
