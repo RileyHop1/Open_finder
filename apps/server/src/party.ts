@@ -23,13 +23,14 @@ function requireGM(seat: Seat): void {
   }
 }
 
-/** The world's party, or `undefined` if none has been created yet. */
-function findParty(store: WorldStore): Party | undefined {
+/** The world's party, or `undefined` if none has been created yet. Exported for `transfer.ts`, which also needs to read it as a holder. */
+export function findParty(store: WorldStore): Party | undefined {
   const [raw] = store.listDocuments('party');
   return raw === undefined ? undefined : partySchema.parse(raw);
 }
 
-function newParty(store: WorldStore): Party {
+/** Exported for `transfer.ts`; see `findParty`. */
+export function newParty(store: WorldStore): Party {
   const now = new Date().toISOString();
   return partySchema.parse({
     id: crypto.randomUUID(),
