@@ -25,6 +25,12 @@ leaving a partial deduction.
 | Silver (sp) | 10 |
 | Copper (cp) | 1 |
 
+**On the sheet** (`CoinsRow.vue`, inside the Items panel): the purse reads as four
+denominations. An owner or the GM also gets a small form: type what moved in any
+denominations and choose **Add** or **Spend**. It sends one `actor.adjustCoins`
+with the signed change; the server makes change, and refuses a spend the purse
+cannot cover with a message in the table's alert (arithmetic, not a ruling).
+
 ## Item price and Bulk
 
 `WeaponEntry`, `ArmorEntry`, and `GearEntry` each get two new optional fields:

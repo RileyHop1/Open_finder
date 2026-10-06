@@ -234,7 +234,7 @@ describe('editing', () => {
     await wrapper.findAll('.equip input')[0]?.setValue(true);
     expect(wrapper.emitted('equip')).toEqual([[sword.id, true]]);
 
-    const quantity = wrapper.find('input[type="number"]');
+    const quantity = wrapper.find('.item input[type="number"]');
     await quantity.setValue('4');
     expect(wrapper.emitted('quantity')).toEqual([[sword.id, 4]]);
 
@@ -249,6 +249,25 @@ describe('editing', () => {
     );
 
     expect(wrapper.find('label[for]').text()).toContain('Quantity of Invented Rope');
+  });
+});
+
+describe('coins', () => {
+  it('shows the purse above the items and passes a spend up as a signed change', async () => {
+    const actor = actorWith([]);
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: {
+          ...actor,
+          system: { ...actor.system, coins: { pp: 0, gp: 12, sp: 5, cp: 0 } },
+        },
+        editable: true,
+      },
+    });
+    expect(wrapper.get('.purse').text()).toContain('12');
+    await wrapper.get('input[aria-label="sp to add or spend"]').setValue('3');
+    await wrapper.findAll('.adjust button')[1]?.trigger('click');
+    expect(wrapper.emitted('coins')).toEqual([[{ sp: -3 }]]);
   });
 });
 

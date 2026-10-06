@@ -1659,6 +1659,22 @@ describe('editing a character', () => {
     });
   });
 
+  it('sends actor.adjustCoins with the signed change from the coins row', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const hero = makeActor('Anna');
+    const wrapper = await openHero(hero);
+
+    await wrapper.get('input[aria-label="gp to add or spend"]').setValue('5');
+    await wrapper.findAll('.coins .adjust button')[1]?.trigger('click');
+    await flushPromises();
+
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.adjustCoins',
+      payload: { actorId: hero.id, delta: { gp: -5 } },
+    });
+  });
+
   describe('rolling', () => {
     async function gmAtTable() {
       mySeat = seat({ isGM: true });

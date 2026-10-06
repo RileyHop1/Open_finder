@@ -11,6 +11,9 @@
  * dropped), because the GM may need to apply its effect by hand. Equipping is a
  * real choice here: only equipped weapons, armor, and gear affect the numbers.
  *
+ * The purse sits above the items (`CoinsRow.vue`): four denominations, and for an
+ * owner or the GM a form to add or spend coins.
+ *
  * Price and Bulk (ADR 0021, `docs/inventory.md`) show on every weapon, armor,
  * and gear item -- the only kinds carrying those fields -- and the panel
  * totals carried value and Bulk, reusing `prepareCharacter`'s own
@@ -31,6 +34,7 @@ import {
   searchCompendium,
 } from '../../api/compendium.js';
 import { formatItemBulk, formatPrice, formatTotalBulk, titleCase } from './format.js';
+import CoinsRow from './CoinsRow.vue';
 import NumberField from './NumberField.vue';
 
 const props = defineProps<{ actor: Actor; editable?: boolean }>();
@@ -39,6 +43,8 @@ const emit = defineEmits<{
   equip: [itemId: string, equipped: boolean];
   quantity: [itemId: string, quantity: number];
   remove: [itemId: string];
+  /** A signed change to the purse, by denomination (negative spends). */
+  coins: [delta: { pp?: number; gp?: number; sp?: number; cp?: number }];
 }>();
 
 /** The kinds a character can carry, for the picker's filter. */
@@ -132,6 +138,8 @@ async function search(): Promise<void> {
 
 <template>
   <section v-if="data" class="inventory" aria-labelledby="inventory-heading">
+    <CoinsRow :coins="data.coins" :editable="editable" @adjust="emit('coins', $event)" />
+
     <h4 id="inventory-heading">Items</h4>
 
     <p v-if="encumbrance" class="totals">

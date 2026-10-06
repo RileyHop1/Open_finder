@@ -1243,6 +1243,7 @@ async function handleCreate(): Promise<void> {
                   (itemId, quantity) => sendItem('actor.updateItem', { itemId, quantity })
                 "
                 @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
+                @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
               />
             </section>
           </section>
