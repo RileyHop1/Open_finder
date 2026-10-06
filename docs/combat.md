@@ -61,16 +61,16 @@ as it does today.
   surprised, and the keyboard and menu routes are the same as for any GM tool.
   **Implemented in C.2b:** a Free movement checkbox in the turn bar, and a
   "Let this token move" / "Revoke movement" item in the token menu.
-- **A player's actions are enforced too.** A spend that would cross the turn's
-  `actionCapacity` is refused outright, naming how many actions are left; the
-  GM's own overspend still goes through, with a chat warning
-  ([action-economy.md](action-economy.md)).
+- **The action budget is shown, not enforced.** A spend that would cross the
+  turn's `actionCapacity` is never refused, for a player or the GM: it goes
+  through with a chat warning, and the tray shows the overspend
+  ([action-economy.md](action-economy.md), ADR 0023).
 - **Moving spends the Strides it costs, per move.** While it is the mover's
   own combatant's turn, `token.move` adds to `actionsSpent` the Strides that
   move's own distance costs on its own (`stridesFor`, from the Speed
   `speedOf` reads off the actor) -- the same budget rule as any other spend,
-  so a player's move that would cross the turn's capacity is refused and the
-  token does not move (the whole operation rolls back together). Each move is
+  so a move that would cross the turn's capacity still happens, with the same
+  overspend warning. Each move is
   charged independently, never against a running total for the turn
   (docs/rulings.md, "Movement spends actions per move, not by a running
   total"): two short moves cost a Stride each, and one long move that outruns
@@ -272,7 +272,7 @@ an id, not a position that could drift onto the wrong creature.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `actionsSpent` | integer 0-99, default 0 | A player's spend is refused outright once it would exceed the turn's capacity; the GM's own overspend still goes through, with a chat warning ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
+| `actionsSpent` | integer 0-99, default 0 | A spend past the turn's capacity is never refused: it goes through with a chat warning ([action-economy.md](action-economy.md)). The capacity itself (3, less slowed, more quickened) is a rule, not stored |
 | `reactionUsed` | boolean, default `false` | Refreshed at the start of the combatant's turn |
 | `attacksMade` | integer 0-99, default 0 | The Multiple Attack Penalty counts attacks, not actions. Reset at the start of the combatant's turn |
 

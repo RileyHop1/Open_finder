@@ -1716,7 +1716,7 @@ describe('token.create, token.update, token.delete', () => {
     expect(store.listOperationsSince(0)).toHaveLength(before);
   });
 
-  it("spends the Strides a move costs on the hero's own turn, and refuses one that would overspend", async () => {
+  it("spends the Strides a move costs on the hero's own turn, and lets one that overspends through with a warning", async () => {
     const { table, heroToken } = await inTheCrypt();
     const created = await send(
       table.gm,
@@ -1752,14 +1752,15 @@ describe('token.create, token.update, token.delete', () => {
     });
     const landed = tokenOf(third.forPlayer);
 
-    // At capacity: five more feet needs a fourth Stride, refused outright for a player.
-    const refused = await emitOperation(
-      table.player,
-      op('token.move', { tokenId: heroToken.id, x: start.x + 600, y: start.y }),
+    // At capacity: five more feet needs a fourth Stride. Never refused (ADR
+    // 0023): the move goes through and the tracker shows the overspend.
+    const over = await move(start.x + 600, start.y);
+    expect(combatantOf(over.forPlayer)).toMatchObject({ turn: { actionsSpent: 4 } });
+    expect(tokenOf(over.forPlayer)).toMatchObject({ x: start.x + 600, y: start.y });
+    expect(JSON.stringify(over.forPlayer.documents)).toContain(
+      'has spent 4 of 3 actions',
     );
-    expect(refused).toEqual({ ok: false, error: 'Hero has no actions left this turn.' });
-    // Rolled back: the token did not move either.
-    expect(store.getDocument(heroToken.id)).toMatchObject({ x: landed?.x, y: landed?.y });
+    expect(landed).toBeDefined();
   });
 
   it("undoes a move and the GM's damage from the same step together, then has nothing left", async () => {

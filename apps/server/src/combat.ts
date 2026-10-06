@@ -968,20 +968,17 @@ export function countAttack(store: WorldStore, combatant: Combatant): Combatant 
 /**
  * Applies `delta` to a combatant's `actionsSpent`, clamped to the schema's
  * sanity bound and never below zero. Shared by `spendAction` (the action
- * tray/bar) and `spendMovement` (a move's Strides), so a player cannot
- * overspend through either path.
+ * tray/bar) and `spendMovement` (a move's Strides).
  *
- * **A player cannot spend past the turn's capacity**: a spend (`delta > 0`,
- * never a give-back) that would put the new total over `actionCapacity` is
- * refused outright, before anything is written, naming how many actions are
- * left. **The GM is never blocked** (CLAUDE.md, "the GM is never blocked"):
- * an overspend from the GM goes through, with `warning` set to the same
- * chat line it always posted ("Ada has spent 4 of 3 actions"), kept from
- * players when the combatant is hidden.
+ * **Nothing is refused for going over the turn's capacity, for anyone**
+ * (ADR 0023, "calculate, don't enforce"): the action budget is tracked and
+ * shown, not enforced. A spend that puts the total over `actionCapacity`
+ * goes through, with `warning` set to a chat line ("Ada has spent 4 of 3
+ * actions"), kept from players when the combatant is hidden, and the tray
+ * shows the overspend. The table rules on it.
  */
 function applyActionDelta(
   store: WorldStore,
-  seat: Seat,
   combatant: Combatant,
   delta: number,
   actorName: string,
@@ -989,15 +986,6 @@ function applyActionDelta(
   const before = combatant.turn.actionsSpent;
   const actionsSpent = Math.min(Math.max(before + delta, 0), MAX_COUNTER);
   const capacity = turnCapacityOf(store, combatant);
-
-  if (!seat.isGM && delta > 0 && actionsSpent > capacity) {
-    const left = Math.max(capacity - before, 0);
-    throw new OperationRejected(
-      left > 0
-        ? `${actorName} has only ${left} action${left === 1 ? '' : 's'} left this turn.`
-        : `${actorName} has no actions left this turn.`,
-    );
-  }
 
   return {
     actionsSpent,
@@ -1029,7 +1017,6 @@ export function spendAction(
   const name = actorSchema.safeParse(raw).data?.name ?? 'Someone';
   const { actionsSpent, warning } = applyActionDelta(
     store,
-    seat,
     combatant,
     payload.actions ?? 0,
     name,
@@ -1078,9 +1065,8 @@ export function spendAction(
  * charged on its own (`stridesFor`, from `systems/pf2e`; docs/rulings.md,
  * "Movement spends actions per move, not by a running total"), added to
  * `actionsSpent` through the same `applyActionDelta` the action tray uses: a
- * player's move that would cross the turn's capacity is refused outright,
- * rolling back the whole `token.move` operation, since this runs inside its
- * own transaction; the GM's own overspend only warns, as it always has.
+ * move that would cross the turn's capacity is never refused, for a player or
+ * the GM: it posts the same overspend warning (ADR 0023).
  * Reversing a move's Strides (an "undo last action") goes through
  * `combat.undo` instead, which restores the whole step this move was part of
  * (ADR 0019) rather than this operation charging in reverse.
@@ -1124,13 +1110,7 @@ export function spendMovement(
   const before = combatant.turn;
   const strides = stridesFor(distanceFeet, speed);
 
-  const { actionsSpent, warning } = applyActionDelta(
-    store,
-    seat,
-    combatant,
-    strides,
-    name,
-  );
+  const { actionsSpent, warning } = applyActionDelta(store, combatant, strides, name);
   const updated: Combatant = {
     ...combatant,
     turn: { ...before, actionsSpent },

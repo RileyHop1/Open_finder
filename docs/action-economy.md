@@ -2,36 +2,37 @@
 
 How a turn works, what the app enforces, and what it merely shows.
 
-## The rule: a player is capped, the GM never is
-**A player cannot spend past the turn's capacity; the GM always can.**
+## The rule: the budget is shown, never enforced
+**Nobody is refused for spending past the turn's capacity.** The action budget
+is tracked and displayed; going over it is announced, not blocked
+([ADR 0023](adr/0023-calculate-dont-enforce.md), "calculate, don't enforce").
 
-The original M5 C.4 design let anyone overspend, with a visible warning instead
-of a block, reasoning that PF2e has real effects granting extra actions no
-automation fully models, and that blocking would leave the table stuck whenever
-the automation guessed the capacity wrong. Playtesting found the opposite
-problem in practice: a player could keep clicking past 3 actions with nothing
-stopping them, which read as broken rather than permissive, and a warning
-nobody was watching for didn't actually teach the limit it was meant to teach.
+This has been through three readings. The original M5 C.4 design let anyone
+overspend with a visible warning. Playtesting then found a player could keep
+clicking past 3 actions with nothing stopping them, so players were capped
+(refused, naming how many were left) while the GM never was. Playing the capped
+version showed its own cost: PF2e has real effects granting extra actions that
+no automation fully models, a refused move left a player stuck mid-turn, and
+every gap in the model became a player unable to do what the table had agreed.
+So the cap is gone for everyone and the original warning is back, with the
+table as the referee.
 
-**The resolution keeps the GM escape hatch and removes the player one.** The
-GM is still never blocked (CLAUDE.md's "the GM is the director and can always
-override the automation"): if a real effect the importer or the rules engine
-doesn't model grants someone an extra action, the GM spends it for them, or
-adjusts the result directly, the same override path every other automated
-number already has. A player hitting the cap sees a refusal naming how many
-actions are left, not a silent no-op and not a warning they can click past.
+**What a spend past the capacity does:** it goes through, a chat line says so
+("Ada has spent 4 of 3 actions", kept from players if the combatant is
+hidden), and the tray shows "⚠ 1 action over" in words. The GM can give an
+action back, the same override every automated number has.
 
-The refusal is not a modal. It is the same inline error line
-(`combat.error`) other rejected operations in this view already use (see
-`TableView.vue`), next to the turn controls below the map.
+What *is* still refused is a permission question, not a rules one: who may act
+on a combatant (its actor's owner or the GM), and moving out of turn while the
+GM has turn-based movement on (that is the GM's own switch, see
+[combat.md](combat.md)).
 
 **Implemented in M5 C.4**: `apps/client/src/components/ActionTray.vue` shows
 the acting combatant's ◆◆◆ (filled by `actionsSpent`) and ↺, both with a text
 count, plus a quickened extra marked "restricted". Spend and the reaction
 toggle are for the combatant's actor's owner or the GM; hidden entirely while
-no combat is active. The server (`combat.spendAction`) refuses a player's
-spend that would cross the turn's `actionCapacity` and writes nothing; the
-GM's own overspend still goes through and is only announced in chat ("Ada has
+no combat is active. A spend that would cross the turn's `actionCapacity` is
+never refused (for anyone); it goes through and is announced in chat ("Ada has
 spent 4 of 3 actions"). "Give back an action" (`combat.spendAction` with a
 negative count) is the GM's own manual override for a number the automation
 got wrong — not an undo, and shown to the GM only.
@@ -92,8 +93,8 @@ step that was not theirs, surfaces the server's refusal through the same
 
 All of these are conditions (see `docs/conditions.md`) and change the tray's
 capacity rather than being special-cased in the tracker. A player spending more
-than this capacity is refused outright; the GM's own overspend is warned about
-and never blocked (see "A player is capped, the GM never is" above). See
+than this capacity is warned about and never blocked (see "The rule: the
+budget is shown, never enforced" above). See
 [rulings.md](rulings.md), "Stunned, slowed, and quickened".
 
 ## Multiple Attack Penalty
