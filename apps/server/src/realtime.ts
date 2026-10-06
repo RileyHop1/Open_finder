@@ -65,6 +65,7 @@ import {
 import { rollActorCheck } from './checks.js';
 import { adjustActorCoins } from './coins.js';
 import { transferInventory } from './transfer.js';
+import { useItem } from './useItem.js';
 import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import { settlePersistentDamage } from './persistentDamage.js';
 import { promptReactions } from './reactions.js';
@@ -759,6 +760,11 @@ function dispatch(
     case 'inventory.transfer': {
       const seat = requireSeat(store, socket);
       const { documents } = transferInventory(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [...documents] };
+    }
+    case 'actor.useItem': {
+      const seat = requireSeat(store, socket);
+      const { documents } = useItem(store, seat, cryptoRandomSource, operation.payload);
       return { seatId: seat.id, seats: [], documents: [...documents] };
     }
     default:
