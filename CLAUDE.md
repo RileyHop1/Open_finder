@@ -492,9 +492,26 @@ real session.
     (milestone 15) gets its real formula instead of a generic roll. Cut from
     milestone 7 on purpose — runes are an item-customization subsystem, not
     the "carry, price, and pass around items" one loot and inventory covers
-17. **Events and triggers:** scripted or branching campaign events (our
+17. **Combat refinements: Hero Points and shields:** Hero Points (the GM
+    grants them, a player spends one to reroll or to stabilize while dying)
+    and shields as their own item sub-shape (hardness, shield HP, the raise
+    a shield and Shield Block actions), wired into the action bar and the
+    damage application milestone 5 already built. Grouped because both are
+    small, self-contained additions to a combat tracker that otherwise
+    already exists, not new subsystems of their own
+18. **Afflictions:** poison and disease's staged-onset progression (stage,
+    onset delay, a save on a schedule, cure and virulence) -- distinct from
+    the plain conditions milestone 6 covers, and the main thing the Monster
+    Core hazards and creatures imported in milestone 2 actually do to a
+    party
+19. **Companions and summons:** a controllable sub-actor a player commands
+    (a Ranger's animal companion, a summoned creature) -- owned and leveled
+    by a specific character, unlike the GM-controlled creatures the
+    bestiary (milestone 13) already covers, so it needs its own ownership
+    and action-economy wiring even though the stat block itself is similar
+20. **Events and triggers:** scripted or branching campaign events (our
     differentiator)
-18. **Campaign builder:** prep/play modes, campaign outline tree, templates,
+21. **Campaign builder:** prep/play modes, campaign outline tree, templates,
     visual trigger editor, prep-mode undo/redo, polish pass on all GM tools
 
 ### Definition of done
