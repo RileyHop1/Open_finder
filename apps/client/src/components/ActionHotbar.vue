@@ -107,18 +107,24 @@ function finishRename(index: number): void {
 </template>
 
 <style scoped>
+/* Its own box under the action bar. A grid of equal slots (wrapping to a second
+   row when the dock is narrow), so saving or clearing one never reshapes it. */
 .hotbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
   gap: var(--space-1);
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--color-surface);
 }
 .slot {
   display: flex;
   align-items: center;
   gap: 2px;
-  min-width: 2.25rem;
+  min-width: 0;
   padding: 0 var(--space-1);
   border: 1px solid var(--color-border);
   border-radius: 4px;
@@ -129,6 +135,9 @@ function finishRename(index: number): void {
 .slot.empty:has(.save-here) {
   opacity: 1;
 }
+.save-here {
+  flex: 1;
+}
 .key {
   font-size: 0.75em;
   color: var(--color-text-muted);
@@ -138,9 +147,11 @@ function finishRename(index: number): void {
 }
 .load {
   display: flex;
+  flex: 1;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-1);
-  max-width: 9rem;
+  min-width: 0;
 }
 .name {
   overflow: hidden;
@@ -148,6 +159,7 @@ function finishRename(index: number): void {
   white-space: nowrap;
 }
 .slot input {
-  width: 7rem;
+  flex: 1;
+  min-width: 0;
 }
 </style>

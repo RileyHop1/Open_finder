@@ -51,17 +51,17 @@ active), and may add dice. **Spend** spends the cost, then
 posts one labelled roll or a plain chat line. It needs something to say: the button
 is off until the form has an action or dice (every spend is then logged). The tray, strikes and form sit in one row.
 
-**Situational modifiers** (ADR 0023): a row of its own under the action row (`SituationalMods.vue`), always visible, no
-popover: each saved modifier is a chip with an on/off checkbox, a remove button
-and an optional label ("Flanking"), followed by a value/label/Add group. They are saved on the actor (`actor.setQuickbar`, [actor.md](actor.md))
+**Situational modifiers** (ADR 0023): a row of its own under the action row (`SituationalMods.vue`) with a fixed shape: the
+total, a value/label/Add group, and a **Saved (n) ▾** dropdown holding the list, so
+adding one never reshapes the row. Each saved modifier in the dropdown has an on/off
+checkbox, a remove button and an optional label ("Flanking"). They are saved on the actor (`actor.setQuickbar`, [actor.md](actor.md))
 and follow the player to another device. Every switched-on one counts toward
 every roll made from here: the strike buttons show the bonus with them added,
 a strike or sheet check sends them as `modifiers` so the chat breakdown lists
 each one ([operations.md](operations.md)), and the generic action's dice get
 their sum added to the expression.
 
-**The hotbar** (`ActionHotbar.vue`, `SaveToHotbar.vue`): ten slots under the action
-row, on keys 1 to 9 then 0, saved on the actor with `actor.setQuickbar`
+**The hotbar** (`ActionHotbar.vue`, `SaveToHotbar.vue`): ten slots in a box of their own under the action row (a grid of equal slots that wraps to a second row when the dock is narrow, so saving or clearing one never reshapes it), on keys 1 to 9 then 0, saved on the actor with `actor.setQuickbar`
 ([actor.md](actor.md)) so they follow the player to any device. A filled slot
 shows the player's own name for it and its cost. Choosing a slot (click, or its
 number key when not typing) **loads it into the form** rather than running it, so
