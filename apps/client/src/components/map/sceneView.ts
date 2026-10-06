@@ -24,7 +24,7 @@ import { type Camera, gridAlpha, type Size, worldTransform } from './camera.js';
 import { type ExitView, exitRadius } from './exitModel.js';
 import { FALLBACK_MAX_TEXTURE_SIZE } from './mapImage.js';
 import { hpPercent } from '../actorHp.js';
-import { describeToken, type TokenView } from './tokenModel.js';
+import { tokenCaption, type TokenView } from './tokenModel.js';
 
 export interface SceneView {
   /** Replaces what is drawn with `scene`, using `background` (already shrunk to fit the GPU) as its picture. */
@@ -247,7 +247,7 @@ export function createSceneView(pixi: typeof Pixi, app: Pixi.Application): Scene
     }
 
     const name = new pixi.Text({
-      text: describeToken(view),
+      text: tokenCaption(view),
       style: {
         fill: 0xffffff,
         fontSize,

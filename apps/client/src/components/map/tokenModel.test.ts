@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canMoveToken,
   describeToken,
+  tokenCaption,
   initialsOf,
   tokenAt,
   tokenViews,
@@ -261,5 +262,11 @@ describe('HP bars', () => {
         hp: { current: 16, max: 40 },
       }),
     ).toBe('Goblin 16/40 (hidden, current turn)');
+  });
+
+  it('captions the map with only the name and health', () => {
+    const view = { label: 'Goblin', hp: { current: 16, max: 40 } };
+    expect(tokenCaption(view)).toBe('Goblin 16/40');
+    expect(tokenCaption({ label: 'Goblin', hp: undefined })).toBe('Goblin');
   });
 });
