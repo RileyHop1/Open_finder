@@ -17,7 +17,12 @@ const provenance = {
   remaster: true as const,
 };
 
-function entry(kind: 'gear' | 'weapon', name: string, inert = false) {
+function entry(
+  kind: 'gear' | 'weapon',
+  name: string,
+  inert = false,
+  economy: { priceInCopper?: number; bulk?: number } = {},
+) {
   const base = {
     id: crypto.randomUUID(),
     schemaVersion: 1,
@@ -32,6 +37,7 @@ function entry(kind: 'gear' | 'weapon', name: string, inert = false) {
       ? [{ kind: 'inert' as const, upstreamKind: 'Invented', reason: 'unsupported' }]
       : [],
     description: '',
+    ...economy,
   };
   return kind === 'gear'
     ? { ...base, kind }
@@ -67,10 +73,11 @@ const item = (
   name: string,
   extra: Partial<Pick<Item, 'equipped' | 'quantity'>> = {},
   inert = false,
+  economy: { priceInCopper?: number; bulk?: number } = {},
 ): Item => ({
   id: crypto.randomUUID(),
   // The fixture builder is looser than the schema's union; the schema parse in the component is what is under test.
-  entry: entry(kind, name, inert) as Item['entry'],
+  entry: entry(kind, name, inert, economy) as Item['entry'],
   equipped: false,
   quantity: 1,
   ...extra,
@@ -113,6 +120,105 @@ describe('items list', () => {
     const flag = wrapper.find('.inert-flag');
     expect(flag.text()).toContain('Automation not applied');
     expect(flag.text()).toContain('1 effect to apply by hand');
+  });
+});
+
+describe('price, Bulk, and encumbrance', () => {
+  it('shows price and Bulk on a weapon, armor, or gear item, Bulk 0.1 as "L"', () => {
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: actorWith([
+          item('weapon', 'Invented Sword', {}, false, { priceInCopper: 150, bulk: 1 }),
+          item('gear', 'Invented Rope', {}, false, { priceInCopper: 5, bulk: 0.1 }),
+        ]),
+      },
+    });
+    const [sword, rope] = wrapper.findAll('.item');
+    expect(sword?.text()).toContain('1 gp, 5 sp');
+    expect(sword?.text()).toContain('1 Bulk');
+    expect(rope?.text()).toContain('5 cp');
+    expect(rope?.text()).toContain('L Bulk');
+  });
+
+  it('says nothing about price or Bulk for a kind that never has them, like a feat', () => {
+    const feat = {
+      id: crypto.randomUUID(),
+      schemaVersion: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+      packId: 'feats',
+      slug: 'invented-feat',
+      name: 'Invented Feat',
+      provenance,
+      traits: [],
+      ruleElements: [],
+      description: '',
+      kind: 'feat' as const,
+      level: 1,
+      category: 'general' as const,
+      prerequisites: [],
+    };
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: actorWith([
+          { id: crypto.randomUUID(), entry: feat, equipped: false, quantity: 1 },
+        ]),
+      },
+    });
+    const row = wrapper.find('.item');
+    expect(row.text()).toContain('Invented Feat');
+    expect(row.find('.item-price').exists()).toBe(false);
+    expect(row.find('.item-bulk').exists()).toBe(false);
+  });
+
+  it('totals carried value and Bulk across every item', () => {
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: actorWith([
+          item('weapon', 'Sword', {}, false, { priceInCopper: 200, bulk: 1 }),
+          item('gear', 'Potion', { quantity: 2 }, false, {
+            priceInCopper: 50,
+            bulk: 0.1,
+          }),
+        ]),
+      },
+    });
+    const totals = wrapper.find('.totals');
+    expect(totals.text()).toContain('1.2 Bulk carried');
+    expect(totals.text()).toContain('3 gp total value');
+  });
+
+  it('flags encumbered once carried Bulk exceeds 5 + Strength, in words and with a marker', () => {
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: actorWith([item('gear', 'Boulder', {}, false, { bulk: 6 })]),
+      },
+    });
+    const flag = wrapper.find('.encumbrance-flag');
+    expect(flag.text()).toContain('Encumbered');
+    expect(flag.text()).toContain('6 of 5 Bulk');
+    expect(flag.classes()).not.toContain('encumbrance-max');
+  });
+
+  it('flags over carrying capacity once Bulk exceeds 10 + Strength', () => {
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: actorWith([item('gear', 'Boulder', {}, false, { bulk: 11 })]),
+      },
+    });
+    const flag = wrapper.find('.encumbrance-flag');
+    expect(flag.text()).toContain('Over carrying capacity');
+    expect(flag.text()).toContain('11 of 10 Bulk');
+    expect(flag.classes()).toContain('encumbrance-max');
+  });
+
+  it('shows no encumbrance flag while under the threshold', () => {
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: actorWith([item('gear', 'Rope', {}, false, { bulk: 1 })]),
+      },
+    });
+    expect(wrapper.find('.encumbrance-flag').exists()).toBe(false);
   });
 });
 

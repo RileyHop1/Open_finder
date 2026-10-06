@@ -10,9 +10,19 @@
  * (ADR 0004: unsupported automation imports inert and visible, never silently
  * dropped), because the GM may need to apply its effect by hand. Equipping is a
  * real choice here: only equipped weapons, armor, and gear affect the numbers.
+ *
+ * Price and Bulk (ADR 0021, `docs/inventory.md`) show on every weapon, armor,
+ * and gear item -- the only kinds carrying those fields -- and the panel
+ * totals carried value and Bulk, reusing `prepareCharacter`'s own
+ * `encumbrance` (ADR 0008: Bulk is computed, never stored) rather than
+ * re-deriving it here.
  */
 import type { Actor } from '@hearthtable/core';
-import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
+import {
+  type CharacterItem,
+  characterDataSchema,
+  prepareCharacter,
+} from '@hearthtable/pf2e';
 import { computed, ref } from 'vue';
 
 import {
@@ -20,7 +30,7 @@ import {
   isCompendiumAvailable,
   searchCompendium,
 } from '../../api/compendium.js';
-import { titleCase } from './format.js';
+import { formatItemBulk, formatPrice, formatTotalBulk, titleCase } from './format.js';
 import NumberField from './NumberField.vue';
 
 const props = defineProps<{ actor: Actor; editable?: boolean }>();
@@ -39,18 +49,49 @@ const KIND_LABELS: Readonly<Record<string, string>> = { classFeature: 'Class fea
 
 const kindLabel = (kind: string): string => KIND_LABELS[kind] ?? titleCase(kind);
 
+/** `undefined` for any kind without a price field, or one the importer could not read. */
+function priceOf(entry: CharacterItem['entry']): number | undefined {
+  return entry.kind === 'weapon' || entry.kind === 'armor' || entry.kind === 'gear'
+    ? entry.priceInCopper
+    : undefined;
+}
+
+/** `undefined` for a kind that never carries Bulk (feat, spell, ...); `0` is a real, negligible value, not "none". */
+function bulkOf(entry: CharacterItem['entry']): number | undefined {
+  return entry.kind === 'weapon' || entry.kind === 'armor' || entry.kind === 'gear'
+    ? (entry.bulk ?? 0)
+    : undefined;
+}
+
 const data = computed(() => {
   const parsed = characterDataSchema.safeParse(props.actor.system);
   return parsed.success ? parsed.data : undefined;
 });
 
+const prepared = computed(() => (data.value ? prepareCharacter(data.value) : undefined));
+
 const inert = computed(() => {
-  if (data.value === undefined) {
+  if (prepared.value === undefined) {
     return new Map<string, number>();
   }
-  return new Map(
-    prepareCharacter(data.value).inertItems.map((i) => [i.itemId, i.inertCount]),
-  );
+  return new Map(prepared.value.inertItems.map((i) => [i.itemId, i.inertCount]));
+});
+
+const encumbrance = computed(() => prepared.value?.encumbrance);
+
+/** Total carried value, summed only across items whose entry has a price at all. */
+const totalPriceCopper = computed(() => {
+  if (data.value === undefined) {
+    return undefined;
+  }
+  let total: number | undefined;
+  for (const item of data.value.items) {
+    const price = priceOf(item.entry);
+    if (price !== undefined) {
+      total = (total ?? 0) + price * item.quantity;
+    }
+  }
+  return total;
 });
 
 // --- the picker -----------------------------------------------------------
@@ -93,11 +134,36 @@ async function search(): Promise<void> {
   <section v-if="data" class="inventory" aria-labelledby="inventory-heading">
     <h4 id="inventory-heading">Items</h4>
 
+    <p v-if="encumbrance" class="totals">
+      <span>{{ formatTotalBulk(encumbrance.totalBulk) }} Bulk carried</span>
+      <span v-if="totalPriceCopper !== undefined"
+        >{{ formatPrice(totalPriceCopper) }} total value</span
+      >
+    </p>
+    <p
+      v-if="encumbrance?.isEncumbered"
+      class="encumbrance-flag"
+      :class="{ 'encumbrance-max': encumbrance.exceedsMax }"
+    >
+      {{ encumbrance.exceedsMax ? 'Over carrying capacity' : 'Encumbered' }}
+      <span class="encumbrance-detail">
+        ({{ formatTotalBulk(encumbrance.totalBulk) }} of
+        {{ encumbrance.exceedsMax ? encumbrance.maxBulk : encumbrance.encumberedAt }}
+        Bulk)
+      </span>
+    </p>
+
     <p v-if="data.items.length === 0" class="empty">Carrying nothing.</p>
     <ul v-else class="items">
       <li v-for="item in data.items" :key="item.id" class="item">
         <span class="item-name">{{ item.entry.name }}</span>
         <span class="item-kind">{{ kindLabel(item.entry.kind) }}</span>
+        <span v-if="priceOf(item.entry) !== undefined" class="item-price">
+          {{ formatPrice(priceOf(item.entry)!) }}
+        </span>
+        <span v-if="bulkOf(item.entry) !== undefined" class="item-bulk">
+          {{ formatItemBulk(bulkOf(item.entry)!) }} Bulk
+        </span>
         <span v-if="inert.has(item.id)" class="inert-flag">
           Automation not applied
           <span class="inert-detail"
@@ -227,7 +293,10 @@ h4 {
 .empty,
 .equip-state,
 .quantity,
-.inert-detail {
+.inert-detail,
+.item-price,
+.item-bulk,
+.encumbrance-detail {
   color: var(--color-text-muted);
 }
 
@@ -236,6 +305,26 @@ h4 {
   padding: 0 var(--space-2);
   border: 1px dashed var(--color-danger);
   border-radius: 4px;
+}
+
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+/* Said in words ("Encumbered" / "Over carrying capacity") and with a marker, never colour alone. */
+.encumbrance-flag {
+  margin: 0;
+  padding: 0 var(--space-2);
+  border: 1px dashed var(--color-danger);
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.encumbrance-max {
+  border-style: solid;
 }
 
 .item button,
