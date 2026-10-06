@@ -212,6 +212,25 @@ export const chatStrikeDamageMessageSchema = chatStrikeBaseSchema.extend({
 
 export type ChatStrikeDamageMessage = z.infer<typeof chatStrikeDamageMessageSchema>;
 
+/**
+ * Using a consumable (`actor.useItem`, ADR 0021). `itemName` and `text` are
+ * snapshots of the item at the moment it was used, so the card still reads
+ * correctly after the item is fully consumed and removed from the sheet.
+ * `roll` is present only when `text` contained a dice expression -- using a
+ * consumable is not a new kind of roll, just a new trigger for one
+ * (`docs/inventory.md`).
+ */
+export const chatItemUseMessageSchema = chatMessageBaseSchema.extend({
+  kind: z.literal('itemUse'),
+  actorId: idSchema,
+  actorName: z.string().min(1),
+  itemName: z.string().min(1),
+  text: z.string(),
+  roll: rollResultSchema.optional(),
+});
+
+export type ChatItemUseMessage = z.infer<typeof chatItemUseMessageSchema>;
+
 /** Every shape a `ChatMessage` document can take. */
 export const chatMessageSchema = z.discriminatedUnion('kind', [
   chatTextMessageSchema,
@@ -219,6 +238,7 @@ export const chatMessageSchema = z.discriminatedUnion('kind', [
   chatCheckMessageSchema,
   chatStrikeAttackMessageSchema,
   chatStrikeDamageMessageSchema,
+  chatItemUseMessageSchema,
 ]);
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

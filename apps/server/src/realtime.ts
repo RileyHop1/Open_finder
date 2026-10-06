@@ -322,7 +322,7 @@ function handleChatAdjustRoll(
   if (!message.success) {
     throw new OperationRejected(`no chat message found with id ${payload.messageId}`);
   }
-  if (message.data.kind === 'text') {
+  if (message.data.kind === 'text' || message.data.kind === 'itemUse') {
     throw new OperationRejected('this message is not a roll');
   }
   const dc = 'dc' in message.data ? message.data.dc : undefined;

@@ -6,7 +6,7 @@ shared envelope this extends (`id`, `worldId`, `type`, `schemaVersion`,
 roll" is the thin thread's proof of the whole pipeline: schema → SQLite →
 operation → sequence → broadcast.
 
-## Five variants under `kind`
+## Six variants under `kind`
 
 A plain text message and a dice roll are different enough shapes — a roll has
 no free text, a message has no `RollResult` — that one schema trying to cover
@@ -18,11 +18,12 @@ already fixes to the literal `'chatMessage'` (that's what makes it a
 | Field | Type | Notes |
 | --- | --- | --- |
 | `seatId` | UUID | The seat that sent this message. **Required, not optional** — a connection can't send a `chat.*` operation at all until it has claimed a seat (see [operations.md](operations.md)), so a ChatMessage with no sender isn't a state that can arise |
-| `kind` | `'text' \| 'roll' \| 'check'` | Discriminant |
-| `text` | non-empty string | Only on `kind: 'text'` |
-| `roll` | `RollResult` | On `kind: 'roll'` and `kind: 'check'` — see below |
+| `kind` | `'text' \| 'roll' \| 'check' \| 'strikeAttack' \| 'strikeDamage' \| 'itemUse'` | Discriminant |
+| `text` | non-empty string | Only on `kind: 'text'`; also present (and may be empty) on `kind: 'itemUse'` — see below |
+| `roll` | `RollResult` | On `kind: 'roll'` and `kind: 'check'`, always; on `kind: 'itemUse'`, only when the item's text contained a dice expression — see below |
 | (check fields) | | Only on `kind: 'check'` — see "The `check` variant" |
 | (strike fields) | | Only on `strikeAttack` / `strikeDamage` — see "The strike variants" |
+| (item use fields) | | Only on `kind: 'itemUse'` — see "The `itemUse` variant" |
 
 ## The `roll` variant stores structure, never a string
 
@@ -122,6 +123,33 @@ whole table like any other chat message, so its `breakdown` shows the printed
 bonus. The monster's sheet stays hidden (the actor is `none` for players); only
 the roll is not. A secret GM roll is a later feature (the Definition of Done's
 override path is the GM re-rolling or adjusting the number).
+
+## The `itemUse` variant
+
+Using a consumable (`actor.useItem`, ADR 0021 — see
+[inventory.md](inventory.md)). It extends the envelope with:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `actorId` | UUID | Whose sheet |
+| `actorName` | string | Snapshot, so history reads right after a rename or deletion |
+| `itemName` | string | Snapshot of the item's name at the moment it was used |
+| `text` | string, may be empty | Snapshot of the item's rules text |
+| `roll` | `RollResult`, optional | Present only when `text` contained a dice expression |
+
+Unlike `roll`/`check`/the strike variants, `roll` here is genuinely optional:
+most consumables have no formula in their text (a plain potion that just
+says what it does), and the card still posts with just the name and text.
+When a formula is found, the server rolls it exactly like `chat.sendRoll`
+does — this is not a new kind of roll, just a new trigger for one. It has no
+`gmTotal`: `chat.adjustRoll` refuses an `itemUse` message the same way it
+refuses `kind: 'text'`, since there is no roll to always be adjusting (and
+when there is one, it has no `dc` to recompute a degree against).
+
+`useItem` only spends the item and posts this card. Anything the roll should
+*do* — healing, removing a condition — goes through the operation for that
+already (`actor.heal`, `actor.removeCondition`); nothing here applies an
+effect automatically.
 
 ## Why `seatId` is required here but optional on `AppliedOperation`
 

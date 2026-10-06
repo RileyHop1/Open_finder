@@ -27,6 +27,7 @@ export { worldSchema, type World } from './world.js';
 
 export {
   chatCheckMessageSchema,
+  chatItemUseMessageSchema,
   chatStrikeAttackMessageSchema,
   chatStrikeDamageMessageSchema,
   chatMessageSchema,
@@ -37,6 +38,7 @@ export {
   rollResultSchema,
   rollTermSchema,
   type ChatCheckMessage,
+  type ChatItemUseMessage,
   type ChatStrikeAttackMessage,
   type ChatStrikeDamageMessage,
   type ChatMessage,
@@ -153,6 +155,7 @@ export {
   transferHolderSchema,
   type TransferHolder,
   type TransferPayload,
+  actorUseItemOperationSchema,
   type CoinsDelta,
   MAX_HIT_POINT_CHANGE,
   sceneAddLinkOperationSchema,
