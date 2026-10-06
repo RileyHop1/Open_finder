@@ -64,6 +64,7 @@ import {
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
 import { adjustActorCoins } from './coins.js';
+import { transferInventory } from './transfer.js';
 import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import { settlePersistentDamage } from './persistentDamage.js';
 import { promptReactions } from './reactions.js';
@@ -754,6 +755,11 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const party = adjustPartyCoins(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [party] };
+    }
+    case 'inventory.transfer': {
+      const seat = requireSeat(store, socket);
+      const { documents } = transferInventory(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [...documents] };
     }
     default:
       return assertNever(operation);
