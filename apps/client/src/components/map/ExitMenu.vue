@@ -104,15 +104,15 @@ function submit(): void {
 <style scoped>
 .exit-menu {
   position: absolute;
-  z-index: 5;
+  z-index: var(--z-overlay);
   min-width: 14rem;
   max-width: 20rem;
   padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  box-shadow: var(--overlay-shadow);
 }
 
 p {

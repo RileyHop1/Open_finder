@@ -243,21 +243,25 @@ async function handleSubmit(): Promise<void> {
 </template>
 
 <style scoped>
-/* A 90%-opacity panel over the map (ADR 0022), not a page column: readable
-   against the map underneath without fully hiding it. `color-mix` keeps
-   this working for both the light and dark token values in tokens.css
-   without a second, opacity-aware color variable. */
+/* A translucent panel over the map (ADR 0022), not a page column: readable
+   against the map underneath without fully hiding it. `--overlay-bg` is
+   the same `color-mix` every floating panel now shares
+   (`styles/tokens.css`) -- chat is simply the one panel that keeps that
+   90% rather than the action dock's solid exception. Height-capped to
+   `min(60vh, 28rem)` *and* to the parent `.chat-pane`'s own `max-height:
+   100%` (TableView.vue), so a long message list can grow no further than
+   the map column itself, never up over the top strip. */
 .chat-log {
   width: min(22rem, 100%);
   max-height: min(60vh, 28rem);
   display: flex;
   flex-direction: column;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-bg);
   color: var(--color-text);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  box-shadow: var(--overlay-shadow);
 }
 
 .chat-header {

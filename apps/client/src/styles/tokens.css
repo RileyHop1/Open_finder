@@ -41,16 +41,37 @@
   --touch-target-min: 44px;
   --focus-ring-width: 3px;
 
-  /* No general z-index scale yet -- components mostly pick their own ad
-     hoc value (in-map popovers around 5-6, the TableView drawers at 10).
-     This is the first named one: the table's gear menu (GearMenu.vue)
-     floats over the map and every drawer, so it needs to beat all of
-     them. Add to this list instead of guessing another ad hoc number. */
+  /* The z-index scale every floating panel on the seated screen picks
+     from, instead of each component guessing its own ad hoc number.
+     Ordered low to high:
+       1. `--z-overlay` -- the map's own popovers (token/exit menus, the
+          toast, the move readout) and the chat/dock/banners/top-strip
+          overlays that sit directly on the map,
+       2. `--z-popover` -- a small popover anchored to something *in* one
+          of those overlays (e.g. the GM's initiative editor on a turn-
+          order portrait) -- only needs to beat its own overlay, not a
+          drawer,
+       3. `--z-drawer` -- the slide-over sheet/scene/rules/seats panes,
+       4. `--z-tooltip` -- hover/focus tooltips (`StatBreakdown.vue`,
+          `RulesTerm.vue`) that must stay readable no matter what they are
+          nested inside, drawer included,
+       5. `--z-gear-menu` -- must stay reachable over everything above it. */
+  --z-overlay: 6;
+  --z-popover: 8;
+  --z-drawer: 10;
+  --z-tooltip: 20;
   --z-gear-menu: 110;
-  /* The chat overlay (ChatLog.vue, TableView.vue's .chat-pane): below the
-     drawers (10), at the same level as the other in-map popovers, so an
-     open drawer slides over it rather than the other way around. */
-  --z-chat-overlay: 6;
+
+  /* The shared look for every floating panel on top of the map: chat, the
+     action dock, banners, drawers, menus, the toast, and the map's own
+     popovers. `color-mix` keeps the map visible underneath without fully
+     hiding it, the same way ChatLog.vue first used it; every other panel
+     reuses the identical 90% so the whole screen reads as one surface
+     instead of a patchwork of per-component opacities. */
+  --overlay-bg: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  --overlay-border: 1px solid var(--color-border);
+  --overlay-radius: 6px;
+  --overlay-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
 }
 
 @media (prefers-color-scheme: dark) {

@@ -205,11 +205,11 @@ function onFocusOut(event: FocusEvent): void {
   padding: var(--space-1);
   min-width: 12rem;
   list-style: none;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  box-shadow: var(--overlay-shadow);
 }
 
 .gear-items [role='menuitem'] {

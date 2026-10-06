@@ -172,14 +172,14 @@ function save(): void {
 <style scoped>
 .token-menu {
   position: absolute;
-  z-index: 5;
+  z-index: var(--z-overlay);
   min-width: 12rem;
   padding: var(--space-1);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  box-shadow: var(--overlay-shadow);
 }
 
 ul {
