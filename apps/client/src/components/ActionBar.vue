@@ -28,7 +28,6 @@ import type {
   GenericActionCost,
 } from './actionBarModel.js';
 import { modifierSum } from './actionBarModel.js';
-import ActionHotbar from './ActionHotbar.vue';
 import { defaultSlotName, withSlot } from './hotbarModel.js';
 import SaveToHotbar from './SaveToHotbar.vue';
 import SituationalMods from './SituationalMods.vue';
@@ -94,9 +93,16 @@ const hasContent = computed(
   () => actionText.value.trim() !== '' || actionDice.value.trim() !== '',
 );
 
-// A number key loads its slot: `TableView` owns the key handling (the one place that
-// already knows when the player is typing) and calls this.
-defineExpose({ loadSlot });
+/** Saves the form's action to `index`, named from its text: what an empty hotbar slot's + does. */
+function saveCurrentTo(index: number): void {
+  saveSlot(index, defaultSlotName(actionText.value, actionDice.value));
+}
+
+// The hotbar is its own bar (`ActionHotbar`, rendered by `TableView` under the dock),
+// so it reaches into this form through these: a slot or number key loads into it,
+// an empty slot's + saves from it. `TableView` also owns the number-key handling (the
+// one place that already knows when the player is typing).
+defineExpose({ loadSlot, saveCurrentTo, hasContent });
 
 function submitAction(): void {
   if (!hasContent.value) {
@@ -202,26 +208,13 @@ function submitAction(): void {
       <p v-if="error" role="alert" class="action-error">{{ error }}</p>
     </div>
     <SituationalMods :modifiers="modifiers" @update="emit('setModifiers', $event)" />
-    <ActionHotbar
-      :slots="hotbar"
-      :can-save="hasContent"
-      @save-to="(index) => saveSlot(index, defaultSlotName(actionText, actionDice))"
-      @load="loadSlot"
-      @remove="emit('setHotbar', withSlot(hotbar, $event, null))"
-      @rename="
-        (index, name) => {
-          const slot = hotbar[index];
-          if (slot) {
-            emit('setHotbar', withSlot(hotbar, index, { ...slot, name }));
-          }
-        }
-      "
-    />
   </section>
 </template>
 
 <style scoped>
 .action-bar {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);

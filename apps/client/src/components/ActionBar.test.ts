@@ -69,9 +69,10 @@ describe('ActionBar hotbar', () => {
   const value = (wrapper: ReturnType<typeof mountBar>, id: string) =>
     (wrapper.get(id).element as HTMLInputElement).value;
 
-  it('loads a clicked slot into the form, without spending anything', async () => {
+  it('loads a slot into the form through its exposed loadSlot, without spending anything', async () => {
     const wrapper = mountBar();
-    await wrapper.get('button[aria-label="Load Stab, slot 1"]').trigger('click');
+    wrapper.vm.loadSlot(0);
+    await wrapper.vm.$nextTick();
     expect(value(wrapper, '#action-text')).toBe('Sneak attack');
     expect(value(wrapper, '#action-cost')).toBe('2');
     expect(value(wrapper, '#action-dice')).toBe('1d6');
@@ -92,29 +93,20 @@ describe('ActionBar hotbar', () => {
     wrapper.unmount();
   });
 
-  it('saves straight to an empty slot from its + button, named from the action', async () => {
+  it('saves straight to a slot through saveCurrentTo, named from the action, and says whether the form has anything', async () => {
     const wrapper = mountBar();
-    expect(wrapper.find('button[aria-label="Save to slot 3"]').exists()).toBe(false);
+    expect(wrapper.vm.hasContent).toBe(false);
     await wrapper.get('#action-text').setValue('Trip');
-    await wrapper.get('button[aria-label="Save to slot 3"]').trigger('click');
+    expect(wrapper.vm.hasContent).toBe(true);
+    wrapper.vm.saveCurrentTo(2);
     const next = wrapper.emitted('setHotbar')?.[0]?.[0] as unknown[];
     expect(next[2]).toEqual({ name: 'Trip', text: 'Trip', cost: 1 });
-    // A filled slot offers no +, so a click can never overwrite by accident.
-    expect(wrapper.find('button[aria-label="Save to slot 1"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it('removes and renames a slot, leaving the others', async () => {
+  it('no longer renders the hotbar itself: it is its own bar', () => {
     const wrapper = mountBar();
-    await wrapper.get('button[aria-label="Remove Stab from slot 1"]').trigger('click');
-    expect((wrapper.emitted('setHotbar')?.[0]?.[0] as unknown[])[0]).toBeNull();
-
-    await wrapper.get('button[aria-label="Load Stab, slot 1"]').trigger('dblclick');
-    await wrapper.get('input[aria-label="Name for slot 1"]').setValue('Backstab');
-    await wrapper.get('input[aria-label="Name for slot 1"]').trigger('keydown.enter');
-    expect((wrapper.emitted('setHotbar')?.[1]?.[0] as { name: string }[])[0]?.name).toBe(
-      'Backstab',
-    );
+    expect(wrapper.find('.hotbar').exists()).toBe(false);
     wrapper.unmount();
   });
 });

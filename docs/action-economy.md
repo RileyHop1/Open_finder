@@ -61,7 +61,7 @@ a strike or sheet check sends them as `modifiers` so the chat breakdown lists
 each one ([operations.md](operations.md)), and the generic action's dice get
 their sum added to the expression.
 
-**The hotbar** (`ActionHotbar.vue`, `SaveToHotbar.vue`): ten slots in a box of their own under the action row (a grid of equal slots that wraps to a second row when the dock is narrow, so saving or clearing one never reshapes it), on keys 1 to 9 then 0, saved on the actor with `actor.setQuickbar`
+**The hotbar** (`ActionHotbar.vue`, `SaveToHotbar.vue`): ten slots in a **bar of their own**, a second box stacked under the action bar at the same width (a grid of equal slots that wraps to a second row when narrow, so saving or clearing one never reshapes it). The form and Save button stay on the action bar; a slot or number key loads into the form, and an empty slot's "+" saves the form there, on keys 1 to 9 then 0, saved on the actor with `actor.setQuickbar`
 ([actor.md](actor.md)) so they follow the player to any device. A filled slot
 shows the player's own name for it and its cost. Choosing a slot (click, or its
 number key when not typing) **loads it into the form** rather than running it, so

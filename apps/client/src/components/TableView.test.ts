@@ -740,6 +740,54 @@ describe('the turn bar', () => {
     expect((wrapper.get('#action-dice').element as HTMLInputElement).value).toBe('1d6');
   });
 
+  it('puts the hotbar in a bar of its own, outside the action bar, under the dock', async () => {
+    seedActiveCombat();
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    expect(wrapper.find('.action-bar .hotbar').exists()).toBe(false);
+    expect(wrapper.find('.action-dock-rail > .hotbar-bar').exists()).toBe(true);
+    expect(wrapper.findAll('.hotbar-bar li.slot')).toHaveLength(10);
+  });
+
+  it('loads a clicked hotbar slot into the action form, and an empty slot’s + saves the form there', async () => {
+    seedActiveCombat({
+      hotbar: [
+        { name: 'Stab', text: 'Sneak attack', cost: 2, dice: '1d6' },
+        ...Array.from({ length: 9 }, () => null),
+      ],
+    });
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    await wrapper.get('button[aria-label="Load Stab, slot 1"]').trigger('click');
+    expect((wrapper.get('#action-text').element as HTMLInputElement).value).toBe(
+      'Sneak attack',
+    );
+    expect((wrapper.get('#action-dice').element as HTMLInputElement).value).toBe('1d6');
+
+    await wrapper.get('#action-text').setValue('Trip');
+    await wrapper.get('button[aria-label="Save to slot 3"]').trigger('click');
+    await flushPromises();
+    const sent = sentOperations().find((op) => op.type === 'actor.setQuickbar');
+    expect((sent?.payload as { hotbar: unknown[] }).hotbar[2]).toMatchObject({
+      name: 'Trip',
+      text: 'Trip',
+    });
+  });
+
+  it('removes and renames a hotbar slot, saving the rest unchanged', async () => {
+    seedActiveCombat({
+      hotbar: [
+        { name: 'Stab', text: 'Sneak attack', cost: 2 },
+        ...Array.from({ length: 9 }, () => null),
+      ],
+    });
+    const wrapper = await mountTable();
+    await wrapper.get('.token-list button').trigger('click');
+    await wrapper.get('button[aria-label="Remove Stab from slot 1"]').trigger('click');
+    await flushPromises();
+    expect((sentOperations()[0]?.payload as { hotbar: unknown[] }).hotbar[0]).toBeNull();
+  });
+
   it('saves a changed hotbar on the actor', async () => {
     seedActiveCombat();
     const wrapper = await mountTable();

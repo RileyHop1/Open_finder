@@ -83,7 +83,8 @@ import {
 } from './actionBarModel.js';
 import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
-import { slotForKey } from './hotbarModel.js';
+import ActionHotbar from './ActionHotbar.vue';
+import { slotForKey, withSlot } from './hotbarModel.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import GearMenu from './GearMenu.vue';
@@ -494,6 +495,15 @@ function setBarHotbar(hotbar: (HotbarAction | null)[]): void {
   const bar = actionBar.value;
   if (bar !== undefined) {
     void documents.send('actor.setQuickbar', { actorId: bar.actorId, hotbar });
+  }
+}
+
+/** Renames hotbar slot `index`, keeping what it saves. */
+function renameHotbarSlot(index: number, name: string): void {
+  const hotbar = actionBar.value?.hotbar;
+  const slot = hotbar?.[index];
+  if (hotbar !== undefined && slot !== undefined && slot !== null) {
+    setBarHotbar(withSlot(hotbar, index, { ...slot, name }));
   }
 }
 
@@ -994,6 +1004,17 @@ async function handleCreate(): Promise<void> {
               @unhover-strike="barUnhoverStrike"
             />
           </div>
+          <!-- The hotbar is a bar of its own under the dock, not part of the action bar. -->
+          <ActionHotbar
+            v-if="actionBar !== undefined"
+            class="hotbar-bar"
+            :slots="actionBar.hotbar"
+            :can-save="actionBarEl?.hasContent === true"
+            @load="(index) => actionBarEl?.loadSlot(index)"
+            @save-to="(index) => actionBarEl?.saveCurrentTo(index)"
+            @remove="(index) => setBarHotbar(withSlot(actionBar!.hotbar, index, null))"
+            @rename="renameHotbarSlot"
+          />
         </div>
 
         <Transition name="drawer">
@@ -1518,8 +1539,22 @@ button[aria-pressed='true'] {
   right: calc(min(22rem, 100%) + 2 * var(--space-2));
   bottom: var(--space-2);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
   pointer-events: none;
+}
+
+/* The hotbar: its own bar under the action dock, same panel look and the same
+   width as the dock (two stacked boxes), a grid of equal slots so saving or
+   clearing one never reshapes it. */
+.hotbar-bar {
+  z-index: var(--z-overlay);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 60rem;
+  pointer-events: auto;
+  box-shadow: var(--overlay-shadow);
 }
 
 /* The action dock (ActionTray, ActionBar): docked bottom-center of its
@@ -1536,7 +1571,9 @@ button[aria-pressed='true'] {
   flex-direction: row;
   align-items: center;
   gap: var(--space-2);
-  max-width: 100%;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 60rem;
   border: var(--overlay-border);
   border-radius: var(--overlay-radius);
   background: var(--color-surface);
