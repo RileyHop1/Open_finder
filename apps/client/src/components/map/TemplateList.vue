@@ -54,16 +54,15 @@ function canRemove(template: Template): boolean {
 </template>
 
 <style scoped>
+/* Positioned by the parent `.right-stack` (MapView.vue), not by this component. */
 .template-list {
-  position: absolute;
-  right: var(--space-2);
-  bottom: var(--space-2);
-  max-width: calc(100% - 2 * var(--space-2));
+  max-width: 100%;
   padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-surface);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-bg);
   color: var(--color-text);
+  box-shadow: var(--overlay-shadow);
 }
 
 ul {

@@ -1528,23 +1528,25 @@ onBeforeUnmount(() => {
       </button>
       <button type="button" @click="cancelExit">Cancel</button>
     </div>
-    <TokenList
-      :views="views"
-      :exits="exits"
-      :distances="distances"
-      :targeting="targeting"
-      :flanked-token-ids="flankedTokenIds"
-      @exit="askExit"
-      @select="selectFromList"
-      @target="(tokenId) => emit('pickTarget', tokenId)"
-      @open="(actorId) => emit('openActor', actorId)"
-    />
-    <TemplateList
-      :templates="scenes.shownTemplates"
-      :my-seat-id="lobby.mySeat?.id"
-      :is-gm="lobby.mySeat?.isGM === true"
-      @remove="removeTemplate"
-    />
+    <div class="right-stack">
+      <TokenList
+        :views="views"
+        :exits="exits"
+        :distances="distances"
+        :targeting="targeting"
+        :flanked-token-ids="flankedTokenIds"
+        @exit="askExit"
+        @select="selectFromList"
+        @target="(tokenId) => emit('pickTarget', tokenId)"
+        @open="(actorId) => emit('openActor', actorId)"
+      />
+      <TemplateList
+        :templates="scenes.shownTemplates"
+        :my-seat-id="lobby.mySeat?.id"
+        :is-gm="lobby.mySeat?.isGM === true"
+        @remove="removeTemplate"
+      />
+    </div>
     <form
       v-if="placingTemplate"
       class="template-placement"
@@ -1678,9 +1680,15 @@ onBeforeUnmount(() => {
   position: absolute;
   right: var(--space-2);
   top: var(--space-2);
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  padding: var(--space-1);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-bg);
+  box-shadow: var(--overlay-shadow);
 }
 
 .map-zoom button {
@@ -1701,16 +1709,17 @@ onBeforeUnmount(() => {
   position: absolute;
   top: var(--space-2);
   left: 50%;
-  z-index: 6;
+  z-index: var(--z-overlay);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 2px solid var(--color-accent);
-  border-radius: 4px;
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
   color: var(--color-text);
+  box-shadow: var(--overlay-shadow);
   transform: translateX(-50%);
 }
 
@@ -1718,7 +1727,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: var(--space-2);
   left: var(--space-2);
-  z-index: 6;
+  z-index: var(--z-overlay);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1726,9 +1735,10 @@ onBeforeUnmount(() => {
   max-width: calc(100% - 2 * var(--space-2));
   padding: var(--space-2) var(--space-3);
   border: 2px solid var(--color-accent);
-  border-radius: 4px;
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
   color: var(--color-text);
+  box-shadow: var(--overlay-shadow);
 }
 
 .template-placement fieldset {
@@ -1774,10 +1784,30 @@ onBeforeUnmount(() => {
   position: absolute;
   right: var(--space-2);
   bottom: var(--space-2);
+  z-index: var(--z-overlay);
   margin: 0;
   padding: var(--space-1) var(--space-2);
-  border-radius: 4px;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
   color: var(--color-text);
+  box-shadow: var(--overlay-shadow);
+}
+
+/* TokenList and TemplateList both anchor bottom-right; stacked (list above
+   template-list) instead of both racing for the same corner -- the token
+   list used to sit bottom-left, in chat's own corner. `column-reverse` so
+   the later child (TemplateList) stays flush with the bottom edge and the
+   token list stacks above it as it grows. */
+.right-stack {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-2));
 }
 </style>

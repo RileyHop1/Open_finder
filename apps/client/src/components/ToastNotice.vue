@@ -73,13 +73,15 @@ onBeforeUnmount(clearTimer);
   left: var(--space-2);
   right: auto;
   bottom: auto;
+  z-index: var(--z-overlay);
   max-width: calc(100% - var(--space-4));
   display: flex;
   align-items: center;
   gap: var(--space-2);
   margin: 0;
   padding: var(--space-1) var(--space-2);
-  border-radius: 4px;
+  border-radius: var(--overlay-radius);
+  box-shadow: var(--overlay-shadow);
 }
 
 .toast-notice--error {

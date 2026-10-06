@@ -22,10 +22,15 @@
  * The **action dock** (`.action-dock`: `ActionTray`, the acting combatant's
  * actions, and `ActionBar`, the selected token's strikes) is centered over
  * the map's bottom edge, Owlcat-style, rather than pushing the map up from
- * below -- see `actionTray`/`actionBar` below. The preview-scene and
- * targeting banners are the same idea at the map's top edge instead
- * (`.top-banners`): small overlays, not flow siblings the map has to make
- * room for.
+ * below -- see `actionTray`/`actionBar` below. It centers within
+ * `.action-dock-rail`, the strip right of chat rather than the column's
+ * full width, so the two overlays never run into each other regardless of
+ * viewport width. The preview-scene and targeting banners are the same
+ * idea at the map's top edge instead (`.top-banners`): small overlays, not
+ * flow siblings the map has to make room for. Every floating panel shares
+ * one look (`--overlay-border`/`--overlay-radius`/`--overlay-shadow`,
+ * `styles/tokens.css`) and one z-index scale, rather than each picking its
+ * own.
  *
  * The GM also has a **Scenes** drawer, from the right edge of the map (the scene
  * manager: make, edit, preview, move the party to, and delete scenes).
@@ -816,32 +821,34 @@ async function handleCreate(): Promise<void> {
           {{ combat.error }}
         </p>
 
-        <div
-          v-if="actionTray !== undefined || actionBar !== undefined"
-          class="action-dock"
-        >
-          <ActionTray
-            v-if="actionTray !== undefined"
-            :view="actionTray.view"
-            :label="actionTray.label"
-            :can-control="actionTray.canControl"
-            :gm="lobby.mySeat?.isGM === true"
-            @spend="spendTrayAction"
-            @set-reaction="setTrayReaction"
-            @undo="combat.undo"
-          />
+        <div class="action-dock-rail">
+          <div
+            v-if="actionTray !== undefined || actionBar !== undefined"
+            class="action-dock"
+          >
+            <ActionTray
+              v-if="actionTray !== undefined"
+              :view="actionTray.view"
+              :label="actionTray.label"
+              :can-control="actionTray.canControl"
+              :gm="lobby.mySeat?.isGM === true"
+              @spend="spendTrayAction"
+              @set-reaction="setTrayReaction"
+              @undo="combat.undo"
+            />
 
-          <ActionBar
-            v-if="actionBar !== undefined"
-            :view="actionBar.view"
-            :label="actionBar.label"
-            :gm="actionBar.gm"
-            @strike="barStrike"
-            @basic-action="barBasicAction"
-            @freeform="barFreeform"
-            @hover-strike="barHoverStrike"
-            @unhover-strike="barUnhoverStrike"
-          />
+            <ActionBar
+              v-if="actionBar !== undefined"
+              :view="actionBar.view"
+              :label="actionBar.label"
+              :gm="actionBar.gm"
+              @strike="barStrike"
+              @basic-action="barBasicAction"
+              @freeform="barFreeform"
+              @hover-strike="barHoverStrike"
+              @unhover-strike="barUnhoverStrike"
+            />
+          </div>
         </div>
 
         <Transition name="drawer">
@@ -1271,13 +1278,17 @@ button[aria-pressed='true'] {
 }
 
 /* The chat panel (ChatLog.vue) floats over the map's bottom-left corner,
-   90% opacity, rather than sitting in its own page column. */
+   rather than sitting in its own page column. Height-capped to the column
+   so a tall message list can never grow up over the top strip, and
+   width-capped (ChatLog.vue's own `.chat-log`) so it never reaches into
+   the action dock's rail below. */
 .chat-pane {
   position: absolute;
   left: var(--space-2);
   bottom: var(--space-2);
-  z-index: var(--z-chat-overlay);
+  z-index: var(--z-overlay);
   max-width: calc(100% - 2 * var(--space-2));
+  max-height: 100%;
 }
 
 /* Grows to fill the map column: the turn/party strip lives outside it
@@ -1300,7 +1311,7 @@ button[aria-pressed='true'] {
   top: var(--space-2);
   left: 50%;
   transform: translateX(-50%);
-  z-index: var(--z-chat-overlay);
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1308,25 +1319,42 @@ button[aria-pressed='true'] {
   max-width: calc(100% - 2 * var(--space-2));
 }
 
-/* The action dock (ActionTray, ActionBar): docked bottom-center over the
-   map, Owlcat-style, rather than pushing it up from below. */
-.action-dock {
+/* The action dock's rail: the strip of the map column to the right of
+   chat, so the dock below can never run under it (chat is left-anchored,
+   width-capped at `min(22rem, 100%)` -- ChatLog.vue's `.chat-log`). The
+   dock centers *inside this rail*, not across the whole column, which is
+   what actually fixes the collision rather than just capping widths. */
+.action-dock-rail {
   position: absolute;
-  left: 50%;
+  left: calc(min(22rem, 100%) + 2 * var(--space-2));
+  right: var(--space-2);
   bottom: var(--space-2);
-  transform: translateX(-50%);
-  z-index: var(--z-chat-overlay);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* The action dock (ActionTray, ActionBar): docked bottom-center of its
+   rail over the map, Owlcat-style, rather than pushing the map up from
+   below. Solid `--color-surface`, not `--overlay-bg`'s 90% -- this is the
+   one deliberate exception to the shared look: action-economy buttons need
+   full legibility, where chat's whole point is staying see-through so the
+   map underneath still reads. Border/radius/shadow still match every other
+   panel. */
+.action-dock {
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  max-width: calc(100% - 2 * var(--space-2));
+  max-width: 100%;
   max-height: 45%;
   overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  box-shadow: var(--overlay-shadow);
+  pointer-events: auto;
 }
 
 .sheet-pane {
@@ -1334,12 +1362,12 @@ button[aria-pressed='true'] {
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: 10;
+  z-index: var(--z-drawer);
   width: min(36rem, 100%);
   overflow-y: auto;
   padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
   box-shadow: 4px 0 16px rgb(0 0 0 / 0.25);
 }
@@ -1387,9 +1415,9 @@ button[aria-pressed='true'] {
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border: 2px solid var(--color-accent);
-  border-radius: 4px;
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  box-shadow: var(--overlay-shadow);
 }
 
 .preview-banner {
@@ -1400,9 +1428,9 @@ button[aria-pressed='true'] {
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border: 2px solid var(--color-accent);
-  border-radius: 4px;
+  border-radius: var(--overlay-radius);
   background: var(--color-surface);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  box-shadow: var(--overlay-shadow);
 }
 
 .preview-banner button {

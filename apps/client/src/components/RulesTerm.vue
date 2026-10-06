@@ -170,7 +170,7 @@ function onFocusOut(event: FocusEvent): void {
 
 .rules-term-popover {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-tooltip);
   top: 100%;
   left: 0;
   display: block;
@@ -179,8 +179,8 @@ function onFocusOut(event: FocusEvent): void {
   margin-top: var(--space-1);
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
   box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
   text-align: left;
   white-space: normal;

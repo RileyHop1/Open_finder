@@ -108,22 +108,23 @@ function rowText(view: TokenView): string {
 <style scoped>
 /*
  * Always in the same place and the same size, and only transparent until something in
- * it has focus: it stays in the tab order and the accessibility tree.
+ * it has focus: it stays in the tab order and the accessibility tree. Positioned by
+ * the parent `.right-stack` (MapView.vue), not by this component -- it shares that
+ * bottom-right corner with `TemplateList`, stacked above it, rather than chat's
+ * bottom-left corner it used to sit in.
  *
  * It deliberately has no scroll container. A scrolling element over the WebGL canvas
  * left a stale rectangle painted over the map in Chromium (found in a real-browser
  * check), so a long list wraps into rows instead.
  */
 .token-list {
-  position: absolute;
-  left: var(--space-2);
-  bottom: var(--space-2);
-  max-width: calc(100% - 2 * var(--space-2));
+  max-width: 100%;
   padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-surface);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-bg);
   color: var(--color-text);
+  box-shadow: var(--overlay-shadow);
   opacity: 0;
   pointer-events: none;
 }
