@@ -89,7 +89,8 @@ function saveSlot(index: number, name: string): void {
   );
 }
 
-const canSave = computed(
+/** Whether the form has something in it: spending needs an action or dice, and so does saving. */
+const hasContent = computed(
   () => actionText.value.trim() !== '' || actionDice.value.trim() !== '',
 );
 
@@ -98,6 +99,9 @@ const canSave = computed(
 defineExpose({ loadSlot });
 
 function submitAction(): void {
+  if (!hasContent.value) {
+    return;
+  }
   const text = actionText.value.trim();
   emit('action', {
     text,
@@ -181,19 +185,27 @@ function submitAction(): void {
           aria-label="Dice"
           placeholder="1d20+7"
         />
-        <button type="submit">Spend</button>
+        <button
+          type="submit"
+          :disabled="!hasContent"
+          :title="hasContent ? undefined : 'Describe the action or enter dice first'"
+        >
+          Spend
+        </button>
       </form>
       <SaveToHotbar
         :slots="hotbar"
         :suggested-name="defaultSlotName(actionText, actionDice)"
-        :can-save="canSave"
+        :can-save="hasContent"
         @save="saveSlot"
       />
-      <SituationalMods :modifiers="modifiers" @update="emit('setModifiers', $event)" />
       <p v-if="error" role="alert" class="action-error">{{ error }}</p>
     </div>
+    <SituationalMods :modifiers="modifiers" @update="emit('setModifiers', $event)" />
     <ActionHotbar
       :slots="hotbar"
+      :can-save="hasContent"
+      @save-to="(index) => saveSlot(index, defaultSlotName(actionText, actionDice))"
       @load="loadSlot"
       @remove="emit('setHotbar', withSlot(hotbar, $event, null))"
       @rename="
@@ -218,13 +230,13 @@ function submitAction(): void {
 }
 .bar-row {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
 .strikes {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--space-2);
   list-style: none;
   margin: 0;
@@ -252,7 +264,7 @@ button {
 }
 .action-form {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
 }
