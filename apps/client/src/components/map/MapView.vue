@@ -1676,10 +1676,14 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+/* Middle-right, not top-right: the top strip and its banners overlay the
+   map's whole top edge now (`TableView.vue`'s `.top-stack`), right where
+   this used to sit. */
 .map-zoom {
   position: absolute;
   right: var(--space-2);
-  top: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
   z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;

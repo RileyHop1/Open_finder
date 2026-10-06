@@ -27,10 +27,11 @@
  * actions, and `ActionBar`, the selected token's strikes) is centered over
  * the map's bottom edge, Owlcat-style, rather than pushing the map up from
  * below -- see `actionTray`/`actionBar` below. It centers within
- * `.action-dock-rail`, the strip right of chat rather than the column's
- * full width, so the two overlays never run into each other regardless of
- * viewport width (`.top-stack` uses the same trick for the top strip, just
- * full-width since nothing else shares its row). Every floating panel
+ * `.action-dock-rail`, inset from both sides by chat's width so the dock
+ * is truly centred yet never runs into chat, regardless of viewport width
+ * (`.top-stack` uses the same real-width trick for the top strip, just
+ * full-width since nothing else shares its row). The map's zoom/ruler
+ * buttons sit middle-right so they stay clear of both. Every floating panel
  * shares one look (`--overlay-border`/`--overlay-radius`/`--overlay-shadow`,
  * `styles/tokens.css`) and one z-index scale, rather than each picking its
  * own.
@@ -1387,15 +1388,16 @@ button[aria-pressed='true'] {
   max-width: 100%;
 }
 
-/* The action dock's rail: the strip of the map column to the right of
-   chat, so the dock below can never run under it (chat is left-anchored,
-   width-capped at `min(22rem, 100%)` -- ChatLog.vue's `.chat-log`). The
-   dock centers *inside this rail*, not across the whole column, which is
-   what actually fixes the collision rather than just capping widths. */
+/* The action dock's rail: inset from *both* sides by chat's width
+   (`min(22rem, 100%)` -- ChatLog.vue's `.chat-log`), so the dock below can
+   never run under chat, and -- because the insets match -- the rail's
+   centre is the map's true centre. Insetting only the left side kept the
+   dock clear of chat too, but centred it in a right-shifted box, about
+   half of chat's width off the middle of the screen. */
 .action-dock-rail {
   position: absolute;
   left: calc(min(22rem, 100%) + 2 * var(--space-2));
-  right: var(--space-2);
+  right: calc(min(22rem, 100%) + 2 * var(--space-2));
   bottom: var(--space-2);
   display: flex;
   justify-content: center;
