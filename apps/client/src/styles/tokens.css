@@ -40,6 +40,13 @@
      targets are at least 44px" -- tablets are supported, phones are not. */
   --touch-target-min: 44px;
   --focus-ring-width: 3px;
+
+  /* No general z-index scale yet -- components mostly pick their own ad
+     hoc value (in-map popovers around 5-6, the TableView drawers at 10).
+     This is the first named one: the table's gear menu (GearMenu.vue)
+     floats over the map and every drawer, so it needs to beat all of
+     them. Add to this list instead of guessing another ad hoc number. */
+  --z-gear-menu: 110;
 }
 
 @media (prefers-color-scheme: dark) {

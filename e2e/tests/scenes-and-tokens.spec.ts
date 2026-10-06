@@ -26,6 +26,7 @@ import {
   addSeat,
   claimSeat,
   createAndActivateCampaign,
+  openFromGearMenu,
   waitForConnected,
 } from './helpers.js';
 
@@ -46,7 +47,7 @@ function sceneRow(page: Page, name: string): Locator {
 }
 
 async function makeCharacter(page: Page, name: string): Promise<void> {
-  await page.getByRole('button', { name: 'Characters', exact: true }).click();
+  await openFromGearMenu(page, 'Characters');
   await page.getByLabel('New character name').fill(name);
   await page.getByRole('button', { name: 'Create character' }).click();
   await expect(page.getByRole('heading', { name, level: 3 })).toBeVisible();
@@ -88,12 +89,13 @@ test('a GM builds scenes and an exit, a player moves their token, and the party 
     // --- Before the party has a scene, nobody is shown a map, and a player has
     // no scene tools at all. ---
     await expect(player.getByText('No scene is showing yet.')).toBeVisible();
-    await expect(player.getByRole('button', { name: 'Scenes', exact: true })).toHaveCount(
-      0,
-    );
+    await player.getByRole('button', { name: 'Table menu' }).click();
+    await expect(
+      player.getByRole('menuitem', { name: 'Scenes', exact: true }),
+    ).toHaveCount(0);
 
     // --- The GM builds two scenes and an exit from one to the other. ---
-    await gm.getByRole('button', { name: 'Scenes', exact: true }).click();
+    await openFromGearMenu(gm, 'Scenes');
     await makeScene(gm, 'Tavern', 'Area');
     await makeScene(gm, 'Cellar', 'Battle map');
 
@@ -110,7 +112,7 @@ test('a GM builds scenes and an exit, a player moves their token, and the party 
     await expect(player.getByText('No scene is showing yet.')).toHaveCount(0);
 
     // --- The GM places both characters on the map. ---
-    await gm.getByRole('button', { name: 'Characters', exact: true }).click();
+    await openFromGearMenu(gm, 'Characters');
     await gm.getByRole('button', { name: 'Place Valeria on the map' }).click();
     await gm.getByRole('button', { name: 'Place Brute on the map' }).click();
     await expect(player.locator('.token-list li')).toHaveCount(2);

@@ -67,3 +67,13 @@ export async function openSeats(page: Page): Promise<void> {
     await seats.locator('summary').click();
   }
 }
+
+/**
+ * Opens the gear menu (`GearMenu.vue`) and clicks the item labelled `label`
+ * -- the Characters, Scenes, and Rules drawers, and "Release seat", all
+ * moved here (ADR 0022's map-first shell leaves no toolbar row for them).
+ */
+export async function openFromGearMenu(page: Page, label: string): Promise<void> {
+  await page.getByRole('button', { name: 'Table menu' }).click();
+  await page.getByRole('menuitem', { name: label, exact: true }).click();
+}

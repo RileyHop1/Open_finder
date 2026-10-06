@@ -109,6 +109,27 @@ async function mountTable() {
   return wrapper;
 }
 
+/** Opens the gear menu (GearMenu.vue). */
+async function openGearMenu(
+  wrapper: Awaited<ReturnType<typeof mountTable>>,
+): Promise<void> {
+  await wrapper.get('.gear-button').trigger('click');
+}
+
+/** The gear menu's item labelled `label`, while the menu is open. */
+function gearMenuItem(wrapper: Awaited<ReturnType<typeof mountTable>>, label: string) {
+  return wrapper.findAll('[role="menuitem"]').find((b) => b.text() === label);
+}
+
+/** Opens the gear menu and clicks the item labelled `label`. */
+async function selectFromGearMenu(
+  wrapper: Awaited<ReturnType<typeof mountTable>>,
+  label: string,
+): Promise<void> {
+  await openGearMenu(wrapper);
+  await gearMenuItem(wrapper, label)?.trigger('click');
+}
+
 describe('layout', () => {
   it('has a party bar, a map, a character pane, and a chat pane, each a named landmark', async () => {
     const wrapper = await mountTable();
@@ -134,10 +155,10 @@ describe('layout', () => {
     expect(documentsApi.listActors).toHaveBeenCalledWith(WORLD);
   });
 
-  it('says who you are playing as, and releases the seat from there', async () => {
+  it('says who you are playing as, and releases the seat from the gear menu', async () => {
     const wrapper = await mountTable();
     expect(wrapper.find('.playing-as').text()).toContain('Valeros');
-    await wrapper.find('.playing-as button').trigger('click');
+    await selectFromGearMenu(wrapper, 'Release seat');
     expect(releaseSeat).toHaveBeenCalledTimes(1);
   });
 });
@@ -628,23 +649,18 @@ describe('map and character drawer', () => {
     );
   });
 
-  it('starts with the drawer closed, and out of the tab order', async () => {
+  it('starts with the drawer closed', async () => {
     const wrapper = await mountTable();
     expect(isShown(wrapper)).toBe(false);
-    const opener = wrapper.get('.map-tools button');
-    expect(opener.attributes('aria-expanded')).toBe('false');
-    expect(opener.attributes('aria-controls')).toBe('sheet-pane');
   });
 
-  it('opens from the Characters button and closes from its Close button', async () => {
+  it("opens from the gear menu's Characters item and closes from its Close button", async () => {
     const wrapper = await mountTable();
-    await wrapper.get('.map-tools button').trigger('click');
+    await selectFromGearMenu(wrapper, 'Characters');
     expect(isShown(wrapper)).toBe(true);
-    expect(wrapper.get('.map-tools button').attributes('aria-expanded')).toBe('true');
 
     await wrapper.get('#sheet-pane .drawer-close').trigger('click');
     expect(isShown(wrapper)).toBe(false);
-    expect(wrapper.get('.map-tools button').attributes('aria-expanded')).toBe('false');
   });
 
   it('opens on that character’s sheet when a party card is pressed', async () => {
@@ -658,16 +674,14 @@ describe('map and character drawer', () => {
     expect(wrapper.get('.sheet h3').text()).toBe('Anna');
   });
 
-  it('closes on Escape and puts focus back on what opened it', async () => {
+  it('closes on Escape and puts focus back on the gear button that opened it', async () => {
     const wrapper = await mountTable();
-    const opener = wrapper.get('.map-tools button').element as HTMLButtonElement;
-    opener.focus();
-    await wrapper.get('.map-tools button').trigger('click');
+    await selectFromGearMenu(wrapper, 'Characters');
     expect(document.activeElement).toBe(drawerOf(wrapper));
 
     await wrapper.get('#sheet-pane').trigger('keydown', { key: 'Escape' });
     expect(isShown(wrapper)).toBe(false);
-    expect(document.activeElement).toBe(opener);
+    expect(document.activeElement).toBe(wrapper.get('.gear-button').element);
   });
 
   it('opens from the skip link, and keeps what was open when it closes', async () => {
@@ -681,7 +695,7 @@ describe('map and character drawer', () => {
 
     await wrapper.get('.roster button').trigger('click');
     await wrapper.get('#sheet-pane .drawer-close').trigger('click');
-    await wrapper.get('.map-tools button').trigger('click');
+    await selectFromGearMenu(wrapper, 'Characters');
     expect(wrapper.get('.sheet h3').text()).toBe('Anna');
   });
 });
@@ -710,38 +724,33 @@ describe('the GM’s scene drawer', () => {
       kind: 'battle',
     });
 
-  const sceneButton = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
-    wrapper.findAll('.map-tools button').find((b) => b.text() === 'Scenes');
-
   it('is offered to the GM and not to a player', async () => {
     mySeat = seat(false);
     const player = await mountTable();
-    expect(sceneButton(player)).toBeUndefined();
+    await openGearMenu(player);
+    expect(gearMenuItem(player, 'Scenes')).toBeUndefined();
     expect(player.find('#scene-pane').exists()).toBe(false);
 
     mySeat = seat(true);
     const gm = await mountTable();
-    expect(sceneButton(gm)).toBeDefined();
+    await openGearMenu(gm);
+    expect(gearMenuItem(gm, 'Scenes')).toBeDefined();
     expect(gm.find('#scene-pane').exists()).toBe(true);
   });
 
-  it('opens from the Scenes button, closes on Escape, and gives focus back', async () => {
+  it("opens from the gear menu's Scenes item, closes on Escape, and gives focus back", async () => {
     mySeat = seat(true);
     const wrapper = await mountTable();
-    const opener = sceneButton(wrapper);
-    expect(opener?.attributes('aria-expanded')).toBe('false');
-    (opener?.element as HTMLButtonElement).focus();
-    await opener?.trigger('click');
+    await selectFromGearMenu(wrapper, 'Scenes');
 
     const drawer = wrapper.get('#scene-pane');
     expect((drawer.element as HTMLElement).style.display).not.toBe('none');
-    expect(sceneButton(wrapper)?.attributes('aria-expanded')).toBe('true');
     expect(document.activeElement).toBe(drawer.element);
     expect(drawer.text()).toContain('No scenes yet');
 
     await drawer.trigger('keydown', { key: 'Escape' });
     expect((drawer.element as HTMLElement).style.display).toBe('none');
-    expect(document.activeElement).toBe(opener?.element);
+    expect(document.activeElement).toBe(wrapper.get('.gear-button').element);
   });
 
   it('starts closed, and can be open beside the character drawer', async () => {
@@ -750,8 +759,8 @@ describe('the GM’s scene drawer', () => {
     expect((wrapper.get('#scene-pane').element as HTMLElement).style.display).toBe(
       'none',
     );
-    await sceneButton(wrapper)?.trigger('click');
-    await wrapper.get('.map-tools button').trigger('click');
+    await selectFromGearMenu(wrapper, 'Scenes');
+    await selectFromGearMenu(wrapper, 'Characters');
     expect((wrapper.get('#scene-pane').element as HTMLElement).style.display).not.toBe(
       'none',
     );
@@ -784,30 +793,24 @@ describe('the GM’s scene drawer', () => {
 });
 
 describe('the Rules drawer', () => {
-  const rulesButton = (wrapper: Awaited<ReturnType<typeof mountTable>>) =>
-    wrapper.findAll('.map-tools button').find((b) => b.text() === 'Rules');
-
   it('is offered to everyone, player and GM alike', async () => {
     mySeat = { id: crypto.randomUUID(), isGM: false } as Seat;
     const player = await mountTable();
-    expect(rulesButton(player)).toBeDefined();
+    await openGearMenu(player);
+    expect(gearMenuItem(player, 'Rules')).toBeDefined();
   });
 
-  it('opens from the Rules button, closes on Escape, and gives focus back', async () => {
+  it("opens from the gear menu's Rules item, closes on Escape, and gives focus back", async () => {
     const wrapper = await mountTable();
-    const opener = rulesButton(wrapper);
-    expect(opener?.attributes('aria-expanded')).toBe('false');
-    (opener?.element as HTMLButtonElement).focus();
-    await opener?.trigger('click');
+    await selectFromGearMenu(wrapper, 'Rules');
 
     const drawer = wrapper.get('#rules-pane');
     expect((drawer.element as HTMLElement).style.display).not.toBe('none');
-    expect(rulesButton(wrapper)?.attributes('aria-expanded')).toBe('true');
     expect(document.activeElement).toBe(drawer.element);
 
     await drawer.trigger('keydown', { key: 'Escape' });
     expect((drawer.element as HTMLElement).style.display).toBe('none');
-    expect(document.activeElement).toBe(opener?.element);
+    expect(document.activeElement).toBe(wrapper.get('.gear-button').element);
   });
 
   it('opens with the ? hotkey, ignored while typing in a text field', async () => {
@@ -836,12 +839,9 @@ describe('the Rules drawer', () => {
   it('can be open beside the character drawer, but not beside the GM’s Scenes drawer', async () => {
     mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
     const wrapper = await mountTable();
-    const scenesButton = wrapper
-      .findAll('.map-tools button')
-      .find((b) => b.text() === 'Scenes');
 
-    await rulesButton(wrapper)?.trigger('click');
-    await wrapper.get('.map-tools button').trigger('click');
+    await selectFromGearMenu(wrapper, 'Rules');
+    await selectFromGearMenu(wrapper, 'Characters');
     expect((wrapper.get('#rules-pane').element as HTMLElement).style.display).not.toBe(
       'none',
     );
@@ -849,7 +849,7 @@ describe('the Rules drawer', () => {
       'none',
     );
 
-    await scenesButton?.trigger('click');
+    await selectFromGearMenu(wrapper, 'Scenes');
     expect((wrapper.get('#scene-pane').element as HTMLElement).style.display).not.toBe(
       'none',
     );
