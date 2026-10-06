@@ -231,17 +231,16 @@ describe('spendMovement', () => {
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 2 });
   });
 
-  it("refuses a player's move past the turn's action capacity, and writes nothing", () => {
+  it("never refuses a player's move past the turn's action capacity: it warns instead", () => {
     const { adaPlayer, ada, of, start } = table();
     start();
     spendMovement(store, adaPlayer, ada, 25);
     spendMovement(store, adaPlayer, ada, 25);
     spendMovement(store, adaPlayer, ada, 25);
     expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 3 });
-    expect(() => spendMovement(store, adaPlayer, ada, 5)).toThrow(
-      'has no actions left this turn.',
-    );
-    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 3 });
+    const over = spendMovement(store, adaPlayer, ada, 5);
+    expect(turnOf(ada.id, of)).toMatchObject({ actionsSpent: 4 });
+    expect(JSON.stringify(over?.documents)).toContain('has spent 4 of 3 actions');
   });
 
   it("never blocks the GM's overspend by moving a token too far", () => {

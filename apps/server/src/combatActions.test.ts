@@ -172,25 +172,24 @@ describe('spendAction', () => {
     expect(JSON.stringify(documents)).toContain('3 of 2 actions');
   });
 
-  it('refuses a player who tries to spend past the turn’s capacity, naming how many are left', () => {
+  it('lets a player spend past the turn’s capacity, announcing it in chat instead of refusing', () => {
     const { owner, ada, stored, start } = fight();
     start();
     spendAction(store, owner, { combatantId: ada.id, actions: 2 });
-    expect(() => spendAction(store, owner, { combatantId: ada.id, actions: 2 })).toThrow(
-      'Ada has only 1 action left this turn.',
-    );
-    // Refused outright: nothing was written.
-    expect(stored(ada.id).turn.actionsSpent).toBe(2);
+    const { documents } = spendAction(store, owner, { combatantId: ada.id, actions: 2 });
+    // Tracked and shown, never refused (ADR 0023): it went through.
+    expect(stored(ada.id).turn.actionsSpent).toBe(4);
+    expect(JSON.stringify(documents)).toContain('Ada has spent 4 of 3 actions.');
   });
 
-  it('lets a player spend exactly up to capacity, never over it', () => {
+  it('says nothing while a spend stays within capacity, and speaks only once it goes over', () => {
     const { owner, ada, stored, start } = fight();
     start();
-    spendAction(store, owner, { combatantId: ada.id, actions: 3 });
+    const within = spendAction(store, owner, { combatantId: ada.id, actions: 3 });
     expect(stored(ada.id).turn.actionsSpent).toBe(3);
-    expect(() => spendAction(store, owner, { combatantId: ada.id, actions: 1 })).toThrow(
-      'Ada has no actions left this turn.',
-    );
+    expect(within.documents).toHaveLength(1);
+    const over = spendAction(store, owner, { combatantId: ada.id, actions: 1 });
+    expect(JSON.stringify(over.documents)).toContain('Ada has spent 4 of 3 actions.');
   });
 
   it('never blocks a player giving actions back, even past capacity', () => {
@@ -201,8 +200,8 @@ describe('spendAction', () => {
     expect(stored(ada.id).turn.actionsSpent).toBe(3);
   });
 
-  it('blocks a player at the smaller capacity a slowed condition leaves them', () => {
-    const { owner, hero, ada, start } = fight();
+  it('warns a player at the smaller capacity a slowed condition leaves them, without blocking', () => {
+    const { owner, hero, ada, stored, start } = fight();
     const sheet = actorSchema.parse(store.getDocument(hero.id));
     store.putDocument({
       ...sheet,
@@ -210,9 +209,9 @@ describe('spendAction', () => {
     } as typeof sheet);
     start();
     spendAction(store, owner, { combatantId: ada.id, actions: 2 });
-    expect(() => spendAction(store, owner, { combatantId: ada.id, actions: 1 })).toThrow(
-      'Ada has no actions left this turn.',
-    );
+    const { documents } = spendAction(store, owner, { combatantId: ada.id, actions: 1 });
+    expect(stored(ada.id).turn.actionsSpent).toBe(3);
+    expect(JSON.stringify(documents)).toContain('3 of 2 actions');
   });
 
   it("keeps a hidden combatant's warning from players", () => {
