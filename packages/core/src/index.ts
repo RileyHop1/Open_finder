@@ -56,6 +56,9 @@ export {
   situationalModifierSchema,
   situationalModifiersSchema,
   type HotbarAction,
+  rollModifiersSchema,
+  type RollModifier,
+  withSituational,
   type SituationalModifier,
 } from './quickbar.js';
 export {

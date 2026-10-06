@@ -18,10 +18,16 @@ import type {
   ChatStrikeAttackMessage,
   ChatStrikeDamageMessage,
   Combatant,
+  RollModifier,
   Seat,
   Statistic,
 } from '@hearthtable/core';
-import { actorSchema, canReadDocument, tokenSchema } from '@hearthtable/core';
+import {
+  actorSchema,
+  canReadDocument,
+  tokenSchema,
+  withSituational,
+} from '@hearthtable/core';
 import type { RandomSource } from '@hearthtable/dice';
 import { evaluateDamage } from '@hearthtable/dice/pure';
 import type { EvaluateDamageResult } from '@hearthtable/dice/pure';
@@ -232,6 +238,7 @@ export function rollActorStrike(
     attackNumber: 1 | 2 | 3 | undefined;
     dc?: number | undefined;
     targetTokenId?: string | undefined;
+    modifiers?: RollModifier[] | undefined;
   },
 ): ChatStrikeAttackMessage {
   const { actor, strike } = strikeFor(store, seat, payload.actorId, payload);
@@ -240,10 +247,11 @@ export function rollActorStrike(
       'attackNumber is required when there is no active combat to count the turn',
     );
   }
-  const breakdown = strike.attacks[payload.attackNumber - 1];
-  if (breakdown === undefined) {
+  const attack = strike.attacks[payload.attackNumber - 1];
+  if (attack === undefined) {
     throw new OperationRejected('attackNumber must be 1, 2, or 3');
   }
+  const breakdown = withSituational(attack, payload.modifiers);
   const target =
     payload.targetTokenId === undefined
       ? undefined
@@ -293,6 +301,7 @@ export function rollTrackedStrike(
     attackNumber?: 1 | 2 | 3 | undefined;
     dc?: number | undefined;
     targetTokenId?: string | undefined;
+    modifiers?: RollModifier[] | undefined;
   },
 ): { message: ChatStrikeAttackMessage; combatant?: Combatant } {
   const tracked =

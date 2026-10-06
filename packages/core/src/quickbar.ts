@@ -8,6 +8,8 @@
 
 import { z } from 'zod';
 
+import type { Statistic } from './modifier.js';
+
 /** How many saved modifiers an actor may keep. */
 export const MAX_SITUATIONAL_MODIFIERS = 10;
 
@@ -52,4 +54,40 @@ export const situationalModifiersSchema = z
 /** A hotbar with nothing saved. */
 export function emptyHotbar(): null[] {
   return Array.from({ length: HOTBAR_SLOTS }, () => null);
+}
+
+/** What a roll carries of a situational modifier: its value and label. Whether it is switched on is the client's business, so only the ones that count are sent. */
+export const rollModifiersSchema = z
+  .array(situationalModifierSchema.pick({ value: true, label: true }))
+  .max(MAX_SITUATIONAL_MODIFIERS);
+
+export type RollModifier = z.infer<typeof rollModifiersSchema>[number];
+
+/**
+ * `statistic` with the player's situational modifiers added to it, each one an
+ * untyped, applied entry sourced "Situational" so the roll's breakdown shows it
+ * (ADR 0008). Untyped modifiers always stack, so adding them needs no
+ * re-resolution. The server never decides a modifier applies: it adds exactly
+ * the ones the roller sent (ADR 0023).
+ */
+export function withSituational(
+  statistic: Statistic,
+  modifiers: readonly RollModifier[] | undefined,
+): Statistic {
+  if (modifiers === undefined || modifiers.length === 0) {
+    return statistic;
+  }
+  const added = modifiers.map((modifier, index) => ({
+    slug: `situational-${String(index + 1)}`,
+    label: modifier.label ?? 'Situational',
+    type: 'untyped' as const,
+    value: modifier.value,
+    source: 'Situational',
+    enabled: true,
+    applied: true,
+  }));
+  return {
+    total: statistic.total + added.reduce((sum, modifier) => sum + modifier.value, 0),
+    modifiers: [...statistic.modifiers, ...added],
+  };
 }

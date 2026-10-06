@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { actorSchema } from './actor.js';
-import { actorSetQuickbarOperationSchema } from './operation.js';
+import {
+  actorSetQuickbarOperationSchema,
+  clientOperationUnionSchema,
+} from './operation.js';
 import {
   emptyHotbar,
   HOTBAR_SLOTS,
@@ -9,6 +12,7 @@ import {
   hotbarSchema,
   MAX_SITUATIONAL_MODIFIERS,
   situationalModifiersSchema,
+  withSituational,
 } from './quickbar.js';
 
 const id = () => crypto.randomUUID();
@@ -134,5 +138,58 @@ describe('actor.setQuickbar', () => {
     expect(op({ actorId: id() }).success).toBe(false);
     expect(op({ actorId: 'nope', modifiers: [] }).success).toBe(false);
     expect(op({ actorId: id(), hotbar: [null] }).success).toBe(false);
+  });
+});
+
+describe('withSituational', () => {
+  const base = {
+    total: 7,
+    modifiers: [
+      {
+        slug: 'str',
+        label: 'Strength',
+        type: 'ability' as const,
+        value: 4,
+        source: 'Strength',
+        enabled: true,
+        applied: true,
+      },
+    ],
+  };
+
+  it('returns the statistic untouched when nothing is added', () => {
+    expect(withSituational(base, undefined)).toBe(base);
+    expect(withSituational(base, [])).toBe(base);
+  });
+
+  it('adds each modifier as an applied, untyped entry and sums them into the total', () => {
+    const result = withSituational(base, [
+      { value: 2, label: 'Flanking' },
+      { value: -1 },
+    ]);
+    expect(result.total).toBe(8);
+    expect(result.modifiers).toHaveLength(3);
+    expect(
+      result.modifiers.slice(1).map((m) => [m.label, m.value, m.type, m.applied]),
+    ).toEqual([
+      ['Flanking', 2, 'untyped', true],
+      ['Situational', -1, 'untyped', true],
+    ]);
+    expect(base.total).toBe(7);
+  });
+});
+
+describe('roll operations with modifiers', () => {
+  it('accept an optional list of value and label, capped at ten', () => {
+    const roll = (modifiers: unknown) =>
+      clientOperationUnionSchema.safeParse({
+        id: id(),
+        type: 'actor.rollCheck',
+        payload: { actorId: id(), statistic: 'perception', modifiers },
+      });
+    expect(roll([{ value: 2, label: 'Bless' }]).success).toBe(true);
+    expect(roll(undefined).success).toBe(true);
+    expect(roll([{ value: 99 }]).success).toBe(false);
+    expect(roll(Array.from({ length: 11 }, () => ({ value: 1 }))).success).toBe(false);
   });
 });
