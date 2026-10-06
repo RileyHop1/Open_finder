@@ -137,7 +137,11 @@ async function handleSubmit(): Promise<void> {
         <li v-for="entry in chatStore.messages" :key="entry.id" class="message">
           <template v-if="'pending' in entry">
             <span class="pending">
-              {{ entry.kind === 'roll' ? `Rolling ${entry.expression}…` : entry.text }}
+              {{
+                entry.kind === 'roll'
+                  ? `Rolling ${entry.label === undefined ? '' : `${entry.label}: `}${entry.expression}…`
+                  : entry.text
+              }}
             </span>
           </template>
           <p
@@ -180,7 +184,12 @@ async function handleSubmit(): Promise<void> {
             </details>
           </template>
           <template v-else>
-            <span class="sender"
+            <span v-if="entry.label !== undefined" class="sender"
+              >{{ seatName(entry.seatId) }}: {{ entry.label }} ({{
+                entry.roll.expression
+              }}):</span
+            >
+            <span v-else class="sender"
               >{{ seatName(entry.seatId) }} rolled {{ entry.roll.expression }}:</span
             >
             <template v-if="entry.gmTotal !== undefined">

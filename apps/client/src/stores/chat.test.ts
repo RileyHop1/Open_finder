@@ -196,6 +196,23 @@ describe('sendRoll', () => {
     );
   });
 
+  it('sends the label with the roll, and shows it on the pending entry', async () => {
+    const store = useChatStore();
+    const connection = useConnectionStore();
+    connection.connect();
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+
+    await store.sendRoll('1d20+9', 'Pries the door open');
+
+    expect(emitOperation).toHaveBeenCalledWith(
+      stubSocket,
+      expect.objectContaining({
+        type: 'chat.sendRoll',
+        payload: { expression: '1d20+9', label: 'Pries the door open' },
+      }),
+    );
+  });
+
   it('removes the pending roll and records the error on rejection', async () => {
     const store = useChatStore();
     const connection = useConnectionStore();

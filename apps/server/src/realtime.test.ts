@@ -508,6 +508,23 @@ describe('chat.sendRoll', () => {
     expect(message.roll.terms.length).toBeGreaterThan(0);
   });
 
+  it('stores and broadcasts the optional label on the roll message', async () => {
+    const { socket: sender } = await connectAndClaimSeat('device-a');
+    const observer = await connect('device-b');
+    const broadcastPromise = waitForBroadcast(observer);
+
+    const ack = await emitOperation(sender, {
+      id: crypto.randomUUID(),
+      type: 'chat.sendRoll',
+      payload: { expression: '1d20+9', label: 'Pries the door open' },
+    });
+    expect(ack.ok).toBe(true);
+
+    const [message] = (await broadcastPromise).documents as unknown as [ChatRollMessage];
+    expect(message.label).toBe('Pries the door open');
+    expect(message.roll.expression).toBe('1d20+9');
+  });
+
   it('rejects a malformed expression with the parser error, not a generic one', async () => {
     const { socket: sender } = await connectAndClaimSeat('device-a');
     const ack = await emitOperation(sender, {

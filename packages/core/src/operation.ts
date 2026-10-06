@@ -102,7 +102,11 @@ export const chatSendMessageOperationSchema = clientOperationSchema.extend({
  */
 export const chatSendRollOperationSchema = clientOperationSchema.extend({
   type: z.literal('chat.sendRoll'),
-  payload: z.object({ expression: z.string().min(1).max(200) }),
+  payload: z.object({
+    expression: z.string().min(1).max(200),
+    /** What the roll is for ("Pries the door open"), shown on its chat card. Optional: a bare `/roll` has none. */
+    label: z.string().trim().min(1).max(120).optional(),
+  }),
 });
 
 /** The largest total a GM may set on a roll by hand: a sanity bound, not a rule. */

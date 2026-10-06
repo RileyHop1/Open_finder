@@ -271,7 +271,7 @@ function handleChatSendMessage(
 function handleChatSendRoll(
   store: WorldStore,
   seatId: string,
-  payload: { expression: string },
+  payload: { expression: string; label?: string | undefined },
 ): ChatRollMessage {
   const parsed = parse(payload.expression);
   if (!parsed.ok) {
@@ -296,6 +296,7 @@ function handleChatSendRoll(
     seatId,
     kind: 'roll',
     roll: evaluated.result,
+    ...(payload.label === undefined ? {} : { label: payload.label }),
   };
   store.putDocument(message);
   return message;
