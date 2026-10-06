@@ -104,33 +104,74 @@ describe('TurnBar -- the GM’s controls', () => {
     expect(labels).not.toContain('End combat');
   });
 
-  it('offers the GM a per-combatant initiative override, absent for a player', async () => {
-    const target = item();
+  it('hides the initiative override until the GM clicks that portrait, and never shows it to a player', async () => {
+    const target = item({ initiative: 9 });
     const gm = mount(TurnBar, {
+      props: { showControls: true, unseenActing: false, items: [target], round: 1 },
+      attachTo: document.body,
+    });
+    expect(gm.find('form.override').exists()).toBe(false);
+
+    await gm.get('li button').trigger('click');
+    expect(gm.emitted('focus')).toEqual([[target.tokenId]]);
+    expect(gm.get('li button').attributes('aria-expanded')).toBe('true');
+    const input = gm.get<HTMLInputElement>('form.override input');
+    expect(input.element.value).toBe('9');
+    expect(document.activeElement).toBe(input.element);
+
+    await input.setValue('14');
+    await gm.get('form.override').trigger('submit');
+    expect(gm.emitted('setInitiative')).toEqual([[target.id, 14]]);
+    expect(gm.find('form.override').exists()).toBe(false);
+    expect(document.activeElement).toBe(gm.get('li button').element);
+    gm.unmount();
+
+    const player = mount(TurnBar, {
+      props: { showControls: false, unseenActing: false, items: [target], round: 1 },
+    });
+    await player.get('li button').trigger('click');
+    expect(player.find('form.override').exists()).toBe(false);
+    expect(player.get('li button').attributes('aria-expanded')).toBeUndefined();
+  });
+
+  it('closes the editor on a second click or Escape, and opens only one at a time', async () => {
+    const [a, b] = [item({ label: 'Ada' }), item({ label: 'Bo' })];
+    const wrapper = mount(TurnBar, {
+      props: { showControls: true, unseenActing: false, items: [a, b], round: 1 },
+      attachTo: document.body,
+    });
+    const [first, second] = wrapper.findAll('li');
+    await first?.get('button').trigger('click');
+    await second?.get('button').trigger('click');
+    expect(wrapper.findAll('form.override')).toHaveLength(1);
+    expect(second?.find('form.override').exists()).toBe(true);
+
+    await second?.get('button').trigger('click');
+    expect(wrapper.find('form.override').exists()).toBe(false);
+
+    await first?.get('button').trigger('click');
+    await first?.trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('form.override').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('lets the GM edit a combatant with no readable token, without focusing anything', async () => {
+    const wrapper = mount(TurnBar, {
       props: {
         showControls: true,
         unseenActing: false,
-        items: [target],
+        items: [item({ tokenId: undefined })],
         round: 1,
       },
     });
-    await gm.get('form.override input').setValue('14');
-    await gm.get('form.override').trigger('submit');
-    expect(gm.emitted('setInitiative')).toEqual([[target.id, 14]]);
-
-    const player = mount(TurnBar, {
-      props: {
-        showControls: false,
-        unseenActing: false,
-        items: [target],
-        round: 1,
-      },
-    });
-    expect(player.find('form.override').exists()).toBe(false);
+    expect(wrapper.get('li button').attributes('disabled')).toBeUndefined();
+    await wrapper.get('li button').trigger('click');
+    expect(wrapper.emitted('focus')).toBeUndefined();
+    expect(wrapper.find('form.override').exists()).toBe(true);
   });
 
   it('does not emit an override for an empty or non-numeric field', async () => {
-    const target = item();
+    const target = item({ initiative: undefined });
     const wrapper = mount(TurnBar, {
       props: {
         showControls: true,
@@ -139,6 +180,7 @@ describe('TurnBar -- the GM’s controls', () => {
         round: 1,
       },
     });
+    await wrapper.get('li button').trigger('click');
     await wrapper.get('form.override').trigger('submit');
     expect(wrapper.emitted('setInitiative')).toBeUndefined();
   });

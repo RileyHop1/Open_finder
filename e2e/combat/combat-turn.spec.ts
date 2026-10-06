@@ -150,9 +150,11 @@ test('a full combat turn: initiative, turn order, movement gating, a strike with
     // --- The GM reorders by keyboard: the initiative override moves Brute
     // to the top of the list. Reordering is about list position, not whose
     // turn it is -- that is `combat.nextTurn`'s own pointer, unaffected by it. ---
+    // The override only appears once the GM clicks that portrait.
     const bruteRow = turnBarRow(gm, 'Brute');
+    await bruteRow.locator('button[data-combatant]').click();
     await bruteRow.getByLabel('Set initiative').fill('99');
-    await bruteRow.getByRole('button', { name: 'Set' }).click();
+    await bruteRow.getByRole('button', { name: 'Set', exact: true }).click();
     await expect(gm.locator('[data-testid="turn-bar"] ol li').first()).toContainText(
       'Brute',
     );

@@ -6,6 +6,12 @@
  * centres that token. It is an ordinary list, so Tab, Enter, and a screen
  * reader all work.
  *
+ * For the GM, clicking a portrait also reveals that combatant's initiative
+ * override (the manual path every rolled initiative gets) just below it, and
+ * only then -- it used to sit under every portrait all the time. It opens
+ * inline rather than as a floating popover on purpose: the top strip scrolls
+ * horizontally, which would clip anything positioned outside it.
+ *
  * It shows only what this seat can read. A creature the table cannot see taking
  * its turn appears as one line, "Someone is acting".
  *
@@ -18,11 +24,11 @@
  * since those are things you do each turn rather than facts about the order
  * itself.
  */
-import { reactive } from 'vue';
+import { nextTick, reactive, ref, useTemplateRef } from 'vue';
 
 import type { TurnBarItem } from './turnBarModel.js';
 
-defineProps<{
+const props = defineProps<{
   items: readonly TurnBarItem[];
   round: number;
   unseenActing: boolean;
@@ -37,16 +43,62 @@ const emit = defineEmits<{
 /** The override field's own draft per combatant, kept apart from the rolled value until submitted. */
 const overrides = reactive<Record<string, number | undefined>>({});
 
+const root = useTemplateRef<HTMLElement>('root');
+/** The combatant whose override editor is open (GM only); at most one at a time. */
+const editingId = ref<string>();
+
+function portraitButton(combatantId: string): HTMLElement | null {
+  return (
+    root.value?.querySelector<HTMLElement>(`[data-combatant="${combatantId}"]`) ?? null
+  );
+}
+
+/** A portrait click: focus the token for everyone, and for the GM also toggle that combatant's editor. */
+async function clickPortrait(item: TurnBarItem): Promise<void> {
+  if (item.tokenId !== undefined) {
+    emit('focus', item.tokenId);
+  }
+  if (!props.showControls) {
+    return;
+  }
+  if (editingId.value === item.id) {
+    editingId.value = undefined;
+    return;
+  }
+  editingId.value = item.id;
+  overrides[item.id] = item.initiative;
+  await nextTick();
+  root.value?.querySelector<HTMLElement>(`#initiative-${item.id}`)?.focus();
+}
+
+function closeEditor(combatantId: string, returnFocus: boolean): void {
+  if (editingId.value === combatantId) {
+    editingId.value = undefined;
+    if (returnFocus) {
+      portraitButton(combatantId)?.focus();
+    }
+  }
+}
+
+/** Closes when focus leaves this combatant's list item entirely (the same `focusout` pattern as `StatBreakdown.vue`). */
+function onItemFocusOut(event: FocusEvent, combatantId: string): void {
+  const next = event.relatedTarget as Node | null;
+  if (next === null || !(event.currentTarget as HTMLElement).contains(next)) {
+    closeEditor(combatantId, false);
+  }
+}
+
 function submitOverride(combatantId: string): void {
   const value = overrides[combatantId];
   if (value !== undefined && Number.isFinite(value)) {
     emit('setInitiative', combatantId, value);
+    closeEditor(combatantId, true);
   }
 }
 </script>
 
 <template>
-  <section class="turn-bar" aria-label="Turn order" data-testid="turn-bar">
+  <section ref="root" class="turn-bar" aria-label="Turn order" data-testid="turn-bar">
     <p class="round">Round {{ round }}</p>
     <p v-if="unseenActing" class="unseen" role="status">Someone is acting</p>
     <ol>
@@ -55,11 +107,16 @@ function submitOverride(combatantId: string): void {
         :key="item.id"
         :class="{ active: item.active }"
         :aria-current="item.active ? 'true' : undefined"
+        @focusout="(event) => onItemFocusOut(event, item.id)"
+        @keydown.esc.stop="closeEditor(item.id, true)"
       >
         <button
           type="button"
-          :disabled="item.tokenId === undefined"
-          @click="item.tokenId !== undefined && emit('focus', item.tokenId)"
+          :data-combatant="item.id"
+          :disabled="item.tokenId === undefined && !showControls"
+          :aria-expanded="showControls ? editingId === item.id : undefined"
+          :aria-controls="showControls ? `override-${item.id}` : undefined"
+          @click="clickPortrait(item)"
         >
           <img
             v-if="item.portraitUrl !== undefined"
@@ -79,7 +136,8 @@ function submitOverride(combatantId: string): void {
           <span v-if="item.defeated" class="status">(defeated)</span>
         </button>
         <form
-          v-if="showControls"
+          v-if="showControls && editingId === item.id"
+          :id="`override-${item.id}`"
           class="override"
           :aria-label="`Set ${item.label}'s initiative`"
           @submit.prevent="submitOverride(item.id)"
