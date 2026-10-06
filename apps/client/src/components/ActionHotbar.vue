@@ -7,7 +7,8 @@
  * slot. Choosing a slot only *reports* it (`load`); the action bar fills its form,
  * so the player can add this time's modifiers before spending.
  *
- * Each filled slot has a remove button, and can be renamed in place with F2 or a
+ * With something in the action form, an empty slot offers a "+" that saves it
+ * there directly (named from its text). Each filled slot has a remove button, and can be renamed in place with F2 or a
  * double click (Enter saves, Escape cancels). Nothing here is hover-only.
  */
 import type { HotbarAction } from '@hearthtable/core';
@@ -15,10 +16,15 @@ import { nextTick, ref } from 'vue';
 
 import { costGlyph, slotKey } from './hotbarModel.js';
 
-defineProps<{ slots: readonly (HotbarAction | null)[] }>();
+defineProps<{
+  slots: readonly (HotbarAction | null)[];
+  /** Whether the action form has something to save: an empty slot then offers "Save to slot N". */
+  canSave?: boolean;
+}>();
 const emit = defineEmits<{
   load: [index: number];
   remove: [index: number];
+  saveTo: [index: number];
   rename: [index: number, name: string];
 }>();
 
@@ -86,6 +92,16 @@ function finishRename(index: number): void {
           ×
         </button>
       </template>
+      <button
+        v-else-if="canSave"
+        type="button"
+        class="save-here"
+        :aria-label="`Save to slot ${slotKey(index)}`"
+        title="Save the action form to this slot"
+        @click="emit('saveTo', index)"
+      >
+        +
+      </button>
     </li>
   </ul>
 </template>
@@ -109,6 +125,9 @@ function finishRename(index: number): void {
 }
 .slot.empty {
   opacity: 0.45;
+}
+.slot.empty:has(.save-here) {
+  opacity: 1;
 }
 .key {
   font-size: 0.75em;

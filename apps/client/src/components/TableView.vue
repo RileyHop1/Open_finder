@@ -343,7 +343,7 @@ const actionBarEl = useTemplateRef<InstanceType<typeof ActionBar>>('actionBarEl'
  */
 async function barAction(action: GenericAction): Promise<void> {
   const bar = actionBar.value;
-  if (bar === undefined) {
+  if (bar === undefined || (action.text === '' && action.dice === '')) {
     return;
   }
   actionError.value = undefined;
@@ -1494,7 +1494,8 @@ button[aria-pressed='true'] {
    one deliberate exception to the shared look: action-economy buttons need
    full legibility, where chat's whole point is staying see-through so the
    map underneath still reads. Border/radius/shadow still match every other
-   panel. */
+   panel. **No `overflow`**: any value but `visible` clips the Save panel, which
+   opens upward out of the dock. */
 .action-dock {
   z-index: var(--z-overlay);
   display: flex;
@@ -1502,7 +1503,6 @@ button[aria-pressed='true'] {
   align-items: center;
   gap: var(--space-2);
   max-width: 100%;
-  overflow-x: auto;
   border: var(--overlay-border);
   border-radius: var(--overlay-radius);
   background: var(--color-surface);

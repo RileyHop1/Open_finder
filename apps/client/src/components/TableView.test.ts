@@ -18,6 +18,7 @@ import { ACTOR_DRAG_TYPE } from './map/placement.js';
 import { makeNpc } from './sheet/testNpc.js';
 import ActionBar from './ActionBar.vue';
 import TableView from './TableView.vue';
+import source from './TableView.vue?raw';
 
 // The lobby store (releasing a seat) and the chat panel are other components'
 // concerns; this test is about the layout and the character roster.
@@ -700,6 +701,12 @@ describe('the turn bar', () => {
     ]);
   });
 
+  it('never clips the dock: no overflow, or the upward Save panel is cut off (jsdom cannot lay out, so check the rule)', () => {
+    const rule = /\.action-dock \{([^}]*)\}/.exec(source)?.[1] ?? '';
+    expect(rule).toContain('display: flex');
+    expect(rule).not.toMatch(/overflow/);
+  });
+
   it('saves a changed modifier list on the actor', async () => {
     seedActiveCombat();
     const wrapper = await mountTable();
@@ -748,19 +755,19 @@ describe('the turn bar', () => {
     ]);
   });
 
-  it('spends the default cost with no text and no dice, and posts nothing to chat', async () => {
-    const { combatantId } = seedActiveCombat();
+  it('sends nothing for an empty action, so a blank Spend cannot spend', async () => {
+    seedActiveCombat();
     await doAction({ text: '' });
-    expect(sentOperations()).toMatchObject([
-      { type: 'combat.spendAction', payload: { combatantId, actions: 1 } },
-    ]);
-    expect(sentOperations()).toHaveLength(1);
+    expect(sentOperations()).toEqual([]);
   });
 
-  it('does nothing for a free action with no text and no dice', async () => {
-    seedActiveCombat();
-    await doAction({ text: '', cost: 'free' });
-    expect(sentOperations()).toEqual([]);
+  it('spends and posts for dice alone, with no description', async () => {
+    const { combatantId } = seedActiveCombat();
+    await doAction({ text: '', cost: '1', dice: '1d20+3' });
+    expect(sentOperations()).toMatchObject([
+      { type: 'combat.spendAction', payload: { combatantId, actions: 1 } },
+      { type: 'chat.sendRoll', payload: { expression: '1d20+3', label: 'Ada' } },
+    ]);
   });
 
   it('checks the dice before spending anything, and says what is wrong', async () => {

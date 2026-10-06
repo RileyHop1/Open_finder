@@ -92,6 +92,18 @@ describe('ActionBar hotbar', () => {
     wrapper.unmount();
   });
 
+  it('saves straight to an empty slot from its + button, named from the action', async () => {
+    const wrapper = mountBar();
+    expect(wrapper.find('button[aria-label="Save to slot 3"]').exists()).toBe(false);
+    await wrapper.get('#action-text').setValue('Trip');
+    await wrapper.get('button[aria-label="Save to slot 3"]').trigger('click');
+    const next = wrapper.emitted('setHotbar')?.[0]?.[0] as unknown[];
+    expect(next[2]).toEqual({ name: 'Trip', text: 'Trip', cost: 1 });
+    // A filled slot offers no +, so a click can never overwrite by accident.
+    expect(wrapper.find('button[aria-label="Save to slot 1"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('removes and renames a slot, leaving the others', async () => {
     const wrapper = mountBar();
     await wrapper.get('button[aria-label="Remove Stab from slot 1"]').trigger('click');
@@ -122,15 +134,14 @@ describe('ActionBar', () => {
     expect(wrapper.find('button[aria-label="Roll Sword 1st attack, +10"]').exists()).toBe(
       true,
     );
-    expect(wrapper.get('.mods-toggle').text()).toBe('Mods +3');
+    expect(wrapper.get('.mods-total').text()).toBe('Mods +3');
   });
 
   it('passes the modifier list’s changes up as setModifiers', async () => {
     const wrapper = mount(ActionBar, {
       props: { view: view(), label: 'Ada', modifiers: mods },
     });
-    await wrapper.get('.mods-toggle').trigger('click');
-    await wrapper.findAll('.mods-panel input[type="checkbox"]')[2]?.setValue(true);
+    await wrapper.findAll('.mods input[type="checkbox"]')[2]?.setValue(true);
     expect(wrapper.emitted('setModifiers')?.[0]?.[0]).toEqual([
       mods[0],
       mods[1],
@@ -200,12 +211,33 @@ describe('ActionBar', () => {
     ]);
   });
 
-  it('submits with no description, so Spend alone spends the cost', async () => {
+  it('will not Spend with nothing entered: the button is off and a submit does nothing', async () => {
     const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
+    const spend = wrapper.get('button[type="submit"]');
+    expect(spend.text()).toBe('Spend');
+    expect(spend.attributes('disabled')).toBeDefined();
     await wrapper.find('#action-text').setValue('   ');
     await wrapper.find('form.action-form').trigger('submit');
-    expect(wrapper.emitted('action')).toEqual([[{ text: '', cost: 1, dice: '' }]]);
-    expect(wrapper.get('button[type="submit"]').text()).toBe('Spend');
+    expect(wrapper.emitted('action')).toBeUndefined();
+  });
+
+  it('spends with dice alone, or with a description alone', async () => {
+    const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
+    await wrapper.find('#action-dice').setValue('1d20+3');
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined();
+    await wrapper.find('form.action-form').trigger('submit');
+    await wrapper.find('#action-text').setValue('Stride');
+    await wrapper.find('form.action-form').trigger('submit');
+    expect(wrapper.emitted('action')).toEqual([
+      [{ text: '', cost: 1, dice: '1d20+3' }],
+      [{ text: 'Stride', cost: 1, dice: '' }],
+    ]);
+  });
+
+  it('puts the modifiers in a row of their own, outside the action row', () => {
+    const wrapper = mount(ActionBar, { props: { view: view(), label: 'Ada' } });
+    expect(wrapper.find('.bar-row .mods').exists()).toBe(false);
+    expect(wrapper.find('.action-bar > .mods').exists()).toBe(true);
   });
 
   it('hides the cost picker with no combatant to spend against, but keeps the form', () => {

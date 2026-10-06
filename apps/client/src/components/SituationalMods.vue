@@ -1,16 +1,17 @@
 <script setup lang="ts">
 /**
- * The action row's situational modifiers (ADR 0023: the player makes the
- * rulings and adds their own numbers). A "Mods +3" button opens a small list of
- * saved modifiers -- "+2 Flanking" -- each with an on/off checkbox and a remove
- * button, plus a row to add one. Only the switched-on ones count toward a roll;
- * the number on the button is their sum. It only reports the new list; the
- * parent saves it on the actor so it follows the player to another device.
- * Closes on Escape (focus returns to the button) or when focus leaves it.
+ * The situational modifiers, as a row of their own under the action bar (ADR
+ * 0023: the player makes the rulings and adds their own numbers). Always
+ * visible, no popover: each saved modifier is a chip -- "+2 Flanking" -- with a
+ * checkbox that switches it on or off and a remove button, followed by a short
+ * add group (value, optional label, Add; Enter adds too). Only switched-on ones
+ * count toward a roll; the number leading the row is their sum. It only reports
+ * the new list; the parent saves it on the actor so it follows the player to
+ * another device.
  */
 import type { SituationalModifier } from '@hearthtable/core';
 import { MAX_SITUATIONAL_MODIFIERS } from '@hearthtable/core';
-import { computed, nextTick, ref, useTemplateRef } from 'vue';
+import { computed, ref } from 'vue';
 
 import { modifierSum } from './actionBarModel.js';
 import { signed } from './sheet/format.js';
@@ -18,37 +19,11 @@ import { signed } from './sheet/format.js';
 const props = defineProps<{ modifiers: readonly SituationalModifier[] }>();
 const emit = defineEmits<{ update: [modifiers: SituationalModifier[]] }>();
 
-const open = ref(false);
 const value = ref<number>();
 const label = ref('');
-const root = useTemplateRef<HTMLElement>('root');
-const toggle = useTemplateRef<HTMLButtonElement>('toggle');
-const valueInput = useTemplateRef<HTMLInputElement>('valueInput');
 
 const total = computed(() => modifierSum(props.modifiers));
 const full = computed(() => props.modifiers.length >= MAX_SITUATIONAL_MODIFIERS);
-
-async function show(): Promise<void> {
-  open.value = !open.value;
-  if (open.value) {
-    await nextTick();
-    valueInput.value?.focus();
-  }
-}
-
-function close(returnFocus: boolean): void {
-  open.value = false;
-  if (returnFocus) {
-    toggle.value?.focus();
-  }
-}
-
-function onFocusOut(event: FocusEvent): void {
-  const next = event.relatedTarget;
-  if (open.value && next instanceof Node && !root.value?.contains(next)) {
-    close(false);
-  }
-}
 
 function setActive(index: number, active: boolean): void {
   emit(
@@ -84,107 +59,82 @@ function describe(modifier: SituationalModifier): string {
 </script>
 
 <template>
-  <div ref="root" class="mods" @focusout="onFocusOut" @keydown.esc.stop="close(true)">
-    <button
-      ref="toggle"
-      type="button"
-      class="mods-toggle"
-      aria-controls="mods-panel"
-      :aria-expanded="open"
-      @click="show"
-    >
-      Mods {{ signed(total) }}
-    </button>
-    <div
-      v-if="open"
-      id="mods-panel"
-      class="mods-panel"
-      role="group"
-      aria-label="Modifiers"
-    >
-      <ul v-if="modifiers.length > 0" class="mods-list">
-        <li v-for="(modifier, index) in modifiers" :key="index">
-          <label>
-            <input
-              type="checkbox"
-              :checked="modifier.active"
-              @change="setActive(index, ($event.target as HTMLInputElement).checked)"
-            />
-            {{ describe(modifier) }}
-          </label>
-          <button
-            type="button"
-            :aria-label="`Remove ${describe(modifier)}`"
-            @click="remove(index)"
-          >
-            ×
-          </button>
-        </li>
-      </ul>
-      <p v-else class="mods-empty">None saved.</p>
-      <div class="mods-add">
-        <input
-          ref="valueInput"
-          v-model.number="value"
-          type="number"
-          step="1"
-          aria-label="Modifier value"
-          placeholder="+2"
-          @keydown.enter.prevent="add"
-        />
-        <input
-          v-model="label"
-          type="text"
-          maxlength="40"
-          aria-label="Modifier label"
-          placeholder="Label (optional)"
-          @keydown.enter.prevent="add"
-        />
-        <button type="button" :disabled="full" @click="add">Add</button>
-      </div>
+  <div class="mods" role="group" aria-label="Situational modifiers">
+    <span class="mods-total">Mods {{ signed(total) }}</span>
+    <ul v-if="modifiers.length > 0" class="mods-list">
+      <li v-for="(modifier, index) in modifiers" :key="index" class="chip">
+        <label>
+          <input
+            type="checkbox"
+            :checked="modifier.active"
+            @change="setActive(index, ($event.target as HTMLInputElement).checked)"
+          />
+          {{ describe(modifier) }}
+        </label>
+        <button
+          type="button"
+          :aria-label="`Remove ${describe(modifier)}`"
+          @click="remove(index)"
+        >
+          ×
+        </button>
+      </li>
+    </ul>
+    <div class="mods-add">
+      <input
+        v-model.number="value"
+        type="number"
+        step="1"
+        aria-label="Modifier value"
+        placeholder="+2"
+        @keydown.enter.prevent="add"
+      />
+      <input
+        v-model="label"
+        type="text"
+        maxlength="40"
+        aria-label="Modifier label"
+        placeholder="Label (optional)"
+        @keydown.enter.prevent="add"
+      />
+      <button type="button" :disabled="full" @click="add">Add</button>
     </div>
   </div>
 </template>
 
 <style scoped>
 .mods {
-  position: relative;
-}
-button {
-  min-height: var(--touch-target-min);
-}
-.mods-panel {
-  position: absolute;
-  bottom: 100%;
-  right: 0;
-  z-index: var(--z-popover);
-  min-width: 16rem;
-  margin-bottom: var(--space-1);
-  padding: var(--space-2);
-  border: var(--overlay-border);
-  border-radius: var(--overlay-radius);
-  background: var(--color-surface);
-  box-shadow: var(--overlay-shadow);
-}
-.mods-list {
-  list-style: none;
-  margin: 0 0 var(--space-2);
-  padding: 0;
-}
-.mods-list li {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
 }
-.mods-list label {
+.mods-total {
+  font-weight: 600;
+}
+.mods-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.chip label {
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
-.mods-empty {
-  margin: 0 0 var(--space-2);
-  color: var(--color-text-muted);
+button {
+  min-height: var(--touch-target-min);
 }
 .mods-add {
   display: flex;
