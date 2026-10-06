@@ -799,6 +799,73 @@ export const partyAdjustCoinsOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * One side of an `inventory.transfer`: a character's inventory, or the
+ * party's shared stash. There is only ever one party, so `kind: 'party'`
+ * needs no further id (ADR 0021).
+ */
+export const transferHolderSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('actor'), actorId: idSchema }),
+  z.object({ kind: z.literal('party') }),
+]);
+
+export type TransferHolder = z.infer<typeof transferHolderSchema>;
+
+/** A non-negative amount of coins to move -- unlike `coinsDeltaSchema`, never signed: direction comes from `from`/`to`, not the sign of a field. */
+const transferAmountSchema = z.object({
+  pp: z.number().int().nonnegative().optional(),
+  gp: z.number().int().nonnegative().optional(),
+  sp: z.number().int().nonnegative().optional(),
+  cp: z.number().int().nonnegative().optional(),
+});
+
+function sameHolder(a: TransferHolder, b: TransferHolder): boolean {
+  return a.kind === 'party' && b.kind === 'party'
+    ? true
+    : a.kind === 'actor' && b.kind === 'actor' && a.actorId === b.actorId;
+}
+
+/**
+ * Move an item (by id, optionally splitting a stack with `quantity`) or an
+ * amount of coins from `from` to `to`, where each is a character's
+ * inventory or the party stash (ADR 0021, `docs/inventory.md`). Exactly one
+ * of `item`/`coins` is named; moving both at once is two operations, not
+ * one, the same way `actor.addItem` and `actor.adjustCoins` are already
+ * separate. The caller must own `from`'s actor, or be the GM (GM only when
+ * `from` is the party stash, like every other stash change); `to` needs no
+ * permission of its own -- giving something away never requires the
+ * recipient's consent in v1. The server checks `from` actually has what is
+ * named before moving anything, the same "never a partial deduction" rule
+ * `actor.adjustCoins` already follows.
+ */
+export const inventoryTransferOperationSchema = clientOperationSchema
+  .extend({
+    type: z.literal('inventory.transfer'),
+    payload: z.object({
+      from: transferHolderSchema,
+      to: transferHolderSchema,
+      item: z
+        .object({
+          itemId: idSchema,
+          quantity: z.number().int().positive().optional(),
+        })
+        .optional(),
+      coins: transferAmountSchema.optional(),
+    }),
+  })
+  .refine(
+    (operation) =>
+      (operation.payload.item === undefined) !== (operation.payload.coins === undefined),
+    { message: 'name exactly one of item or coins', path: ['payload'] },
+  )
+  .refine((operation) => !sameHolder(operation.payload.from, operation.payload.to), {
+    message: 'from and to must be different holders',
+    path: ['payload'],
+  });
+
+/** The payload shape of `inventory.transfer`, exported so `transfer.ts` can type its own handler against it instead of hand-writing an equivalent type (which drifts under `exactOptionalPropertyTypes`). */
+export type TransferPayload = z.infer<typeof inventoryTransferOperationSchema>['payload'];
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -857,6 +924,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorRollRecoveryOperationSchema,
   actorAdjustCoinsOperationSchema,
   partyAdjustCoinsOperationSchema,
+  inventoryTransferOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
