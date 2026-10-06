@@ -24,9 +24,11 @@
  * form field, see `isTypingTarget`).
  *
  * The **gear menu** (`GearMenu.vue`) floats top-right over all of this: it
- * holds the Characters/Scenes/Rules drawer toggles and "Release seat",
- * since there's no toolbar row left to put plain buttons in once the map
- * fills the screen (ADR 0022).
+ * holds the Characters/Scenes/Rules/Seats drawer toggles, "Release seat",
+ * and the GM's "Back to campaigns", since there's no toolbar row left to
+ * put plain buttons in once the map fills the screen (ADR 0022). Seats
+ * (`SeatRoster.vue`) shares the same right-edge slot as Scenes and Rules --
+ * `closeOtherRightDrawers` keeps only one of the three open at a time.
  *
  * The drawer overlays the map at every width rather than pushing it, so the
  * map never reflows while someone reads their sheet. The chat sits beside the
@@ -43,6 +45,7 @@ import { useCombatStore } from '../stores/combat.js';
 import { useDocumentsStore } from '../stores/documents.js';
 import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
+import { useWorldsStore } from '../stores/worlds.js';
 import ActionBar from './ActionBar.vue';
 import { actionBarView, type ActionBarStrike } from './actionBarModel.js';
 import ActionTray from './ActionTray.vue';
@@ -57,6 +60,7 @@ import { cellsInRange } from './map/rangeHighlight.js';
 import MonsterPicker from './scenes/MonsterPicker.vue';
 import RulesDrawer from './RulesDrawer.vue';
 import SceneManager from './scenes/SceneManager.vue';
+import SeatRoster from './SeatRoster.vue';
 import TurnBar from './TurnBar.vue';
 import { turnBarItems } from './turnBarModel.js';
 import TurnControls from './TurnControls.vue';
@@ -78,6 +82,15 @@ const documents = useDocumentsStore();
 const lobby = useLobbyStore();
 const scenes = useScenesStore();
 const combat = useCombatStore();
+const worldsStore = useWorldsStore();
+
+/** The GM's "Back to campaigns": asked for with an inline alertdialog, since it affects the whole table, not just this browser. */
+const confirmingLeave = ref(false);
+
+async function leaveCampaign(): Promise<void> {
+  confirmingLeave.value = false;
+  await worldsStore.deactivate();
+}
 
 /**
  * The turn bar shows while a combat is running, or, for the GM only, when
@@ -479,8 +492,9 @@ const contentVersion = ref(0);
 const drawerEl = useTemplateRef<HTMLElement>('drawer');
 const sceneDrawerEl = useTemplateRef<HTMLElement>('sceneDrawer');
 const rulesDrawerEl = useTemplateRef<HTMLElement>('rulesDrawer');
+const seatsDrawerEl = useTemplateRef<HTMLElement>('seatsDrawer');
 
-/** The character drawer (open state, focus in and back out), the GM's scene drawer, and the Rules drawer (everyone's). */
+/** The character drawer (open state, focus in and back out); the GM's scene drawer; the Rules and Seats drawers (everyone's). */
 const { open: drawerOpen, show: openDrawer, hide: closeDrawer } = useDrawer(drawerEl);
 const {
   open: sceneDrawerOpen,
@@ -492,19 +506,30 @@ const {
   show: openRulesDrawer,
   hide: closeRulesDrawer,
 } = useDrawer(rulesDrawerEl);
+const {
+  open: seatsDrawerOpen,
+  show: openSeatsDrawer,
+  hide: closeSeatsDrawer,
+} = useDrawer(seatsDrawerEl);
 
 /**
- * Scenes and Rules both slide in from the map's right edge (the character
- * drawer already owns the left), so only one of the two is ever shown at
- * once -- opening either one closes the other first, rather than letting
- * them stack exactly on top of each other.
+ * Scenes, Rules, and Seats all slide in from the map's right edge (the
+ * character drawer already owns the left), so only one of the three is
+ * ever shown at once -- opening any of them closes the other two first,
+ * rather than letting them stack exactly on top of each other.
  */
+function closeOtherRightDrawers(except: 'scene' | 'rules' | 'seats'): void {
+  if (except !== 'scene') closeSceneDrawer();
+  if (except !== 'rules') closeRulesDrawer();
+  if (except !== 'seats') closeSeatsDrawer();
+}
+
 function toggleSceneDrawer(): void {
   if (sceneDrawerOpen.value) {
     closeSceneDrawer();
     return;
   }
-  closeRulesDrawer();
+  closeOtherRightDrawers('scene');
   void openSceneDrawer();
 }
 
@@ -513,8 +538,17 @@ function toggleRulesDrawer(): void {
     closeRulesDrawer();
     return;
   }
-  closeSceneDrawer();
+  closeOtherRightDrawers('rules');
   void openRulesDrawer();
+}
+
+function toggleSeatsDrawer(): void {
+  if (seatsDrawerOpen.value) {
+    closeSeatsDrawer();
+    return;
+  }
+  closeOtherRightDrawers('seats');
+  void openSeatsDrawer();
 }
 
 const mapView = useTemplateRef<InstanceType<typeof MapView>>('mapView');
@@ -528,7 +562,9 @@ async function placeOnMap(actorId: string): Promise<void> {
     ? sceneDrawerEl.value
     : rulesDrawerOpen.value
       ? rulesDrawerEl.value
-      : undefined;
+      : seatsDrawerOpen.value
+        ? seatsDrawerEl.value
+        : undefined;
   await mapView.value?.placeAtCentre(actorId, {
     left: drawerOpen.value ? (drawerEl.value?.offsetWidth ?? 0) : 0,
     right: rightDrawerEl?.offsetWidth ?? 0,
@@ -630,12 +666,29 @@ async function handleCreate(): Promise<void> {
       @characters="drawerOpen ? closeDrawer() : openDrawer()"
       @scenes="toggleSceneDrawer"
       @rules="toggleRulesDrawer"
+      @seats="toggleSeatsDrawer"
       @release-seat="lobby.releaseSeat()"
+      @leave-campaign="confirmingLeave = true"
     />
 
     <p class="playing-as">
       Playing as <strong>{{ seatName }}</strong>
     </p>
+
+    <div
+      v-if="confirmingLeave"
+      class="leave-confirm"
+      role="alertdialog"
+      aria-labelledby="leave-question"
+      @keydown.esc.stop="confirmingLeave = false"
+    >
+      <p id="leave-question">
+        Leave this campaign? Everyone at the table is disconnected and sent back to the
+        campaign list.
+      </p>
+      <button type="button" @click="leaveCampaign">Leave campaign</button>
+      <button type="button" @click="confirmingLeave = false">Cancel</button>
+    </div>
 
     <ContentImportPanel v-if="lobby.mySeat?.isGM" @imported="contentVersion += 1" />
 
@@ -769,6 +822,26 @@ async function handleCreate(): Promise<void> {
               </button>
             </header>
             <SceneManager :world-id="worldId" />
+          </section>
+        </Transition>
+
+        <Transition name="drawer">
+          <section
+            v-show="seatsDrawerOpen"
+            id="seats-pane"
+            ref="seatsDrawer"
+            class="sheet-pane seats-pane"
+            aria-labelledby="seats-heading"
+            tabindex="-1"
+            @keydown.esc.stop="closeSeatsDrawer"
+          >
+            <header class="drawer-header">
+              <h2 id="seats-heading">Seats</h2>
+              <button type="button" class="drawer-close" @click="closeSeatsDrawer">
+                Close
+              </button>
+            </header>
+            <SeatRoster />
           </section>
         </Transition>
 
@@ -1162,11 +1235,35 @@ button[aria-pressed='true'] {
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
 }
 
-/* The Rules drawer shares the scene drawer's right-edge slot -- toggleSceneDrawer/toggleRulesDrawer keep only one of the two open at a time, so they never actually overlap. */
-.rules-pane {
+/* Rules and Seats both share the scene drawer's right-edge slot --
+   closeOtherRightDrawers keeps only one of the three open at a time, so
+   they never actually overlap. */
+.rules-pane,
+.seats-pane {
   right: 0;
   left: auto;
   box-shadow: -4px 0 16px rgb(0 0 0 / 0.25);
+}
+
+.leave-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+  background: var(--color-surface);
+}
+
+.leave-confirm p {
+  margin: 0;
+  flex-basis: 100%;
+}
+
+.leave-confirm button {
+  min-height: var(--touch-target-min);
 }
 
 .targeting-banner {

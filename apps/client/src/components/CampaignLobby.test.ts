@@ -5,7 +5,6 @@ import { createPinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as seatsApi from '../api/seats.js';
-import * as worldsApi from '../api/worlds.js';
 import { getDeviceToken } from '../realtime/deviceToken.js';
 import { createSocket, emitOperation } from '../realtime/socket.js';
 import CampaignLobby from './CampaignLobby.vue';
@@ -207,71 +206,8 @@ describe('CampaignLobby', () => {
     expect(wrapper.find('label[for="new-seat-pin"]').exists()).toBe(true);
   });
 
-  describe('leaving the campaign', () => {
-    it('offers "Back to campaigns" only to the GM seat this device holds', async () => {
-      const gm = makeSeat({
-        name: 'GM',
-        isGM: true,
-        claimedByDeviceToken: MY_DEVICE_TOKEN,
-      });
-      vi.mocked(seatsApi.listSeats).mockResolvedValue([gm]);
-
-      const wrapper = mountLobby();
-      await flushPromises();
-
-      expect(wrapper.find('.leave-campaign').exists()).toBe(true);
-    });
-
-    it('hides it from a player seat', async () => {
-      const player = makeSeat({ claimedByDeviceToken: MY_DEVICE_TOKEN, isGM: false });
-      vi.mocked(seatsApi.listSeats).mockResolvedValue([player]);
-
-      const wrapper = mountLobby();
-      await flushPromises();
-
-      expect(wrapper.find('.leave-campaign').exists()).toBe(false);
-    });
-
-    it('asks before leaving, and only calls deactivateWorld after confirming', async () => {
-      const gm = makeSeat({
-        name: 'GM',
-        isGM: true,
-        claimedByDeviceToken: MY_DEVICE_TOKEN,
-      });
-      vi.mocked(seatsApi.listSeats).mockResolvedValue([gm]);
-      vi.mocked(worldsApi.deactivateWorld).mockResolvedValue(undefined);
-
-      const wrapper = mountLobby();
-      await flushPromises();
-
-      await wrapper.find('.leave-campaign').trigger('click');
-      await flushPromises();
-      expect(worldsApi.deactivateWorld).not.toHaveBeenCalled();
-      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true);
-
-      await wrapper.find('.leave-confirm button').trigger('click');
-      await flushPromises();
-      expect(worldsApi.deactivateWorld).toHaveBeenCalledTimes(1);
-    });
-
-    it('cancels without calling deactivateWorld', async () => {
-      const gm = makeSeat({
-        name: 'GM',
-        isGM: true,
-        claimedByDeviceToken: MY_DEVICE_TOKEN,
-      });
-      vi.mocked(seatsApi.listSeats).mockResolvedValue([gm]);
-
-      const wrapper = mountLobby();
-      await flushPromises();
-
-      await wrapper.find('.leave-campaign').trigger('click');
-      await flushPromises();
-      await wrapper.findAll('.leave-confirm button')[1]?.trigger('click');
-      await flushPromises();
-
-      expect(worldsApi.deactivateWorld).not.toHaveBeenCalled();
-      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false);
-    });
-  });
+  // "Back to campaigns" is TableView.vue's own concern now (its gear menu),
+  // covered by TableView.test.ts's "leaving the campaign" describe block --
+  // it renders only once a seat is claimed, which this screen's own chrome
+  // (the `v-else` in CampaignLobby.vue) never does.
 });

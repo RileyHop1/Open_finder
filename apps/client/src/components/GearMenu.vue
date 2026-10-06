@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * The table's own menu, for everything that isn't the map: opening the
- * character sheet, GM scene, or Rules drawers, and releasing the current
- * seat. Lives floated over the map (ADR 0022, `feat/fullscreen-table-shell`)
- * since the screen no longer has a toolbar row to put these buttons in.
+ * character sheet, GM scene, Rules, or Seats drawers, releasing the
+ * current seat, and the GM's "Back to campaigns". Lives floated over the
+ * map (ADR 0022, `feat/fullscreen-table-shell`) since the screen no longer
+ * has a toolbar row to put these buttons in.
  *
  * A plain `menu` button: arrow keys, Home and End move between items, and
  * Escape closes it and returns focus to the gear button -- the same
@@ -20,7 +21,7 @@
 import { nextTick, ref, useTemplateRef } from 'vue';
 
 defineProps<{
-  /** Whether the GM-only items (Scenes) should show. */
+  /** Whether the GM-only items (Scenes, Back to campaigns) should show. */
   isGm: boolean;
 }>();
 
@@ -28,7 +29,9 @@ const emit = defineEmits<{
   characters: [];
   scenes: [];
   rules: [];
+  seats: [];
   releaseSeat: [];
+  leaveCampaign: [];
 }>();
 
 const root = useTemplateRef<HTMLElement>('root');
@@ -63,7 +66,9 @@ function items(): HTMLElement[] {
  * the drawer would then try to refocus a detached node instead of the gear
  * button.
  */
-function select(item: 'characters' | 'scenes' | 'rules' | 'releaseSeat'): void {
+function select(
+  item: 'characters' | 'scenes' | 'rules' | 'seats' | 'releaseSeat' | 'leaveCampaign',
+): void {
   close();
   switch (item) {
     case 'characters':
@@ -75,8 +80,14 @@ function select(item: 'characters' | 'scenes' | 'rules' | 'releaseSeat'): void {
     case 'rules':
       emit('rules');
       break;
+    case 'seats':
+      emit('seats');
+      break;
     case 'releaseSeat':
       emit('releaseSeat');
+      break;
+    case 'leaveCampaign':
+      emit('leaveCampaign');
       break;
   }
 }
@@ -137,8 +148,16 @@ function onFocusOut(event: FocusEvent): void {
         <button type="button" role="menuitem" @click="select('rules')">Rules</button>
       </li>
       <li role="none">
+        <button type="button" role="menuitem" @click="select('seats')">Seats</button>
+      </li>
+      <li role="none">
         <button type="button" role="menuitem" @click="select('releaseSeat')">
           Release seat
+        </button>
+      </li>
+      <li v-if="isGm" role="none">
+        <button type="button" role="menuitem" @click="select('leaveCampaign')">
+          Back to campaigns
         </button>
       </li>
     </ul>

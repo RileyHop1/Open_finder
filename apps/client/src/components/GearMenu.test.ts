@@ -53,22 +53,25 @@ describe('the menu', () => {
     expect(document.activeElement).toBe(wrapper.findAll('[role="menuitem"]')[0]?.element);
   });
 
-  it('always offers Characters, Rules, and Release seat', async () => {
+  it('always offers Characters, Rules, Seats, and Release seat', async () => {
     const wrapper = mountMenu();
     await openMenu(wrapper);
     expect(item(wrapper, 'Characters')).toBeDefined();
     expect(item(wrapper, 'Rules')).toBeDefined();
+    expect(item(wrapper, 'Seats')).toBeDefined();
     expect(item(wrapper, 'Release seat')).toBeDefined();
   });
 
-  it('offers Scenes only for the GM', async () => {
+  it('offers Scenes and Back to campaigns only for the GM', async () => {
     const player = mountMenu(false);
     await openMenu(player);
     expect(item(player, 'Scenes')).toBeUndefined();
+    expect(item(player, 'Back to campaigns')).toBeUndefined();
 
     const gm = mountMenu(true);
     await openMenu(gm);
     expect(item(gm, 'Scenes')).toBeDefined();
+    expect(item(gm, 'Back to campaigns')).toBeDefined();
   });
 
   it('emits and closes when an item is clicked', async () => {
@@ -80,6 +83,17 @@ describe('the menu', () => {
     expect(wrapper.find('[role="menu"]').exists()).toBe(false);
   });
 
+  it('emits for Seats and Back to campaigns', async () => {
+    const wrapper = mountMenu(true);
+    await openMenu(wrapper);
+    await item(wrapper, 'Seats')?.trigger('click');
+    expect(wrapper.emitted('seats')).toHaveLength(1);
+
+    await openMenu(wrapper);
+    await item(wrapper, 'Back to campaigns')?.trigger('click');
+    expect(wrapper.emitted('leaveCampaign')).toHaveLength(1);
+  });
+
   it('moves between items with the arrow keys, wrapping, and with Home and End', async () => {
     const wrapper = mountMenu();
     await openMenu(wrapper);
@@ -89,11 +103,11 @@ describe('the menu', () => {
     await menu.trigger('keydown', { key: 'ArrowDown' });
     expect(document.activeElement).toBe(items[1]?.element);
     await menu.trigger('keydown', { key: 'End' });
-    expect(document.activeElement).toBe(items[2]?.element);
+    expect(document.activeElement).toBe(items[3]?.element);
     await menu.trigger('keydown', { key: 'ArrowDown' });
     expect(document.activeElement).toBe(items[0]?.element);
     await menu.trigger('keydown', { key: 'ArrowUp' });
-    expect(document.activeElement).toBe(items[2]?.element);
+    expect(document.activeElement).toBe(items[3]?.element);
     await menu.trigger('keydown', { key: 'Home' });
     expect(document.activeElement).toBe(items[0]?.element);
   });
