@@ -27,6 +27,7 @@ const status = ref<'loading' | 'ready' | 'unavailable'>('loading');
 
 let app: Application | undefined;
 let unmounted = false;
+let resizeObserver: ResizeObserver | undefined;
 
 onMounted(async () => {
   const element = host.value;
@@ -51,6 +52,17 @@ onMounted(async () => {
     app = created;
     element.appendChild(created.canvas);
     status.value = 'ready';
+    // `resizeTo` (above) only re-measures on the window's own `resize` event
+    // (pixi.js's `ResizePlugin`), so a layout-only change to this box --
+    // the map-first shell's map pane growing or shrinking as a sibling
+    // overlay appears, with no window resize at all -- would otherwise
+    // leave the canvas the wrong size until the next time the window itself
+    // resizes. `ResizeObserver` isn't in jsdom, so this is skipped there;
+    // `app.resize()` still runs once already, from setting `resizeTo` above.
+    if (typeof ResizeObserver === 'function') {
+      resizeObserver = new ResizeObserver(() => app?.resize());
+      resizeObserver.observe(element);
+    }
     emit('ready', created);
   } catch {
     status.value = 'unavailable';
@@ -59,6 +71,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   unmounted = true;
+  resizeObserver?.disconnect();
+  resizeObserver = undefined;
   app?.destroy(true, { children: true });
   app = undefined;
 });
