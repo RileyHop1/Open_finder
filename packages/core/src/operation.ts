@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { actorKindSchema } from './actor.js';
 import { MAX_INITIATIVE } from './combat.js';
 import { baseDocumentSchema } from './document.js';
+import { hotbarSchema, situationalModifiersSchema } from './quickbar.js';
 import { idSchema, timestampSchema } from './record.js';
 import { MAX_SCENE_PIXELS, sceneGridChangesSchema, sceneKindSchema } from './scene.js';
 import { seatSchema } from './seat.js';
@@ -173,6 +174,27 @@ export const actorUpdateOperationSchema = clientOperationSchema.extend({
         message: `changes may name at most ${String(MAX_ACTOR_CHANGES)} fields`,
       }),
   }),
+});
+
+/**
+ * Replace an actor's saved modifiers and/or hotbar whole (ADR 0023). Each list
+ * is sent complete, so two edits to the same list are last-write-wins, which is
+ * fine for one player's own bar. Owner or GM only. At least one list.
+ */
+export const actorSetQuickbarOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.setQuickbar'),
+  payload: z
+    .object({
+      actorId: idSchema,
+      modifiers: situationalModifiersSchema.optional(),
+      hotbar: hotbarSchema.optional(),
+    })
+    .refine(
+      (payload) => payload.modifiers !== undefined || payload.hotbar !== undefined,
+      {
+        message: 'send modifiers, hotbar, or both',
+      },
+    ),
 });
 
 /** The most of one item a stack may hold. A sanity bound, not a rule. */
@@ -902,6 +924,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorCreateOperationSchema,
   actorDeleteOperationSchema,
   actorUpdateOperationSchema,
+  actorSetQuickbarOperationSchema,
   actorCreateFromCreatureOperationSchema,
   actorAddItemOperationSchema,
   actorUpdateItemOperationSchema,

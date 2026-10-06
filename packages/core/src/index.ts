@@ -47,6 +47,18 @@ export {
 } from './chatMessage.js';
 
 export {
+  emptyHotbar,
+  hotbarActionSchema,
+  hotbarCostSchema,
+  hotbarSchema,
+  HOTBAR_SLOTS,
+  MAX_SITUATIONAL_MODIFIERS,
+  situationalModifierSchema,
+  situationalModifiersSchema,
+  type HotbarAction,
+  type SituationalModifier,
+} from './quickbar.js';
+export {
   ACTOR_KINDS,
   actorKindSchema,
   actorSchema,
@@ -165,6 +177,7 @@ export {
   actorRemoveItemOperationSchema,
   actorUpdateItemOperationSchema,
   actorUpdateOperationSchema,
+  actorSetQuickbarOperationSchema,
   MAX_ITEM_QUANTITY,
   MAX_ACTOR_CHANGES,
   appliedOperationSchema,

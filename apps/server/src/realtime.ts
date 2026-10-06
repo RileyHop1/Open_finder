@@ -60,6 +60,7 @@ import {
   createActor,
   createActorFromCreature,
   deleteActor,
+  setQuickbar,
   updateActor,
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
@@ -423,6 +424,11 @@ function dispatch(
     case 'actor.update': {
       const seat = requireSeat(store, socket);
       const actor = updateActor(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.setQuickbar': {
+      const seat = requireSeat(store, socket);
+      const actor = setQuickbar(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [actor] };
     }
     case 'actor.addItem': {

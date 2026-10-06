@@ -13,6 +13,8 @@ system's own data lives in the opaque `system` payload. Rationale in
 | `kind` | `'character' \| 'npc' \| 'hazard'` | One document type for all three, per CLAUDE.md |
 | `name` | non-empty string, unique for `kind: 'character'` (case- and whitespace-insensitive) | An NPC or hazard may share a name with anything else -- "three goblins" is a normal table |
 | `portrait` | non-empty string, optional | A content-addressed asset (`<hash>.<ext>`). Absent means the client shows a placeholder; no default image is stored |
+| `modifiers` | up to 10 of `{ value: -50..50, label?: 1-40 chars, active }`, optional | Situational modifiers the player keeps ready ("Flanking +2"); `active` switches one on for the roll. Absent until first saved. Changed only through `actor.setQuickbar` |
+| `hotbar` | exactly 10 positions, each `{ name: 1-24, text: 0-120, cost: 'free' \| 'reaction' \| 1 \| 2 \| 3, dice?: string }` or `null`, optional | Saved actions on keys 1 to 9 then 0; the position is the hotkey. Absent until first saved. Changed only through `actor.setQuickbar` |
 | `system` | object | Opaque to core. `systems/pf2e` validates it (`characterDataSchema`); the server re-validates after every mutation |
 
 ## Permissions
