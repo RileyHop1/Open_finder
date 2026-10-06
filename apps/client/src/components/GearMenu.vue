@@ -1,10 +1,13 @@
 <script setup lang="ts">
 /**
- * The table's own menu, for everything that isn't the map: opening the
- * character sheet, GM scene, Rules, Seats, or Manage party drawers,
- * releasing the current seat, and the GM's "Back to campaigns". Lives
- * floated over the map (ADR 0022, `feat/fullscreen-table-shell`) since the
- * screen no longer has a toolbar row to put these buttons in.
+ * The table's own menu, for everything that isn't the map: who you're
+ * playing as, opening the character sheet, GM scene, Rules, Seats, Manage
+ * party, or Game content drawers, releasing the current seat, and the GM's
+ * "Back to campaigns". Lives floated over the map (ADR 0022,
+ * `feat/fullscreen-table-shell`) since the screen no longer has a toolbar
+ * row -- or any page chrome at all -- to put these in (`feat/chrome-into-
+ * gear-menu`: "Playing as" and the GM's content-import panel used to be
+ * their own rows above the map).
  *
  * A plain `menu` button: arrow keys, Home and End move between items, and
  * Escape closes it and returns focus to the gear button -- the same
@@ -21,8 +24,10 @@
 import { nextTick, ref, useTemplateRef } from 'vue';
 
 defineProps<{
-  /** Whether the GM-only items (Scenes, Manage party, Back to campaigns) should show. */
+  /** Whether the GM-only items (Scenes, Manage party, Game content, Back to campaigns) should show. */
   isGm: boolean;
+  /** This seat's name, shown as the dropdown's own header line. */
+  seatName: string;
 }>();
 
 const emit = defineEmits<{
@@ -31,6 +36,7 @@ const emit = defineEmits<{
   rules: [];
   seats: [];
   manageParty: [];
+  gameContent: [];
   releaseSeat: [];
   leaveCampaign: [];
 }>();
@@ -74,6 +80,7 @@ function select(
     | 'rules'
     | 'seats'
     | 'manageParty'
+    | 'gameContent'
     | 'releaseSeat'
     | 'leaveCampaign',
 ): void {
@@ -93,6 +100,9 @@ function select(
       break;
     case 'manageParty':
       emit('manageParty');
+      break;
+    case 'gameContent':
+      emit('gameContent');
       break;
     case 'releaseSeat':
       emit('releaseSeat');
@@ -146,37 +156,47 @@ function onFocusOut(event: FocusEvent): void {
     >
       ⚙
     </button>
-    <ul v-if="open" role="menu" aria-label="Table menu" class="gear-items">
-      <li role="none">
-        <button type="button" role="menuitem" @click="select('characters')">
-          Characters
-        </button>
-      </li>
-      <li v-if="isGm" role="none">
-        <button type="button" role="menuitem" @click="select('scenes')">Scenes</button>
-      </li>
-      <li role="none">
-        <button type="button" role="menuitem" @click="select('rules')">Rules</button>
-      </li>
-      <li role="none">
-        <button type="button" role="menuitem" @click="select('seats')">Seats</button>
-      </li>
-      <li v-if="isGm" role="none">
-        <button type="button" role="menuitem" @click="select('manageParty')">
-          Manage party
-        </button>
-      </li>
-      <li role="none">
-        <button type="button" role="menuitem" @click="select('releaseSeat')">
-          Release seat
-        </button>
-      </li>
-      <li v-if="isGm" role="none">
-        <button type="button" role="menuitem" @click="select('leaveCampaign')">
-          Back to campaigns
-        </button>
-      </li>
-    </ul>
+    <div v-if="open" class="gear-dropdown">
+      <p class="gear-seat">
+        Playing as <strong>{{ seatName }}</strong>
+      </p>
+      <ul role="menu" aria-label="Table menu" class="gear-items">
+        <li role="none">
+          <button type="button" role="menuitem" @click="select('characters')">
+            Characters
+          </button>
+        </li>
+        <li v-if="isGm" role="none">
+          <button type="button" role="menuitem" @click="select('scenes')">Scenes</button>
+        </li>
+        <li role="none">
+          <button type="button" role="menuitem" @click="select('rules')">Rules</button>
+        </li>
+        <li role="none">
+          <button type="button" role="menuitem" @click="select('seats')">Seats</button>
+        </li>
+        <li v-if="isGm" role="none">
+          <button type="button" role="menuitem" @click="select('manageParty')">
+            Manage party
+          </button>
+        </li>
+        <li v-if="isGm" role="none">
+          <button type="button" role="menuitem" @click="select('gameContent')">
+            Game content
+          </button>
+        </li>
+        <li role="none">
+          <button type="button" role="menuitem" @click="select('releaseSeat')">
+            Release seat
+          </button>
+        </li>
+        <li v-if="isGm" role="none">
+          <button type="button" role="menuitem" @click="select('leaveCampaign')">
+            Back to campaigns
+          </button>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -195,21 +215,34 @@ function onFocusOut(event: FocusEvent): void {
   cursor: pointer;
 }
 
-.gear-items {
+.gear-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
-  display: flex;
-  flex-direction: column;
   margin: var(--space-1) 0 0;
-  padding: var(--space-1);
-  min-width: 12rem;
-  list-style: none;
+  min-width: 14rem;
   border: var(--overlay-border);
   border-radius: var(--overlay-radius);
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: var(--overlay-shadow);
+}
+
+/* A static header line, not a menu item: who you're playing as, same text
+   the page used to show above the map in its own row (`.playing-as`). */
+.gear-seat {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--overlay-border);
+  color: var(--color-text-muted);
+}
+
+.gear-items {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
 }
 
 .gear-items [role='menuitem'] {
