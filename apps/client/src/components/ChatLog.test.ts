@@ -305,6 +305,30 @@ describe('ChatLog', () => {
     expect(wrapper.find('label[for="chat-input"]').exists()).toBe(true);
   });
 
+  describe('collapsing', () => {
+    it('starts expanded, and folds the body away on toggle', async () => {
+      const wrapper = mountChatLog();
+      await flushPromises();
+
+      const toggle = wrapper.get('.chat-toggle');
+      expect(toggle.attributes('aria-expanded')).toBe('true');
+      expect(toggle.text()).toBe('Collapse');
+      expect((wrapper.get('#chat-body').element as HTMLElement).style.display).not.toBe(
+        'none',
+      );
+
+      await toggle.trigger('click');
+      expect(toggle.attributes('aria-expanded')).toBe('false');
+      expect(toggle.text()).toBe('Expand');
+      expect((wrapper.get('#chat-body').element as HTMLElement).style.display).toBe('none');
+
+      await toggle.trigger('click');
+      expect((wrapper.get('#chat-body').element as HTMLElement).style.display).not.toBe(
+        'none',
+      );
+    });
+  });
+
   /** jsdom never lays out real pixels, so scrollHeight/clientHeight are stubbed by hand. */
   function stubScrollMetrics(
     el: Element,

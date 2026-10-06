@@ -11,7 +11,8 @@
  *   character's sheet). Opened by the gear menu's "Characters" item or by
  *   pressing a party card; Escape or "Close" shuts it and puts focus back
  *   where it was,
- * - the **chat** panel on the right.
+ * - the **chat** panel (`ChatLog.vue`), a 90%-opacity overlay in the map's
+ *   bottom-left corner, with its own "Collapse" toggle.
  *
  * The GM also has a **Scenes** drawer, from the right edge of the map (the scene
  * manager: make, edit, preview, move the party to, and delete scenes), and a
@@ -30,12 +31,12 @@
  * (`SeatRoster.vue`) shares the same right-edge slot as Scenes and Rules --
  * `closeOtherRightDrawers` keeps only one of the three open at a time.
  *
- * The drawer overlays the map at every width rather than pushing it, so the
- * map never reflows while someone reads their sheet. The chat sits beside the
- * map from 900px and stacks below that. Tablets are supported and phones are
- * not (CLAUDE.md, Targets and budgets), so there is no phone layout. Shown by `CampaignLobby` while this
- * device holds a seat; the lobby owns the realtime connection, this only reads
- * the stores it feeds.
+ * The drawer and the chat panel both overlay the map at every width rather
+ * than pushing it, so the map never reflows under either of them. Tablets
+ * are supported and phones are not (CLAUDE.md, Targets and budgets), so
+ * there is no phone layout. Shown by `CampaignLobby` while this device
+ * holds a seat; the lobby owns the realtime connection, this only reads the
+ * stores it feeds.
  */
 import { resolvePermission } from '@hearthtable/core';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
@@ -1037,10 +1038,10 @@ async function handleCreate(): Promise<void> {
             </section>
           </section>
         </Transition>
-      </div>
 
-      <div id="chat-pane" class="chat-pane" tabindex="-1">
-        <ChatLog :world-id="worldId" />
+        <div id="chat-pane" class="chat-pane" tabindex="-1">
+          <ChatLog :world-id="worldId" />
+        </div>
       </div>
     </div>
   </div>
@@ -1172,35 +1173,32 @@ button[aria-pressed='true'] {
   padding-top: var(--space-3);
 }
 
-/* The chat sits beside the map from 900px; narrower stacks. The map column
-   stretches to the body's full height (the grid default) so the map pane
-   can grow to fill it -- see .map-pane below; the chat column opts back
-   out of that (.chat-pane below) and stays its own content height. */
 .table-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
+  display: flex;
   flex: 1 1 auto;
   min-height: 0;
 }
 
-@media (min-width: 900px) {
-  .table-body {
-    grid-template-columns: minmax(0, 1fr) 22rem;
-  }
-}
-
-.chat-pane {
-  align-self: start;
-}
-
-/* The map column is the drawer's positioning box: the drawer overlays the map. */
+/* The map column is the positioning box for both the drawers and the chat
+   overlay -- both overlay the map rather than sharing the page with it
+   (ADR 0022). */
 .map-column {
   position: relative;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-2);
   min-height: 0;
+}
+
+/* The chat panel (ChatLog.vue) floats over the map's bottom-left corner,
+   90% opacity, rather than sitting in its own page column. */
+.chat-pane {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  z-index: var(--z-chat-overlay);
+  max-width: calc(100% - 2 * var(--space-2));
 }
 
 /* Grows to fill whatever the map column has left over, after its other,

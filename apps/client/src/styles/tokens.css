@@ -47,6 +47,10 @@
      floats over the map and every drawer, so it needs to beat all of
      them. Add to this list instead of guessing another ad hoc number. */
   --z-gear-menu: 110;
+  /* The chat overlay (ChatLog.vue, TableView.vue's .chat-pane): below the
+     drawers (10), at the same level as the other in-map popovers, so an
+     open drawer slides over it rather than the other way around. */
+  --z-chat-overlay: 6;
 }
 
 @media (prefers-color-scheme: dark) {
