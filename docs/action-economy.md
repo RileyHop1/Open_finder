@@ -61,7 +61,7 @@ a strike or sheet check sends them as `modifiers` so the chat breakdown lists
 each one ([operations.md](operations.md)), and the generic action's dice get
 their sum added to the expression.
 
-**The hotbar** (`Hotbar.vue`, `SaveToHotbar.vue`): ten slots under the action
+**The hotbar** (`ActionHotbar.vue`, `SaveToHotbar.vue`): ten slots under the action
 row, on keys 1 to 9 then 0, saved on the actor with `actor.setQuickbar`
 ([actor.md](actor.md)) so they follow the player to any device. A filled slot
 shows the player's own name for it and its cost. Choosing a slot (click, or its

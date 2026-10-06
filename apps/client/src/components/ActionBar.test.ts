@@ -79,21 +79,6 @@ describe('ActionBar hotbar', () => {
     wrapper.unmount();
   });
 
-  it('loads a slot from its number key, but not while typing or with a modifier key', async () => {
-    const wrapper = mountBar();
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: '1', ctrlKey: true }));
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: '2' }));
-    expect(value(wrapper, '#action-text')).toBe('');
-    // Typing in the form: the digit is just a digit.
-    const input = wrapper.get('#action-dice').element as HTMLInputElement;
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true }));
-    expect(value(wrapper, '#action-text')).toBe('');
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }));
-    await wrapper.vm.$nextTick();
-    expect(value(wrapper, '#action-text')).toBe('Sneak attack');
-    wrapper.unmount();
-  });
-
   it('saves the form to the chosen slot through the Save popover', async () => {
     const wrapper = mountBar();
     await wrapper.get('#action-text').setValue('Trip');

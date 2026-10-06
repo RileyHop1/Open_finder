@@ -83,6 +83,7 @@ import {
 } from './actionBarModel.js';
 import ActionTray from './ActionTray.vue';
 import { actionTrayView } from './actionTrayModel.js';
+import { slotForKey } from './hotbarModel.js';
 import ChatLog from './ChatLog.vue';
 import ContentImportPanel from './ContentImportPanel.vue';
 import GearMenu from './GearMenu.vue';
@@ -329,6 +330,9 @@ function barStrike(
 /** Why the last generic action was not sent, shown under its form. */
 const actionError = ref<string>();
 
+/** The action bar, for loading a hotbar slot from a number key. */
+const actionBarEl = useTemplateRef<InstanceType<typeof ActionBar>>('actionBarEl');
+
 /**
  * The generic action (ADR 0023): the player's own description, cost, dice
  * and the switched-on situational modifiers, for anything the system does not model. The dice
@@ -383,14 +387,29 @@ function isTypingTarget(event: KeyboardEvent): boolean {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
 }
 
-/** Escape anywhere on the screen skips a pending strike's target. `?` opens the Rules drawer (the encyclopedia, CLAUDE.md's north star) -- ignored while typing. */
+/** Escape anywhere on the screen skips a pending strike's target. A number key loads its hotbar slot into the action form (never while typing).  `?` opens the Rules drawer (the encyclopedia, CLAUDE.md's north star) -- ignored while typing. */
 function onTableKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && pendingStrike.value !== undefined) {
     swingWithoutTarget();
+  }
+  const slot = slotForKey(event.key);
+  if (
+    slot !== undefined &&
+    !isTypingTarget(event) &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.shiftKey &&
+    actionBar.value?.hotbar[slot] != null
+  ) {
+    event.preventDefault();
+    actionBarEl.value?.loadSlot(slot);
+    return;
   }
   if (event.key === '?' && !isTypingTarget(event)) {
     event.preventDefault();
@@ -930,6 +949,7 @@ async function handleCreate(): Promise<void> {
 
             <ActionBar
               v-if="actionBar !== undefined"
+              ref="actionBarEl"
               :view="actionBar.view"
               :label="actionBar.label"
               :error="actionError"

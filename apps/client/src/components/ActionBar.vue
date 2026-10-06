@@ -20,7 +20,7 @@
  */
 import type { HotbarAction, SituationalModifier } from '@hearthtable/core';
 import { emptyHotbar } from '@hearthtable/core';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import type {
   ActionBarView,
@@ -28,8 +28,8 @@ import type {
   GenericActionCost,
 } from './actionBarModel.js';
 import { modifierSum } from './actionBarModel.js';
-import Hotbar from './Hotbar.vue';
-import { defaultSlotName, slotForKey, withSlot } from './hotbarModel.js';
+import ActionHotbar from './ActionHotbar.vue';
+import { defaultSlotName, withSlot } from './hotbarModel.js';
 import SaveToHotbar from './SaveToHotbar.vue';
 import SituationalMods from './SituationalMods.vue';
 import RulesTerm from './RulesTerm.vue';
@@ -93,32 +93,9 @@ const canSave = computed(
   () => actionText.value.trim() !== '' || actionDice.value.trim() !== '',
 );
 
-/** A number key loads its slot, unless the player is typing or holding a modifier key. */
-function onKey(event: KeyboardEvent): void {
-  const index = slotForKey(event.key);
-  const target = event.target;
-  const typing =
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    (target instanceof HTMLElement && target.isContentEditable);
-  if (
-    index === undefined ||
-    typing ||
-    event.ctrlKey ||
-    event.metaKey ||
-    event.altKey ||
-    event.shiftKey ||
-    props.hotbar[index] == null
-  ) {
-    return;
-  }
-  event.preventDefault();
-  loadSlot(index);
-}
-
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+// A number key loads its slot: `TableView` owns the key handling (the one place that
+// already knows when the player is typing) and calls this.
+defineExpose({ loadSlot });
 
 function submitAction(): void {
   const text = actionText.value.trim();
@@ -215,7 +192,7 @@ function submitAction(): void {
       <SituationalMods :modifiers="modifiers" @update="emit('setModifiers', $event)" />
       <p v-if="error" role="alert" class="action-error">{{ error }}</p>
     </div>
-    <Hotbar
+    <ActionHotbar
       :slots="hotbar"
       @load="loadSlot"
       @remove="emit('setHotbar', withSlot(hotbar, $event, null))"

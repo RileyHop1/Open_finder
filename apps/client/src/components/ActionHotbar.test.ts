@@ -3,7 +3,7 @@ import { emptyHotbar } from '@hearthtable/core';
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import Hotbar from './Hotbar.vue';
+import ActionHotbar from './ActionHotbar.vue';
 
 const slots = () => {
   const bar = emptyHotbar() as (null | {
@@ -17,9 +17,9 @@ const slots = () => {
 };
 
 const mountBar = () =>
-  mount(Hotbar, { props: { slots: slots() }, attachTo: document.body });
+  mount(ActionHotbar, { props: { slots: slots() }, attachTo: document.body });
 
-describe('Hotbar', () => {
+describe('ActionHotbar', () => {
   it('shows all ten slots with their keys, filled ones named, empty ones faint', () => {
     const wrapper = mountBar();
     expect(wrapper.findAll('li.slot')).toHaveLength(10);
