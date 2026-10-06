@@ -190,13 +190,14 @@ that token's own turn: strikes and basic actions, both spending via
 - **Strikes** always roll on click; while a combat is active they also spend
   1 action. Outside combat (or for a token with no combatant yet) they still
   roll, just without the spend — the same as the sheet's `StrikesPanel`.
-- **Basic actions** (Stride, Step, Interact, Delay, Ready, Take Cover, Seek —
-  `BASIC_ACTIONS`, a hand-picked list, not imported; see `docs/rulings.md`)
-  only ever spend, so the list is hidden entirely with no combatant to spend
-  against.
-- **"Other action"**, GM only: a free-text description plus a ◆/◆◆/◆◆◆ cost
-  picker, for whatever the table asks for that the system doesn't model.
-  Spending it posts a chat line naming it, so the table sees what happened.
+- **The generic action**, for every seat that controls the token (ADR 0023):
+  a description, a cost (Free, ◆, ◆◆, ◆◆◆, or Reaction; the picker only shows
+  while a combat is active), and optional dice with an optional situational
+  modifier. It spends the cost, then posts one chat card -- a labelled roll
+  when there are dice (`chat.sendRoll`'s `label`), a plain line otherwise.
+  The dice are checked before anything is spent. There are no per-action
+  buttons: the system does not model Stride, Interact and the rest, the table
+  rules on them.
 
 **Implemented in C.5a** (`apps/client/src/components/ActionBar.vue`,
 `actionBarModel.ts`). Still open under the same checklist item: movement

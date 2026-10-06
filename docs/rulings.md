@@ -636,36 +636,25 @@ ruling from silently drifting.
   `flanking a target` block in `apps/server/src/strikeRolls.test.ts` (the effect). Clear the **(confirm)**
   here and in `grid.md` when the pages can be checked.
 
-### The action bar's basic-action list is hand-picked, not imported
-- **This is not a rules dispute** -- it is a recording choice, like the `dead`
-  condition, included here because it changes what a GM sees without any rule
-  dictating it.
-- **The ambiguity:** PF2e has dozens of basic (non-skill) actions, and the
-  action bar (M5 C.5) needs some set of one-action activities every
-  creature can take, with no prerequisites, to be useful at a real table.
-  The importer now covers the `action` content kind, but wiring the action
-  bar to a full imported list (with per-action cost and prerequisites read
-  from the entry, rather than hand-set here) is its own UI work, not yet done.
-- **Our reading:** seven are hard-coded in
-  `systems/pf2e/src/content/basicActions.ts` (`BASIC_ACTIONS`): Stride,
-  Step, Interact, Delay, Ready, Take Cover, Seek, each with the correct
-  action cost (Delay is a free action; Ready costs two actions; the rest
-  cost one). Only ever spend (no roll). Chosen for being usable by any
-  creature in any situation and covering what most turns actually reach for.
-- **Alternative:** wire the action bar to the imported `actions` compendium
-  pack directly, or include more of PF2e's basic actions (Aid, Grapple,
-  Shove, Trip, Sidestep, and others that need a target or a skill) now by
-  hand.
-- **Why:** a short, obviously-correct list that ships now beats waiting on
-  the action bar's compendium-wiring work, and the list is additive --
-  swapping it for imported data later changes nothing a GM has already done
-  with it.
-- **Override:** none needed; nothing in the list is a judgment call about a
-  rule, only about which actions are worth a button yet. The GM's "Other
-  action" freeform entry covers anything missing in the meantime.
-- **Test:** `systems/pf2e/src/content/basicActions.test.ts` (no duplicate
-  slugs, a non-negative cost on every entry, Delay and Ready's costs) and
-  `apps/client/src/components/actionBarModel.test.ts`.
+### The action bar has no basic-action buttons
+- **This is not a rules dispute** -- it is a scope choice, recorded here because
+  it changes what a table sees without any rule dictating it.
+- **The ambiguity:** PF2e has dozens of basic actions, and most depend on a
+  target, a skill, or a ruling (Aid, Grapple, Trip, Seek, Ready). An earlier
+  action bar hard-coded seven one-action buttons (Stride, Step, Interact,
+  Delay, Ready, Take Cover, Seek) that only spent actions and rolled nothing.
+- **Our reading:** no preset buttons. Every seat gets one generic action (a
+  description, a cost, optional dice and a situational modifier) and the table
+  rules on the rest (ADR 0023, "calculate, don't enforce"). Movement is the
+  exception that stays automatic: it is arithmetic, see below.
+- **Alternative:** wire the bar to the imported `actions` pack with per-action
+  cost and prerequisites, or hand-pick more buttons.
+- **Why:** a button that spends an action and does nothing else is the system
+  pretending to adjudicate; a short list is always missing the action someone
+  wants, and a long one is the simulation the project decided not to build.
+- **Override:** not needed; nothing is automated here.
+- **Test:** `apps/client/src/components/ActionBar.test.ts` and the generic
+  action cases in `TableView.test.ts`.
 
 ### Movement spends actions per move, not by a running total
 - **Rules text:** Player Core, Actions, Stride: "Your Speed determines how far

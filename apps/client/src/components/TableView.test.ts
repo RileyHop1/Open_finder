@@ -584,7 +584,8 @@ describe('the turn bar', () => {
     );
   });
 
-  it('shows the action bar for a token the GM selects, and spends an action for a basic action', async () => {
+  /** An active combat with Ada's token in it, seated as the GM, ready to select from the token list. */
+  function seedActiveCombat(): { combatantId: string } {
     const scene = sceneWithParty();
     const actor = makeActor('Ada');
     const token = tokenSchema.parse({
@@ -632,19 +633,90 @@ describe('the turn bar', () => {
     ]);
     mySeat = { id: crypto.randomUUID(), isGM: true } as Seat;
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    return { combatantId: combatant.id };
+  }
 
+  /** Mounts the table, selects Ada's token, and fills and submits the generic action form. */
+  async function doAction(fields: {
+    text: string;
+    cost?: string;
+    dice?: string;
+    modifier?: string;
+  }) {
     const wrapper = await mountTable();
     expect(wrapper.find('.action-bar').exists()).toBe(false);
-
     await wrapper.get('.token-list button').trigger('click');
     expect(wrapper.find('.action-bar').exists()).toBe(true);
 
-    await wrapper.find('.basics button[aria-label]').trigger('click');
+    await wrapper.get('#action-text').setValue(fields.text);
+    if (fields.cost !== undefined) {
+      await wrapper.get('#action-cost').setValue(fields.cost);
+    }
+    if (fields.dice !== undefined) {
+      await wrapper.get('#action-dice').setValue(fields.dice);
+    }
+    if (fields.modifier !== undefined) {
+      await wrapper.get('#action-modifier').setValue(fields.modifier);
+    }
+    await wrapper.get('form.action-form').trigger('submit');
     await flushPromises();
-    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
-      type: 'combat.spendAction',
-      payload: { combatantId: combatant.id, actions: 1 },
+    return wrapper;
+  }
+
+  const sentOperations = () =>
+    vi
+      .mocked(emitOperation)
+      .mock.calls.map((call) => call[1] as { type: string; payload: unknown });
+
+  it('spends the cost and posts one labelled roll for a generic action with dice and a modifier', async () => {
+    const { combatantId } = seedActiveCombat();
+    await doAction({
+      text: 'Pries the door open',
+      cost: '2',
+      dice: '1d20+7',
+      modifier: '-2',
     });
+
+    expect(sentOperations()).toMatchObject([
+      { type: 'combat.spendAction', payload: { combatantId, actions: 2 } },
+      {
+        type: 'chat.sendRoll',
+        payload: { expression: '1d20+7-2', label: 'Ada -- Pries the door open' },
+      },
+    ]);
+  });
+
+  it('posts a plain chat line with no dice, marks a reaction used, and spends nothing for a free action', async () => {
+    const { combatantId } = seedActiveCombat();
+    await doAction({ text: 'Shield Block', cost: 'reaction' });
+    expect(sentOperations()).toMatchObject([
+      { type: 'combat.spendAction', payload: { combatantId, reaction: true } },
+      { type: 'chat.sendMessage', payload: { text: 'Ada -- Shield Block' } },
+    ]);
+
+    vi.mocked(emitOperation).mockClear();
+    await doAction({ text: 'Talk to the guard', cost: 'free' });
+    expect(sentOperations()).toMatchObject([
+      { type: 'chat.sendMessage', payload: { text: 'Ada -- Talk to the guard' } },
+    ]);
+  });
+
+  it('checks the dice before spending anything, and says what is wrong', async () => {
+    seedActiveCombat();
+    const wrapper = await doAction({ text: 'Mumble', cost: '1', dice: 'not dice' });
+    expect(sentOperations()).toEqual([]);
+    expect(wrapper.get('.action-bar [role="alert"]').text()).toContain('dice');
+  });
+
+  it('posts nothing when the server refuses the spend', async () => {
+    seedActiveCombat();
+    vi.mocked(emitOperation).mockResolvedValue({
+      ok: false,
+      error: 'only 0 actions left',
+    });
+    await doAction({ text: 'Run', cost: '1', dice: '1d20' });
+    expect(sentOperations()).toHaveLength(1);
+    expect(sentOperations()[0]?.type).toBe('combat.spendAction');
   });
 
   it('sends combat.undo for the active combat when the tray’s "Undo last action" is clicked', async () => {

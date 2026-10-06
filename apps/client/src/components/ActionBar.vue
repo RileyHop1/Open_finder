@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
  * The action bar: the selected token's strikes (three MAP variants each,
- * precomputed) and the basic actions, across the bottom of the map
+ * precomputed) and one generic action form, across the bottom of the map
  * (Owlcat-style). Only shown by the parent for a token this seat controls
  * (the GM, any; a player, one they own). Clicking a strike variant rolls it
- * and -- while a combat is active -- spends 1 action; a basic action only
- * spends, and is hidden with no combatant to spend against. The GM alone
- * gets "Other action", a free-text entry for whatever the table asks for
- * that the system doesn't model, spending its chosen cost and naming it in
- * chat. Hovering or focusing a strike's attack button highlights its range
+ * and -- while a combat is active -- spends 1 action. Everything else goes
+ * through the generic action (ADR 0023, "calculate, don't enforce"): the
+ * player says what they do, picks its cost (only while a combat is active),
+ * and may add dice and a situational modifier of their own. There are no
+ * per-action buttons because the system does not try to model every action;
+ * the table rules on the rest. Hovering or focusing a strike's attack button highlights its range
  * on the map (never only on hover, so a keyboard user gets it from focus
  * too); losing hover or focus clears it. "Undo last action" lives on the
  * action tray instead (ADR 0019): it undoes the current turn's whole step,
@@ -17,7 +18,11 @@
  */
 import { ref } from 'vue';
 
-import type { ActionBarView } from './actionBarModel.js';
+import type {
+  ActionBarView,
+  GenericAction,
+  GenericActionCost,
+} from './actionBarModel.js';
 import RulesTerm from './RulesTerm.vue';
 import StatBreakdown from './StatBreakdown.vue';
 import { signed } from './sheet/format.js';
@@ -26,26 +31,35 @@ import { titleCase } from './sheet/format.js';
 defineProps<{
   view: ActionBarView;
   label: string;
-  /** Whether this seat is the GM: only the GM gets "Other action". */
-  gm: boolean;
+  /** Why the last action was not sent (bad dice), shown under the form. */
+  error?: string | undefined;
 }>();
 const emit = defineEmits<{
   strike: [target: { itemId: string } | { strikeKey: string }, attackNumber: 1 | 2 | 3];
-  basicAction: [slug: string, cost: number];
-  freeform: [label: string, cost: number];
+  action: [action: GenericAction];
   hoverStrike: [strike: ActionBarView['strikes'][number]];
   unhoverStrike: [];
 }>();
 
-const freeformLabel = ref('');
-const freeformCost = ref<1 | 2 | 3>(1);
+const actionText = ref('');
+const actionCost = ref<GenericActionCost>(1);
+const actionDice = ref('');
+const actionModifier = ref<number>();
 
-function submitFreeform(): void {
-  const text = freeformLabel.value.trim();
-  if (text !== '') {
-    emit('freeform', text, freeformCost.value);
-    freeformLabel.value = '';
+function submitAction(): void {
+  const text = actionText.value.trim();
+  if (text === '') {
+    return;
   }
+  emit('action', {
+    text,
+    cost: actionCost.value,
+    dice: actionDice.value.trim(),
+    modifier: actionModifier.value ?? 0,
+  });
+  actionText.value = '';
+  actionDice.value = '';
+  actionModifier.value = undefined;
 }
 </script>
 
@@ -92,35 +106,48 @@ function submitFreeform(): void {
     </ul>
     <p v-else class="empty">No strikes.</p>
 
-    <ul v-if="view.canAct" class="basics">
-      <li v-for="basic in view.basics" :key="basic.slug">
-        <RulesTerm term-kind="action" :slug="basic.slug" :label="basic.name" />
-        <button
-          type="button"
-          :aria-label="`${basic.name}, ${basic.cost === 0 ? 'free action' : `${basic.cost} action${basic.cost > 1 ? 's' : ''}`}`"
-          @click="emit('basicAction', basic.slug, basic.cost)"
-        >
-          {{ basic.cost === 0 ? 'Free' : '◆'.repeat(basic.cost) }}
-        </button>
-      </li>
-    </ul>
-
-    <form v-if="gm && view.canAct" class="freeform" @submit.prevent="submitFreeform">
-      <label for="freeform-label">Other action</label>
+    <form
+      class="action-form"
+      aria-label="Do something else"
+      @submit.prevent="submitAction"
+    >
+      <label for="action-text">Action</label>
       <input
-        id="freeform-label"
-        v-model="freeformLabel"
+        id="action-text"
+        v-model="actionText"
         type="text"
+        required
         placeholder="What do they do?"
       />
-      <label for="freeform-cost">Cost</label>
-      <select id="freeform-cost" v-model.number="freeformCost">
-        <option :value="1">◆</option>
-        <option :value="2">◆◆</option>
-        <option :value="3">◆◆◆</option>
-      </select>
-      <button type="submit">Spend</button>
+      <template v-if="view.canAct">
+        <label for="action-cost">Cost</label>
+        <select id="action-cost" v-model="actionCost">
+          <option value="free">Free</option>
+          <option :value="1">◆</option>
+          <option :value="2">◆◆</option>
+          <option :value="3">◆◆◆</option>
+          <option value="reaction">Reaction</option>
+        </select>
+      </template>
+      <label for="action-dice">Dice</label>
+      <input
+        id="action-dice"
+        v-model="actionDice"
+        type="text"
+        autocomplete="off"
+        placeholder="1d20+7"
+      />
+      <label for="action-modifier">Modifier</label>
+      <input
+        id="action-modifier"
+        v-model.number="actionModifier"
+        type="number"
+        step="1"
+        placeholder="+0"
+      />
+      <button type="submit">Do it</button>
     </form>
+    <p v-if="error" role="alert" class="action-error">{{ error }}</p>
   </section>
 </template>
 
@@ -133,8 +160,7 @@ function submitFreeform(): void {
   padding: var(--space-2);
   border-top: 1px solid var(--color-border);
 }
-.strikes,
-.basics {
+.strikes {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -142,7 +168,6 @@ function submitFreeform(): void {
   margin: 0;
   padding: 0;
 }
-.basics li,
 .attack {
   display: flex;
   align-items: center;
@@ -163,10 +188,19 @@ function submitFreeform(): void {
 button {
   min-height: var(--touch-target-min);
 }
-.freeform {
+.action-form {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
+}
+.action-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-danger);
+}
+.action-form input[type='number'] {
+  width: 5rem;
 }
 .empty {
   color: var(--color-text-muted);

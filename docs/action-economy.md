@@ -37,15 +37,15 @@ negative count) is the GM's own manual override for a number the automation
 got wrong — not an undo, and shown to the GM only.
 
 **Implemented in M5 C.5a**: `apps/client/src/components/ActionBar.vue`, across
-the bottom of the map for whatever token is selected, strikes and basic
-actions alike. A strike (its three MAP variants precomputed from
-`prepareCharacter`/`prepareNpc`, the same numbers `StrikesPanel.vue` shows)
-always rolls on click and, while a combat is active, also spends 1 action. A
-basic action (`BASIC_ACTIONS`, `systems/pf2e/src/content/basicActions.ts`)
-only ever spends, and the whole basics list is hidden with no combatant to
-spend against. The GM alone gets "Other action", a free-text entry with a
-cost picker for whatever the table asks for that the system doesn't model;
-spending it names it in a chat message. The bar itself is shown only for a
+the bottom of the map for whatever token is selected. A strike (its three MAP
+variants precomputed from `prepareCharacter`/`prepareNpc`, the same numbers
+`StrikesPanel.vue` shows) always rolls on click and, while a combat is
+active, also spends 1 action. Everything else is the **generic action**
+(ADR 0023, which removed the preset basic-action buttons and the GM-only
+"Other action"): any seat that controls the token describes what they do,
+picks a cost (Free, ◆, ◆◆, ◆◆◆, Reaction; shown only while a combat is
+active), and may add dice and a situational modifier. It spends the cost,
+then posts one labelled roll or a plain chat line. The bar itself is shown only for a
 token this seat controls (the GM, any; a player, one they own) — see
 `docs/combat.md` for where that check lives. Still open, as a follow-up PR
 under the same C.5 item: range highlighting. Movement spending actions landed
