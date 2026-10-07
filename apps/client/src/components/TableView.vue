@@ -1205,12 +1205,13 @@ async function createCharacter(name: string): Promise<boolean> {
           </section>
         </Transition>
 
+        <div v-show="drawerOpen" class="pane-dim" aria-hidden="true"></div>
         <Transition name="drawer">
           <section
             v-show="drawerOpen"
             id="sheet-pane"
             ref="drawer"
-            class="sheet-pane"
+            class="sheet-pane character-pane"
             :class="{ 'is-placing': placing }"
             aria-labelledby="sheet-heading"
             tabindex="-1"
@@ -1223,131 +1224,144 @@ async function createCharacter(name: string): Promise<boolean> {
               </button>
             </header>
 
-            <CharacterRoster
-              :actors="documents.actors"
-              :selected-id="selectedId"
-              :is-gm="lobby.mySeat?.isGM === true"
-              :has-scene="scenes.shownScene !== undefined"
-              :content-version="contentVersion"
-              :create="createCharacter"
-              @select="(actorId) => (selectedId = actorId)"
-              @place="placeOnMap"
-              @drag-start="startPlacing"
-              @drag-end="placing = false"
-              @add-monster="addMonster"
-            />
+            <div class="character-layout">
+              <CharacterRoster
+                :actors="documents.actors"
+                :selected-id="selectedId"
+                :is-gm="lobby.mySeat?.isGM === true"
+                :has-scene="scenes.shownScene !== undefined"
+                :content-version="contentVersion"
+                :create="createCharacter"
+                @select="(actorId) => (selectedId = actorId)"
+                @place="placeOnMap"
+                @drag-start="startPlacing"
+                @drag-end="placing = false"
+                @add-monster="addMonster"
+              />
 
-            <section v-if="selected" class="sheet" aria-label="Character sheet">
-              <p v-if="canEdit" class="roll-dc">
-                <label for="roll-dc">DC to roll against (optional)</label>
-                <input id="roll-dc" v-model.number="dc" type="number" min="0" max="99" />
-              </p>
-              <PortraitPicker
-                :name="selected.name"
-                :portrait="selected.portrait"
-                :world-id="worldId"
-                :editable="canEdit"
-                :busy="uploading"
-                :error="uploadError"
-                @upload="setPortrait"
-                @clear="saveChanges({ portrait: null })"
-              />
-              <HitPointsPanel
-                v-if="selected.kind === 'character' || selected.kind === 'npc'"
-                :actor="selected"
-                :editable="canEdit"
-                @change="saveChanges"
-                @damage="hpDamage"
-                @heal="hpHeal"
-              />
-              <DyingPanel
-                v-if="selected.kind === 'character' || selected.kind === 'npc'"
-                :actor="selected"
-                :editable="canEdit"
-                :is-gm="lobby.mySeat?.isGM === true"
-                @set="
-                  (slug, value) => sendCondition('actor.setCondition', { slug, value })
-                "
-                @remove="(slug) => sendCondition('actor.removeCondition', { slug })"
-                @roll-recovery="rollRecovery"
-              />
-              <NpcSheet
-                v-if="selected.kind === 'npc'"
-                :actor="selected"
-                :rollable="canEdit"
-                @change="saveChanges"
-                @roll="
-                  (statistic) => roll('actor.rollCheck', { statistic, ...dcPayload })
-                "
-              />
-              <CharacterSheet
-                v-else
-                :actor="selected"
-                :editable="canEdit"
-                :rollable="canEdit"
-                @change="saveChanges"
-                @roll="
-                  (statistic) => roll('actor.rollCheck', { statistic, ...dcPayload })
-                "
-              />
-              <StrikesPanel
-                v-if="selected.kind === 'character' || selected.kind === 'npc'"
-                :actor="selected"
-                :rollable="canEdit"
-                @attack="sheetAttack"
-                @damage="
-                  (id, critical) =>
-                    roll('actor.rollDamage', { ...strikeTarget(id), critical })
-                "
-              />
-              <ConditionsPanel
-                v-if="selected.kind === 'character' || selected.kind === 'npc'"
-                :key="`conditions-${contentVersion}`"
-                :actor="selected"
-                :editable="canEdit"
-                :combatants="combatantOptions"
-                @add="
-                  (slug, value, duration) =>
-                    sendCondition('actor.addCondition', {
-                      slug,
-                      ...(value === undefined ? {} : { value }),
-                      ...(duration === undefined ? {} : { duration }),
-                    })
-                "
-                @set="
-                  (slug, value) => sendCondition('actor.setCondition', { slug, value })
-                "
-                @remove="(slug) => sendCondition('actor.removeCondition', { slug })"
-              />
-              <InventoryPanel
-                v-if="selected.kind === 'character'"
-                :key="`inventory-${contentVersion}`"
-                :actor="selected"
-                :editable="canEdit"
-                :recipients="giveRecipients"
-                @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
-                @equip="
-                  (itemId, equipped) => sendItem('actor.updateItem', { itemId, equipped })
-                "
-                @quantity="
-                  (itemId, quantity) => sendItem('actor.updateItem', { itemId, quantity })
-                "
-                @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
-                @use="(itemId) => sendItem('actor.useItem', { itemId })"
-                @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
-                @give="(itemId, to, quantity) => give(to, { itemId, quantity })"
-                @give-coins="(to, coins) => give(to, undefined, coins)"
-              />
-              <PartyStashPanel
-                v-if="stash !== undefined"
-                :stash="stash"
-                :is-gm="lobby.mySeat?.isGM === true"
-                :recipients="stashRecipients"
-                @take="(itemId, to, quantity) => takeFromStash(to, { itemId, quantity })"
-                @take-coins="(to, coins) => takeFromStash(to, undefined, coins)"
-                @split="splitStash"
-              />
-            </section>
+              <section v-if="selected" class="sheet" aria-label="Character sheet">
+                <p v-if="canEdit" class="roll-dc">
+                  <label for="roll-dc">DC to roll against (optional)</label>
+                  <input
+                    id="roll-dc"
+                    v-model.number="dc"
+                    type="number"
+                    min="0"
+                    max="99"
+                  />
+                </p>
+                <PortraitPicker
+                  :name="selected.name"
+                  :portrait="selected.portrait"
+                  :world-id="worldId"
+                  :editable="canEdit"
+                  :busy="uploading"
+                  :error="uploadError"
+                  @upload="setPortrait"
+                  @clear="saveChanges({ portrait: null })"
+                />
+                <HitPointsPanel
+                  v-if="selected.kind === 'character' || selected.kind === 'npc'"
+                  :actor="selected"
+                  :editable="canEdit"
+                  @change="saveChanges"
+                  @damage="hpDamage"
+                  @heal="hpHeal"
+                />
+                <DyingPanel
+                  v-if="selected.kind === 'character' || selected.kind === 'npc'"
+                  :actor="selected"
+                  :editable="canEdit"
+                  :is-gm="lobby.mySeat?.isGM === true"
+                  @set="
+                    (slug, value) => sendCondition('actor.setCondition', { slug, value })
+                  "
+                  @remove="(slug) => sendCondition('actor.removeCondition', { slug })"
+                  @roll-recovery="rollRecovery"
+                />
+                <NpcSheet
+                  v-if="selected.kind === 'npc'"
+                  :actor="selected"
+                  :rollable="canEdit"
+                  @change="saveChanges"
+                  @roll="
+                    (statistic) => roll('actor.rollCheck', { statistic, ...dcPayload })
+                  "
+                />
+                <CharacterSheet
+                  v-else
+                  :actor="selected"
+                  :editable="canEdit"
+                  :rollable="canEdit"
+                  @change="saveChanges"
+                  @roll="
+                    (statistic) => roll('actor.rollCheck', { statistic, ...dcPayload })
+                  "
+                />
+                <StrikesPanel
+                  v-if="selected.kind === 'character' || selected.kind === 'npc'"
+                  :actor="selected"
+                  :rollable="canEdit"
+                  @attack="sheetAttack"
+                  @damage="
+                    (id, critical) =>
+                      roll('actor.rollDamage', { ...strikeTarget(id), critical })
+                  "
+                />
+                <ConditionsPanel
+                  v-if="selected.kind === 'character' || selected.kind === 'npc'"
+                  :key="`conditions-${contentVersion}`"
+                  :actor="selected"
+                  :editable="canEdit"
+                  :combatants="combatantOptions"
+                  @add="
+                    (slug, value, duration) =>
+                      sendCondition('actor.addCondition', {
+                        slug,
+                        ...(value === undefined ? {} : { value }),
+                        ...(duration === undefined ? {} : { duration }),
+                      })
+                  "
+                  @set="
+                    (slug, value) => sendCondition('actor.setCondition', { slug, value })
+                  "
+                  @remove="(slug) => sendCondition('actor.removeCondition', { slug })"
+                />
+                <InventoryPanel
+                  v-if="selected.kind === 'character'"
+                  :key="`inventory-${contentVersion}`"
+                  :actor="selected"
+                  :editable="canEdit"
+                  :recipients="giveRecipients"
+                  @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
+                  @equip="
+                    (itemId, equipped) =>
+                      sendItem('actor.updateItem', { itemId, equipped })
+                  "
+                  @quantity="
+                    (itemId, quantity) =>
+                      sendItem('actor.updateItem', { itemId, quantity })
+                  "
+                  @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
+                  @use="(itemId) => sendItem('actor.useItem', { itemId })"
+                  @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
+                  @give="(itemId, to, quantity) => give(to, { itemId, quantity })"
+                  @give-coins="(to, coins) => give(to, undefined, coins)"
+                />
+                <PartyStashPanel
+                  v-if="stash !== undefined"
+                  :stash="stash"
+                  :is-gm="lobby.mySeat?.isGM === true"
+                  :recipients="stashRecipients"
+                  @take="
+                    (itemId, to, quantity) => takeFromStash(to, { itemId, quantity })
+                  "
+                  @take-coins="(to, coins) => takeFromStash(to, undefined, coins)"
+                  @split="splitStash"
+                />
+              </section>
+              <p v-else class="empty sheet-empty">Pick a character to see their sheet.</p>
+            </div>
           </section>
         </Transition>
 
@@ -1441,6 +1455,32 @@ async function createCharacter(name: string): Promise<boolean> {
 .roll-dc input {
   width: 5rem;
   min-height: var(--touch-target-min);
+}
+
+/* The characters panel is wide (most of the map) rather than a thin
+   drawer: roster on the left, the sheet beside it. The map behind is
+   dimmed, not blocked, so dropping a token onto it still works. */
+.character-pane {
+  width: min(64rem, 100%);
+}
+
+.pane-dim {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--z-drawer) - 1);
+  background: rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+.character-layout {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.sheet-empty {
+  margin: 0;
 }
 
 .sheet {
