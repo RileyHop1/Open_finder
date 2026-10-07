@@ -11,6 +11,9 @@
  * dropped), because the GM may need to apply its effect by hand. Equipping is a
  * real choice here: only equipped weapons, armor, and gear affect the numbers.
  *
+ * A consumable (potion, scroll, wand...) has a **Use** button for an owner or the GM: it
+ * asks the server to spend one use (or one of the stack) and post a chat card with the
+ * item's text and any dice rolled; what the roll should *do* is the table's call.
  * The purse sits above the items (`CoinsRow.vue`): four denominations, and for an
  * owner or the GM a form to add or spend coins.
  *
@@ -54,6 +57,8 @@ const emit = defineEmits<{
   coins: [delta: { pp?: number; gp?: number; sp?: number; cp?: number }];
   /** Give an item (or part of a stack) to `to`: a character's id, or `'party'` for the stash. */
   give: [itemId: string, to: string, quantity?: number];
+  /** Use a consumable: the server spends one use (or one of the stack) and posts the chat card. */
+  use: [itemId: string];
   /** Give coins to `to`. */
   giveCoins: [to: string, coins: { pp?: number; gp?: number; sp?: number; cp?: number }];
 }>();
@@ -73,6 +78,17 @@ const WORN = new Set(['weapon', 'armor', 'gear']);
 const KIND_LABELS: Readonly<Record<string, string>> = { classFeature: 'Class feature' };
 
 const kindLabel = (kind: string): string => KIND_LABELS[kind] ?? titleCase(kind);
+
+/** The consumable part of an item, or `undefined` for anything that is not one (there is no Use button for it). */
+function consumableOf(entry: CharacterItem['entry']) {
+  return entry.kind === 'gear' ? entry.consumable : undefined;
+}
+
+/** Whether a consumable has nothing left to use: a multi-use item at 0 uses. A single-use one is removed when used. */
+function spent(entry: CharacterItem['entry']): boolean {
+  const uses = consumableOf(entry)?.uses;
+  return uses !== undefined && uses.current <= 0;
+}
 
 /** `undefined` for any kind without a price field, or one the importer could not read. */
 function priceOf(entry: CharacterItem['entry']): number | undefined {
@@ -190,7 +206,17 @@ async function search(): Promise<void> {
     <ul v-else class="items">
       <li v-for="item in data.items" :key="item.id" class="item">
         <span class="item-name">{{ item.entry.name }}</span>
-        <span class="item-kind">{{ kindLabel(item.entry.kind) }}</span>
+        <span class="item-kind">{{
+          consumableOf(item.entry) === undefined
+            ? kindLabel(item.entry.kind)
+            : titleCase(consumableOf(item.entry)!.category)
+        }}</span>
+        <span v-if="consumableOf(item.entry)?.uses" class="item-uses">
+          {{ consumableOf(item.entry)!.uses!.current }}/{{
+            consumableOf(item.entry)!.uses!.max
+          }}
+          uses
+        </span>
         <span v-if="priceOf(item.entry) !== undefined" class="item-price">
           {{ formatPrice(priceOf(item.entry)!) }}
         </span>
@@ -225,6 +251,16 @@ async function search(): Promise<void> {
             hide-label
             @commit="(n) => emit('quantity', item.id, n)"
           />
+          <button
+            v-if="consumableOf(item.entry) !== undefined"
+            type="button"
+            :aria-label="`Use ${item.entry.name}`"
+            :disabled="spent(item.entry)"
+            :title="spent(item.entry) ? 'No uses left' : undefined"
+            @click="emit('use', item.id)"
+          >
+            Use
+          </button>
           <button
             v-if="recipients && recipients.length > 0"
             type="button"

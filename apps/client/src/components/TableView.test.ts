@@ -1827,6 +1827,45 @@ describe('editing a character', () => {
     });
   });
 
+  it('sends actor.useItem naming only the item when Use is pressed', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const potion = {
+      id: crypto.randomUUID(),
+      equipped: false,
+      quantity: 2,
+      entry: {
+        id: crypto.randomUUID(),
+        schemaVersion: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+        packId: 'equipment',
+        slug: 'invented-potion',
+        name: 'Invented Potion',
+        kind: 'gear',
+        provenance: {
+          publication: 'Pathfinder Player Core',
+          license: 'ORC',
+          remaster: true,
+        },
+        traits: [],
+        ruleElements: [],
+        description: 'Heal 1d8.',
+        consumable: { category: 'potion' },
+      },
+    };
+    const hero = makeActor('Anna', {
+      system: { ...newCharacterData(), items: [potion] },
+    });
+    const wrapper = await openHero(hero);
+    await wrapper.get('button[aria-label="Use Invented Potion"]').trigger('click');
+    await flushPromises();
+    expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
+      type: 'actor.useItem',
+      payload: { actorId: hero.id, itemId: potion.id },
+    });
+  });
+
   it('sends actor.adjustCoins with the signed change from the coins row', async () => {
     mySeat = seat({ isGM: true });
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });

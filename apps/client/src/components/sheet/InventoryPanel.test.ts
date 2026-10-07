@@ -252,6 +252,55 @@ describe('editing', () => {
   });
 });
 
+describe('consumables', () => {
+  /** A gear item carrying a `consumable` sub-shape. */
+  const consumable = (
+    name: string,
+    shape: { category: string; uses?: { current: number; max: number } },
+  ): Item => {
+    const base = item('gear', name);
+    return { ...base, entry: { ...base.entry, consumable: shape } as Item['entry'] };
+  };
+  const mountUse = (items: Item[], editable = true) =>
+    mount(InventoryPanel, { props: { actor: actorWith(items), editable } });
+
+  it('offers Use on a consumable only, and reports which item was used', async () => {
+    const potion = consumable('Invented Potion', { category: 'potion' });
+    const rope = item('gear', 'Invented Rope');
+    const wrapper = mountUse([potion, rope]);
+    expect(wrapper.find('button[aria-label="Use Invented Rope"]').exists()).toBe(false);
+    await wrapper.get('button[aria-label="Use Invented Potion"]').trigger('click');
+    expect(wrapper.emitted('use')).toEqual([[potion.id]]);
+  });
+
+  it('names the category in place of the kind, and shows a wand’s uses', () => {
+    const wand = consumable('Invented Wand', {
+      category: 'wand',
+      uses: { current: 2, max: 3 },
+    });
+    const wrapper = mountUse([wand]);
+    expect(wrapper.get('.item-kind').text()).toBe('Wand');
+    expect(wrapper.get('.item-uses').text()).toBe('2/3 uses');
+  });
+
+  it('turns Use off when a multi-use item has no uses left, saying why', () => {
+    const wand = consumable('Invented Wand', {
+      category: 'wand',
+      uses: { current: 0, max: 3 },
+    });
+    const use = mountUse([wand]).get('button[aria-label="Use Invented Wand"]');
+    expect(use.attributes('disabled')).toBeDefined();
+    expect(use.attributes('title')).toBe('No uses left');
+  });
+
+  it('gives a viewer no Use button', () => {
+    const potion = consumable('Invented Potion', { category: 'potion' });
+    expect(mountUse([potion], false).find('button[aria-label^="Use "]').exists()).toBe(
+      false,
+    );
+  });
+});
+
 describe('giving', () => {
   const recipients = [
     { id: 'ada', name: 'Ada' },
