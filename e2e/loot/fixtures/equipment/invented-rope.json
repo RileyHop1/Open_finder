@@ -1,0 +1,20 @@
+{
+  "id": "00000000-0000-4000-8000-000000000101",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "equipment",
+  "slug": "invented-rope",
+  "name": "Invented Rope",
+  "kind": "gear",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [],
+  "description": "A coil of invented rope.",
+  "priceInCopper": 10,
+  "bulk": 0.1
+}

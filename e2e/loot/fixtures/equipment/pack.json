@@ -1,0 +1,11 @@
+{
+  "packId": "equipment",
+  "name": "Equipment (test fixture)",
+  "upstream": {
+    "repo": "hearthtable/e2e-fixture",
+    "commit": "0000000000000000000000000000000000000000",
+    "packsChecksum": "sha256:00"
+  },
+  "entryCount": 2,
+  "generatedAt": "2026-01-01T00:00:00.000Z"
+}
