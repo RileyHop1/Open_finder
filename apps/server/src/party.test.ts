@@ -7,8 +7,11 @@ import { partySchema } from '@hearthtable/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createActor, deleteActor } from './actors.js';
+import type { CompendiumIndex } from './compendium.js';
+import { emptyCompendium } from './compendium.js';
 import {
   addPartyMember,
+  addStashItem,
   adjustPartyCoins,
   removeFromParty,
   removePartyMember,
@@ -202,5 +205,72 @@ describe('adjustPartyCoins', () => {
     expect(() => adjustPartyCoins(store, makeSeat(), { delta: { gp: 1 } })).toThrow(
       /only the GM/,
     );
+  });
+});
+
+describe('addStashItem', () => {
+  const NOW_ENTRY = '2026-09-30T00:00:00.000Z';
+  const ROPE = {
+    id: crypto.randomUUID(),
+    schemaVersion: 1,
+    createdAt: NOW_ENTRY,
+    updatedAt: NOW_ENTRY,
+    packId: 'equipment',
+    slug: 'rope',
+    name: 'Rope',
+    kind: 'gear' as const,
+    provenance: {
+      publication: 'Pathfinder Player Core',
+      license: 'ORC' as const,
+      remaster: true as const,
+    },
+    traits: [],
+    ruleElements: [],
+    description: '',
+  };
+  const compendium: CompendiumIndex = {
+    status: () => ({ available: true, packs: [], entryCount: 1, skipped: 0 }),
+    search: () => [],
+    get: (packId, slug) => (packId === 'equipment' && slug === 'rope' ? ROPE : undefined),
+    conditions: () => new Map(),
+    traits: () => [],
+  };
+  const stashItems = (party: { stash?: unknown }) =>
+    (party.stash as { items: { quantity: number; entry: { name: string } }[] }).items;
+
+  it('copies the entry into the stash as a new item, creating the party on first use', () => {
+    expect(store.listDocuments('party')).toEqual([]);
+    const party = addStashItem(store, gm(), compendium, {
+      packId: 'equipment',
+      slug: 'rope',
+    });
+    expect(stashItems(party)).toHaveLength(1);
+    expect(stashItems(party)[0]).toMatchObject({ quantity: 1, entry: { name: 'Rope' } });
+  });
+
+  it('adds a stack of the asked size, and a second add is its own item', () => {
+    addStashItem(store, gm(), compendium, {
+      packId: 'equipment',
+      slug: 'rope',
+      quantity: 4,
+    });
+    const party = addStashItem(store, gm(), compendium, {
+      packId: 'equipment',
+      slug: 'rope',
+    });
+    expect(stashItems(party).map((i) => i.quantity)).toEqual([4, 1]);
+  });
+
+  it('refuses a player, an unknown entry, and says when nothing is imported', () => {
+    expect(() =>
+      addStashItem(store, makeSeat(), compendium, { packId: 'equipment', slug: 'rope' }),
+    ).toThrow(/only the GM/);
+    expect(() =>
+      addStashItem(store, gm(), compendium, { packId: 'equipment', slug: 'nope' }),
+    ).toThrow(/no compendium entry equipment\/nope/);
+    expect(() =>
+      addStashItem(store, gm(), emptyCompendium(), { packId: 'equipment', slug: 'rope' }),
+    ).toThrow(/no content has been imported/);
+    expect(store.listDocuments('party')).toEqual([]);
   });
 });

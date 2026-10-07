@@ -12,8 +12,14 @@
 
 import type { CoinsDelta, Seat } from '@hearthtable/core';
 import { actorSchema, partySchema, type Party } from '@hearthtable/core';
-import { adjustCoins, coinsToCopper, partyStashSchema } from '@hearthtable/pf2e';
+import {
+  adjustCoins,
+  characterItemEntrySchema,
+  coinsToCopper,
+  partyStashSchema,
+} from '@hearthtable/pf2e';
 
+import type { CompendiumIndex } from './compendium.js';
 import { OperationRejected } from './rejection.js';
 import type { WorldStore } from './worldStore.js';
 
@@ -178,6 +184,53 @@ export function adjustPartyCoins(
   const updated: Party = {
     ...party,
     stash: { ...stash, coins: next },
+    updatedAt: new Date().toISOString(),
+  };
+  store.putDocument(updated);
+  return updated;
+}
+
+/**
+ * Adds a compendium entry to the party stash as a new item (ADR 0021), the GM's
+ * loot hand-out. The payload names the entry and nothing else: the server copies
+ * it from its own compendium (ADR 0014), so a client never supplies an item's
+ * stats. GM only; creates the party if need be. Each add is its own stash item
+ * with its own id, `quantity` copies in one stack.
+ */
+export function addStashItem(
+  store: WorldStore,
+  seat: Seat,
+  compendium: CompendiumIndex,
+  payload: { packId: string; slug: string; quantity?: number | undefined },
+): Party {
+  requireGM(seat);
+  const found = compendium.get(payload.packId, payload.slug);
+  if (found === undefined) {
+    throw new OperationRejected(
+      `no compendium entry ${payload.packId}/${payload.slug}` +
+        (compendium.status().available ? '' : ' (no content has been imported)'),
+    );
+  }
+  const carriable = characterItemEntrySchema.safeParse(found);
+  if (!carriable.success) {
+    throw new OperationRejected(`${found.name} cannot be carried`);
+  }
+  const party = findParty(store) ?? newParty(store);
+  const stash = partyStashSchema.parse(party.stash ?? {});
+  const updated: Party = {
+    ...party,
+    stash: {
+      ...stash,
+      items: [
+        ...stash.items,
+        {
+          id: crypto.randomUUID(),
+          source: { packId: payload.packId, slug: payload.slug },
+          entry: carriable.data,
+          quantity: payload.quantity ?? 1,
+        },
+      ],
+    },
     updatedAt: new Date().toISOString(),
   };
   store.putDocument(updated);

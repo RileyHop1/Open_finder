@@ -99,6 +99,7 @@ import { addItem, removeItem, updateItem } from './items.js';
 import { rollActorDamage, rollTrackedStrike } from './strikeRolls.js';
 import {
   addPartyMember,
+  addStashItem,
   adjustPartyCoins,
   removePartyMember,
   reorderParty,
@@ -759,6 +760,11 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const { documents } = adjustActorCoins(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [...documents] };
+    }
+    case 'party.addItem': {
+      const seat = requireSeat(store, socket);
+      const party = addStashItem(store, seat, compendium, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [party] };
     }
     case 'party.adjustCoins': {
       const seat = requireSeat(store, socket);

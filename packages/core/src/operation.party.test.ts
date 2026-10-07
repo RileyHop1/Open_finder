@@ -33,3 +33,28 @@ describe('party operations', () => {
     expect(op('party.adjustCoins', {}).success).toBe(false);
   });
 });
+
+describe('party.addItem and actor.addItem quantity', () => {
+  it('party.addItem names an entry, with an optional stack size', () => {
+    expect(op('party.addItem', { packId: 'equipment', slug: 'rope' }).success).toBe(true);
+    expect(
+      op('party.addItem', { packId: 'equipment', slug: 'rope', quantity: 5 }).success,
+    ).toBe(true);
+  });
+
+  it('party.addItem rejects a missing entry, and a bad or oversize quantity', () => {
+    expect(op('party.addItem', { packId: 'equipment' }).success).toBe(false);
+    for (const quantity of [0, -1, 1.5, 10_000]) {
+      expect(
+        op('party.addItem', { packId: 'equipment', slug: 'rope', quantity }).success,
+      ).toBe(false);
+    }
+  });
+
+  it('actor.addItem takes the same optional quantity', () => {
+    const base = { actorId: crypto.randomUUID(), packId: 'equipment', slug: 'rope' };
+    expect(op('actor.addItem', { ...base, quantity: 3 }).success).toBe(true);
+    expect(op('actor.addItem', base).success).toBe(true);
+    expect(op('actor.addItem', { ...base, quantity: 0 }).success).toBe(false);
+  });
+});

@@ -28,7 +28,12 @@ export function addItem(
   store: WorldStore,
   seat: Seat,
   compendium: CompendiumIndex,
-  payload: { actorId: string; packId: string; slug: string },
+  payload: {
+    actorId: string;
+    packId: string;
+    slug: string;
+    quantity?: number | undefined;
+  },
 ): Actor {
   const found = compendium.get(payload.packId, payload.slug);
   if (found === undefined) {
@@ -52,7 +57,7 @@ export function addItem(
         source: { packId: payload.packId, slug: payload.slug },
         entry,
         equipped: false,
-        quantity: 1,
+        quantity: payload.quantity ?? 1,
       },
     ],
   }));
