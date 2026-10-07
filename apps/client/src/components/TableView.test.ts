@@ -1729,7 +1729,7 @@ describe('editing a character', () => {
     (details.element as HTMLDetailsElement).open = true;
     await details.trigger('toggle');
     await flushPromises();
-    await wrapper.find('.results button').trigger('click');
+    await wrapper.find('.picker .results button').trigger('click');
 
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
       type: 'actor.addItem',
@@ -1794,6 +1794,37 @@ describe('editing a character', () => {
       coins: { gp: 2 },
     });
     expect(transfers[1]?.payload).toMatchObject({ to: { actorId: friend.id } });
+  });
+
+  it('lets the GM hand loot to a member or the stash through the right operations', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const hero = makeActor('Anna');
+    vi.mocked(documentsApi.listActors).mockResolvedValue([hero]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue(makeParty([hero.id]));
+    const wrapper = await mountTable();
+    await flushPromises();
+    const sent = () =>
+      vi
+        .mocked(emitOperation)
+        .mock.calls.map((call) => call[1] as { type: string; payload: unknown });
+
+    await wrapper.get('.loot input[aria-label="How many to hand out"]').setValue('3');
+    await wrapper.get('.loot button[aria-label^="Give "]').trigger('click');
+    await flushPromises();
+    expect(sent().at(-1)).toMatchObject({
+      type: 'actor.addItem',
+      payload: { actorId: hero.id, packId: 'equipment', slug: 'rope', quantity: 3 },
+    });
+
+    await wrapper.get('select[aria-label="Give loot to"]').setValue('party');
+    await wrapper.get('input[aria-label="gp to hand out"]').setValue('4');
+    await wrapper.get('form[aria-label="Hand out coins"]').trigger('submit');
+    await flushPromises();
+    expect(sent().at(-1)).toMatchObject({
+      type: 'party.adjustCoins',
+      payload: { delta: { gp: 4 } },
+    });
   });
 
   it('sends actor.adjustCoins with the signed change from the coins row', async () => {
