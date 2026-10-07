@@ -216,6 +216,22 @@ export const actorAddItemOperationSchema = clientOperationSchema.extend({
     actorId: idSchema,
     packId: z.string().min(1).max(100),
     slug: z.string().min(1).max(200),
+    /** How many to add as one stack; absent means one. */
+    quantity: z.number().int().min(1).max(MAX_ITEM_QUANTITY).optional(),
+  }),
+});
+
+/**
+ * Add a compendium entry to the **party stash** (ADR 0021), the GM's loot hand-out:
+ * the same `packId`/`slug` shape as `actor.addItem`, copied from the server's own
+ * compendium, with an optional stack size. GM only, like every stash change.
+ */
+export const partyAddItemOperationSchema = clientOperationSchema.extend({
+  type: z.literal('party.addItem'),
+  payload: z.object({
+    packId: z.string().min(1).max(100),
+    slug: z.string().min(1).max(200),
+    quantity: z.number().int().min(1).max(MAX_ITEM_QUANTITY).optional(),
   }),
 });
 
@@ -945,6 +961,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   partyAddMemberOperationSchema,
   partyRemoveMemberOperationSchema,
   partyReorderOperationSchema,
+  partyAddItemOperationSchema,
   actorRemoveConditionOperationSchema,
   sceneCreateOperationSchema,
   sceneUpdateOperationSchema,

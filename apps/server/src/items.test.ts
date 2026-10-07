@@ -149,6 +149,17 @@ describe('addItem', () => {
     expect(sheetOf(actorId).items[0]?.entry).toMatchObject({ damage: { diceNumber: 1 } });
   });
 
+  it('adds a stack of the asked size, one by default', () => {
+    const { owner, actorId } = ownedCharacter();
+    addItem(store, owner, compendium, {
+      actorId,
+      packId: 'equipment',
+      slug: 'rope',
+      quantity: 5,
+    });
+    expect(sheetOf(actorId).items[0]?.quantity).toBe(5);
+  });
+
   it('adds a second copy as a separate item with its own id', () => {
     const { owner, actorId } = ownedCharacter();
     add(owner, actorId, 'rope');

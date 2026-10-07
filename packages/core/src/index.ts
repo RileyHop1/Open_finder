@@ -181,6 +181,7 @@ export {
   actorUpdateItemOperationSchema,
   actorUpdateOperationSchema,
   actorSetQuickbarOperationSchema,
+  partyAddItemOperationSchema,
   MAX_ITEM_QUANTITY,
   MAX_ACTOR_CHANGES,
   appliedOperationSchema,
