@@ -1379,6 +1379,7 @@ async function handleCreate(): Promise<void> {
                   (itemId, quantity) => sendItem('actor.updateItem', { itemId, quantity })
                 "
                 @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
+                @use="(itemId) => sendItem('actor.useItem', { itemId })"
                 @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
                 @give="(itemId, to, quantity) => give(to, { itemId, quantity })"
                 @give-coins="(to, coins) => give(to, undefined, coins)"

@@ -55,6 +55,14 @@ sends `actor.addItem` / `actor.adjustCoins` for a member and `party.addItem` /
 so only an entry and a recipient are named. The status line says what was given only
 once the server accepted it.
 
+**Using a consumable** (the Items panel): an owner or the GM gets a **Use** button on
+any gear item with a `consumable` shape. Its row shows the category (Potion, Wand,
+...) in place of the kind, and a wand's remaining `current/max uses`; Use is off at 0
+uses. It sends one `actor.useItem` naming only the item: the server spends one use (or
+one of the stack, removing it at zero) and posts the chat card with the item's text and
+any dice rolled. What the roll should *do* (heal, clear a condition) stays a choice
+the table makes with the existing heal and condition controls.
+
 ## Item price and Bulk
 
 `WeaponEntry`, `ArmorEntry`, and `GearEntry` each get two new optional fields:
