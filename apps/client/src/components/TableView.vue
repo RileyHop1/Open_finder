@@ -102,6 +102,7 @@ import { turnBarItems } from './turnBarModel.js';
 import TurnControls from './TurnControls.vue';
 import { useDrawer } from './useDrawer.js';
 import PartyBar from './PartyBar.vue';
+import LootHandout from './LootHandout.vue';
 import PartyManager from './PartyManager.vue';
 import CharacterSheet from './sheet/CharacterSheet.vue';
 import NpcSheet from './sheet/NpcSheet.vue';
@@ -646,6 +647,32 @@ function give(
   });
 }
 
+/** Who the GM can hand loot to: the party members, then the stash. */
+const lootRecipients = computed(() => [
+  ...documents.members.map((actor) => ({ id: actor.id, name: actor.name })),
+  { id: 'party', name: 'Party stash' },
+]);
+
+/** Hands a compendium item to a member (`actor.addItem`) or the stash (`party.addItem`); the server makes the copy. */
+function handOutItem(
+  to: string,
+  packId: string,
+  slug: string,
+  quantity: number,
+): Promise<boolean> {
+  const stack = quantity > 1 ? { quantity } : {};
+  return to === 'party'
+    ? documents.send('party.addItem', { packId, slug, ...stack })
+    : documents.send('actor.addItem', { actorId: to, packId, slug, ...stack });
+}
+
+/** Hands coins to a member (`actor.adjustCoins`) or the stash (`party.adjustCoins`). */
+function handOutCoins(to: string, delta: Record<string, number>): Promise<boolean> {
+  return to === 'party'
+    ? documents.send('party.adjustCoins', { delta })
+    : documents.send('actor.adjustCoins', { actorId: to, delta });
+}
+
 /** The party's shared stash, once there is a party. */
 const stash = computed(() => {
   const parsed = partyStashSchema.safeParse(documents.party?.stash ?? {});
@@ -1133,6 +1160,11 @@ async function handleCreate(): Promise<void> {
               @add="(actorId) => sendParty('party.addMember', { actorId })"
               @remove="(actorId) => sendParty('party.removeMember', { actorId })"
               @reorder="(memberIds) => sendParty('party.reorder', { memberIds })"
+            />
+            <LootHandout
+              :recipients="lootRecipients"
+              :give-item="handOutItem"
+              :give-coins="handOutCoins"
             />
           </section>
         </Transition>

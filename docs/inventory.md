@@ -47,6 +47,14 @@ a stack) or coins to any party member, or **Split evenly**, which sends each mem
 an equal portion of the coins (worked out in copper, with change made) and leaves
 any remainder in the stash. The split is one `inventory.transfer` per member.
 
+**Hand out loot** (`LootHandout.vue`, in the GM's **Manage party** drawer): the GM picks
+a recipient (a party member or the party stash), then either gives coins in any
+denominations or searches the compendium and gives an item with a stack size. It
+sends `actor.addItem` / `actor.adjustCoins` for a member and `party.addItem` /
+`party.adjustCoins` for the stash; the server copies the item from its own compendium,
+so only an entry and a recipient are named. The status line says what was given only
+once the server accepted it.
+
 ## Item price and Bulk
 
 `WeaponEntry`, `ArmorEntry`, and `GearEntry` each get two new optional fields:
