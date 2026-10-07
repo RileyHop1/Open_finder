@@ -1767,6 +1767,35 @@ describe('editing a character', () => {
     });
   });
 
+  it('lets the GM split the party stash’s coins evenly, one transfer per member', async () => {
+    mySeat = seat({ isGM: true });
+    vi.mocked(emitOperation).mockResolvedValue({ ok: true });
+    const hero = makeActor('Anna');
+    const friend = makeActor('Bo');
+    vi.mocked(documentsApi.listActors).mockResolvedValue([hero, friend]);
+    vi.mocked(documentsApi.getParty).mockResolvedValue({
+      ...makeParty([hero.id, friend.id]),
+      stash: { coins: { pp: 0, gp: 4, sp: 0, cp: 0 }, items: [] },
+    });
+    const wrapper = await mountTable();
+    await wrapper.find('.roster button').trigger('click');
+
+    await wrapper.findAll('.stash .coin-actions button')[1]?.trigger('click');
+    await flushPromises();
+
+    const sent = vi
+      .mocked(emitOperation)
+      .mock.calls.map((call) => call[1] as { type: string; payload: unknown });
+    const transfers = sent.filter((op) => op.type === 'inventory.transfer');
+    expect(transfers).toHaveLength(2);
+    expect(transfers[0]?.payload).toMatchObject({
+      from: { kind: 'party' },
+      to: { kind: 'actor', actorId: hero.id },
+      coins: { gp: 2 },
+    });
+    expect(transfers[1]?.payload).toMatchObject({ to: { actorId: friend.id } });
+  });
+
   it('sends actor.adjustCoins with the signed change from the coins row', async () => {
     mySeat = seat({ isGM: true });
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
