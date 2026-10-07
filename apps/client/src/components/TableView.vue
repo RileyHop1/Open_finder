@@ -75,6 +75,7 @@ import { useLobbyStore } from '../stores/lobby.js';
 import { useScenesStore } from '../stores/scenes.js';
 import { useWorldsStore } from '../stores/worlds.js';
 import ActionBar from './ActionBar.vue';
+import CharacterRoster from './CharacterRoster.vue';
 import {
   actionBarView,
   activeModifiers,
@@ -93,7 +94,6 @@ import MapView from './map/MapView.vue';
 import { gridForScene } from './map/mapGrid.js';
 import { startActorDrag } from './map/placement.js';
 import { cellsInRange } from './map/rangeHighlight.js';
-import MonsterPicker from './scenes/MonsterPicker.vue';
 import RulesDrawer from './RulesDrawer.vue';
 import SceneManager from './scenes/SceneManager.vue';
 import SeatRoster from './SeatRoster.vue';
@@ -854,7 +854,6 @@ function openSheetOf(actorId: string): void {
   void openDrawer();
 }
 
-const newName = ref('');
 /** Set while a monster is being made, so its token is placed when the new actor arrives. */
 const placeNextNew = ref(false);
 
@@ -903,18 +902,14 @@ watch(
   },
 );
 
-async function handleCreate(): Promise<void> {
-  const name = newName.value.trim();
-  if (name.length === 0) {
-    return;
-  }
+/** Makes a character and, once it arrives, opens its sheet; resolves to whether the server accepted it. */
+async function createCharacter(name: string): Promise<boolean> {
   openNextNew.value = true;
   const accepted = await documents.send('actor.create', { kind: 'character', name });
-  if (accepted) {
-    newName.value = '';
-  } else {
+  if (!accepted) {
     openNextNew.value = false;
   }
+  return accepted;
 }
 </script>
 
@@ -1228,60 +1223,19 @@ async function handleCreate(): Promise<void> {
               </button>
             </header>
 
-            <ul v-if="documents.actors.length > 0" class="roster">
-              <li v-for="actor in documents.actors" :key="actor.id">
-                <span
-                  v-if="lobby.mySeat?.isGM"
-                  class="drag-handle"
-                  draggable="true"
-                  aria-hidden="true"
-                  title="Drag onto the map to place a token"
-                  @dragstart="startPlacing($event, actor.id)"
-                  @dragend="placing = false"
-                  >⠿</span
-                >
-                <button
-                  type="button"
-                  :aria-pressed="actor.id === selectedId"
-                  @click="selectedId = actor.id"
-                >
-                  {{ actor.name }}
-                  <span class="kind">({{ actor.kind }})</span>
-                </button>
-                <button
-                  v-if="lobby.mySeat?.isGM"
-                  type="button"
-                  :disabled="scenes.shownScene === undefined"
-                  :aria-label="`Place ${actor.name} on the map`"
-                  @click="placeOnMap(actor.id)"
-                >
-                  Place on map
-                </button>
-              </li>
-            </ul>
-            <p v-else class="empty">No characters yet. Make one below.</p>
-            <p v-if="lobby.mySeat?.isGM && scenes.shownScene === undefined" class="empty">
-              Make a scene and move the party to it (the Scenes button) to place tokens.
-            </p>
-
-            <MonsterPicker
-              v-if="lobby.mySeat?.isGM"
-              :key="`monsters-${contentVersion}`"
-              :can-place="scenes.shownScene !== undefined"
-              @add="addMonster"
+            <CharacterRoster
+              :actors="documents.actors"
+              :selected-id="selectedId"
+              :is-gm="lobby.mySeat?.isGM === true"
+              :has-scene="scenes.shownScene !== undefined"
+              :content-version="contentVersion"
+              :create="createCharacter"
+              @select="(actorId) => (selectedId = actorId)"
+              @place="placeOnMap"
+              @drag-start="startPlacing"
+              @drag-end="placing = false"
+              @add-monster="addMonster"
             />
-
-            <form class="new-character" @submit.prevent="handleCreate">
-              <label for="new-character-name">New character name</label>
-              <input
-                id="new-character-name"
-                v-model="newName"
-                type="text"
-                required
-                autocomplete="off"
-              />
-              <button type="submit">Create character</button>
-            </form>
 
             <section v-if="selected" class="sheet" aria-label="Character sheet">
               <p v-if="canEdit" class="roll-dc">
@@ -1468,59 +1422,14 @@ async function handleCreate(): Promise<void> {
   min-height: var(--touch-target-min);
 }
 
-.roster {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.roster li {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.roster button {
-  min-height: var(--touch-target-min);
-}
-
-/* Pointer-only: the "Place on map" button is the keyboard route to the same thing. */
-.drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.75rem;
-  min-height: var(--touch-target-min);
-  color: var(--color-text-muted);
-  cursor: grab;
-  user-select: none;
-}
-
 /* While a character is dragged out, the drawer lets the map underneath take the drop. */
 .is-placing {
   opacity: 0.2;
   pointer-events: none;
 }
 
-button[aria-pressed='true'] {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-.kind,
 .empty {
   color: var(--color-text-muted);
-}
-
-.new-character {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-3) 0;
 }
 
 .roll-dc {
