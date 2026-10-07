@@ -1,15 +1,16 @@
 <script setup lang="ts">
 /**
- * The hotbar under the action bar (ADR 0023): ten slots on keys 1 to 9 then 0,
- * each a saved action the player can load into the action form. A filled slot
- * shows its key, the player's name for it, and its cost; an empty one is faint
- * but still there, so the bar is discoverable and a key always means the same
- * slot. Choosing a slot only *reports* it (`load`); the action bar fills its form,
- * so the player can add this time's modifiers before spending.
+ * The hotbar, a bar of its own under the action bar (ADR 0023): ten slots on keys
+ * 1 to 9 then 0, each a saved action. A slot shows only its key and the player's
+ * name for it, cut to a fixed width when long, so every slot is the same size
+ * however long a name is. Clicking it loads the action into the action form (the
+ * action bar fills it, so this time's modifiers can be added before spending).
  *
- * With something in the action form, an empty slot offers a "+" that saves it
- * there directly (named from its text). Each filled slot has a remove button, and can be renamed in place with F2 or a
- * double click (Enter saves, Escape cancels). Nothing here is hover-only.
+ * Everything else about a slot is in a dropdown beside it (▾): what it does, its
+ * cost and dice, and the controls to **Rename** it, **Remove** it, or **move it to
+ * another key** (an occupied key trades places). With something in the action form,
+ * an empty slot offers a "+" that saves the form there, named from its text.
+ * Escape or leaving the dropdown closes it; nothing is hover-only.
  */
 import type { HotbarAction } from '@hearthtable/core';
 import { nextTick, ref } from 'vue';
@@ -26,26 +27,75 @@ const emit = defineEmits<{
   remove: [index: number];
   saveTo: [index: number];
   rename: [index: number, name: string];
+  /** Move slot `from` to key position `to`, trading places if it is taken. */
+  move: [from: number, to: number];
 }>();
 
-const renaming = ref<number>();
+/** The slot whose dropdown is open, and whether its name is being edited. */
+const openSlot = ref<number>();
+const renaming = ref(false);
 const draft = ref('');
-const renameInput = ref<HTMLInputElement[]>([]);
+const nameInput = ref<HTMLInputElement[]>([]);
+const toggles = ref<HTMLButtonElement[]>([]);
 
-async function startRename(index: number, name: string): Promise<void> {
-  renaming.value = index;
+function toggle(index: number): void {
+  openSlot.value = openSlot.value === index ? undefined : index;
+  renaming.value = false;
+}
+
+function close(index: number, returnFocus: boolean): void {
+  openSlot.value = undefined;
+  renaming.value = false;
+  if (returnFocus) {
+    void nextTick(() =>
+      toggles.value.find((t) => t.dataset['slot'] === String(index))?.focus(),
+    );
+  }
+}
+
+function onFocusOut(event: FocusEvent, index: number): void {
+  const next = event.relatedTarget;
+  const holder = (event.currentTarget as HTMLElement | null) ?? undefined;
+  if (openSlot.value === index && next instanceof Node && !holder?.contains(next)) {
+    close(index, false);
+  }
+}
+
+async function startRename(name: string): Promise<void> {
+  renaming.value = true;
   draft.value = name;
   await nextTick();
-  renameInput.value[0]?.focus();
-  renameInput.value[0]?.select();
+  nameInput.value[0]?.focus();
+  nameInput.value[0]?.select();
 }
 
 function finishRename(index: number): void {
   const name = draft.value.trim();
-  renaming.value = undefined;
+  renaming.value = false;
   if (name !== '') {
     emit('rename', index, name.slice(0, 24));
   }
+}
+
+function remove(index: number): void {
+  close(index, false);
+  emit('remove', index);
+}
+
+function moveTo(index: number, event: Event): void {
+  const to = Number((event.target as HTMLSelectElement).value);
+  close(index, true);
+  if (Number.isInteger(to) && to !== index) {
+    emit('move', index, to);
+  }
+}
+
+function describe(slot: HotbarAction): string {
+  return (
+    [slot.text, slot.dice]
+      .filter((part) => part !== undefined && part !== '')
+      .join(' · ') || 'No description'
+  );
 }
 </script>
 
@@ -56,41 +106,76 @@ function finishRename(index: number): void {
       :key="index"
       class="slot"
       :class="{ empty: !slot }"
+      @focusout="onFocusOut($event, index)"
+      @keydown.esc.stop="slot && close(index, true)"
     >
       <span class="key" aria-hidden="true">{{ slotKey(index) }}</span>
       <template v-if="slot">
-        <input
-          v-if="renaming === index"
-          ref="renameInput"
-          v-model="draft"
-          type="text"
-          maxlength="24"
-          :aria-label="`Name for slot ${slotKey(index)}`"
-          @keydown.enter.prevent="finishRename(index)"
-          @keydown.esc.stop.prevent="renaming = undefined"
-          @blur="renaming === index && finishRename(index)"
-        />
         <button
-          v-else
           type="button"
           class="load"
           :aria-label="`Load ${slot.name}, slot ${slotKey(index)}`"
-          :title="`${slot.text || slot.dice || slot.name} · F2 renames`"
+          :title="slot.name"
           @click="emit('load', index)"
-          @dblclick="startRename(index, slot.name)"
-          @keydown.f2.prevent="startRename(index, slot.name)"
         >
           <span class="name">{{ slot.name }}</span>
-          <span class="cost" aria-hidden="true">{{ costGlyph(slot.cost) }}</span>
         </button>
         <button
+          :ref="
+            (el) => {
+              if (el) toggles[index] = el as HTMLButtonElement;
+            }
+          "
           type="button"
-          class="remove"
-          :aria-label="`Remove ${slot.name} from slot ${slotKey(index)}`"
-          @click="emit('remove', index)"
+          class="details-toggle"
+          :data-slot="index"
+          :aria-label="`Details for ${slot.name}, slot ${slotKey(index)}`"
+          :aria-expanded="openSlot === index"
+          @click="toggle(index)"
         >
-          ×
+          ▾
         </button>
+        <div
+          v-if="openSlot === index"
+          class="details"
+          role="group"
+          :aria-label="`${slot.name} details`"
+        >
+          <p class="detail-line">{{ describe(slot) }}</p>
+          <p class="detail-line">
+            Cost: {{ costGlyph(slot.cost) || 'Free'
+            }}{{ slot.cost === 'reaction' ? ' Reaction' : '' }}
+          </p>
+          <label class="detail-key">
+            Hotkey
+            <select
+              :aria-label="`Hotkey for ${slot.name}`"
+              :value="index"
+              @change="moveTo(index, $event)"
+            >
+              <option v-for="(_, key) in slots" :key="key" :value="key">
+                {{ slotKey(key)
+                }}{{
+                  slots[key] && key !== index ? ` (swap with ${slots[key]!.name})` : ''
+                }}
+              </option>
+            </select>
+          </label>
+          <div class="detail-actions">
+            <input
+              v-if="renaming"
+              ref="nameInput"
+              v-model="draft"
+              type="text"
+              maxlength="24"
+              :aria-label="`Name for slot ${slotKey(index)}`"
+              @keydown.enter.prevent="finishRename(index)"
+              @keydown.esc.stop.prevent="renaming = false"
+            />
+            <button v-else type="button" @click="startRename(slot.name)">Rename</button>
+            <button type="button" @click="remove(index)">Remove</button>
+          </div>
+        </div>
       </template>
       <button
         v-else-if="canSave"
@@ -107,11 +192,12 @@ function finishRename(index: number): void {
 </template>
 
 <style scoped>
-/* Its own box under the action bar. A grid of equal slots (wrapping to a second
-   row when the dock is narrow), so saving or clearing one never reshapes it. */
+/* Its own bar under the action bar. A grid of equal slots (wrapping to more rows
+   when the dock is narrow); a slot shows only a fixed-width name, so saving,
+   renaming or clearing one never reshapes it. */
 .hotbar {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
   gap: var(--space-1);
   list-style: none;
   margin: 0;
@@ -121,6 +207,7 @@ function finishRename(index: number): void {
   background: var(--color-surface);
 }
 .slot {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -146,19 +233,46 @@ function finishRename(index: number): void {
   min-height: var(--touch-target-min);
 }
 .load {
-  display: flex;
   flex: 1;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-1);
   min-width: 0;
+  text-align: left;
 }
 .name {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.slot input {
+.details {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 14rem;
+  margin-bottom: var(--space-1);
+  padding: var(--space-2);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--color-surface);
+  box-shadow: var(--overlay-shadow);
+}
+.detail-line {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.detail-key {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.detail-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+.detail-actions input {
   flex: 1;
   min-width: 0;
 }
