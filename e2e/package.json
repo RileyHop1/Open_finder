@@ -10,7 +10,8 @@
     "test:e2e": "playwright test",
     "test:combat": "playwright test -c playwright.combat.config.ts",
     "test:rules": "playwright test -c playwright.rules.config.ts",
-    "test:perf": "playwright test -c playwright.perf.config.ts"
+    "test:perf": "playwright test -c playwright.perf.config.ts",
+    "test:loot": "playwright test -c playwright.loot.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

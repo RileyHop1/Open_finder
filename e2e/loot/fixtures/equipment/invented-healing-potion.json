@@ -1,0 +1,23 @@
+{
+  "id": "00000000-0000-4000-8000-000000000102",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "equipment",
+  "slug": "invented-healing-potion",
+  "name": "Invented Healing Potion",
+  "kind": "gear",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [],
+  "description": "You regain 1d8 Hit Points.",
+  "priceInCopper": 300,
+  "bulk": 0.1,
+  "consumable": {
+    "category": "potion"
+  }
+}
