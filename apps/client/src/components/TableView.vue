@@ -65,7 +65,7 @@
 import type { HotbarAction, SituationalModifier } from '@hearthtable/core';
 import { emptyHotbar, resolvePermission } from '@hearthtable/core';
 import { parse as parseDice } from '@hearthtable/dice/pure';
-import { partyStashSchema } from '@hearthtable/pf2e';
+import { type ConditionDuration, partyStashSchema } from '@hearthtable/pf2e';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
 import { uploadAsset } from '../api/assets.js';
@@ -532,6 +532,10 @@ function strikeTarget(id: string): { itemId: string } | { strikeKey: string } {
 }
 
 /** A strike rolled from the sheet: also waits on a target, carrying the typed-in DC along if there is one. */
+function rollStrikeDamage(id: string, critical: boolean): void {
+  roll('actor.rollDamage', { ...strikeTarget(id), critical });
+}
+
 function sheetAttack(id: string, attackNumber: 1 | 2 | 3): void {
   if (selectedId.value === undefined) {
     return;
@@ -552,6 +556,26 @@ function sendCondition(type: string, payload: Record<string, unknown>): void {
   if (selectedId.value !== undefined) {
     void documents.send(type, { actorId: selectedId.value, ...payload });
   }
+}
+
+function addCondition(
+  slug: string,
+  value: number | undefined,
+  duration: ConditionDuration | undefined,
+): void {
+  sendCondition('actor.addCondition', {
+    slug,
+    ...(value === undefined ? {} : { value }),
+    ...(duration === undefined ? {} : { duration }),
+  });
+}
+
+function setCondition(slug: string, value: number): void {
+  sendCondition('actor.setCondition', { slug, value });
+}
+
+function removeCondition(slug: string): void {
+  sendCondition('actor.removeCondition', { slug });
 }
 
 /** Party changes are the GM's and are server logic (the party is created on first use), so they are sent and shown when the broadcast returns. */
@@ -1291,6 +1315,7 @@ async function createCharacter(name: string): Promise<boolean> {
                 />
                 <CharacterSheet
                   v-else
+                  tabbed
                   :actor="selected"
                   :editable="canEdit"
                   :rollable="canEdit"
@@ -1298,68 +1323,78 @@ async function createCharacter(name: string): Promise<boolean> {
                   @roll="
                     (statistic) => roll('actor.rollCheck', { statistic, ...dcPayload })
                   "
-                />
-                <StrikesPanel
-                  v-if="selected.kind === 'character' || selected.kind === 'npc'"
-                  :actor="selected"
-                  :rollable="canEdit"
-                  @attack="sheetAttack"
-                  @damage="
-                    (id, critical) =>
-                      roll('actor.rollDamage', { ...strikeTarget(id), critical })
-                  "
-                />
-                <ConditionsPanel
-                  v-if="selected.kind === 'character' || selected.kind === 'npc'"
-                  :key="`conditions-${contentVersion}`"
-                  :actor="selected"
-                  :editable="canEdit"
-                  :combatants="combatantOptions"
-                  @add="
-                    (slug, value, duration) =>
-                      sendCondition('actor.addCondition', {
-                        slug,
-                        ...(value === undefined ? {} : { value }),
-                        ...(duration === undefined ? {} : { duration }),
-                      })
-                  "
-                  @set="
-                    (slug, value) => sendCondition('actor.setCondition', { slug, value })
-                  "
-                  @remove="(slug) => sendCondition('actor.removeCondition', { slug })"
-                />
-                <InventoryPanel
-                  v-if="selected.kind === 'character'"
-                  :key="`inventory-${contentVersion}`"
-                  :actor="selected"
-                  :editable="canEdit"
-                  :recipients="giveRecipients"
-                  @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
-                  @equip="
-                    (itemId, equipped) =>
-                      sendItem('actor.updateItem', { itemId, equipped })
-                  "
-                  @quantity="
-                    (itemId, quantity) =>
-                      sendItem('actor.updateItem', { itemId, quantity })
-                  "
-                  @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
-                  @use="(itemId) => sendItem('actor.useItem', { itemId })"
-                  @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
-                  @give="(itemId, to, quantity) => give(to, { itemId, quantity })"
-                  @give-coins="(to, coins) => give(to, undefined, coins)"
-                />
-                <PartyStashPanel
-                  v-if="stash !== undefined"
-                  :stash="stash"
-                  :is-gm="lobby.mySeat?.isGM === true"
-                  :recipients="stashRecipients"
-                  @take="
-                    (itemId, to, quantity) => takeFromStash(to, { itemId, quantity })
-                  "
-                  @take-coins="(to, coins) => takeFromStash(to, undefined, coins)"
-                  @split="splitStash"
-                />
+                >
+                  <template #strikes>
+                    <StrikesPanel
+                      :actor="selected"
+                      :rollable="canEdit"
+                      @attack="sheetAttack"
+                      @damage="rollStrikeDamage"
+                    />
+                  </template>
+                  <template #conditions>
+                    <ConditionsPanel
+                      :key="`conditions-${contentVersion}`"
+                      :actor="selected"
+                      :editable="canEdit"
+                      :combatants="combatantOptions"
+                      @add="addCondition"
+                      @set="setCondition"
+                      @remove="removeCondition"
+                    />
+                  </template>
+                  <template #inventory>
+                    <InventoryPanel
+                      v-if="selected.kind === 'character'"
+                      :key="`inventory-${contentVersion}`"
+                      :actor="selected"
+                      :editable="canEdit"
+                      :recipients="giveRecipients"
+                      @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
+                      @equip="
+                        (itemId, equipped) =>
+                          sendItem('actor.updateItem', { itemId, equipped })
+                      "
+                      @quantity="
+                        (itemId, quantity) =>
+                          sendItem('actor.updateItem', { itemId, quantity })
+                      "
+                      @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
+                      @use="(itemId) => sendItem('actor.useItem', { itemId })"
+                      @coins="(delta) => sendItem('actor.adjustCoins', { delta })"
+                      @give="(itemId, to, quantity) => give(to, { itemId, quantity })"
+                      @give-coins="(to, coins) => give(to, undefined, coins)"
+                    />
+                    <PartyStashPanel
+                      v-if="stash !== undefined"
+                      :stash="stash"
+                      :is-gm="lobby.mySeat?.isGM === true"
+                      :recipients="stashRecipients"
+                      @take="
+                        (itemId, to, quantity) => takeFromStash(to, { itemId, quantity })
+                      "
+                      @take-coins="(to, coins) => takeFromStash(to, undefined, coins)"
+                      @split="splitStash"
+                    />
+                  </template>
+                </CharacterSheet>
+                <template v-if="selected.kind === 'npc'">
+                  <StrikesPanel
+                    :actor="selected"
+                    :rollable="canEdit"
+                    @attack="sheetAttack"
+                    @damage="rollStrikeDamage"
+                  />
+                  <ConditionsPanel
+                    :key="`conditions-${contentVersion}`"
+                    :actor="selected"
+                    :editable="canEdit"
+                    :combatants="combatantOptions"
+                    @add="addCondition"
+                    @set="setCondition"
+                    @remove="removeCondition"
+                  />
+                </template>
               </section>
               <p v-else class="empty sheet-empty">Pick a character to see their sheet.</p>
             </div>
