@@ -318,17 +318,32 @@ covered by `mapEntryRuleElements`.
 
 ### The class and class-feature mappers (C.7f)
 
-`mapClass.ts` is the most speculative mapper so far: `classEntrySchema`'s
-proficiency progressions (perception, saves, class DC, weapon and armor
-categories -- thirteen tables in total) have no confirmed upstream
-counterpart yet, so the mapper reads a hypothetical
-`system.{perception,savingThrows,classDC,weapons,armor}` shape that mirrors
-our own schema field-for-field, via a shared `readProgression` helper that
-validates each table against `proficiencyProgressionSchema` itself. A
-malformed table (a higher rank reached before a lower one) fails the whole
-class closed with `invalid-proficiency-progression`, rather than importing
-a progression the resolver could misread later. Every field path here is
-**(confirm)** against the real-data importer run.
+`mapClass.ts` was written against a guessed upstream shape and corrected
+against the real pinned data (milestone 8, A1). A real class item stores its
+**level 1 proficiencies as plain rank numbers** (0 untrained to 4 legendary):
+`perception`, `savingThrows.{fortitude,reflex,will}`,
+`attacks.{unarmed,simple,martial,advanced}`, and
+`defenses.{unarmored,light,medium,heavy}`. `classDC` is null in every class,
+so the mapper defaults the class DC to trained at level 1 (**confirm**). Each
+number becomes a progression reached at level 1 (`{ expert: 1 }`); a number
+that is missing or not an integer 0 to 4, or a class with no trained save at
+all, fails the class closed with `invalid-proficiency-progression`.
+
+The guessed shape this replaced would have imported every real class with
+**empty** progressions and no error, since a missing table read as "never
+reached". Failing closed on a missing number is what makes that impossible
+now, and `import-smoke` asserts all sixteen core-four classes arrive.
+
+**What upstream does not carry: rank-ups.** The level at which a class
+improves a rank (Fighter Expertise, Weapon Legend, and the rest) is in the
+class feature's description text; its rule elements are empty. The importer
+therefore cannot produce a full progression, and the rank-up levels are our
+own hand-authored data (`docs/character-build.md`, "Rank-ups").
+
+It also reads the class's five advancement lists (`ancestryFeatLevels`,
+`classFeatLevels`, `generalFeatLevels`, `skillFeatLevels`,
+`skillIncreaseLevels`), which are real data, into `advancement`. A missing or
+malformed list fails the class closed with `missing-advancement-levels`.
 
 `mapClassFeature.ts` treats its class reference the same defensive way
 `mapHeritage.ts` treats an ancestry reference (bare slug, object `slug`, or

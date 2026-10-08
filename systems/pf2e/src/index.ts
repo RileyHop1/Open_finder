@@ -109,6 +109,7 @@ export { backgroundEntrySchema, type BackgroundEntry } from './content/backgroun
 
 export {
   classArmorProficienciesSchema,
+  classAdvancementSchema,
   classEntrySchema,
   classFeatureEntrySchema,
   classProficienciesSchema,
@@ -117,6 +118,7 @@ export {
   classWeaponProficienciesSchema,
   proficiencyProgressionSchema,
   rankAtLevel,
+  type ClassAdvancement,
   type ClassEntry,
   type ClassFeatureEntry,
   type ClassProficiencies,
