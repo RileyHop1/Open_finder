@@ -103,6 +103,23 @@ body {
 }
 
 /**
+ * Text for screen readers only. One shared rule: it used to be copied into
+ * four components' scoped styles, and an element in any other component
+ * (a status line in the table view, say) got none of them and showed up.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/**
  * Visible focus, everywhere -- CLAUDE.md's Accessibility section names this
  * as a baseline requirement, not a per-component choice. `:focus-visible`
  * (rather than a plain `:focus`) keeps this out of the way for mouse users

@@ -585,15 +585,6 @@ const lineage = computed(() =>
   min-height: var(--touch-target-min);
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .character-sheet {
   display: flex;
   flex-direction: column;
@@ -617,6 +608,14 @@ h4 {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* Each block of the sheet is its own card. */
+.tab-panel > section {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--overlay-radius);
+  background: var(--color-surface);
 }
 
 .hit-points {
@@ -644,6 +643,10 @@ h4 {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.key-stats strong {
+  font-size: 1.4em;
 }
 
 .key-stats li {
