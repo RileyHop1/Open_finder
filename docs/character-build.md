@@ -3,7 +3,7 @@
 How a character's *choices* are recorded and turned into numbers. The
 decision is in [ADR 0024](adr/0024-character-build-record.md); this page is
 the shape it implements. Nothing here is built yet: it is the spec the
-milestone 8 PRs (A2 to A6) implement, and each PR updates this page.
+milestone 8 PRs (A2 to A6) implement, and each PR updates this page. The `build` schema and the progression tables are built (A2); derivation, boost math and the operation are not.
 
 Every rules fact below is marked **(confirm)** until it has been checked
 against Archives of Nethys (CLAUDE.md, "Rulings and ambiguity") and the date
@@ -16,12 +16,21 @@ hand-built and stays valid. It holds choices only, never results:
 | Field | What it records |
 | --- | --- |
 | `ancestry`, `heritage`, `background`, `class` | Compendium references (`packId`, `slug`) |
-| `keyAttribute` | The class's key attribute, when the class offers a choice |
-| `boosts` | Attribute boosts by source: `ancestry`, `background`, `class`, `free` at level 1, then one list each at levels 5, 10, 15 and 20 |
-| `skills` | The trained skills chosen at level 1, and the skill increase chosen at each level that grants one |
-| `feats` | The feat picked in each slot (ancestry, class, skill, general), keyed by slot and level |
+| `flaws` | Attributes the ancestry lowers, one -1 step each |
+| `boosts` | Batches of `{ level, source, attributes }`: level 1, 5, 10, 15 or 20, from `ancestry`, `background`, `class` or `free` |
+| `trainedSkills` | Skills trained at creation beyond the automatic ones (a Lore is `<name>-lore`) |
+| `skillIncreases` | `{ level, skill }` for each skill increase taken |
+| `feats` | `{ slot, level, feat }`: slot is `ancestry`, `class`, `skill`, `general` or `archetype` |
 | `languages` | Chosen languages |
-| `choices` | Class- and feature-specific picks (racket, instinct, methodology, style, and so on), keyed by the choice-set that offered them |
+| `classChoices` | Class- and feature-specific picks (racket, instinct, methodology, style, and so on), keyed by the choice that offered them. Named apart from the character's own `choices`, which holds rule-element selections |
+
+The key attribute stays where it already is, on the character
+(`keyAttribute`); the build does not duplicate it. The schema stores choices
+and checks nothing: a repeated boost or a feat in the wrong slot is storable,
+and warning about it is the derivation's job.
+
+The schema is `characterBuildSchema` (`systems/pf2e/src/content/characterBuild.ts`)
+and the table helpers are in `systems/pf2e/src/rules/progression.ts`.
 
 ## Derivation
 `deriveCharacter(build, entries, level)` is pure. It returns proposed
