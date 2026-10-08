@@ -1263,6 +1263,7 @@ async function createCharacter(name: string): Promise<boolean> {
                 <HitPointsPanel
                   v-if="selected.kind === 'character' || selected.kind === 'npc'"
                   :actor="selected"
+                  :show-readout="selected.kind === 'npc'"
                   :editable="canEdit"
                   @change="saveChanges"
                   @damage="hpDamage"
