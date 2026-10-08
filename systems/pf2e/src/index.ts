@@ -342,6 +342,13 @@ export {
 } from './content/characterBuild.js';
 
 export {
+  PARTIAL_BOOST_FROM,
+  applyBoosts,
+  type BoostResult,
+  type BoostWarning,
+} from './rules/boosts.js';
+
+export {
   ADVANCEMENT_BOOST_LEVELS,
   BOOSTS_PER_LEVEL,
   STANDARD_ADVANCEMENT,

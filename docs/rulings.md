@@ -756,7 +756,7 @@ ruling from silently drifting.
   (ADR 0003) and attributes are modifiers (ADR 0008).
 - **Why:** replaying keeps the build the only record and lets level-up
   re-derive without bookkeeping.
-- **Golden test:** not written yet; lands with `feat/boost-math` (A3).
+- **Golden test:** `systems/pf2e/src/rules/boosts.test.ts` ("makes a boost at +4 or more a partial boost").
 - **Override:** the attribute modifier is directly editable on the sheet.
 
 ### Boosting the same attribute twice from one source
@@ -767,7 +767,7 @@ ruling from silently drifting.
 - **Alternative reading:** refuse the pick, as a computer game would.
 - **Why:** ADR 0023. A table may rule otherwise, and a wrong refusal costs
   more than a visible warning.
-- **Golden test:** not written yet; lands with `feat/boost-math` (A3).
+- **Golden test:** `systems/pf2e/src/rules/boosts.test.ts` ("warns about the same attribute boosted twice from one source").
 - **Override:** none needed, since nothing is refused.
 
 ### Starting gold
