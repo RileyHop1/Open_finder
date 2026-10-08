@@ -7,6 +7,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import CharacterSheet from './CharacterSheet.vue';
+import source from './CharacterSheet.vue?raw';
 import { signed, titleCase } from './format.js';
 
 const NOW = '2026-09-30T00:00:00.000Z';
@@ -512,5 +513,16 @@ describe('tabbed sheet', () => {
     expect(wrapper.find('[role="tab"]').exists()).toBe(false);
     expect(wrapper.find('.attributes').exists()).toBe(true);
     expect(wrapper.find('#skills-heading').exists()).toBe(true);
+  });
+});
+
+describe('sheet styling', () => {
+  it('no longer carries its own copy of .visually-hidden (the shared one applies)', () => {
+    expect(source).not.toMatch(/\.visually-hidden\s*\{/);
+  });
+
+  it('draws each block as a card and lets the key numbers wrap at narrow widths', () => {
+    expect(source).toMatch(/\.tab-panel > section\s*\{[^}]*border: 1px solid/);
+    expect(source).toMatch(/\.key-stats\s*\{[^}]*flex-wrap: wrap;/);
   });
 });
