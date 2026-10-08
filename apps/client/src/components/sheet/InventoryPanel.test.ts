@@ -140,7 +140,7 @@ describe('price, Bulk, and encumbrance', () => {
     expect(rope?.text()).toContain('L Bulk');
   });
 
-  it('says nothing about price or Bulk for a kind that never has them, like a feat', () => {
+  it('does not list a feat as carried (feats live on the Feats tab)', () => {
     const feat = {
       id: crypto.randomUUID(),
       schemaVersion: 1,
@@ -165,10 +165,8 @@ describe('price, Bulk, and encumbrance', () => {
         ]),
       },
     });
-    const row = wrapper.find('.item');
-    expect(row.text()).toContain('Invented Feat');
-    expect(row.find('.item-price').exists()).toBe(false);
-    expect(row.find('.item-bulk').exists()).toBe(false);
+    expect(wrapper.find('.item').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Carrying nothing');
   });
 
   it('totals carried value and Bulk across every item', () => {

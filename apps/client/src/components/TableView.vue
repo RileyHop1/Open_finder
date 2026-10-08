@@ -65,7 +65,11 @@
 import type { HotbarAction, SituationalModifier } from '@hearthtable/core';
 import { emptyHotbar, resolvePermission } from '@hearthtable/core';
 import { parse as parseDice } from '@hearthtable/dice/pure';
-import { type ConditionDuration, partyStashSchema } from '@hearthtable/pf2e';
+import {
+  type ConditionDuration,
+  characterDataSchema,
+  partyStashSchema,
+} from '@hearthtable/pf2e';
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 
 import { uploadAsset } from '../api/assets.js';
@@ -110,7 +114,9 @@ import ConditionsPanel from './sheet/ConditionsPanel.vue';
 import DyingPanel from './sheet/DyingPanel.vue';
 import PortraitPicker from './sheet/PortraitPicker.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
+import { featGroups, spellGroups } from './sheet/featsModel.js';
 import InventoryPanel from './sheet/InventoryPanel.vue';
+import ItemGroupsPanel from './sheet/ItemGroupsPanel.vue';
 import PartyStashPanel from './sheet/PartyStashPanel.vue';
 import StrikesPanel from './sheet/StrikesPanel.vue';
 
@@ -557,6 +563,15 @@ function sendCondition(type: string, payload: Record<string, unknown>): void {
     void documents.send(type, { actorId: selectedId.value, ...payload });
   }
 }
+
+/** The selected character's items, for the Feats and Spells tabs (empty for a monster or unreadable data). */
+const selectedItems = computed(() => {
+  const parsed =
+    selected.value?.kind === 'character'
+      ? characterDataSchema.safeParse(selected.value.system)
+      : undefined;
+  return parsed?.success ? parsed.data.items : [];
+});
 
 function addCondition(
   slug: string,
@@ -1330,6 +1345,28 @@ async function createCharacter(name: string): Promise<boolean> {
                       :rollable="canEdit"
                       @attack="sheetAttack"
                       @damage="rollStrikeDamage"
+                    />
+                  </template>
+                  <template #feats>
+                    <ItemGroupsPanel
+                      title="Feats and features"
+                      :groups="featGroups(selectedItems)"
+                      :kinds="['feat', 'classFeature', 'action']"
+                      empty-text="No feats or features yet."
+                      :editable="canEdit"
+                      @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
+                      @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
+                    />
+                  </template>
+                  <template #spells>
+                    <ItemGroupsPanel
+                      title="Spells"
+                      :groups="spellGroups(selectedItems)"
+                      :kinds="['spell']"
+                      empty-text="No spells yet."
+                      :editable="canEdit"
+                      @add="(packId, slug) => sendItem('actor.addItem', { packId, slug })"
+                      @remove="(itemId) => sendItem('actor.removeItem', { itemId })"
                     />
                   </template>
                   <template #conditions>
