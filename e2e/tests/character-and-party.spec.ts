@@ -82,6 +82,7 @@ test('a player builds a character, the GM adds it to the party, and they play wi
 
     await player.getByRole('button', { name: 'Edit character' }).click();
     await setNumber(player, 'Strength', '4');
+    await player.getByRole('tab', { name: 'Skills' }).click();
     await player.getByLabel('Athletics rank').selectOption('trained');
     await player.getByRole('button', { name: 'Done editing' }).click();
 
@@ -104,14 +105,17 @@ test('a player builds a character, the GM adds it to the party, and they play wi
 
     // The GM opens her sheet and sees the player's edit, built before the GM looked.
     await gm.locator('.party-member').filter({ hasText: 'Valeria' }).click();
+    await gm.getByRole('tab', { name: 'Skills' }).click();
     await expect(skillTotal(gm, 'Athletics')).toHaveText('+7');
 
     // --- A condition changes a number, on both screens, live. ---
+    await player.getByRole('tab', { name: 'Conditions' }).click();
     await player.getByLabel('Condition name').fill('frightened');
     await player.getByLabel('Value (if it has one)').fill('2');
     await player.getByRole('button', { name: 'Add condition' }).click();
 
     // Frightened 2 is -2 to every check: +7 becomes +5.
+    await player.getByRole('tab', { name: 'Skills' }).click();
     await expect(skillTotal(player, 'Athletics')).toHaveText('+5');
     await expect(skillTotal(gm, 'Athletics')).toHaveText('+5');
     await expect(

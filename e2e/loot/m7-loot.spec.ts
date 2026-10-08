@@ -72,6 +72,7 @@ test('the GM hands out loot, a player uses and gives, and the stash is split', a
     await loot.getByRole('button', { name: 'Give Invented Healing Potion' }).click();
     await expect(loot.getByRole('status')).toContainText('Invented Healing Potion');
 
+    await player.getByRole('tab', { name: 'Inventory' }).click();
     const mine = player.locator('section.inventory');
     await expect(purse(player, '.coins', 'gp')).toContainText('3');
     await expect(mine.getByLabel('Quantity of Invented Rope')).toHaveValue('2');
@@ -101,6 +102,7 @@ test('the GM hands out loot, a player uses and gives, and the stash is split', a
 
     // --- The GM sees it in the stash, adds coins to it, and splits them. ---
     await gm.locator('.party-member').filter({ hasText: 'Valeria' }).click();
+    await gm.getByRole('tab', { name: 'Inventory' }).click();
     const stash = gm.locator('.stash');
     await expect(
       stash.locator('.item').filter({ hasText: 'Invented Rope' }),

@@ -71,6 +71,7 @@ let handlers: Map<string, (...args: never[]) => void>;
 
 beforeEach(() => {
   vi.resetAllMocks();
+  localStorage.clear();
   vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(true);
   vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
     { packId: 'equipment', slug: 'rope', name: 'Rope', kind: 'gear', traits: [] },
@@ -1691,10 +1692,19 @@ describe('editing a character', () => {
     ...overrides,
   });
 
-  async function openHero(hero: Actor) {
+  /** Switches the open sheet to the tab named `label`. */
+  async function openTab(wrapper: Awaited<ReturnType<typeof mountTable>>, label: string) {
+    const tab = wrapper.findAll('[role="tab"]').find((t) => t.text() === label);
+    await tab?.trigger('click');
+  }
+
+  async function openHero(hero: Actor, tab?: string) {
     vi.mocked(documentsApi.listActors).mockResolvedValue([hero]);
     const wrapper = await mountTable();
     await wrapper.find('.roster button').trigger('click');
+    if (tab !== undefined) {
+      await openTab(wrapper, tab);
+    }
     return wrapper;
   }
 
@@ -1721,6 +1731,7 @@ describe('editing a character', () => {
     });
     // Optimistic: the Athletics total already reflects Str +3 (untrained: no rank bonus).
     await wrapper.find('.edit-toggle').trigger('click');
+    await openTab(wrapper, 'Skills');
     const athletics = wrapper
       .findAll('tbody tr')
       .find((r) => r.find('th').text() === 'Athletics');
@@ -1731,7 +1742,7 @@ describe('editing a character', () => {
     mySeat = seat({ isGM: true });
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
     const hero = makeActor('Anna');
-    const wrapper = await openHero(hero);
+    const wrapper = await openHero(hero, 'Inventory');
 
     const details = wrapper.find('details.picker');
     (details.element as HTMLDetailsElement).open = true;
@@ -1753,6 +1764,7 @@ describe('editing a character', () => {
     vi.mocked(documentsApi.listActors).mockResolvedValue([hero, friend]);
     const wrapper = await mountTable();
     await wrapper.find('.roster button').trigger('click');
+    await openTab(wrapper, 'Inventory');
 
     expect(wrapper.findAll('.give option').length).toBe(0);
     await wrapper.findAll('.coins .adjust button')[2]?.trigger('click');
@@ -1787,6 +1799,7 @@ describe('editing a character', () => {
     });
     const wrapper = await mountTable();
     await wrapper.find('.roster button').trigger('click');
+    await openTab(wrapper, 'Inventory');
 
     await wrapper.findAll('.stash .coin-actions button')[1]?.trigger('click');
     await flushPromises();
@@ -1865,7 +1878,7 @@ describe('editing a character', () => {
     const hero = makeActor('Anna', {
       system: { ...newCharacterData(), items: [potion] },
     });
-    const wrapper = await openHero(hero);
+    const wrapper = await openHero(hero, 'Inventory');
     await wrapper.get('button[aria-label="Use Invented Potion"]').trigger('click');
     await flushPromises();
     expect(vi.mocked(emitOperation).mock.calls[0]?.[1]).toMatchObject({
@@ -1878,7 +1891,7 @@ describe('editing a character', () => {
     mySeat = seat({ isGM: true });
     vi.mocked(emitOperation).mockResolvedValue({ ok: true });
     const hero = makeActor('Anna');
-    const wrapper = await openHero(hero);
+    const wrapper = await openHero(hero, 'Inventory');
 
     await wrapper.get('input[aria-label="gp to add or spend"]').setValue('5');
     await wrapper.findAll('.coins .adjust button')[1]?.trigger('click');
@@ -1902,6 +1915,7 @@ describe('editing a character', () => {
 
     it('rolls a skill with no DC when the box is empty', async () => {
       const { hero, wrapper } = await gmAtTable();
+      await openTab(wrapper, 'Skills');
       await wrapper.find('button[aria-label="Roll Athletics"]').trigger('click');
       expect(sent()[0]).toMatchObject({
         type: 'actor.rollCheck',
@@ -1941,7 +1955,7 @@ describe('editing a character', () => {
       },
     ]);
     const hero = makeActor('Anna');
-    const wrapper = await openHero(hero);
+    const wrapper = await openHero(hero, 'Conditions');
 
     await wrapper.find('#condition-pick').setValue('frightened');
     await wrapper.find('#condition-value').setValue('2');
@@ -1970,7 +1984,7 @@ describe('editing a character', () => {
       },
     ]);
     const hero = makeActor('Anna');
-    const wrapper = await openHero(hero);
+    const wrapper = await openHero(hero, 'Conditions');
 
     await wrapper.find('#condition-pick').setValue('frightened');
     await wrapper.find('#condition-duration-type').setValue('rounds');

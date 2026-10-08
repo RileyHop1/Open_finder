@@ -454,3 +454,63 @@ describe('CharacterSheet roll buttons', () => {
     expect(wrapper.find('button[aria-label="Roll Class DC"]').exists()).toBe(false);
   });
 });
+
+describe('tabbed sheet', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  const tabbed = () =>
+    mount(CharacterSheet, {
+      props: { actor: makeActor(level3()), tabbed: true },
+      slots: {
+        strikes: '<p class="slot-strikes">strikes</p>',
+        inventory: '<p class="slot-inventory">bag</p>',
+      },
+    });
+
+  it('offers a tab for each filled slot and starts on Overview, without Skills', () => {
+    const wrapper = tabbed();
+    expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual([
+      'Overview',
+      'Skills',
+      'Strikes',
+      'Inventory',
+    ]);
+    expect(wrapper.find('.attributes').exists()).toBe(true);
+    expect(wrapper.find('#skills-heading').exists()).toBe(false);
+    expect(wrapper.find('[role="tabpanel"]').attributes('aria-labelledby')).toBe(
+      `sheet-${wrapper.vm.actor.id}-tab-overview`,
+    );
+  });
+
+  it('switches panels, mounting a slot only while its tab is open, and remembers the tab', async () => {
+    const wrapper = tabbed();
+    const tab = (label: string) =>
+      wrapper.findAll('[role="tab"]').find((t) => t.text() === label);
+    await tab('Skills')?.trigger('click');
+    expect(wrapper.find('#skills-heading').exists()).toBe(true);
+    expect(wrapper.find('.attributes').exists()).toBe(false);
+
+    await tab('Inventory')?.trigger('click');
+    expect(wrapper.find('.slot-inventory').exists()).toBe(true);
+    expect(wrapper.find('.slot-strikes').exists()).toBe(false);
+
+    // A new sheet in the same browser reopens on the last tab.
+    const again = tabbed();
+    expect(again.find('.slot-inventory').exists()).toBe(true);
+  });
+
+  it('falls back to Overview when the remembered tab has no slot here', () => {
+    localStorage.setItem('hearthtable.sheetTab', 'conditions');
+    const wrapper = tabbed();
+    expect(wrapper.find('.attributes').exists()).toBe(true);
+  });
+
+  it('stacks everything with no tabs unless asked', () => {
+    const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    expect(wrapper.find('[role="tab"]').exists()).toBe(false);
+    expect(wrapper.find('.attributes').exists()).toBe(true);
+    expect(wrapper.find('#skills-heading').exists()).toBe(true);
+  });
+});
