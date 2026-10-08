@@ -1592,8 +1592,16 @@ describe('character roster', () => {
     vi.mocked(documentsApi.listActors).mockResolvedValue([makeActor('Anna')]);
     const wrapper = await mountTable();
     expect(wrapper.find('.sheet').exists()).toBe(false);
+    expect(wrapper.find('.sheet-empty').text()).toContain('Pick a character');
     await wrapper.find('.roster button').trigger('click');
     expect(wrapper.find('.sheet h3').text()).toBe('Anna');
+    expect(wrapper.find('.sheet-empty').exists()).toBe(false);
+  });
+
+  it('lays the roster beside the sheet in a wide panel, dimming but not blocking the map', () => {
+    expect(source).toMatch(/\.character-pane\s*\{\s*width: min\(64rem, 100%\);/);
+    expect(source).toMatch(/\.pane-dim\s*\{[^}]*pointer-events: none;/);
+    expect(source).toMatch(/\.character-layout\s*\{\s*display: grid;/);
   });
 
   it('creates a character and opens it when it arrives', async () => {
