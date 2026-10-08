@@ -43,7 +43,13 @@ boost of the same attribute from the same source produces a warning and is
 still applied (ADR 0023).
 
 ## Progression tables
-Fixed by the rules, kept as data in `systems/pf2e/src/rules/progression.ts`:
+The feat and skill-increase levels come from each class's own imported data
+(`ClassEntry.advancement`, checked against the pinned upstream in A1: every
+class reads ancestry feats at 1, 5, 9, 13 and 17, general feats at 3, 7, 11,
+15 and 19, skill increases at odd levels from 3, and class and skill feats
+at even levels, with class feats also at 1). The table below is the standard
+set and what the derivation falls back to; the attribute-boost levels are
+not in class data. All remain **(confirm)** against Archives of Nethys.
 
 | What | Levels | |
 | --- | --- | --- |
@@ -53,6 +59,15 @@ Fixed by the rules, kept as data in `systems/pf2e/src/rules/progression.ts`:
 | Skill feats | 2 and every even level (classes that grant a bonus skill feat are class data) | **(confirm)** |
 | General feats | 3, 7, 11, 15, 19 | **(confirm)** |
 | Skill increases | 3 and every odd level after | **(confirm)** |
+
+## Rank-ups
+Upstream gives a class's *starting* ranks but not when they improve (that is
+in feature description text). The rank-up levels are therefore our own table
+in `systems/pf2e/src/rules/progression.ts`, authored from the rules and
+pinned by golden tests, one entry per class and statistic. The importer
+supplies the starting rank; the table supplies `master`, `expert` and
+`legendary` levels. Every class is trained in its class DC at level 1
+**(confirm)**.
 
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies

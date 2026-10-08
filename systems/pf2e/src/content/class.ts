@@ -111,6 +111,22 @@ export const classSkillsSchema = z.object({
 
 export type ClassSkills = z.infer<typeof classSkillsSchema>;
 
+/**
+ * The levels at which a class grants each kind of advancement. These are
+ * read straight from upstream's class data (they are not rank-ups; see
+ * `docs/character-build.md`). Optional so that packs imported before this
+ * field existed still load; the importer always writes it.
+ */
+export const classAdvancementSchema = z.object({
+  ancestryFeatLevels: z.array(z.number().int().min(1).max(20)).readonly(),
+  classFeatLevels: z.array(z.number().int().min(1).max(20)).readonly(),
+  generalFeatLevels: z.array(z.number().int().min(1).max(20)).readonly(),
+  skillFeatLevels: z.array(z.number().int().min(1).max(20)).readonly(),
+  skillIncreaseLevels: z.array(z.number().int().min(1).max(20)).readonly(),
+});
+
+export type ClassAdvancement = z.infer<typeof classAdvancementSchema>;
+
 export const classEntrySchema = compendiumEntrySchema.extend({
   kind: z.literal('class'),
   traits: z.array(traitSlugSchema).readonly().default([]),
@@ -119,6 +135,7 @@ export const classEntrySchema = compendiumEntrySchema.extend({
   hpPerLevel: z.number().int().positive(),
   proficiencies: classProficienciesSchema,
   skills: classSkillsSchema,
+  advancement: classAdvancementSchema.optional(),
 });
 
 export type ClassEntry = z.infer<typeof classEntrySchema>;

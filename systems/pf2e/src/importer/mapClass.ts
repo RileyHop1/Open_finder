@@ -1,23 +1,29 @@
 /**
  * Maps an upstream `class`-type entry onto a draft `ClassEntry`.
  *
- * Foundry's real class-item proficiency shape is unverified -- **(confirm)**
- * against real upstream data. This mapper reads a hypothetical
- * `system.{perception,savingThrows,classDC,weapons,armor}` shape that
- * mirrors our own `classProficienciesSchema` field-for-field, since that is
- * the closest guess available without a real fetch. Get it wrong and every
- * class import fails closed (`ok: false`) rather than importing a garbage
- * proficiency table, which is exactly the property that makes deferring
- * verification to the real-data importer run safe.
+ * Verified against the pinned upstream data (A1 of milestone 8): a class item
+ * stores its *level 1* proficiencies as plain rank numbers (0 untrained to 4
+ * legendary) -- `perception`, `savingThrows.{fortitude,reflex,will}`,
+ * `attacks.{unarmed,simple,martial,advanced}` and
+ * `defenses.{unarmored,light,medium,heavy}` -- plus `classDC` (null in every
+ * class). It does **not** say when a rank improves: those rank-ups live in
+ * the class feature's description text (the feature's rule elements are
+ * empty), so an imported progression holds the starting rank only, as
+ * `{ <rank>: 1 }`. The levels of the rank-ups are our own data
+ * (`docs/character-build.md`, "Rank-ups").
+ *
+ * What it does read is every field the wizard needs from real data, and it
+ * fails closed (`ok: false`) on anything else, never importing a class whose
+ * proficiencies came out empty.
  */
 
 import type { Provenance } from '@hearthtable/core';
 
-import {
-  proficiencyProgressionSchema,
-  type ClassEntry,
-  type ClassProficiencies,
-  type ProficiencyProgression,
+import type {
+  ClassAdvancement,
+  ClassEntry,
+  ClassProficiencies,
+  ProficiencyProgression,
 } from '../content/class.js';
 import { ATTRIBUTES, traitSlugSchema, type Attribute } from '../content/common.js';
 import { deterministicId } from './deterministicId.js';
@@ -37,25 +43,19 @@ function isAttribute(value: string): value is Attribute {
   return (ATTRIBUTES as readonly string[]).includes(value);
 }
 
+const RANK_BY_NUMBER = ['untrained', 'trained', 'expert', 'master', 'legendary'] as const;
+
 /**
- * Reads one progression object (`{ trained?, expert?, master?, legendary? }`)
- * and validates it against the same schema the finished entry is ultimately
- * checked against, so a malformed table (e.g. master reached before expert)
- * fails the whole class closed rather than importing an invalid progression.
- * A missing or non-object value maps to `{}` -- a progression with every
- * rank absent, the same as a Wizard's heavy-armor progression.
+ * A starting rank number (0-4) as a progression reached at level 1: untrained
+ * is an empty progression (never reached), anything higher is `{ <rank>: 1 }`.
+ * `undefined` for anything that is not an integer 0-4.
  */
-function readProgression(raw: unknown): ProficiencyProgression | undefined {
-  const record = asRecord(raw) ?? {};
-  const candidate: Record<string, number> = {};
-  for (const rank of ['trained', 'expert', 'master', 'legendary'] as const) {
-    const value = record[rank];
-    if (typeof value === 'number') {
-      candidate[rank] = value;
-    }
+function startingProgression(raw: unknown): ProficiencyProgression | undefined {
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw > 4) {
+    return undefined;
   }
-  const parsed = proficiencyProgressionSchema.safeParse(candidate);
-  return parsed.success ? parsed.data : undefined;
+  const rank = RANK_BY_NUMBER[raw];
+  return rank === undefined || rank === 'untrained' ? {} : { [rank]: 1 };
 }
 
 const PROFICIENCY_FIELDS = [
@@ -63,7 +63,6 @@ const PROFICIENCY_FIELDS = [
   'fortitude',
   'reflex',
   'will',
-  'classDc',
   'unarmedWeapon',
   'simpleWeapon',
   'martialWeapon',
@@ -75,36 +74,45 @@ const PROFICIENCY_FIELDS = [
 ] as const;
 type ProficiencyField = (typeof PROFICIENCY_FIELDS)[number];
 
-/** Reads every proficiency-progression table a class needs in one pass, failing closed on the first one that doesn't parse. */
+/** Reads every starting-rank number a class needs in one pass, failing closed on the first one that is missing or not a rank. */
 function mapProficiencies(
   system: Record<string, unknown>,
 ): ClassProficiencies | undefined {
   const savingThrows = asRecord(system.savingThrows) ?? {};
-  const weapons = asRecord(system.weapons) ?? {};
-  const armor = asRecord(system.armor) ?? {};
+  const attacks = asRecord(system.attacks) ?? {};
+  const defenses = asRecord(system.defenses) ?? {};
   const raw: Record<ProficiencyField, unknown> = {
     perception: system.perception,
     fortitude: savingThrows.fortitude,
     reflex: savingThrows.reflex,
     will: savingThrows.will,
-    classDc: system.classDC,
-    unarmedWeapon: weapons.unarmed,
-    simpleWeapon: weapons.simple,
-    martialWeapon: weapons.martial,
-    advancedWeapon: weapons.advanced,
-    unarmoredArmor: armor.unarmored,
-    lightArmor: armor.light,
-    mediumArmor: armor.medium,
-    heavyArmor: armor.heavy,
+    unarmedWeapon: attacks.unarmed,
+    simpleWeapon: attacks.simple,
+    martialWeapon: attacks.martial,
+    advancedWeapon: attacks.advanced,
+    unarmoredArmor: defenses.unarmored,
+    lightArmor: defenses.light,
+    mediumArmor: defenses.medium,
+    heavyArmor: defenses.heavy,
   };
 
   const progressions = {} as Record<ProficiencyField, ProficiencyProgression>;
   for (const field of PROFICIENCY_FIELDS) {
-    const progression = readProgression(raw[field]);
+    const progression = startingProgression(raw[field]);
     if (progression === undefined) {
       return undefined;
     }
     progressions[field] = progression;
+  }
+
+  // A class with no trained save at all has no proficiency data worth importing.
+  const hasAnySave = [
+    progressions.fortitude,
+    progressions.reflex,
+    progressions.will,
+  ].some((p) => Object.keys(p).length > 0);
+  if (!hasAnySave) {
+    return undefined;
   }
 
   return {
@@ -114,7 +122,10 @@ function mapProficiencies(
       reflex: progressions.reflex,
       will: progressions.will,
     },
-    classDc: progressions.classDc,
+    // Upstream's `classDC` is null in every class. Every class has a class DC
+    // trained at level 1 (docs/character-build.md, "Rank-ups" -- confirm), so a
+    // numeric upstream value wins if one ever appears, and trained is the default.
+    classDc: startingProgression(system.classDC) ?? { trained: 1 },
     weapons: {
       unarmed: progressions.unarmedWeapon,
       simple: progressions.simpleWeapon,
@@ -127,6 +138,44 @@ function mapProficiencies(
       medium: progressions.mediumArmor,
       heavy: progressions.heavyArmor,
     },
+  };
+}
+
+/** Reads `system.<field>.value` as a list of levels 1-20, or `undefined` if it is missing, empty or malformed. */
+function levelList(system: Record<string, unknown>, field: string): number[] | undefined {
+  const value = asRecord(system[field])?.value;
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    !value.every((v) => Number.isInteger(v) && v >= 1 && v <= 20)
+  ) {
+    return undefined;
+  }
+  return value as number[];
+}
+
+/** The class's feat and skill-increase levels, or `undefined` if any of the five lists is missing. */
+function mapAdvancement(system: Record<string, unknown>): ClassAdvancement | undefined {
+  const ancestryFeatLevels = levelList(system, 'ancestryFeatLevels');
+  const classFeatLevels = levelList(system, 'classFeatLevels');
+  const generalFeatLevels = levelList(system, 'generalFeatLevels');
+  const skillFeatLevels = levelList(system, 'skillFeatLevels');
+  const skillIncreaseLevels = levelList(system, 'skillIncreaseLevels');
+  if (
+    ancestryFeatLevels === undefined ||
+    classFeatLevels === undefined ||
+    generalFeatLevels === undefined ||
+    skillFeatLevels === undefined ||
+    skillIncreaseLevels === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    ancestryFeatLevels,
+    classFeatLevels,
+    generalFeatLevels,
+    skillFeatLevels,
+    skillIncreaseLevels,
   };
 }
 
@@ -155,6 +204,11 @@ export function mapClass(
   const proficiencies = mapProficiencies(system);
   if (proficiencies === undefined) {
     return { ok: false, reason: 'invalid-proficiency-progression' };
+  }
+
+  const advancement = mapAdvancement(system);
+  if (advancement === undefined) {
+    return { ok: false, reason: 'missing-advancement-levels' };
   }
 
   const trainedSkillCount = asRecord(system.trainedSkills)?.additional;
@@ -196,6 +250,7 @@ export function mapClass(
       hpPerLevel,
       proficiencies,
       skills: { trainedSkillCount, automaticallyTrained },
+      advancement,
     },
   };
 }

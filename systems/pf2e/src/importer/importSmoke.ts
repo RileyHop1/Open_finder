@@ -36,6 +36,9 @@ import { UPSTREAM_COMMIT, UPSTREAM_PACKS_CHECKSUM, UPSTREAM_REPO } from './upstr
  */
 const MAX_DEPENDENCY_DROP_RATE = 0.1;
 
+/** Player Core's eight classes plus Player Core 2's eight. */
+const EXPECTED_CLASS_COUNT = 16;
+
 const upstreamDir =
   process.env.HEARTHTABLE_PF2E_UPSTREAM_DIR ?? join(process.cwd(), '.data', 'upstream');
 const outputDir =
@@ -60,6 +63,16 @@ try {
   if (emptyPacks.length > 0) {
     failures.push(
       `pack(s) with zero kept entries: ${emptyPacks.map((pack) => pack.packId).join(', ')}`,
+    );
+  }
+
+  // The core four books hold exactly sixteen classes (CLAUDE.md, Content scope).
+  // A class whose upstream shape stopped matching `mapClass` fails closed and is
+  // dropped, so a shortfall here is the signal that the mapping has drifted.
+  const classCount = summary.packs.find((pack) => pack.packId === 'classes')?.entryCount;
+  if (classCount === undefined || classCount < EXPECTED_CLASS_COUNT) {
+    failures.push(
+      `expected ${EXPECTED_CLASS_COUNT} classes, imported ${classCount ?? 0}`,
     );
   }
 
