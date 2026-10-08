@@ -53,3 +53,4 @@ than a tidy file.
 | [0021](0021-inventory-economy.md) | Coins are a field, Bulk is computed, transfers are one operation | Accepted |
 | [0022](0022-map-first-table-layout.md) | Map-first table layout: the map fills the screen, everything else overlays it | Accepted |
 | [0023](0023-calculate-dont-enforce.md) | Calculate, don't enforce: automate the math, leave rulings to the table | Accepted |
+| [0024](0024-character-build-record.md) | Character build: store the choices beside the numbers, derive by a pure function | Accepted |

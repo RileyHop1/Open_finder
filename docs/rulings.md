@@ -739,3 +739,61 @@ ruling from silently drifting.
   cases, covers it exactly as well as 16 copies of the same arithmetic would.
 - **Override:** the GM can apply or remove `encumbered` by hand regardless of
   the computed total, and nothing stops a transfer that crosses the maximum.
+
+### Partial attribute boosts
+- **Rules text:** Player Core, character creation and level advancement
+  (attribute boosts). A boost raises an attribute modifier by 1; once the
+  modifier is +4 or higher, a boost is a partial boost, and two partial
+  boosts together raise it by 1. **(confirm)**
+- **The ambiguity:** none in the text itself. The judgment is how to store
+  it: as the build's list of boosts replayed in order, rather than as a
+  stored half-step.
+- **Our reading:** boosts are stored as choices and replayed. A modifier of
+  +4 or more receives half a step per boost, and the modifier only changes
+  on the second.
+- **Alternative reading:** store a numeric score (10 plus 2 per boost) as
+  the pre-Remaster rules did. Rejected: the project is Remaster-only
+  (ADR 0003) and attributes are modifiers (ADR 0008).
+- **Why:** replaying keeps the build the only record and lets level-up
+  re-derive without bookkeeping.
+- **Golden test:** not written yet; lands with `feat/boost-math` (A3).
+- **Override:** the attribute modifier is directly editable on the sheet.
+
+### Boosting the same attribute twice from one source
+- **Rules text:** Player Core: an attribute may not receive more than one
+  boost from the same source. **(confirm)**
+- **The ambiguity:** whether the app should refuse the second pick.
+- **Our reading:** warn, and apply it anyway.
+- **Alternative reading:** refuse the pick, as a computer game would.
+- **Why:** ADR 0023. A table may rule otherwise, and a wrong refusal costs
+  more than a visible warning.
+- **Golden test:** not written yet; lands with `feat/boost-math` (A3).
+- **Override:** none needed, since nothing is refused.
+
+### Starting gold
+- **Rules text:** Player Core, step 8 of character creation (buy starting
+  equipment): a new level 1 character has 15 gp to spend. **(confirm)**
+- **The ambiguity:** none. The judgment is not blocking an over-budget
+  purchase.
+- **Our reading:** the wizard shows a running total against 15 gp and warns
+  when it is exceeded.
+- **Alternative reading:** disable the buy button at the budget.
+- **Why:** ADR 0023. A GM may grant extra starting funds.
+- **Golden test:** lands with the equipment step (W9).
+- **Override:** the purse and the item list are editable on the sheet.
+
+### Feat, skill increase and boost levels
+- **Rules text:** the class and ancestry advancement tables in Player Core
+  and Player Core 2. **(confirm)** The levels listed in
+  [character-build.md](character-build.md) are from memory of the Remaster
+  tables and must be checked before the progression tables ship.
+- **The ambiguity:** none intended. Recorded so a wrong level is a visible
+  data fix rather than a hidden constant.
+- **Our reading:** the levels in `character-build.md`, as data in
+  `systems/pf2e/src/rules/progression.ts`.
+- **Alternative reading:** none.
+- **Why:** a table of facts, kept in one place so it can be corrected once.
+- **Golden test:** lands with `feat/build-schema` (A2).
+- **Override:** a player may pick a feat in any slot (a warning, not a
+  refusal).
+
