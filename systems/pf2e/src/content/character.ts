@@ -16,6 +16,7 @@ import { idSchema } from '@hearthtable/core';
 
 import { actionEntrySchema } from './action.js';
 import { armorEntrySchema } from './armor.js';
+import { characterBuildSchema } from './characterBuild.js';
 import { classFeatureEntrySchema } from './class.js';
 import { attributeSchema, proficiencyRankSchema } from './common.js';
 import { conditionDurationSchema } from './conditionDuration.js';
@@ -160,6 +161,8 @@ export const characterDataSchema = z
     persistentDamage: z.array(persistentDamageSchema).default([]),
     /** Already-made `choiceSet` selections, keyed by the element's `rollOptionPrefix` (see `applyRuleElements`). */
     choices: z.record(z.string().min(1), z.string().min(1)).default({}),
+    /** The choices this character was built from (ADR 0024). Absent for a hand-built character. */
+    build: characterBuildSchema.optional(),
   })
   .refine(
     (data) => new Set(data.items.map((item) => item.id)).size === data.items.length,

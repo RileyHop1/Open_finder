@@ -322,6 +322,36 @@ export {
   type CharacterRanks,
 } from './content/character.js';
 
+export {
+  BOOST_LEVELS,
+  BOOST_SOURCES,
+  FEAT_SLOTS,
+  attributeBoostSchema,
+  boostSourceSchema,
+  buildRefSchema,
+  characterBuildSchema,
+  featPickSchema,
+  featSlotSchema,
+  type AttributeBoost,
+  type BoostLevel,
+  type BoostSource,
+  type BuildRef,
+  type CharacterBuild,
+  type FeatPick,
+  type FeatSlot,
+} from './content/characterBuild.js';
+
+export {
+  ADVANCEMENT_BOOST_LEVELS,
+  BOOSTS_PER_LEVEL,
+  STANDARD_ADVANCEMENT,
+  advancementFor,
+  boostLevelsUpTo,
+  featSlotsUpTo,
+  skillIncreasesUpTo,
+  type FeatSlotAt,
+} from './rules/progression.js';
+
 export { ZERO_COINS, coinsSchema, type Coins } from './content/coins.js';
 
 export {

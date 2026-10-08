@@ -82,6 +82,7 @@ total is derived by `prepareCharacter` and never stored.
 | `conditions` | `{ slug, value? }`, one per slug. Modifiers are computed, never stored ([conditions.md](conditions.md)) |
 | `persistentDamage` | `{ id, formula, damageType, source? }[]`, default empty. Persistent damage still burning, one entry per damage type (`systems/pf2e/src/content/persistentDamage.ts`). Absent in an actor stored before it existed, which parses as none |
 | `choices` | Made `choiceSet` selections, keyed by `rollOptionPrefix` |
+| `build` | Optional. The choices the character was built from (`docs/character-build.md`, ADR 0024); absent on a hand-built character. Never read by rolls |
 
 A character cannot list two items with the same id, or one condition twice
 (two sources of a valued condition merge to the higher value before they get
