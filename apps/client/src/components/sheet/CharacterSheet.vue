@@ -44,7 +44,7 @@ const props = defineProps<{
   actor: Actor;
   editable?: boolean;
   rollable?: boolean;
-  /** Split the sheet into tabs; the parent's `strikes`, `conditions` and `inventory` slots become tabs of their own. Off (everything stacked) by default. */
+  /** Split the sheet into tabs; the parent's `strikes`, `feats`, `spells`, `conditions` and `inventory` slots become tabs of their own. Off (everything stacked) by default. */
   tabbed?: boolean;
 }>();
 const slots = useSlots();
@@ -190,6 +190,8 @@ const tabList = computed(() => [
   { id: 'overview', label: 'Overview' },
   { id: 'skills', label: 'Skills' },
   ...(slots.strikes === undefined ? [] : [{ id: 'strikes', label: 'Strikes' }]),
+  ...(slots.feats === undefined ? [] : [{ id: 'feats', label: 'Feats & features' }]),
+  ...(slots.spells === undefined ? [] : [{ id: 'spells', label: 'Spells' }]),
   ...(slots.conditions === undefined ? [] : [{ id: 'conditions', label: 'Conditions' }]),
   ...(slots.inventory === undefined ? [] : [{ id: 'inventory', label: 'Inventory' }]),
 ]);
@@ -565,7 +567,7 @@ const lineage = computed(() =>
 
       <template v-if="tabbed">
         <div
-          v-for="tab in ['strikes', 'conditions', 'inventory']"
+          v-for="tab in ['strikes', 'feats', 'spells', 'conditions', 'inventory']"
           v-show="current === tab"
           :key="tab"
           class="tab-panel"

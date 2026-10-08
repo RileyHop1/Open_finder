@@ -31,6 +31,8 @@ import {
 } from '@hearthtable/pf2e';
 import { computed, ref } from 'vue';
 
+import { GEAR_KINDS } from './featsModel.js';
+
 import {
   type EntrySummary,
   isCompendiumAvailable,
@@ -71,8 +73,8 @@ function onGive(itemId: string, choice: GiveChoice): void {
   emit('give', itemId, choice.to, choice.quantity);
 }
 
-/** The kinds a character can carry, for the picker's filter. */
-const KINDS = ['weapon', 'armor', 'gear', 'feat', 'classFeature', 'spell', 'action'];
+/** The kinds a character can carry, for the picker's filter: feats and spells live on their own tabs. */
+const KINDS = GEAR_KINDS;
 /** Kinds where "equipped" means something: they are what changes AC, strikes, and bonuses. */
 const WORN = new Set(['weapon', 'armor', 'gear']);
 const KIND_LABELS: Readonly<Record<string, string>> = { classFeature: 'Class feature' };
@@ -110,6 +112,11 @@ const data = computed(() => {
 });
 
 const prepared = computed(() => (data.value ? prepareCharacter(data.value) : undefined));
+
+/** What is carried: weapons, armor, and gear (feats and spells have their own tabs). */
+const carried = computed(() =>
+  (data.value?.items ?? []).filter((i) => GEAR_KINDS.includes(i.entry.kind)),
+);
 
 const inert = computed(() => {
   if (prepared.value === undefined) {
@@ -202,9 +209,9 @@ async function search(): Promise<void> {
       </span>
     </p>
 
-    <p v-if="data.items.length === 0" class="empty">Carrying nothing.</p>
+    <p v-if="carried.length === 0" class="empty">Carrying nothing.</p>
     <ul v-else class="items">
-      <li v-for="item in data.items" :key="item.id" class="item">
+      <li v-for="item in carried" :key="item.id" class="item">
         <span class="item-name">{{ item.entry.name }}</span>
         <span class="item-kind">{{
           consumableOf(item.entry) === undefined
