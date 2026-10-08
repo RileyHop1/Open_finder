@@ -151,6 +151,29 @@ const skills = computed(() => {
     .sort((a, b) => a.label.localeCompare(b.label));
 });
 
+/** The hit-point bar's fill, 0-100. The numbers beside it say the same in words. */
+const hpPercent = computed(() => {
+  const hp = prepared.value?.hp;
+  if (hp === undefined || hp.max.total <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, Math.round((hp.current / hp.max.total) * 100)));
+});
+
+/**
+ * The glance strip under the name: read-only copies of the numbers a table
+ * asks for most. The rollable, explained versions stay in the tables below
+ * (each number gets exactly one breakdown trigger and one Roll button).
+ */
+const keyStats = computed(() => [
+  { label: 'AC', value: String(total('ac')) },
+  { label: 'Fort', value: signed(total('fortitude')) },
+  { label: 'Ref', value: signed(total('reflex')) },
+  { label: 'Will', value: signed(total('will')) },
+  { label: 'Perception', value: signed(total('perception')) },
+  { label: 'Speed', value: `${data.value?.speed ?? 0} ft` },
+]);
+
 const lineage = computed(() =>
   [data.value?.ancestry, data.value?.heritage, data.value?.background, data.value?.class]
     .flatMap((ref) => (ref === undefined ? [] : [ref.name]))
@@ -173,19 +196,35 @@ const lineage = computed(() =>
         <h3 :id="`sheet-${actor.id}-name`">{{ actor.name }}</h3>
         <p class="level">Level {{ data.level }}</p>
         <p v-if="lineage" class="lineage">{{ lineage }}</p>
-        <p class="hit-points">
-          Hit Points
-          <strong>
-            {{ prepared.hp.current }} /
-            <StatBreakdown label="Maximum Hit Points" :statistic="prepared.hp.max">
-              {{ prepared.hp.max.total }}
-            </StatBreakdown>
-          </strong>
-          <span v-if="prepared.hp.temp > 0"> (+{{ prepared.hp.temp }} temporary)</span>
-        </p>
-        <p class="speed">
-          Speed <strong>{{ data.speed }} feet</strong>
-        </p>
+        <div class="hit-points">
+          <p class="hp-line">
+            Hit Points
+            <strong>
+              {{ prepared.hp.current }} /
+              <StatBreakdown label="Maximum Hit Points" :statistic="prepared.hp.max">
+                {{ prepared.hp.max.total }}
+              </StatBreakdown>
+            </strong>
+            <span v-if="prepared.hp.temp > 0"> (+{{ prepared.hp.temp }} temporary)</span>
+            <span v-if="prepared.hp.current === 0"> · at 0 hit points</span>
+          </p>
+          <div
+            class="hp-bar"
+            role="meter"
+            aria-label="Hit points"
+            aria-valuemin="0"
+            :aria-valuemax="prepared.hp.max.total"
+            :aria-valuenow="prepared.hp.current"
+          >
+            <div class="hp-fill" :style="{ width: `${hpPercent}%` }"></div>
+          </div>
+        </div>
+        <ul class="key-stats" aria-label="Key numbers">
+          <li v-for="stat in keyStats" :key="stat.label">
+            <span class="key-label">{{ stat.label }}</span>
+            <strong>{{ stat.value }}</strong>
+          </li>
+        </ul>
         <p v-if="data.conditions.length > 0" class="conditions">
           Conditions:
           <span v-for="condition in data.conditions" :key="condition.slug" class="chip">
@@ -498,6 +537,49 @@ h4 {
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-3);
+}
+
+.hit-points {
+  flex: 1 1 14rem;
+}
+
+.hp-bar {
+  height: 0.6rem;
+  margin-top: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hp-fill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.key-stats {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.key-stats li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.key-label {
+  color: var(--color-text-muted);
+  font-size: 0.8em;
 }
 
 .edit-toggle {

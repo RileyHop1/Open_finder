@@ -23,7 +23,10 @@ import {
 } from '@hearthtable/pf2e';
 import { computed, ref } from 'vue';
 
-const props = defineProps<{ actor: Actor; editable?: boolean }>();
+const props = withDefaults(
+  defineProps<{ actor: Actor; editable?: boolean; showReadout?: boolean }>(),
+  { editable: false, showReadout: true },
+);
 const emit = defineEmits<{
   change: [changes: Record<string, number>];
   damage: [amount: number, critical: boolean];
@@ -85,9 +88,13 @@ function grantTemp(): void {
 </script>
 
 <template>
-  <section v-if="prepared" class="hit-points-panel" aria-labelledby="hp-heading">
+  <section
+    v-if="prepared && (showReadout || editable)"
+    class="hit-points-panel"
+    aria-labelledby="hp-heading"
+  >
     <h4 id="hp-heading">Hit points</h4>
-    <p class="hp-read" role="status">
+    <p v-if="showReadout" class="hp-read" role="status">
       <strong>{{ prepared.hp.current }} / {{ prepared.hp.max.total }}</strong>
       <span v-if="prepared.hp.temp > 0"> · {{ prepared.hp.temp }} temporary</span>
       <span v-if="prepared.hp.current === 0" class="down"> · at 0 hit points</span>

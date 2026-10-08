@@ -37,6 +37,23 @@ function mountPanel(current: number, temp: number, editable = true) {
   });
 }
 
+describe('readout', () => {
+  it('can hide its own readout (the character sheet’s header shows hit points instead)', () => {
+    const wrapper = mount(HitPointsPanel, {
+      props: { actor: actorWithHp(12, 0), editable: true, showReadout: false },
+    });
+    expect(wrapper.find('.hp-read').exists()).toBe(false);
+    expect(wrapper.find('.hp-controls').exists()).toBe(true);
+  });
+
+  it('renders nothing at all when there is no readout and nothing to edit', () => {
+    const wrapper = mount(HitPointsPanel, {
+      props: { actor: actorWithHp(12, 0), editable: false, showReadout: false },
+    });
+    expect(wrapper.find('.hit-points-panel').exists()).toBe(false);
+  });
+});
+
 describe('reading', () => {
   it('shows current over derived maximum, temporary points, and being at 0 in words', () => {
     expect(mountPanel(12, 0).find('.hp-read').text()).toBe('12 / 20');

@@ -85,6 +85,33 @@ describe('CharacterSheet', () => {
     expect(wrapper.find('.hit-points').text()).toContain('+5 temporary');
   });
 
+  it('draws a hit-point bar with its numbers, and says so in words at 0', () => {
+    const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
+    const bar = wrapper.find('.hp-bar');
+    expect(bar.attributes('role')).toBe('meter');
+    expect(bar.attributes('aria-valuenow')).toBe('30');
+    expect(bar.attributes('aria-valuemax')).toBe('44');
+    expect(wrapper.find('.hp-fill').attributes('style')).toContain('width: 68%');
+
+    const down = makeActor({ ...level3(), hp: { current: 0, temp: 0 } });
+    const downWrapper = mount(CharacterSheet, { props: { actor: down } });
+    expect(downWrapper.find('.hit-points').text()).toContain('at 0 hit points');
+    expect(downWrapper.find('.hp-fill').attributes('style')).toContain('width: 0%');
+  });
+
+  it('shows a key-numbers strip, without a second breakdown or Roll button for any of them', () => {
+    const wrapper = mount(CharacterSheet, {
+      props: { actor: makeActor(level3()), rollable: true },
+    });
+    const labels = wrapper
+      .findAll('.key-stats li')
+      .map((li) => li.find('.key-label').text());
+    expect(labels).toEqual(['AC', 'Fort', 'Ref', 'Will', 'Perception', 'Speed']);
+    expect(wrapper.find('.key-stats .stat-trigger').exists()).toBe(false);
+    expect(wrapper.find('.key-stats button').exists()).toBe(false);
+    expect(wrapper.findAll('button[aria-label="Roll Fortitude"]')).toHaveLength(1);
+  });
+
   it('shows each attribute modifier with its sign', () => {
     const wrapper = mount(CharacterSheet, { props: { actor: makeActor(level3()) } });
     const items = wrapper.findAll('.attributes li').map((li) => li.text());
