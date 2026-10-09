@@ -45,7 +45,9 @@ and de-duplicated.
 ## Boosts
 A boost adds +1 to an attribute **modifier**. From a modifier of +4 upward a
 boost is a *partial* boost, and two partial boosts make +1 **(confirm)**.
-The derivation replays the boosts in order, so no half-step is stored.
+`applyBoosts` (`systems/pf2e/src/rules/boosts.ts`) replays the flaws and
+boosts, lowest level first, from all-zero modifiers, so no half-step is stored;
+a pending partial is only a flag in the result.
 
 Within one source an attribute may be boosted once **(confirm)**. A second
 boost of the same attribute from the same source produces a warning and is
