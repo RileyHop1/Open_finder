@@ -33,14 +33,32 @@ The schema is `characterBuildSchema` (`systems/pf2e/src/content/characterBuild.t
 and the table helpers are in `systems/pf2e/src/rules/progression.ts`.
 
 ## Derivation
-`deriveCharacter(build, entries, level)` is pure. It returns proposed
-attribute modifiers, proficiency ranks, `ancestryHp`, `classHp`, speed, the
-class features due by `level`, the items they grant, and a list of
-`warnings`. It never throws on a rules problem and never refuses a choice.
+`deriveCharacter` (`systems/pf2e/src/rules/deriveCharacter.ts`) is pure. Its
+inputs are the build, the level, an optional key attribute, the ancestry,
+heritage, background and class entries, the class's features, and a
+`resolve(packId, slug)` callback that finds a compendium entry (the server
+supplies it from its own compendium). It returns proposed attribute
+modifiers, the key attribute, proficiency ranks, `ancestryHp`, `classHp`,
+speed, the items (class features due by level, picked feats, and whatever
+they grant) and a list of `warnings`. It never throws on a rules problem and
+never refuses a choice.
 
-Ranks come from the class's progression tables (`rankAtLevel`), plus the
-trained skills the build records. Granted items are resolved depth-limited
-and de-duplicated.
+- **Ranks:** the class's progressions through `rankAtLevel`, then skills
+  (the class's automatic ones, the background's, and the build's chosen ones),
+  then each skill increase raises its skill one step. Until the rank-up table
+  exists (below) ranks are right at level 1, where the imported starting ranks
+  are the whole story.
+- **Granted items:** `grantItem` elements are followed to `MAX_GRANT_DEPTH`
+  (3) and de-duplicated by pack and slug; an entry that cannot be found is a
+  `missing-entry` warning.
+- **Warnings:** a key attribute the class does not offer, more trained skills
+  than the class plus Intelligence allow, a skill increase or feat taken at a
+  level or slot the class does not have, a missing entry, and the boost
+  warnings below.
+
+The level 1 build-derived characters for the seven martial classes (Fighter,
+Ranger, Rogue, Barbarian, Investigator, Monk, Swashbuckler) are pinned to the
+hand-set goldens in `systems/pf2e/src/golden/deriveMartial.test.ts`.
 
 ## Boosts
 A boost adds +1 to an attribute **modifier**. From a modifier of +4 upward a

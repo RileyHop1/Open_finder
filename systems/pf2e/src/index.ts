@@ -342,6 +342,14 @@ export {
 } from './content/characterBuild.js';
 
 export {
+  MAX_GRANT_DEPTH,
+  deriveCharacter,
+  type DeriveInputs,
+  type DeriveWarning,
+  type DerivedCharacter,
+} from './rules/deriveCharacter.js';
+
+export {
   PARTIAL_BOOST_FROM,
   applyBoosts,
   type BoostResult,
