@@ -111,7 +111,7 @@ read-only. Rationale and alternatives are in
 | Route | Returns |
 | --- | --- |
 | `GET /api/compendium` | `{ available, packs, entryCount, skipped }`. `available` is false until the importer has been run, which lets a UI say so instead of showing an empty list |
-| `GET /api/compendium/search?kind=&q=&limit=` | Summaries `{ packId, slug, name, kind, traits }`. `q` is a case-insensitive substring of the name, names starting with it first. `limit` is 1 to 200, default 50. A malformed query is a 400 |
+| `GET /api/compendium/search?kind=&q=&limit=&level=&maxLevel=&category=&trait=&classSlug=&ancestrySlug=` | Summaries `{ packId, slug, name, kind, traits }`, plus `level` (feats, class features), `category` (feats), `classSlug` (class features) and `ancestrySlug` (heritages) where the entry has them. `q` is a case-insensitive substring of the name, names starting with it first. `level` is exact, `maxLevel` is at or below (an entry with no level never matches either), `category` is a feat category, `trait` a trait slug, `classSlug` and `ancestrySlug` match exactly; filters combine. `limit` is 1 to 200, default 50. A malformed query is a 400 |
 | `GET /api/compendium/:packId/:slug` | The full entry, or 404 |
 | `GET /api/compendium/traits` | The whole trait glossary (ADR 0020 decision 5), `TraitEntry[]` -- `[]` before an import. Not keyed by slug: `traits.json` is one flat file, not a pack, so the client fetches it once and looks a slug up itself |
 

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getCompendiumEntry,
   getCompendiumTraits,
+  getPf2eEntry,
   isCompendiumAvailable,
   searchCompendium,
 } from './compendium.js';
@@ -56,6 +57,30 @@ describe('searchCompendium', () => {
 
     await searchCompendium({ q: '', kind: '' });
     expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/search');
+  });
+
+  it('sends the level, category, trait, class and ancestry filters when given', async () => {
+    fetchMock.mockImplementation(() => jsonResponse([]));
+    await searchCompendium({
+      kind: 'feat',
+      maxLevel: 3,
+      level: 1,
+      category: 'ancestry',
+      trait: 'dwarf',
+      classSlug: 'fighter',
+      ancestrySlug: 'dwarf',
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/compendium/search?kind=feat&level=1&maxLevel=3&category=ancestry&trait=dwarf&classSlug=fighter&ancestrySlug=dwarf',
+    );
+    await searchCompendium({ category: '', trait: '' });
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/search');
+  });
+
+  it('keeps the PF2e fields a summary now carries', async () => {
+    const feat = { ...summary, kind: 'feat', level: 1, category: 'ancestry', traits: [] };
+    fetchMock.mockImplementation(() => jsonResponse([feat]));
+    expect(await searchCompendium({ kind: 'feat' })).toEqual([feat]);
   });
 
   it('encodes what the user typed', async () => {
@@ -135,5 +160,42 @@ describe('getCompendiumTraits', () => {
     await expect(getCompendiumTraits()).rejects.toThrow(/responded 500/);
     fetchMock.mockResolvedValueOnce(jsonResponse([{ slug: 'agile' }]));
     await expect(getCompendiumTraits()).rejects.toThrow();
+  });
+});
+
+describe('getPf2eEntry', () => {
+  const now = '2026-10-01T00:00:00.000Z';
+  const feat = {
+    id: '33333333-3333-4333-8333-333333333333',
+    schemaVersion: 1,
+    createdAt: now,
+    updatedAt: now,
+    packId: 'feats',
+    slug: 'invented-feat',
+    name: 'Invented Feat',
+    kind: 'feat',
+    provenance: { publication: 'Pathfinder Player Core', license: 'ORC', remaster: true },
+    traits: [],
+    ruleElements: [],
+    description: '',
+    level: 2,
+    category: 'class',
+    prerequisites: ['trained in Athletics'],
+  };
+
+  it('keeps the PF2e fields the envelope fetch strips', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(feat));
+    const entry = await getPf2eEntry('feats', 'invented-feat');
+    expect(entry).toMatchObject({ kind: 'feat', level: 2, category: 'class' });
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/feats/invented-feat');
+  });
+
+  it('is undefined for a 404, and throws on any other failure or a body that is not an entry', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}, 404));
+    expect(await getPf2eEntry('feats', 'nope')).toBeUndefined();
+    fetchMock.mockResolvedValueOnce(jsonResponse({}, 500));
+    await expect(getPf2eEntry('feats', 'x')).rejects.toThrow(/responded 500/);
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...feat, category: 'nonsense' }));
+    await expect(getPf2eEntry('feats', 'x')).rejects.toThrow();
   });
 });

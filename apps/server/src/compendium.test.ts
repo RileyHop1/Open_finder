@@ -190,6 +190,84 @@ describe('search', () => {
     expect(index.search({ kind: 'spell' })).toEqual([]);
   });
 
+  describe('filters', () => {
+    const feat = (slug: string, level: number, category: string, traits: string[] = []) =>
+      entry('feats', slug, slug, 'feat', { level, category, traits, prerequisites: [] });
+    const feature = (slug: string, level: number, classSlug: string) =>
+      entry('class-features', slug, slug, 'classFeature', { level, classSlug });
+    const heritage = (slug: string, ancestrySlug?: string) =>
+      entry('heritages', slug, slug, 'heritage', ancestrySlug ? { ancestrySlug } : {});
+
+    beforeEach(() => {
+      writePack('feats', [
+        feat('swordplay', 1, 'general'),
+        feat('rune-lore', 1, 'ancestry', ['dwarf']),
+        feat('deep-step', 5, 'ancestry', ['dwarf']),
+        feat('sudden-charge', 1, 'class', ['fighter']),
+        feat('fleet', 3, 'general'),
+      ]);
+      writePack('class-features', [
+        feature('shield-block', 1, 'fighter'),
+        feature('bravery', 3, 'fighter'),
+        feature('rage', 1, 'barbarian'),
+      ]);
+      writePack('heritages', [
+        heritage('hill-dwarf', 'dwarf'),
+        heritage('forest-elf', 'elf'),
+        heritage('changeling'),
+      ]);
+    });
+
+    const slugs = (options: Parameters<ReturnType<typeof loadCompendium>['search']>[0]) =>
+      loadCompendium(root)
+        .search(options)
+        .map((e) => e.slug);
+
+    it('carries level, category, class and ancestry on the summaries that have them', () => {
+      const index = loadCompendium(root);
+      expect(index.search({ q: 'deep-step' })[0]).toMatchObject({
+        level: 5,
+        category: 'ancestry',
+      });
+      expect(index.search({ q: 'bravery' })[0]).toMatchObject({
+        level: 3,
+        classSlug: 'fighter',
+      });
+      expect(index.search({ q: 'hill-dwarf' })[0]).toMatchObject({
+        ancestrySlug: 'dwarf',
+      });
+      expect(index.search({ q: 'changeling' })[0]).not.toHaveProperty('ancestrySlug');
+      expect(index.search({ q: 'rope' })[0]).not.toHaveProperty('level');
+    });
+
+    it('filters by exact level and by maximum level', () => {
+      expect(slugs({ kind: 'feat', level: 1 })).toEqual([
+        'rune-lore',
+        'sudden-charge',
+        'swordplay',
+      ]);
+      expect(slugs({ kind: 'feat', maxLevel: 3 })).toEqual([
+        'fleet',
+        'rune-lore',
+        'sudden-charge',
+        'swordplay',
+      ]);
+      // Entries with no level at all never match a level filter.
+      expect(slugs({ maxLevel: 20, q: 'rope' })).toEqual([]);
+    });
+
+    it('filters by feat category, trait, class and ancestry, and combines them', () => {
+      expect(slugs({ category: 'ancestry' })).toEqual(['deep-step', 'rune-lore']);
+      expect(slugs({ trait: 'dwarf' })).toEqual(['deep-step', 'rune-lore']);
+      expect(slugs({ classSlug: 'fighter' })).toEqual(['bravery', 'shield-block']);
+      expect(slugs({ ancestrySlug: 'dwarf' })).toEqual(['hill-dwarf']);
+      expect(slugs({ category: 'ancestry', trait: 'dwarf', maxLevel: 1 })).toEqual([
+        'rune-lore',
+      ]);
+      expect(slugs({ classSlug: 'fighter', level: 3 })).toEqual(['bravery']);
+    });
+  });
+
   it('returns summaries, not whole entries', () => {
     const [first] = loadCompendium(root).search({ q: 'longsword' });
     expect(first).toEqual({
