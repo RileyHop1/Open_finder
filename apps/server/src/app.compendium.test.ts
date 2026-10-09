@@ -115,7 +115,17 @@ describe('with imported content', () => {
   });
 
   it('rejects a malformed search query with 400', async () => {
-    for (const query of ['limit=0', 'limit=9999', 'limit=abc', 'kind=']) {
+    for (const query of [
+      'limit=0',
+      'limit=9999',
+      'limit=abc',
+      'kind=',
+      'level=0',
+      'level=21',
+      'maxLevel=abc',
+      'category=',
+      'trait=',
+    ]) {
       const response = await app.inject({
         method: 'GET',
         url: `/api/compendium/search?${query}`,

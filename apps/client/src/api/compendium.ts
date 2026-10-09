@@ -13,6 +13,7 @@ import {
   type CompendiumEntry,
   type TraitEntry,
 } from '@hearthtable/core';
+import { pf2eEntrySchema, type Pf2eEntry } from '@hearthtable/pf2e';
 import { z } from 'zod';
 
 export const entrySummarySchema = z.object({
@@ -21,6 +22,10 @@ export const entrySummarySchema = z.object({
   name: z.string(),
   kind: z.string(),
   traits: z.array(z.string()),
+  level: z.number().optional(),
+  category: z.string().optional(),
+  classSlug: z.string().optional(),
+  ancestrySlug: z.string().optional(),
 });
 
 export type EntrySummary = z.infer<typeof entrySummarySchema>;
@@ -31,6 +36,18 @@ export interface SearchParams {
   q?: string;
   kind?: string;
   limit?: number;
+  /** Exactly this level (feats and class features). */
+  level?: number;
+  /** At or below this level (feats and class features). */
+  maxLevel?: number;
+  /** Feats of this category. */
+  category?: string;
+  /** Entries carrying this trait. */
+  trait?: string;
+  /** Class features granted by this class. */
+  classSlug?: string;
+  /** Heritages of this ancestry. */
+  ancestrySlug?: string;
 }
 
 async function getJson<T>(url: string, schema: z.ZodType<T>, action: string): Promise<T> {
@@ -60,6 +77,18 @@ export function searchCompendium(params: SearchParams = {}): Promise<EntrySummar
   if (params.limit !== undefined) {
     query.set('limit', String(params.limit));
   }
+  for (const key of ['level', 'maxLevel'] as const) {
+    const value = params[key];
+    if (value !== undefined) {
+      query.set(key, String(value));
+    }
+  }
+  for (const key of ['category', 'trait', 'classSlug', 'ancestrySlug'] as const) {
+    const value = params[key];
+    if (value !== undefined && value !== '') {
+      query.set(key, value);
+    }
+  }
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return getJson(
     `/api/compendium/search${suffix}`,
@@ -86,6 +115,31 @@ export async function getCompendiumEntry(
   }
   const body: unknown = await response.json();
   return compendiumEntrySchema.parse(body);
+}
+
+/**
+ * The full entry with its PF2e fields intact (a class's proficiencies, a
+ * feat's category and prerequisites, an ancestry's boosts), for the character
+ * wizard. `getCompendiumEntry` above parses against the system-agnostic
+ * envelope and so strips them. `undefined` for a 404, like that one.
+ */
+export async function getPf2eEntry(
+  packId: string,
+  slug: string,
+): Promise<Pf2eEntry | undefined> {
+  const response = await fetch(
+    `/api/compendium/${encodeURIComponent(packId)}/${encodeURIComponent(slug)}`,
+  );
+  if (response.status === 404) {
+    return undefined;
+  }
+  if (!response.ok) {
+    throw new Error(
+      `failed to fetch compendium entry: server responded ${response.status}`,
+    );
+  }
+  const body: unknown = await response.json();
+  return pf2eEntrySchema.parse(body);
 }
 
 /**

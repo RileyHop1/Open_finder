@@ -31,11 +31,31 @@ export interface EntrySummary {
   readonly name: string;
   readonly kind: string;
   readonly traits: readonly string[];
+  /** Feats and class features: the level they are taken at or granted. */
+  readonly level?: number;
+  /** Feats only: ancestry, class, general, skill or archetype. */
+  readonly category?: string;
+  /** Class features only: the class that grants them. */
+  readonly classSlug?: string;
+  /** Heritages only: the ancestry they belong to (absent means a versatile heritage). */
+  readonly ancestrySlug?: string;
 }
 
 export interface SearchOptions {
   /** Only entries of this `kind` (`weapon`, `feat`, ...). */
   readonly kind?: string | undefined;
+  /** Only entries at exactly this level (feats and class features). */
+  readonly level?: number | undefined;
+  /** Only entries at or below this level (feats and class features). */
+  readonly maxLevel?: number | undefined;
+  /** Only feats of this category. */
+  readonly category?: string | undefined;
+  /** Only entries carrying this trait. */
+  readonly trait?: string | undefined;
+  /** Only class features granted by this class. */
+  readonly classSlug?: string | undefined;
+  /** Only heritages of this ancestry. */
+  readonly ancestrySlug?: string | undefined;
   /** Case-insensitive; names starting with it rank before names merely containing it. */
   readonly q?: string | undefined;
   /** Default 50, at most 200. */
@@ -93,7 +113,40 @@ function summarize(entry: Pf2eEntry): EntrySummary {
     name: entry.name,
     kind: entry.kind,
     traits: entry.traits,
+    ...(entry.kind === 'feat' || entry.kind === 'classFeature'
+      ? { level: entry.level }
+      : {}),
+    ...(entry.kind === 'feat' ? { category: entry.category } : {}),
+    ...(entry.kind === 'classFeature' ? { classSlug: entry.classSlug } : {}),
+    ...(entry.kind === 'heritage' && entry.ancestrySlug !== undefined
+      ? { ancestrySlug: entry.ancestrySlug }
+      : {}),
   };
+}
+
+/** Whether `summary` passes every filter in `options` other than the name query. */
+function matchesFilters(summary: EntrySummary, options: SearchOptions): boolean {
+  if (options.kind !== undefined && summary.kind !== options.kind) return false;
+  if (options.category !== undefined && summary.category !== options.category)
+    return false;
+  if (options.classSlug !== undefined && summary.classSlug !== options.classSlug)
+    return false;
+  if (
+    options.ancestrySlug !== undefined &&
+    summary.ancestrySlug !== options.ancestrySlug
+  ) {
+    return false;
+  }
+  if (options.trait !== undefined && !summary.traits.includes(options.trait))
+    return false;
+  if (options.level !== undefined && summary.level !== options.level) return false;
+  if (
+    options.maxLevel !== undefined &&
+    (summary.level === undefined || summary.level > options.maxLevel)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /** An index with nothing in it: what a server without imported data uses. */
@@ -135,7 +188,7 @@ function buildIndex(
       const prefix: IndexedEntry[] = [];
       const contains: IndexedEntry[] = [];
       for (const item of entries) {
-        if (options.kind !== undefined && item.summary.kind !== options.kind) {
+        if (!matchesFilters(item.summary, options)) {
           continue;
         }
         if (query === '' || item.lowerName.startsWith(query)) {

@@ -103,6 +103,12 @@ const createSeatBodySchema = z.object({
 const compendiumSearchQuerySchema = z.object({
   kind: z.string().min(1).max(40).optional(),
   q: z.string().max(100).optional(),
+  level: z.coerce.number().int().min(1).max(20).optional(),
+  maxLevel: z.coerce.number().int().min(1).max(20).optional(),
+  category: z.string().min(1).max(40).optional(),
+  trait: z.string().min(1).max(60).optional(),
+  classSlug: z.string().min(1).max(80).optional(),
+  ancestrySlug: z.string().min(1).max(80).optional(),
   limit: z.coerce.number().int().min(1).max(MAX_SEARCH_LIMIT).optional(),
 });
 
