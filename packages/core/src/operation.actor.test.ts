@@ -4,6 +4,7 @@ import {
   actorCreateOperationSchema,
   actorAddConditionOperationSchema,
   actorAddItemOperationSchema,
+  actorApplyBuildOperationSchema,
   actorRemoveConditionOperationSchema,
   actorSetConditionOperationSchema,
   MAX_CONDITION_VALUE,
@@ -319,5 +320,45 @@ describe('actor.adjustCoins', () => {
     expect(op({ actorId, delta: { gp: 1.5 } }).success).toBe(false);
     expect(op({ actorId: 'nope', delta: { gp: 1 } }).success).toBe(false);
     expect(op({ actorId }).success).toBe(false);
+  });
+});
+
+describe('actor.applyBuild', () => {
+  const op = (payload: unknown) => ({ id: id(), type: 'actor.applyBuild', payload });
+
+  it('takes a build and optional level, key attribute and keep paths, and drops anything else', () => {
+    const parsed = actorApplyBuildOperationSchema.parse(
+      op({
+        actorId: id(),
+        build: { class: { packId: 'classes', slug: 'x' } },
+        level: 5,
+        keyAttribute: 'str',
+        keep: ['attributes.str', 'ranks.skills.athletics'],
+        items: [{ stats: 'a lot' }],
+      }),
+    );
+    expect(Object.keys(parsed.payload).sort()).toEqual([
+      'actorId',
+      'build',
+      'keep',
+      'keyAttribute',
+      'level',
+    ]);
+  });
+
+  it('rejects a malformed actor id, a non-object build, a bad level and an unsafe keep path', () => {
+    const ok = { actorId: id(), build: {} };
+    expect(actorApplyBuildOperationSchema.safeParse(op(ok)).success).toBe(true);
+    for (const bad of [
+      { ...ok, actorId: 'x' },
+      { ...ok, build: 'str' },
+      { ...ok, level: 0 },
+      { ...ok, level: 21 },
+      { ...ok, keep: ['a b'] },
+      { ...ok, keep: ['a..b'] },
+      { ...ok, keep: Array.from({ length: 101 }, () => 'a') },
+    ]) {
+      expect(actorApplyBuildOperationSchema.safeParse(op(bad)).success).toBe(false);
+    }
   });
 });
