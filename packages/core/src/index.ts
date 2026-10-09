@@ -128,6 +128,7 @@ export {
   actorDeleteOperationSchema,
   actorAddConditionOperationSchema,
   actorAddItemOperationSchema,
+  actorApplyBuildOperationSchema,
   actorRemoveConditionOperationSchema,
   actorSetConditionOperationSchema,
   MAX_CONDITION_VALUE,

@@ -222,6 +222,37 @@ export const actorAddItemOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Apply a character's build (ADR 0024, `docs/character-build.md`): the server
+ * checks `build` against the PF2e schema, copies every entry it names from its
+ * own compendium, derives the numbers and items, and writes them in one step.
+ * The client sends choices only; it cannot supply a stat or an item. `build`
+ * is opaque here (core is system-agnostic, like an actor's `system`).
+ *
+ * `level` and `keyAttribute` default to the character's current ones. `keep`
+ * lists value paths (`attributes.str`, `ranks.skills.athletics`, `speed`) the
+ * derivation must leave as they are: the rest of the sheet is replaced by the
+ * derived values, and these are the hand-edited ones the player chose to keep.
+ */
+export const actorApplyBuildOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.applyBuild'),
+  payload: z.object({
+    actorId: idSchema,
+    build: z.record(z.string(), z.unknown()),
+    level: z.number().int().min(1).max(20).optional(),
+    keyAttribute: z.string().min(1).max(10).optional(),
+    keep: z
+      .array(
+        z
+          .string()
+          .regex(/^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/)
+          .max(100),
+      )
+      .max(100)
+      .optional(),
+  }),
+});
+
+/**
  * Add a compendium entry to the **party stash** (ADR 0021), the GM's loot hand-out:
  * the same `packId`/`slug` shape as `actor.addItem`, copied from the server's own
  * compendium, with an optional stack size. GM only, like every stash change.
@@ -951,6 +982,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorSetQuickbarOperationSchema,
   actorCreateFromCreatureOperationSchema,
   actorAddItemOperationSchema,
+  actorApplyBuildOperationSchema,
   actorUpdateItemOperationSchema,
   actorRemoveItemOperationSchema,
   actorAddConditionOperationSchema,

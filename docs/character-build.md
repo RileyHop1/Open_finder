@@ -2,8 +2,10 @@
 
 How a character's *choices* are recorded and turned into numbers. The
 decision is in [ADR 0024](adr/0024-character-build-record.md); this page is
-the shape it implements. Nothing here is built yet: it is the spec the
-milestone 8 PRs (A2 to A6) implement, and each PR updates this page. The `build` schema and the progression tables are built (A2); derivation, boost math and the operation are not.
+the shape it implements. The server side is built: the `build` schema and
+progression tables, boost math, `deriveCharacter`, the compendium filters, and
+the `actor.applyBuild` operation (`apps/server/src/applyBuild.ts`). The wizard
+UI is not.
 
 Every rules fact below is marked **(confirm)** until it has been checked
 against Archives of Nethys (CLAUDE.md, "Rulings and ambiguity") and the date

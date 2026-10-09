@@ -95,6 +95,7 @@ import {
   setConditionOnActor,
 } from './conditions.js';
 import { emptyCompendium } from './compendium.js';
+import { applyBuild } from './applyBuild.js';
 import { addItem, removeItem, updateItem } from './items.js';
 import { rollActorDamage, rollTrackedStrike } from './strikeRolls.js';
 import {
@@ -435,6 +436,11 @@ function dispatch(
     case 'actor.addItem': {
       const seat = requireSeat(store, socket);
       const actor = addItem(store, seat, compendium, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.applyBuild': {
+      const seat = requireSeat(store, socket);
+      const actor = applyBuild(store, seat, compendium, operation.payload);
       return { seatId: seat.id, seats: [], documents: [actor] };
     }
     case 'actor.updateItem': {
