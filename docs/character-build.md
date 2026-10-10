@@ -127,6 +127,14 @@ chosen one shows the boost it offers a choice of, the skills it trains and the
 skill feat it grants (its `grantItem` elements). Its trained skills show on
 the preview at once; its boost is applied in the Attributes step.
 
+The **class** step lists the seven martial classes first (the ones the creator
+builds completely), then the rest under a note that their spellcasting and
+special features are set up in a later update; picking one of those shows a
+visible warning and is never refused. A chosen class shows its Hit Points per
+level, its trained skills, and its starting proficiencies in words, and offers
+the key attribute as a choice when the class has more than one. Picking a
+class forgets the key attribute chosen for the one before.
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived

@@ -26,6 +26,7 @@ import {
 import CharacterSheet from '../sheet/CharacterSheet.vue';
 import AncestryStep from './AncestryStep.vue';
 import BackgroundStep from './BackgroundStep.vue';
+import ClassStep from './ClassStep.vue';
 import {
   CREATOR_STEPS,
   clearDraft,
@@ -47,6 +48,12 @@ watch(draft, () => saveDraft(draft), { deep: true });
 
 const entries = useCreatorEntries(() => draft.build);
 const preview = computed(() => previewOf(draft, entries));
+
+/** Picking a class clears the key attribute: its options belonged to the one before. */
+function pickClass(ref: BuildRef | undefined): void {
+  draft.build.class = ref;
+  draft.keyAttribute = undefined;
+}
 
 /** Picking an ancestry clears the heritage: it belonged to the one before. */
 function pickAncestry(ref: BuildRef | undefined): void {
@@ -148,6 +155,14 @@ function trapTab(event: KeyboardEvent): void {
           :build="draft.build"
           :background="entries.background"
           @pick-background="(ref) => (draft.build.background = ref)"
+        />
+        <ClassStep
+          v-else-if="draft.step === 'class'"
+          :build="draft.build"
+          :class-entry="entries.class"
+          :key-attribute="draft.keyAttribute"
+          @pick-class="pickClass"
+          @pick-key-attribute="(attribute) => (draft.keyAttribute = attribute)"
         />
         <template v-else>
           <h3>{{ current?.label }}</h3>

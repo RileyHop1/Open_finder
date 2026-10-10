@@ -66,6 +66,22 @@ export function previousStep(step: CreatorStepId): CreatorStepId {
   return stepIds[Math.max(index - 1, 0)] ?? step;
 }
 
+/**
+ * The classes the creator can build completely today: the seven martial
+ * classes, which need feat picks and proficiencies but no spellcasting or
+ * resource subsystem. Every other class can still be picked, with a visible
+ * warning that its setup arrives later (milestone 8, stages b and c).
+ */
+export const MARTIAL_CLASS_SLUGS: readonly string[] = [
+  'fighter',
+  'ranger',
+  'rogue',
+  'barbarian',
+  'investigator',
+  'monk',
+  'swashbuckler',
+];
+
 const STORAGE_KEY = 'hearthtable.creatorDraft';
 
 /** The saved draft, or a fresh one when none is saved, it no longer parses, or storage is unavailable. */
