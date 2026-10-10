@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   CREATOR_STEPS,
+  MARTIAL_CLASS_SLUGS,
   clearDraft,
   emptyDraft,
   loadDraft,
@@ -99,5 +100,19 @@ describe('previewOf', () => {
     });
     // 8 + (10 + 1) * 1 = 19
     expect(actor.system).toMatchObject({ hp: { current: 19 }, speed: 30 });
+  });
+});
+
+describe('MARTIAL_CLASS_SLUGS', () => {
+  it('is the seven martial classes of milestone 8(a)', () => {
+    expect([...MARTIAL_CLASS_SLUGS].sort()).toEqual([
+      'barbarian',
+      'fighter',
+      'investigator',
+      'monk',
+      'ranger',
+      'rogue',
+      'swashbuckler',
+    ]);
   });
 });

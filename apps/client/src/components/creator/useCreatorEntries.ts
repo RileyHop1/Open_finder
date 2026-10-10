@@ -10,9 +10,11 @@
 import {
   ancestryEntrySchema,
   backgroundEntrySchema,
+  classEntrySchema,
   heritageEntrySchema,
   type AncestryEntry,
   type BackgroundEntry,
+  type ClassEntry,
   type BuildRef,
   type CharacterBuild,
   type HeritageEntry,
@@ -26,6 +28,7 @@ export interface CreatorEntries {
   ancestry?: AncestryEntry | undefined;
   heritage?: HeritageEntry | undefined;
   background?: BackgroundEntry | undefined;
+  class?: ClassEntry | undefined;
 }
 
 /** The entry for `ref` if it exists and is the expected kind, else `undefined`. Never throws. */
@@ -45,7 +48,7 @@ async function fetchEntry<T>(
   }
 }
 
-/** Entries for the build's ancestry, heritage and background, reloaded whenever those references change. */
+/** Entries for the build's ancestry, heritage, background and class, reloaded whenever those references change. */
 export function useCreatorEntries(build: () => CharacterBuild): CreatorEntries {
   const entries = shallowReactive<CreatorEntries>({});
 
@@ -76,5 +79,6 @@ export function useCreatorEntries(build: () => CharacterBuild): CreatorEntries {
   track('ancestry', (b) => b.ancestry, ancestryEntrySchema);
   track('heritage', (b) => b.heritage, heritageEntrySchema);
   track('background', (b) => b.background, backgroundEntrySchema);
+  track('class', (b) => b.class, classEntrySchema);
   return entries;
 }
