@@ -455,3 +455,76 @@ describe("resolveDependencies -- a consumable's spell reference", () => {
     expect(result.kept).toEqual([gear]);
   });
 });
+
+describe('resolveDependencies -- tag choices', () => {
+  const cls = makeClass('cccccccccccccccc');
+  const parent = (extra: DraftEntry<ClassFeatureEntry>['ruleElements'] = []) =>
+    makeClassFeature('aaaaaaaaaaaaaaaa', {
+      name: 'Invented Instinct',
+      classSlugs: [cls.slug],
+      ruleElements: [
+        {
+          kind: 'unresolvedTagChoice',
+          tag: 'invented-instinct',
+          flag: 'instinct',
+          prompt: 'PF2E.Prompt.Key',
+          rollOptionPrefix: 'instinct',
+        },
+        { kind: 'unresolvedChosenGrant', flag: 'instinct' },
+        ...extra,
+      ],
+    });
+  const option = (id: string, name: string) =>
+    makeClassFeature(id, {
+      name,
+      slug: name.toLowerCase(),
+      classSlugs: [cls.slug],
+      tags: ['invented-instinct'],
+    });
+
+  it('offers every kept feature with the tag, sorted, and grants the pick', () => {
+    const result = resolveDependencies([
+      cls,
+      parent(),
+      option('bbbbbbbbbbbbbbbb', 'Zeta'),
+      option('dddddddddddddddd', 'Alpha'),
+      makeClassFeature('eeeeeeeeeeeeeeee', { classSlugs: [cls.slug], tags: ['other'] }),
+    ]);
+
+    const kept = result.kept.find((e) => e.name === 'Invented Instinct');
+    expect(kept?.ruleElements).toEqual([
+      {
+        kind: 'choiceSet',
+        prompt: 'Choose Invented Instinct',
+        choices: [
+          { label: 'Alpha', value: 'alpha' },
+          { label: 'Zeta', value: 'zeta' },
+        ],
+        rollOptionPrefix: 'instinct',
+        grantsFromPackId: 'classFeatures',
+      },
+    ]);
+  });
+
+  it('goes inert, visibly, when no feature carries the tag', () => {
+    const result = resolveDependencies([cls, parent()]);
+
+    const kept = result.kept.find((e) => e.name === 'Invented Instinct');
+    expect(kept?.ruleElements).toEqual([
+      { kind: 'inert', upstreamKind: 'ChoiceSet', reason: 'no-features-for-tag' },
+    ]);
+  });
+
+  it('flags a chosen grant that has no choice to fold into', () => {
+    const lone = makeClassFeature('aaaaaaaaaaaaaaaa', {
+      classSlugs: [cls.slug],
+      ruleElements: [{ kind: 'unresolvedChosenGrant', flag: 'missing' }],
+    });
+
+    const result = resolveDependencies([cls, lone]);
+
+    expect(result.kept.find((e) => e.kind === 'classFeature')?.ruleElements).toEqual([
+      { kind: 'inert', upstreamKind: 'GrantItem', reason: 'chosen-grant-without-choice' },
+    ]);
+  });
+});

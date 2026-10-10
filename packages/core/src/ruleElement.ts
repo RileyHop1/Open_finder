@@ -135,6 +135,13 @@ export const choiceSetElementSchema = z.object({
   prompt: z.string().min(1),
   choices: z.array(choiceOptionSchema).min(1),
   rollOptionPrefix: z.string().min(1),
+  /**
+   * When set, each choice's `value` is the slug of an entry in this pack, and
+   * the chosen entry is granted (as a `grantItem` would). This is how a class
+   * feature like "Instinct" or "Racket" reads: pick one of these features and
+   * receive it. Absent for a plain choice that only records a roll option.
+   */
+  grantsFromPackId: z.string().min(1).optional(),
 });
 
 export type ChoiceSetElement = z.infer<typeof choiceSetElementSchema>;

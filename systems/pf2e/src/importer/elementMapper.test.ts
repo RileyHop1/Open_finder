@@ -261,6 +261,60 @@ describe('mapRuleElement -- ChoiceSet', () => {
   });
 });
 
+describe('mapRuleElement -- tag choices', () => {
+  const tagChoice = {
+    key: 'ChoiceSet',
+    prompt: 'PF2E.SpecificRule.Invented.Prompt',
+    flag: 'invented',
+    choices: { filter: ['item:tag:invented-choice'] },
+  };
+
+  it('maps a single-tag filter to an unresolved tag choice, with the flag as the prefix', () => {
+    expect(mapRuleElement(tagChoice)).toEqual({
+      kind: 'unresolvedTagChoice',
+      tag: 'invented-choice',
+      flag: 'invented',
+      prompt: 'PF2E.SpecificRule.Invented.Prompt',
+      rollOptionPrefix: 'invented',
+    });
+  });
+
+  it('prefers an explicit roll option over the flag', () => {
+    const result = mapRuleElement({ ...tagChoice, rollOption: 'invented-pick' });
+    expect(result).toMatchObject({ rollOptionPrefix: 'invented-pick' });
+  });
+
+  it.each([
+    ['extra clauses', { filter: ['item:tag:a', 'item:level:1'] }],
+    ['a different filter', { filter: ['item:trait:a'] }],
+    ['an item type', { filter: ['item:tag:a'], itemType: 'weapon' }],
+  ])('goes inert on %s -- the option list would be wrong', (_name, choices) => {
+    expect(mapRuleElement({ ...tagChoice, choices })).toEqual({
+      kind: 'inert',
+      upstreamKind: 'ChoiceSet',
+      reason: 'unsupported-choice-filter',
+    });
+  });
+
+  it('goes inert without a flag', () => {
+    const { flag: _flag, ...noFlag } = tagChoice;
+    expect(mapRuleElement(noFlag)).toEqual({
+      kind: 'inert',
+      upstreamKind: 'ChoiceSet',
+      reason: 'missing-flag',
+    });
+  });
+
+  it('maps the dynamic grant of the chosen item to an unresolved chosen grant', () => {
+    expect(
+      mapRuleElement({
+        key: 'GrantItem',
+        uuid: '{item|flags.system.rulesSelections.invented}',
+      }),
+    ).toEqual({ kind: 'unresolvedChosenGrant', flag: 'invented' });
+  });
+});
+
 describe('mapRuleElement -- everything else', () => {
   it('goes inert on an unmapped element kind, recording it', () => {
     const result = mapRuleElement({ key: 'ItemAlteration', mode: 'add' });

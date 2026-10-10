@@ -20,11 +20,16 @@ the other.
 | `damageDice` | Extra damage dice on a strike or spell | `selector`, `diceNumber`, `dieFaces` (4/6/8/10/12), `damageType?` |
 | `rollOption` | Adds a tag to the active roll-options set | `option`, `predicate?` |
 | `grantItem` | This item also grants another compendium entry | `packId`, `slug` (our own identity, not an upstream UUID) |
-| `choiceSet` | The player picks one of several options | `prompt`, `choices`, `rollOptionPrefix` |
+| `choiceSet` | The player picks one of several options | `prompt`, `choices`, `rollOptionPrefix`, `grantsFromPackId?` |
 
 A choice's value becomes the roll option `${rollOptionPrefix}:${value}`, so a
 `choiceSet` composes with `flatModifier`/`rollOption` predicates exactly like
 any other roll option.
+
+When `grantsFromPackId` is set, each choice's `value` is the slug of an entry
+in that pack and the chosen entry is granted, as a `grantItem` would. That is
+how a class's defining pick (Barbarian Instinct, Rogue Racket, Ranger Hunter's
+Edge) reads: one feature, whose options are the features carrying a tag.
 
 ## `inert`: the fallback
 
