@@ -13,6 +13,7 @@
  * opened it when it closes, Tab stays inside, Escape closes it and keeps the
  * draft. The draft is saved in this browser as it changes.
  */
+import type { BuildRef } from '@hearthtable/pf2e';
 import {
   computed,
   onBeforeUnmount,
@@ -23,6 +24,7 @@ import {
 } from 'vue';
 
 import CharacterSheet from '../sheet/CharacterSheet.vue';
+import AncestryStep from './AncestryStep.vue';
 import {
   CREATOR_STEPS,
   clearDraft,
@@ -32,6 +34,7 @@ import {
   previousStep,
   saveDraft,
 } from './creatorModel.js';
+import { useCreatorEntries } from './useCreatorEntries.js';
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -41,7 +44,14 @@ let opener: HTMLElement | null = null;
 
 watch(draft, () => saveDraft(draft), { deep: true });
 
-const preview = computed(() => previewOf(draft));
+const entries = useCreatorEntries(() => draft.build);
+const preview = computed(() => previewOf(draft, entries));
+
+/** Picking an ancestry clears the heritage: it belonged to the one before. */
+function pickAncestry(ref: BuildRef | undefined): void {
+  draft.build.ancestry = ref;
+  draft.build.heritage = undefined;
+}
 const index = computed(() => CREATOR_STEPS.findIndex((s) => s.id === draft.step));
 const current = computed(() => CREATOR_STEPS[index.value]);
 
@@ -125,8 +135,17 @@ function trapTab(event: KeyboardEvent): void {
       </nav>
 
       <main class="step" aria-live="polite">
-        <h3>{{ current?.label }}</h3>
-        <p class="placeholder">This step arrives in an upcoming update.</p>
+        <AncestryStep
+          v-if="draft.step === 'ancestry'"
+          :build="draft.build"
+          :ancestry="entries.ancestry"
+          @pick-ancestry="pickAncestry"
+          @pick-heritage="(ref) => (draft.build.heritage = ref)"
+        />
+        <template v-else>
+          <h3>{{ current?.label }}</h3>
+          <p class="placeholder">This step arrives in an upcoming update.</p>
+        </template>
       </main>
 
       <aside class="preview" aria-label="Character preview">

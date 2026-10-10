@@ -1,14 +1,20 @@
 // @vitest-environment jsdom
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import * as compendiumApi from '../../api/compendium.js';
 
 import CharacterCreator from './CharacterCreator.vue';
 import { loadDraft } from './creatorModel.js';
 
+vi.mock('../../api/compendium.js');
+
 beforeEach(() => {
   setActivePinia(createPinia());
   localStorage.clear();
+  vi.resetAllMocks();
+  vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(false);
 });
 
 const mountCreator = () => mount(CharacterCreator, { attachTo: document.body });
@@ -122,6 +128,92 @@ describe('CharacterCreator', () => {
     first?.focus();
     await wrapper.trigger('keydown', { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(last);
+    wrapper.unmount();
+  });
+
+  it('picks an ancestry, shows it on the preview, and clears the heritage when the ancestry changes', async () => {
+    vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(true);
+    vi.mocked(compendiumApi.searchCompendium).mockImplementation((params = {}) =>
+      Promise.resolve(
+        params.kind === 'ancestry'
+          ? [
+              {
+                packId: 'ancestries',
+                slug: 'a',
+                name: 'Alpha',
+                kind: 'ancestry',
+                traits: [],
+              },
+              {
+                packId: 'ancestries',
+                slug: 'b',
+                name: 'Beta',
+                kind: 'ancestry',
+                traits: [],
+              },
+            ]
+          : [
+              {
+                packId: 'heritages',
+                slug: 'h',
+                name: 'Hill',
+                kind: 'heritage',
+                traits: [],
+              },
+            ],
+      ),
+    );
+    const wrapper = mountCreator();
+    await flushPromises();
+    await wrapper.findAll('.card input')[0]?.setValue(true);
+    await flushPromises();
+    expect(loadDraft().build.ancestry).toEqual({ packId: 'ancestries', slug: 'a' });
+
+    await wrapper.get('input[name="heritage"]').setValue(true);
+    expect(loadDraft().build.heritage).toEqual({ packId: 'heritages', slug: 'h' });
+
+    await wrapper.findAll('.card input')[1]?.setValue(true);
+    await flushPromises();
+    expect(loadDraft().build.ancestry?.slug).toBe('b');
+    expect(loadDraft().build.heritage).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('derives the preview from the picked ancestry (Hit Points and speed), also when a saved draft is reopened', async () => {
+    vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(false);
+    vi.mocked(compendiumApi.getPf2eEntry).mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111',
+      schemaVersion: 1,
+      createdAt: '2026-10-01T00:00:00.000Z',
+      updatedAt: '2026-10-01T00:00:00.000Z',
+      packId: 'ancestries',
+      slug: 'a',
+      name: 'Alpha',
+      kind: 'ancestry',
+      provenance: {
+        publication: 'Pathfinder Player Core',
+        license: 'ORC',
+        remaster: true,
+      },
+      traits: [],
+      ruleElements: [],
+      description: '',
+      hp: 8,
+      size: 'medium',
+      speed: 35,
+      boosts: [],
+      freeBoosts: 0,
+      flaws: [],
+      languages: [],
+    });
+    localStorage.setItem(
+      'hearthtable.creatorDraft',
+      JSON.stringify({ build: { ancestry: { packId: 'ancestries', slug: 'a' } } }),
+    );
+    const wrapper = mountCreator();
+    await flushPromises();
+    expect(compendiumApi.getPf2eEntry).toHaveBeenCalledWith('ancestries', 'a');
+    expect(wrapper.get('.preview .hit-points').text()).toContain('8 / 8');
     wrapper.unmount();
   });
 });
