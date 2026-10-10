@@ -115,6 +115,13 @@ forgets it. Nothing is sent to the server until the final step creates the
 character. The steps arrive one PR at a time; until a step's PR lands it shows
 a placeholder.
 
+The **ancestry** step lists the ancestries, shows what the chosen one gives
+(Hit Points, size, speed, boosts, flaws, languages, trait tooltips), then lists
+its heritages with the versatile ones after. Picking an ancestry clears the
+heritage. The ancestry's boosts are listed there but applied in the Attributes
+step. `useCreatorEntries` keeps the chosen entries loaded (also for a reopened
+draft) so the preview can derive from them.
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived
