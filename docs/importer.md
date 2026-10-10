@@ -435,10 +435,15 @@ full set of entries that survived the license and scope filters -- the
 "full imported entry set" no single-entry mapper has.
 
 **Every `UnresolvedGrantItem` gets resolved or the entry is dropped.** A
-grant's upstream `uuid` names another upstream document by its trailing
-`_id` segment; `deterministicId` on that same segment is exactly the id the
-target entry was given when *it* was mapped, so resolving a grant is a
-single map lookup, no separate id-translation table needed. If the target
+grant's upstream `uuid` (`Compendium.pf2e.feats-srd.Item.Martial Performance`)
+names its target by **name**, not `_id` -- verified against the pinned upstream,
+where all 1407 grant uuids are of that form. `upstreamUuid.ts` resolves it: the
+pack segment maps to one of our `packId`s (`feats-srd` to `feats`,
+`actionspf2e` to `actions`, ...) and the name picks the entry, because a name is
+only unique within its compendium. A pack we do not import, or a name that still
+matches two entries, resolves to nothing. The old id form is tried first and
+still works. (Resolving by id alone never matched, and dropped 177 entries,
+including Alchemy, the mysteries and the muses, until this was fixed.) If the target
 isn't in the kept set -- excluded by an earlier filter, or dropped in an
 earlier round of this same pass -- the granting entry is dropped whole
 (`grant-target-excluded`), never silently stripped of the reference: ADR

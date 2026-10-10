@@ -528,3 +528,43 @@ describe('resolveDependencies -- tag choices', () => {
     ]);
   });
 });
+
+describe('resolveDependencies -- grants by name', () => {
+  it('resolves a grant that names its target, as real upstream data does', () => {
+    const target = makeFeat('aaaaaaaaaaaaaaaa', {
+      name: 'Invented Target',
+      slug: 'invented-target',
+    });
+    const granter = makeFeat('bbbbbbbbbbbbbbbb', {
+      ruleElements: [
+        {
+          kind: 'unresolvedGrantItem',
+          uuid: 'Compendium.pf2e.feats-srd.Item.Invented Target',
+        },
+      ],
+    });
+
+    const result = resolveDependencies([target, granter]);
+
+    expect(result.drops).toEqual([]);
+    const kept = result.kept.find((e) => e.id === granter.id);
+    expect(kept?.ruleElements).toEqual([
+      { kind: 'grantItem', packId: 'feats', slug: 'invented-target' },
+    ]);
+  });
+
+  it('drops the granter when the named target is not imported', () => {
+    const granter = makeFeat('bbbbbbbbbbbbbbbb', {
+      ruleElements: [
+        {
+          kind: 'unresolvedGrantItem',
+          uuid: 'Compendium.pf2e.feats-srd.Item.Not Imported',
+        },
+      ],
+    });
+
+    const result = resolveDependencies([granter]);
+
+    expect(result.drops).toMatchObject([{ reason: 'grant-target-excluded' }]);
+  });
+});
