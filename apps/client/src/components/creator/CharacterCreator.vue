@@ -25,6 +25,7 @@ import {
 
 import CharacterSheet from '../sheet/CharacterSheet.vue';
 import AncestryStep from './AncestryStep.vue';
+import BackgroundStep from './BackgroundStep.vue';
 import {
   CREATOR_STEPS,
   clearDraft,
@@ -141,6 +142,12 @@ function trapTab(event: KeyboardEvent): void {
           :ancestry="entries.ancestry"
           @pick-ancestry="pickAncestry"
           @pick-heritage="(ref) => (draft.build.heritage = ref)"
+        />
+        <BackgroundStep
+          v-else-if="draft.step === 'background'"
+          :build="draft.build"
+          :background="entries.background"
+          @pick-background="(ref) => (draft.build.background = ref)"
         />
         <template v-else>
           <h3>{{ current?.label }}</h3>

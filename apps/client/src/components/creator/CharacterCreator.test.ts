@@ -216,4 +216,27 @@ describe('CharacterCreator', () => {
     expect(wrapper.get('.preview .hit-points').text()).toContain('8 / 8');
     wrapper.unmount();
   });
+
+  it('picks a background on its own step and saves it in the draft', async () => {
+    vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(true);
+    vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
+      {
+        packId: 'backgrounds',
+        slug: 'acolyte',
+        name: 'Acolyte',
+        kind: 'background',
+        traits: [],
+      },
+    ]);
+    const wrapper = mountCreator();
+    await wrapper.findAll('.rail button')[1]?.trigger('click');
+    await flushPromises();
+    expect(wrapper.get('.step h3').text()).toBe('Background');
+    await wrapper.get('input[name="background"]').setValue(true);
+    expect(loadDraft().build.background).toEqual({
+      packId: 'backgrounds',
+      slug: 'acolyte',
+    });
+    wrapper.unmount();
+  });
 });

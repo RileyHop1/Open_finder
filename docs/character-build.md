@@ -122,6 +122,11 @@ heritage. The ancestry's boosts are listed there but applied in the Attributes
 step. `useCreatorEntries` keeps the chosen entries loaded (also for a reopened
 draft) so the preview can derive from them.
 
+The **background** step lists the backgrounds (with a name search), and the
+chosen one shows the boost it offers a choice of, the skills it trains and the
+skill feat it grants (its `grantItem` elements). Its trained skills show on
+the preview at once; its boost is applied in the Attributes step.
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived
