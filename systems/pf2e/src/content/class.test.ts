@@ -187,11 +187,19 @@ describe('classFeatureEntrySchema', () => {
         license: 'ORC',
         remaster: true,
       },
-      classSlug: 'fighter',
+      classSlugs: ['fighter'],
       level: 1,
       ...overrides,
     };
   }
+
+  it('defaults to no choice tags, and keeps them when given', () => {
+    expect(classFeatureEntrySchema.parse(makeClassFeature()).tags).toEqual([]);
+    expect(
+      classFeatureEntrySchema.parse(makeClassFeature({ tags: ['barbarian-instinct'] }))
+        .tags,
+    ).toEqual(['barbarian-instinct']);
+  });
 
   it('accepts a well-formed class feature', () => {
     expect(classFeatureEntrySchema.safeParse(makeClassFeature()).success).toBe(true);

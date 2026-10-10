@@ -36,7 +36,7 @@ describe('featGroups', () => {
       feat('Beta', 'class', 2),
       feat('Alpha', 'class', 2),
       feat('Early', 'class', 1),
-      item({ kind: 'classFeature', name: 'Rage', level: 1, classSlug: 'barbarian' }),
+      item({ kind: 'classFeature', name: 'Rage', level: 1, classSlugs: ['barbarian'] }),
       feat('Tongue', 'ancestry', 1),
     ]);
     expect(groups.map((g) => g.heading)).toEqual([

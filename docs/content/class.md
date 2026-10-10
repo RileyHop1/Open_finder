@@ -51,7 +51,7 @@ is milestone 8's wizard, not this schema.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `classSlug` | string | Which class grants this, by slug in the `classes` pack |
+| `classSlugs` | string[] | Which classes grant this, by slug in the `classes` pack (a feature several classes share lists each) |
 | `level` | integer 1-20 | |
 
 The relationship is stored on the feature, not as a list on the class entry

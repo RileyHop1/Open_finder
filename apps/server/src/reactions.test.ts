@@ -62,7 +62,7 @@ const reactiveStrike = () => ({
     traits: [],
     ruleElements: [],
     description: '',
-    classSlug: 'fighter',
+    classSlugs: ['fighter'],
     level: 1,
   },
   equipped: false,

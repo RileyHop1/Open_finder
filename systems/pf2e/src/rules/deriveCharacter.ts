@@ -212,8 +212,9 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     }
   }
 
+  // A tagged feature is one alternative of a choice, granted only by making it.
   for (const feature of [...(inputs.classFeatures ?? [])]
-    .filter((f) => f.level <= level)
+    .filter((f) => f.level <= level && f.tags.length === 0)
     .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))) {
     add(feature, 0);
   }

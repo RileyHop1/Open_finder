@@ -35,8 +35,8 @@ export interface EntrySummary {
   readonly level?: number;
   /** Feats only: ancestry, class, general, skill or archetype. */
   readonly category?: string;
-  /** Class features only: the class that grants them. */
-  readonly classSlug?: string;
+  /** Class features only: the classes that grant them. */
+  readonly classSlugs?: readonly string[];
   /** Heritages only: the ancestry they belong to (absent means a versatile heritage). */
   readonly ancestrySlug?: string;
 }
@@ -117,7 +117,7 @@ function summarize(entry: Pf2eEntry): EntrySummary {
       ? { level: entry.level }
       : {}),
     ...(entry.kind === 'feat' ? { category: entry.category } : {}),
-    ...(entry.kind === 'classFeature' ? { classSlug: entry.classSlug } : {}),
+    ...(entry.kind === 'classFeature' ? { classSlugs: entry.classSlugs } : {}),
     ...(entry.kind === 'heritage' && entry.ancestrySlug !== undefined
       ? { ancestrySlug: entry.ancestrySlug }
       : {}),
@@ -129,7 +129,10 @@ function matchesFilters(summary: EntrySummary, options: SearchOptions): boolean 
   if (options.kind !== undefined && summary.kind !== options.kind) return false;
   if (options.category !== undefined && summary.category !== options.category)
     return false;
-  if (options.classSlug !== undefined && summary.classSlug !== options.classSlug)
+  if (
+    options.classSlug !== undefined &&
+    summary.classSlugs?.includes(options.classSlug) !== true
+  )
     return false;
   if (
     options.ancestrySlug !== undefined &&

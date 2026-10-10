@@ -345,12 +345,27 @@ It also reads the class's five advancement lists (`ancestryFeatLevels`,
 `skillIncreaseLevels`), which are real data, into `advancement`. A missing or
 malformed list fails the class closed with `missing-advancement-levels`.
 
-`mapClassFeature.ts` treats its class reference the same defensive way
-`mapHeritage.ts` treats an ancestry reference (bare slug, object `slug`, or
-a slugified `name`) -- but unlike a heritage's ancestry link, `classSlug` is
-**required** by the schema, so a missing or unparseable reference fails the
-entry closed rather than falling back to any default: there is no such
-thing as a class feature with no class.
+`mapClassFeature.ts` was also corrected against the real pinned data. A
+class feature has **no upstream type of its own**: it is a `feat` item whose
+`system.category` is `classfeature`, in the `class-features` pack, and the
+class (or classes) it belongs to is carried as **traits** in
+`system.traits.value`. The guessed mapper keyed on a `class-feature` type that
+does not exist, so it never ran and the `classFeatures` pack was never
+written; every real class feature fell into the feat mapper and was dropped
+as an unrecognized category. `runImporter.ts` now routes those entries to
+`mapClassFeature` (`mapperFor`).
+
+Because the mapper sees one entry it cannot tell which traits are classes, so
+it keeps every trait as a candidate in `classSlugs`, and dependency resolution
+trims the list to the classes that were kept and drops a feature none of whose
+classes were (`class-excluded`). Several classes can share a feature (Weapon
+Mastery has six), which is why this is a list. It also keeps the feature's
+**choice tags** (`system.traits.otherTags`: `barbarian-instinct`,
+`rogue-racket`, ...). A tagged feature is one alternative of some other
+feature's choice, so it is never granted just because the class reaches its
+level (`deriveCharacter` skips it). A feature with no traits fails
+closed (`missing-class-trait`), and `import-smoke` asserts the pack is not
+empty.
 
 ### The creature mapper (C.7g)
 
@@ -418,7 +433,7 @@ earlier round of this same pass -- the granting entry is dropped whole
 **Two more structural references get the same treatment**, since both are
 real cross-entry dependencies this importer produces, not upstream ones: a
 `heritage`'s `ancestrySlug` (`ancestry-excluded` if the named ancestry
-isn't kept) and a `classFeature`'s `classSlug` (`class-excluded`
+isn't kept) and a `classFeature`'s `classSlugs` (`class-excluded`
 likewise). A heritage with no `ancestrySlug` at all is confidently
 versatile, not a dependency, and is never dropped for this reason.
 

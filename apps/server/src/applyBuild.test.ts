@@ -99,13 +99,13 @@ const entries: Pf2eEntry[] = [
   pf2eEntrySchema.parse({
     ...base('class-features', 'rally'),
     kind: 'classFeature',
-    classSlug: 'invented-vanguard',
+    classSlugs: ['invented-vanguard'],
     level: 1,
   }),
   pf2eEntrySchema.parse({
     ...base('class-features', 'late-feature'),
     kind: 'classFeature',
-    classSlug: 'invented-vanguard',
+    classSlugs: ['invented-vanguard'],
     level: 9,
   }),
   pf2eEntrySchema.parse({ ...base('equipment', 'rope'), kind: 'gear' }),
@@ -126,7 +126,7 @@ const compendium: CompendiumIndex = {
         (e) =>
           (options.kind === undefined || e.kind === options.kind) &&
           (options.classSlug === undefined ||
-            (e.kind === 'classFeature' && e.classSlug === options.classSlug)),
+            (e.kind === 'classFeature' && e.classSlugs.includes(options.classSlug))),
       )
       .map((e) => ({
         packId: e.packId,

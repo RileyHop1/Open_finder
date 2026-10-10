@@ -136,7 +136,7 @@ const minimalEntryByKind: Record<
     slug: 'reactive-strike',
     name: 'Reactive Strike',
     kind: 'classFeature',
-    classSlug: 'fighter',
+    classSlugs: ['fighter'],
     level: 1,
   },
   creature: {

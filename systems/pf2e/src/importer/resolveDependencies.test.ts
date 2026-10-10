@@ -147,8 +147,9 @@ function makeClassFeature(
     traits: [],
     ruleElements: [],
     description: '',
-    classSlug: `invented-class-${upstreamId}`,
+    classSlugs: [`invented-class-${upstreamId}`],
     level: 1,
+    tags: [],
     ...overrides,
   };
 }
@@ -343,15 +344,29 @@ describe('resolveDependencies -- heritage/ancestry and class-feature/class refer
 
   it('keeps a class feature whose class survived the filters', () => {
     const cls = makeClass('cccccccccccccccd');
-    const feature = makeClassFeature('dddddddddddddddd', { classSlug: cls.slug });
+    const feature = makeClassFeature('dddddddddddddddd', { classSlugs: [cls.slug] });
 
     const result = resolveDependencies([cls, feature]);
     expect(result.drops).toEqual([]);
     expect(result.kept).toHaveLength(2);
   });
 
+  it('trims a shared class feature to the classes that were kept, and keeps it if any survived', () => {
+    const cls = makeClass('cccccccccccccccd');
+    const feature = makeClassFeature('dddddddddddddddd', {
+      classSlugs: ['excluded-class', cls.slug, 'rare'],
+    });
+
+    const result = resolveDependencies([cls, feature]);
+    expect(result.drops).toEqual([]);
+    const kept = result.kept.find((e) => e.kind === 'classFeature');
+    expect(kept?.kind === 'classFeature' && kept.classSlugs).toEqual([cls.slug]);
+  });
+
   it('drops a class feature whose class was excluded', () => {
-    const feature = makeClassFeature('eeeeeeeeeeeeeeef', { classSlug: 'excluded-class' });
+    const feature = makeClassFeature('eeeeeeeeeeeeeeef', {
+      classSlugs: ['excluded-class'],
+    });
 
     const result = resolveDependencies([feature]);
     expect(result.kept).toEqual([]);
@@ -415,7 +430,9 @@ describe("resolveDependencies -- a consumable's spell reference", () => {
         spell: { packId: 'spells', slug: 'invented-spell-ffffffffffffffff', rank: 3 },
       },
     });
-    const feature = makeClassFeature('aaaaaaaaaaaaaaaa', { classSlug: 'excluded-class' });
+    const feature = makeClassFeature('aaaaaaaaaaaaaaaa', {
+      classSlugs: ['excluded-class'],
+    });
     const spell = makeSpell('ffffffffffffffff', {
       ruleElements: [
         { kind: 'unresolvedGrantItem', uuid: grantUuidFor('aaaaaaaaaaaaaaaa') },

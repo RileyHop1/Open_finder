@@ -10,7 +10,7 @@
  * would change what the entry does, which is a rules bug, not a missing
  * one. The same rule applies to the other two structural cross-entry
  * references this importer produces: a `heritage`'s `ancestrySlug` and a
- * `classFeature`'s `classSlug`.
+ * `classFeature`'s `classSlugs` (at least one must be kept).
  *
  * **Dropping cascades, so this runs to a fixed point.** Dropping an entry
  * can orphan another entry that granted *it* -- an A-grants-B-grants-C
@@ -97,7 +97,8 @@ function findBrokenDependency(
 
   if (entry.kind === 'classFeature') {
     const hasClass = [...kept.values()].some(
-      (candidate) => candidate.kind === 'class' && candidate.slug === entry.classSlug,
+      (candidate) =>
+        candidate.kind === 'class' && entry.classSlugs.includes(candidate.slug),
     );
     if (!hasClass) {
       return 'class-excluded';
@@ -139,12 +140,23 @@ function resolveEntry(
   kept: ReadonlyMap<string, DraftPf2eEntry>,
 ): Pf2eEntry {
   const ruleElements = entry.ruleElements.map((element) => resolveElement(element, kept));
+  if (entry.kind === 'classFeature') {
+    // Only the classes that were kept: the rest of the feature's traits are not classes.
+    const keptClasses = new Set(
+      [...kept.values()].filter((c) => c.kind === 'class').map((c) => c.slug),
+    );
+    return {
+      ...entry,
+      ruleElements,
+      classSlugs: entry.classSlugs.filter((slug) => keptClasses.has(slug)),
+    };
+  }
   return { ...entry, ruleElements };
 }
 
 /**
  * A scroll or wand's `consumable.spell` is a weaker reference than
- * `GrantItem`: unlike that or `heritage.ancestrySlug`/`classFeature.classSlug`,
+ * `GrantItem`: unlike that or `heritage.ancestrySlug`/`classFeature.classSlugs`,
  * losing it doesn't change what the item mechanically does to anything
  * this project automates, only what its tooltip can link to. So ADR 0021
  * has it fail softer than the others -- the reference is dropped, not the
