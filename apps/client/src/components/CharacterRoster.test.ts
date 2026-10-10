@@ -109,4 +109,10 @@ describe('CharacterRoster', () => {
       'Valeria',
     );
   });
+
+  it('offers guided creation, which only asks the parent to open the creator', async () => {
+    const wrapper = mountRoster();
+    await wrapper.get('button.guided').trigger('click');
+    expect(wrapper.emitted('guided')).toHaveLength(1);
+  });
 });

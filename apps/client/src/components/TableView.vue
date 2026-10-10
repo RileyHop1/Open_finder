@@ -80,6 +80,7 @@ import { useScenesStore } from '../stores/scenes.js';
 import { useWorldsStore } from '../stores/worlds.js';
 import ActionBar from './ActionBar.vue';
 import CharacterRoster from './CharacterRoster.vue';
+import CharacterCreator from './creator/CharacterCreator.vue';
 import {
   actionBarView,
   activeModifiers,
@@ -856,6 +857,8 @@ const mapView = useTemplateRef<InstanceType<typeof MapView>>('mapView');
 
 /** True while a character is being dragged out of the roster, so the drawer can get out of the way of the drop. */
 const placing = ref(false);
+/** Whether the full-screen character creator is open. */
+const creatorOpen = ref(false);
 
 /** The GM's "Place on map": the token goes in the middle of the part of the map the open drawers leave visible. */
 async function placeOnMap(actorId: string): Promise<void> {
@@ -1276,6 +1279,7 @@ async function createCharacter(name: string): Promise<boolean> {
                 @drag-start="startPlacing"
                 @drag-end="placing = false"
                 @add-monster="addMonster"
+                @guided="creatorOpen = true"
               />
 
               <section v-if="selected" class="sheet" aria-label="Character sheet">
@@ -1443,6 +1447,7 @@ async function createCharacter(name: string): Promise<boolean> {
         </div>
       </div>
     </div>
+    <CharacterCreator v-if="creatorOpen" @close="creatorOpen = false" />
   </div>
 </template>
 

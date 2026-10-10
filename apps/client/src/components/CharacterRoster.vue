@@ -32,6 +32,8 @@ const emit = defineEmits<{
   dragStart: [event: DragEvent, actorId: string];
   dragEnd: [];
   addMonster: [packId: string, slug: string];
+  /** Open the guided character creator. */
+  guided: [];
 }>();
 
 const newName = ref('');
@@ -103,10 +105,16 @@ async function submit(): Promise<void> {
       />
       <button type="submit">Create character</button>
     </form>
+    <button type="button" class="guided" @click="emit('guided')">Guided creation…</button>
   </div>
 </template>
 
 <style scoped>
+.guided {
+  min-height: var(--touch-target-min);
+  margin-top: var(--space-2);
+}
+
 .roster {
   display: flex;
   flex-wrap: wrap;

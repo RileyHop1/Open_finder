@@ -1585,6 +1585,16 @@ describe('party bar', () => {
 });
 
 describe('character roster', () => {
+  it('opens the guided character creator full-screen, and closes it with Escape', async () => {
+    const wrapper = await mountTable();
+    expect(wrapper.find('.creator').exists()).toBe(false);
+    await wrapper.get('button.guided').trigger('click');
+    expect(wrapper.find('.creator').exists()).toBe(true);
+    expect(wrapper.get('.creator').attributes('role')).toBe('dialog');
+    await wrapper.get('.creator').trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('.creator').exists()).toBe(false);
+  });
+
   it('shows an empty message, then the characters, and opens one on click', async () => {
     const empty = await mountTable();
     expect(empty.find('.roster').exists()).toBe(false);

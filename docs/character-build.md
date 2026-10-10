@@ -100,6 +100,21 @@ supplies the starting rank; the table supplies `master`, `expert` and
 `legendary` levels. Every class is trained in its class DC at level 1
 **(confirm)**.
 
+## The creator
+`CharacterCreator.vue` (`apps/client/src/components/creator/`) is the
+full-screen wizard, opened from the Characters panel's "Guided creation…"
+button. A step rail (Ancestry, Background, Class, Class choices, Attributes,
+Skills, Feats, Equipment, Review) runs down the left, the current step is in
+the middle, and the real character sheet shows the character so far on the
+right, derived live with `deriveCharacter`. It is a modal dialog: focus moves
+in, Tab stays inside, Escape closes it.
+
+The draft (name, step, build) is saved in this browser only
+(`creatorModel.ts`), so closing or reloading does not lose it; "Start over"
+forgets it. Nothing is sent to the server until the final step creates the
+character. The steps arrive one PR at a time; until a step's PR lands it shows
+a placeholder.
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived
