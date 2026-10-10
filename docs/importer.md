@@ -168,6 +168,20 @@ the full imported entry set -- something a single-element mapper doesn't
 have. This stage produces an `UnresolvedGrantItem` carrying the raw `uuid`;
 the dependency-resolution pass (a later PR) finishes the job.
 
+**"Pick one of these features" choices.** A class's defining pick is a
+`ChoiceSet` whose choices are `{ filter: ["item:tag:<tag>"] }` (every feature
+carrying that tag, and the tags are in `classFeature.tags`), followed by a
+`GrantItem` of `{item|flags.system.rulesSelections.<flag>}` (whichever was
+picked). The mapper emits an `UnresolvedTagChoice` and an
+`UnresolvedChosenGrant` for the pair; dependency resolution turns them into one
+`choiceSet` whose options are the kept features with that tag and whose
+`grantsFromPackId` is `classFeatures`. Only the single-tag filter maps: a
+filter that adds level, type or conditional clauses (Champion's Cause, which
+depends on sanctification) changes which options are legal, so it goes `inert`
+as `unsupported-choice-filter` rather than showing the wrong list. A tag with
+no kept feature goes `inert` as `no-features-for-tag`. The upstream prompt is a
+translation key, so the resolved prompt is `Choose <feature name>`.
+
 **A known v1 gap, surfaced rather than worked around:**
 `grantItemElementSchema` and `choiceSetElementSchema` have no `predicate`
 field in `@hearthtable/core` -- neither was expected to need conditional

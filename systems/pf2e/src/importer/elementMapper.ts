@@ -44,6 +44,29 @@ export interface UnresolvedGrantItem {
 }
 
 /**
+ * A `ChoiceSet` whose options are "every feature carrying this tag". Which
+ * features carry it is a cross-entry fact, so dependency resolution turns it
+ * into a real `ChoiceSetElement` (see `resolveDependencies.ts`).
+ */
+export interface UnresolvedTagChoice {
+  readonly kind: 'unresolvedTagChoice';
+  readonly tag: string;
+  readonly flag: string;
+  readonly prompt: string;
+  readonly rollOptionPrefix: string;
+}
+
+/**
+ * A `GrantItem` of "whichever was picked" -- upstream's
+ * `{item|flags.system.rulesSelections.<flag>}`. Paired with the
+ * `UnresolvedTagChoice` of the same `flag` during dependency resolution.
+ */
+export interface UnresolvedChosenGrant {
+  readonly kind: 'unresolvedChosenGrant';
+  readonly flag: string;
+}
+
+/**
  * Everything one call to `mapRuleElement` can produce. `grantItem` (the
  * core, resolved shape) never appears here -- see the module doc.
  * `choiceSet` needs no equivalent "unresolved" variant: once a predicated
@@ -57,6 +80,8 @@ export type MappedElement =
   | RollOptionElement
   | ChoiceSetElement
   | UnresolvedGrantItem
+  | UnresolvedTagChoice
+  | UnresolvedChosenGrant
   | InertRuleElement;
 
 function inert(upstreamKind: string, reason: string): InertRuleElement {
@@ -157,10 +182,20 @@ function mapRollOption(record: Record<string, unknown>): MappedElement {
   };
 }
 
+const CHOSEN_GRANT = /^\{item\|flags\.system\.rulesSelections\.([A-Za-z0-9_]+)\}$/;
+const TAG_FILTER = /^item:tag:([a-z0-9-]+)$/;
+
 function mapGrantItem(record: Record<string, unknown>): MappedElement {
   const { uuid } = record;
   if (typeof uuid !== 'string' || uuid.length === 0) {
     return inert('GrantItem', 'unsupported-shape');
+  }
+  const chosen = CHOSEN_GRANT.exec(uuid);
+  if (chosen !== null) {
+    if (record.predicate !== undefined) {
+      return inert('GrantItem', 'predicate-unsupported-on-grant-item');
+    }
+    return { kind: 'unresolvedChosenGrant', flag: chosen[1] as string };
   }
   // grantItemElementSchema has no predicate field -- see the module doc.
   if (record.predicate !== undefined) {
@@ -170,8 +205,51 @@ function mapGrantItem(record: Record<string, unknown>): MappedElement {
   return { kind: 'unresolvedGrantItem', uuid };
 }
 
+/**
+ * `choices: { filter: ["item:tag:<tag>"] }` -- the "pick one of these
+ * features" shape. Only the single-tag filter is supported: filters that add
+ * level, type or conditional clauses change which options are legal, and
+ * guessing at them would show the wrong list.
+ */
+function mapTagChoiceSet(record: Record<string, unknown>): MappedElement {
+  const { prompt, flag, rollOption, choices } = record;
+  if (typeof prompt !== 'string' || prompt.length === 0) {
+    return inert('ChoiceSet', 'unsupported-shape');
+  }
+  if (typeof flag !== 'string' || flag.length === 0) {
+    return inert('ChoiceSet', 'missing-flag');
+  }
+  if (record.predicate !== undefined) {
+    return inert('ChoiceSet', 'predicate-unsupported-on-choice-set');
+  }
+  const { filter, itemType } = choices as Record<string, unknown>;
+  const match =
+    Array.isArray(filter) && filter.length === 1 && typeof filter[0] === 'string'
+      ? TAG_FILTER.exec(filter[0])
+      : null;
+  if (match === null || itemType !== undefined) {
+    return inert('ChoiceSet', 'unsupported-choice-filter');
+  }
+  return {
+    kind: 'unresolvedTagChoice',
+    tag: match[1] as string,
+    flag,
+    prompt,
+    rollOptionPrefix:
+      typeof rollOption === 'string' && rollOption.length > 0 ? rollOption : flag,
+  };
+}
+
 function mapChoiceSet(record: Record<string, unknown>): MappedElement {
   const { prompt, choices, rollOption } = record;
+  if (
+    typeof choices === 'object' &&
+    choices !== null &&
+    !Array.isArray(choices) &&
+    'filter' in choices
+  ) {
+    return mapTagChoiceSet(record);
+  }
   if (typeof prompt !== 'string' || prompt.length === 0) {
     return inert('ChoiceSet', 'unsupported-shape');
   }

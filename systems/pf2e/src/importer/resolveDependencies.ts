@@ -28,12 +28,12 @@
  * real reason. Revisit if a real-data survey shows it matters.
  */
 
-import type { GrantItemElement, RuleElement } from '@hearthtable/core';
+import type { ChoiceSetElement, GrantItemElement, RuleElement } from '@hearthtable/core';
 
 import type { Pf2eEntry } from '../content/entry.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftPf2eEntry } from './draftEntry.js';
-import type { MappedElement } from './elementMapper.js';
+import type { MappedElement, UnresolvedTagChoice } from './elementMapper.js';
 
 export interface DependencyDrop {
   readonly id: string;
@@ -116,7 +116,22 @@ function findBrokenDependency(
 function resolveElement(
   element: MappedElement,
   kept: ReadonlyMap<string, DraftPf2eEntry>,
-): RuleElement {
+  owner: DraftPf2eEntry,
+): RuleElement | undefined {
+  if (element.kind === 'unresolvedTagChoice') {
+    return resolveTagChoice(element, kept, owner);
+  }
+  if (element.kind === 'unresolvedChosenGrant') {
+    // The grant half of a tag choice is folded into the choice (`grantsFromPackId`).
+    // One with no choice to fold into has nothing to grant.
+    return hasTagChoice(owner, element.flag)
+      ? undefined
+      : {
+          kind: 'inert',
+          upstreamKind: 'GrantItem',
+          reason: 'chosen-grant-without-choice',
+        };
+  }
   if (element.kind !== 'unresolvedGrantItem') {
     return element;
   }
@@ -125,6 +140,43 @@ function resolveElement(
     kind: 'grantItem',
     packId: target.packId,
     slug: target.slug,
+  };
+  return resolved;
+}
+
+function hasTagChoice(owner: DraftPf2eEntry, flag: string): boolean {
+  return owner.ruleElements.some(
+    (e) => e.kind === 'unresolvedTagChoice' && e.flag === flag,
+  );
+}
+
+/**
+ * "Pick one of the features carrying this tag": the options are the kept
+ * class features with that tag, and the pick is granted. With no such feature
+ * kept there is nothing to pick, so the choice goes inert (visible in the
+ * coverage report) instead of offering an empty list.
+ */
+function resolveTagChoice(
+  element: UnresolvedTagChoice,
+  kept: ReadonlyMap<string, DraftPf2eEntry>,
+  owner: DraftPf2eEntry,
+): RuleElement {
+  const choices = [...kept.values()]
+    .filter((c) => c.kind === 'classFeature' && c.tags.includes(element.tag))
+    .map((c) => ({ label: c.name, value: c.slug }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  if (choices.length === 0) {
+    return { kind: 'inert', upstreamKind: 'ChoiceSet', reason: 'no-features-for-tag' };
+  }
+  const grants = owner.ruleElements.some(
+    (e) => e.kind === 'unresolvedChosenGrant' && e.flag === element.flag,
+  );
+  const resolved: ChoiceSetElement = {
+    kind: 'choiceSet',
+    prompt: `Choose ${owner.name}`,
+    choices,
+    rollOptionPrefix: element.rollOptionPrefix,
+    ...(grants ? { grantsFromPackId: 'classFeatures' } : {}),
   };
   return resolved;
 }
@@ -139,7 +191,10 @@ function resolveEntry(
   entry: DraftPf2eEntry,
   kept: ReadonlyMap<string, DraftPf2eEntry>,
 ): Pf2eEntry {
-  const ruleElements = entry.ruleElements.map((element) => resolveElement(element, kept));
+  const ruleElements = entry.ruleElements.flatMap((element) => {
+    const resolved = resolveElement(element, kept, entry);
+    return resolved === undefined ? [] : [resolved];
+  });
   if (entry.kind === 'classFeature') {
     // Only the classes that were kept: the rest of the feature's traits are not classes.
     const keptClasses = new Set(
