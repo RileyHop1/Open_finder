@@ -239,4 +239,30 @@ describe('CharacterCreator', () => {
     });
     wrapper.unmount();
   });
+
+  it('picks a class, offers its key attribute choice, and forgets the choice when the class changes', async () => {
+    vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(true);
+    vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
+      { packId: 'classes', slug: 'fighter', name: 'Fighter', kind: 'class', traits: [] },
+      { packId: 'classes', slug: 'rogue', name: 'Rogue', kind: 'class', traits: [] },
+    ]);
+    const wrapper = mountCreator();
+    await wrapper.findAll('.rail button')[2]?.trigger('click');
+    await flushPromises();
+    expect(wrapper.get('.step h3').text()).toBe('Class');
+    await wrapper.findAll('input[name="class"]')[0]?.setValue(true);
+    expect(loadDraft().build.class?.slug).toBe('fighter');
+
+    // Simulate a chosen key attribute, then change the class.
+    const stored = loadDraft();
+    stored.keyAttribute = 'dex';
+    localStorage.setItem('hearthtable.creatorDraft', JSON.stringify(stored));
+    wrapper.unmount();
+    const again = mountCreator();
+    await flushPromises();
+    await again.findAll('input[name="class"]')[1]?.setValue(true);
+    expect(loadDraft().build.class?.slug).toBe('rogue');
+    expect(loadDraft().keyAttribute).toBeUndefined();
+    again.unmount();
+  });
 });
