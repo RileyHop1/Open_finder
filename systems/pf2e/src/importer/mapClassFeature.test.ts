@@ -28,14 +28,15 @@ function makeEntry(
 
 function baseSystem(overrides: Record<string, unknown> = {}) {
   return {
-    class: 'invented-vanguard',
+    // Upstream carries the class (or classes) as traits.
+    traits: { value: ['invented-vanguard'] },
     level: { value: 1 },
     ...overrides,
   };
 }
 
 describe('mapClassFeature -- success', () => {
-  it('maps a well-formed class feature with a bare-slug class reference', () => {
+  it('maps a well-formed class feature, taking its classes from its traits', () => {
     const result = mapClassFeature(
       makeEntry({ ...baseSystem(), slug: 'invented-bulwark-stance' }),
       PROVENANCE,
@@ -53,40 +54,42 @@ describe('mapClassFeature -- success', () => {
         name: 'Invented Bulwark Stance',
         kind: 'classFeature',
         provenance: PROVENANCE,
-        traits: [],
+        traits: ['invented-vanguard'],
         ruleElements: [],
         description: '',
         text: [],
-        classSlug: 'invented-vanguard',
+        classSlugs: ['invented-vanguard'],
         level: 1,
+        tags: [],
       },
     });
   });
 
-  it('accepts an embedded-object class reference by slug', () => {
+  it('keeps the choice tags apart from the traits', () => {
     const result = mapClassFeature(
       makeEntry(
-        baseSystem({ class: { slug: 'invented-vanguard', name: 'Invented Vanguard' } }),
+        baseSystem({
+          traits: { value: ['invented-vanguard'], otherTags: ['invented-stance'] },
+        }),
       ),
       PROVENANCE,
       IMPORTED_AT,
     );
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.entry.classSlug).toBe('invented-vanguard');
-    }
+    expect(result.ok && result.entry.tags).toEqual(['invented-stance']);
   });
 
-  it('falls back to slugifying an embedded-object class reference with only a name', () => {
+  it('keeps every trait as a candidate class: a feature several classes share lists them all', () => {
     const result = mapClassFeature(
-      makeEntry(baseSystem({ class: { name: 'Invented Vanguard' } })),
+      makeEntry(
+        baseSystem({ traits: { value: ['invented-vanguard', 'invented-scout'] } }),
+      ),
       PROVENANCE,
       IMPORTED_AT,
     );
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.entry.classSlug).toBe('invented-vanguard');
-    }
+    expect(result.ok && result.entry.classSlugs).toEqual([
+      'invented-vanguard',
+      'invented-scout',
+    ]);
   });
 });
 
@@ -101,24 +104,12 @@ describe('mapClassFeature -- fails closed', () => {
     ).toEqual({ ok: false, reason: 'malformed-system' });
   });
 
-  it('rejects a missing class reference', () => {
-    expect(
-      mapClassFeature(
-        makeEntry(baseSystem({ class: undefined })),
-        PROVENANCE,
-        IMPORTED_AT,
-      ),
-    ).toEqual({ ok: false, reason: 'missing-or-unparseable-class-reference' });
-  });
-
-  it('rejects an unparseable class reference', () => {
-    expect(
-      mapClassFeature(
-        makeEntry(baseSystem({ class: { foo: 'bar' } })),
-        PROVENANCE,
-        IMPORTED_AT,
-      ),
-    ).toEqual({ ok: false, reason: 'missing-or-unparseable-class-reference' });
+  it('rejects a feature with no traits at all, since it names no class', () => {
+    for (const traits of [undefined, { value: [] }]) {
+      expect(
+        mapClassFeature(makeEntry(baseSystem({ traits })), PROVENANCE, IMPORTED_AT),
+      ).toEqual({ ok: false, reason: 'missing-class-trait' });
+    }
   });
 
   it('rejects a missing or invalid level', () => {

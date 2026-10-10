@@ -41,6 +41,7 @@ import { mapHeritage } from './mapHeritage.js';
 import { mapSpell } from './mapSpell.js';
 import { mapWeapon } from './mapWeapon.js';
 import { readUpstreamEntries, type UpstreamEntry } from './reader.js';
+import { asRecord } from './upstreamHelpers.js';
 import { resolveDependencies } from './resolveDependencies.js';
 import { resolveEntryText } from './resolveEntryText.js';
 import { applyScopeFilter } from './scopeFilter.js';
@@ -79,10 +80,21 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   heritage: mapHeritage,
   background: mapBackground,
   class: mapClass,
-  'class-feature': mapClassFeature,
   npc: mapCreature,
   condition: mapCondition,
 };
+
+/**
+ * The mapper for `entry`: by its upstream `type`, except that a class feature
+ * is a `feat` item with `system.category` `classfeature` (it has no type of
+ * its own), which has its own mapper.
+ */
+function mapperFor(entry: UpstreamEntry): Mapper | undefined {
+  if (entry.type === 'feat' && asRecord(entry.system)?.category === 'classfeature') {
+    return mapClassFeature;
+  }
+  return MAPPERS[entry.type];
+}
 
 export interface RunImporterOptions {
   /** The pin: which upstream commit, and the checksum its `packs/` must match. Passed in, never read from `upstream.ts` directly, so this function stays testable against a synthetic fixture whose checksum is computed for that fixture rather than a real fetch -- `index.ts` is the one real caller, and it supplies `upstream.ts`'s actual constants. */
@@ -149,7 +161,7 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
       continue;
     }
 
-    const mapper = MAPPERS[entry.type];
+    const mapper = mapperFor(entry);
     if (mapper === undefined) {
       noMapperForType[entry.type] = (noMapperForType[entry.type] ?? 0) + 1;
       continue;

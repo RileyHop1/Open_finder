@@ -43,12 +43,13 @@ function feat(slug: string, grants: string[] = []): ItemEntry {
   };
 }
 
-function feature(slug: string, level: number): ClassFeatureEntry {
+function feature(slug: string, level: number, tags: string[] = []): ClassFeatureEntry {
   return {
     ...base(slug, 'class-features'),
     kind: 'classFeature',
-    classSlug: 'invented',
+    classSlugs: ['invented'],
     level,
+    tags,
   };
 }
 
@@ -208,6 +209,21 @@ describe('deriveCharacter', () => {
       resolve: noEntries,
     });
     expect(d.items.map((i) => i.slug)).toEqual(['a-one', 'a-two', 'b-two']);
+  });
+
+  it('does not grant a tagged feature automatically: it is one alternative of a choice', () => {
+    const d = deriveCharacter({
+      build: emptyBuild,
+      level: 1,
+      class: cls,
+      classFeatures: [
+        feature('instinct', 1),
+        feature('animal-instinct', 1, ['barbarian-instinct']),
+        feature('dragon-instinct', 1, ['barbarian-instinct']),
+      ],
+      resolve: noEntries,
+    });
+    expect(d.items.map((i) => i.slug)).toEqual(['instinct']);
   });
 
   it('resolves picked feats and what they grant, once each', () => {

@@ -185,6 +185,63 @@ describe('runImporter', () => {
     expect(summary.packs).toEqual([{ packId: 'feats', entryCount: 1 }]);
   });
 
+  it('routes a class feature (a feat item with category classfeature) to the class feature mapper, with its classes from its traits', () => {
+    const classEntry = {
+      _id: 'cccccccccccccccc',
+      name: 'Invented Vanguard',
+      type: 'class',
+      system: {
+        keyAbility: { value: ['str'] },
+        hp: 10,
+        perception: 1,
+        savingThrows: { fortitude: 2, reflex: 1, will: 1 },
+        classDC: null,
+        attacks: { unarmed: 1, simple: 1, martial: 1, advanced: 0 },
+        defenses: { unarmored: 1, light: 1, medium: 1, heavy: 0 },
+        trainedSkills: { value: [], additional: 3 },
+        ancestryFeatLevels: { value: [1] },
+        classFeatLevels: { value: [1] },
+        generalFeatLevels: { value: [3] },
+        skillFeatLevels: { value: [2] },
+        skillIncreaseLevels: { value: [3] },
+        publication: PLAYER_CORE_ITEM_PROVENANCE,
+      },
+    };
+    const feature = {
+      _id: 'dddddddddddddddd',
+      name: 'Invented Rally',
+      type: 'feat',
+      system: {
+        level: { value: 1 },
+        category: 'classfeature',
+        traits: { value: ['invented-vanguard', 'excluded-class'] },
+        publication: PLAYER_CORE_ITEM_PROVENANCE,
+      },
+    };
+    const { upstream, upstreamDir } = setUpstreamFixture([classEntry, feature]);
+    const outputDir = makeTempDir();
+
+    const summary = runImporter({
+      upstream,
+      upstreamDir,
+      outputDir,
+      skipFetch: true,
+      importedAt: '2026-09-29T00:00:00.000Z',
+    });
+
+    expect(summary.mappingFailed).toEqual({});
+    expect(summary.packs.map((p) => p.packId).sort()).toEqual([
+      'classFeatures',
+      'classes',
+    ]);
+    const written = JSON.parse(
+      readFileSync(join(outputDir, 'classFeatures', 'invented-rally.json'), 'utf8'),
+    ) as { classSlugs: string[]; level: number };
+    // Trimmed to the class that was kept.
+    expect(written.classSlugs).toEqual(['invented-vanguard']);
+    expect(written.level).toBe(1);
+  });
+
   it('writes packs and a coverage report to outputDir', () => {
     const { upstream, upstreamDir } = setUpstreamFixture([KEPT_FEAT]);
     const outputDir = makeTempDir();

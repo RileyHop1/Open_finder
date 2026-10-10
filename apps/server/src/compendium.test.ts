@@ -193,8 +193,8 @@ describe('search', () => {
   describe('filters', () => {
     const feat = (slug: string, level: number, category: string, traits: string[] = []) =>
       entry('feats', slug, slug, 'feat', { level, category, traits, prerequisites: [] });
-    const feature = (slug: string, level: number, classSlug: string) =>
-      entry('class-features', slug, slug, 'classFeature', { level, classSlug });
+    const feature = (slug: string, level: number, ...classSlugs: string[]) =>
+      entry('class-features', slug, slug, 'classFeature', { level, classSlugs });
     const heritage = (slug: string, ancestrySlug?: string) =>
       entry('heritages', slug, slug, 'heritage', ancestrySlug ? { ancestrySlug } : {});
 
@@ -210,6 +210,7 @@ describe('search', () => {
         feature('shield-block', 1, 'fighter'),
         feature('bravery', 3, 'fighter'),
         feature('rage', 1, 'barbarian'),
+        feature('weapon-mastery', 5, 'fighter', 'barbarian'),
       ]);
       writePack('heritages', [
         heritage('hill-dwarf', 'dwarf'),
@@ -231,7 +232,7 @@ describe('search', () => {
       });
       expect(index.search({ q: 'bravery' })[0]).toMatchObject({
         level: 3,
-        classSlug: 'fighter',
+        classSlugs: ['fighter'],
       });
       expect(index.search({ q: 'hill-dwarf' })[0]).toMatchObject({
         ancestrySlug: 'dwarf',
@@ -259,7 +260,13 @@ describe('search', () => {
     it('filters by feat category, trait, class and ancestry, and combines them', () => {
       expect(slugs({ category: 'ancestry' })).toEqual(['deep-step', 'rune-lore']);
       expect(slugs({ trait: 'dwarf' })).toEqual(['deep-step', 'rune-lore']);
-      expect(slugs({ classSlug: 'fighter' })).toEqual(['bravery', 'shield-block']);
+      expect(slugs({ classSlug: 'fighter' })).toEqual([
+        'bravery',
+        'shield-block',
+        'weapon-mastery',
+      ]);
+      // A feature several classes share is found under each of them.
+      expect(slugs({ classSlug: 'barbarian' })).toEqual(['rage', 'weapon-mastery']);
       expect(slugs({ ancestrySlug: 'dwarf' })).toEqual(['hill-dwarf']);
       expect(slugs({ category: 'ancestry', trait: 'dwarf', maxLevel: 1 })).toEqual([
         'rune-lore',

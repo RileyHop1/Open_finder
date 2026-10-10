@@ -143,9 +143,17 @@ export type ClassEntry = z.infer<typeof classEntrySchema>;
 export const classFeatureEntrySchema = compendiumEntrySchema.extend({
   kind: z.literal('classFeature'),
   traits: z.array(traitSlugSchema).readonly().default([]),
-  /** Which class grants this, by slug in the `classes` pack. The relationship is stored here, not as a list on the class entry -- a class has dozens of features across 20 levels, and this keeps each side of the relationship in exactly one place. */
-  classSlug: z.string().min(1),
+  /** Which classes grant this, by slug in the `classes` pack (more than one for a feature several classes share, like Weapon Mastery). The relationship is stored here, not as a list on the class entry -- a class has dozens of features across 20 levels, and this keeps each side of the relationship in exactly one place. */
+  classSlugs: z.array(z.string().min(1)).min(1).readonly(),
   level: z.number().int().min(1).max(20),
+  /**
+   * Choice tags (`system.traits.otherTags` upstream): `barbarian-instinct`,
+   * `rogue-racket`, `ranger-hunters-edge`, ... A tagged feature is one of the
+   * alternatives of some other feature's choice (the Instinct feature offers
+   * every `barbarian-instinct`), so it is granted only by making that choice,
+   * never automatically because the class reaches its level.
+   */
+  tags: z.array(z.string().min(1)).readonly().default([]),
 });
 
 export type ClassFeatureEntry = z.infer<typeof classFeatureEntrySchema>;

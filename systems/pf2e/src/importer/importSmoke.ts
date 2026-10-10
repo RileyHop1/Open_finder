@@ -39,6 +39,9 @@ const MAX_DEPENDENCY_DROP_RATE = 0.1;
 /** Player Core's eight classes plus Player Core 2's eight. */
 const EXPECTED_CLASS_COUNT = 16;
 
+/** Sixteen classes with a dozen or more features each; a floor, not a count. */
+const EXPECTED_MIN_CLASS_FEATURES = 100;
+
 const upstreamDir =
   process.env.HEARTHTABLE_PF2E_UPSTREAM_DIR ?? join(process.cwd(), '.data', 'upstream');
 const outputDir =
@@ -73,6 +76,17 @@ try {
   if (classCount === undefined || classCount < EXPECTED_CLASS_COUNT) {
     failures.push(
       `expected ${EXPECTED_CLASS_COUNT} classes, imported ${classCount ?? 0}`,
+    );
+  }
+
+  // Class features are `feat` items upstream, routed to their own mapper. A
+  // shape drift would silently leave this pack empty (or absent), so ask for it.
+  const featureCount = summary.packs.find(
+    (pack) => pack.packId === 'classFeatures',
+  )?.entryCount;
+  if (featureCount === undefined || featureCount < EXPECTED_MIN_CLASS_FEATURES) {
+    failures.push(
+      `expected at least ${EXPECTED_MIN_CLASS_FEATURES} class features, imported ${featureCount ?? 0}`,
     );
   }
 
