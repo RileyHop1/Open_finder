@@ -440,7 +440,7 @@ names its target by **name**, not `_id` -- verified against the pinned upstream,
 where all 1407 grant uuids are of that form. `upstreamUuid.ts` resolves it: the
 pack segment maps to one of our `packId`s (`feats-srd` to `feats`,
 `actionspf2e` to `actions`, ...) and the name picks the entry, because a name is
-only unique within its compendium. A pack we do not import, or a name that still
+only unique within its compendium (Reactive Strike is a Player Core action, a class feature and a Monster Core glossary entry), so the importer also records the upstream folder each entry came from and matches on that first. A pack we do not import, or a name that still
 matches two entries, resolves to nothing. The old id form is tried first and
 still works. (Resolving by id alone never matched, and dropped 177 entries,
 including Alchemy, the mysteries and the muses, until this was fixed.) If the target
@@ -717,7 +717,8 @@ To move the pin to a new upstream commit:
   filtered rather than failing the entry, rule elements (including inert
   ones) carried through, id determinism, and every fail-closed path
   (malformed system, missing/invalid level, unrecognized category, a
-  missing or unrecognized action cost).
+  missing or unrecognized action cost; an explicitly `passive` action is
+  accepted with no cost).
 - `mapWeapon.test.ts`: one- and two-handed weapons, a ranged weapon with
   range and reload, `"-"` reload omitted, the slug fallback, and every
   fail-closed path (unrecognized category/group, an unsupported die size,

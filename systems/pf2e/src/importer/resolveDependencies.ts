@@ -238,9 +238,11 @@ function clearUnresolvedConsumableSpell(
 
 export function resolveDependencies(
   entries: readonly DraftPf2eEntry[],
+  /** Entry id to the upstream folder it was read from; see `upstreamUuid.ts`. */
+  folderById: ReadonlyMap<string, string> = new Map(),
 ): ResolveDependenciesResult {
   const kept = new Map(entries.map((entry) => [entry.id, entry] as const));
-  const resolveTarget = buildUuidResolver(entries);
+  const resolveTarget = buildUuidResolver(entries, (entry) => folderById.get(entry.id));
   const drops: DependencyDrop[] = [];
 
   let round = 0;

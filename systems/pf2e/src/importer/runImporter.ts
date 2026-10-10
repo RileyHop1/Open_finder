@@ -43,6 +43,7 @@ import { mapWeapon } from './mapWeapon.js';
 import { readUpstreamEntries, type UpstreamEntry } from './reader.js';
 import { asRecord } from './upstreamHelpers.js';
 import { resolveDependencies } from './resolveDependencies.js';
+import { upstreamFolderOf } from './upstreamUuid.js';
 import { resolveEntryText } from './resolveEntryText.js';
 import { applyScopeFilter } from './scopeFilter.js';
 import {
@@ -147,6 +148,7 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
   const noMapperForType: Record<string, number> = {};
   const mappingFailed: Record<string, number> = {};
   const drafts: DraftPf2eEntry[] = [];
+  const folderById = new Map<string, string>();
 
   for (const entry of rawEntries) {
     const licenseResult = applyLicenseFilter(entry);
@@ -174,15 +176,21 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
     }
 
     drafts.push(mapped.entry);
+    const folder = upstreamFolderOf(entry.path);
+    if (folder !== undefined) {
+      folderById.set(mapped.entry.id, folder);
+    }
   }
 
-  const { kept, drops: dependencyDrops } = resolveDependencies(drafts);
+  const { kept, drops: dependencyDrops } = resolveDependencies(drafts, folderById);
 
   // Resolves every entry's @UUID references against the *other* kept
   // entries -- needs the whole set for the same reason resolveDependencies
   // just did, so it runs here, between dependency resolution and writing.
-  const { entries: textResolved, warnings: inlineSyntaxWarnings } =
-    resolveEntryText(kept);
+  const { entries: textResolved, warnings: inlineSyntaxWarnings } = resolveEntryText(
+    kept,
+    folderById,
+  );
 
   const { packs, drops: duplicateDrops } = writePacks({
     entries: textResolved,

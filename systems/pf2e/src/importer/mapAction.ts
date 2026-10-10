@@ -34,13 +34,16 @@ export function mapAction(
     return { ok: false, reason: 'malformed-system' };
   }
 
+  const actionType = nestedStringField(system, 'actionType', 'value');
   const actionCost = mapActionCost(
-    nestedStringField(system, 'actionType', 'value'),
+    actionType,
     nestedNumberField(system, 'actions', 'value'),
   );
-  if (actionCost === undefined) {
-    // Unlike a feat, an action always has a cost -- there is no "passive
-    // action" the way there's a passive feat.
+  // Verified against the pinned upstream: 74 actions are `passive` (Pursue a
+  // Lead, Cast a Spell) and are granted by class features, so dropping them
+  // dropped the features. Only an *explicitly* passive action goes without a
+  // cost; a missing or unrecognized type still fails closed.
+  if (actionCost === undefined && actionType !== 'passive') {
     return { ok: false, reason: 'missing-or-unrecognized-action-cost' };
   }
 
@@ -72,7 +75,7 @@ export function mapAction(
       ruleElements: elements,
       description,
       text,
-      actionCost,
+      ...(actionCost !== undefined ? { actionCost } : {}),
     },
   };
 }
