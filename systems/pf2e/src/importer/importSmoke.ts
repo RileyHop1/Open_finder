@@ -31,10 +31,10 @@ import { UPSTREAM_COMMIT, UPSTREAM_PACKS_CHECKSUM, UPSTREAM_REPO } from './upstr
  * something is almost certainly wrong (an over-eager scope exclusion, a
  * mis-resolved reference graph) rather than the expected handful of
  * excluded-book-adjacent orphans. A real run against the current pin drops
- * well under 1%; 10% leaves generous headroom before this starts failing
- * on normal upstream churn.
+ * about 0.5%; 2% leaves headroom for upstream churn but would have caught the
+ * grant-by-name bug, which dropped 4.3% while this said 10%.
  */
-const MAX_DEPENDENCY_DROP_RATE = 0.1;
+const MAX_DEPENDENCY_DROP_RATE = 0.02;
 
 /** Player Core's eight classes plus Player Core 2's eight. */
 const EXPECTED_CLASS_COUNT = 16;

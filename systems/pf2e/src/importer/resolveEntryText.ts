@@ -30,13 +30,12 @@
 import type { TermKind } from '@hearthtable/core';
 
 import type { Pf2eEntry } from '../content/entry.js';
-import { deterministicId } from './deterministicId.js';
 import {
   applyInlineSyntax,
   type ResolveUuid,
   type UuidResolution,
 } from './inlineSyntax.js';
-import { extractUpstreamId } from './resolveDependencies.js';
+import { buildUuidResolver } from './upstreamUuid.js';
 
 const TERM_KIND_BY_CONTENT_KIND: Readonly<Record<string, TermKind>> = {
   condition: 'condition',
@@ -46,13 +45,9 @@ const TERM_KIND_BY_CONTENT_KIND: Readonly<Record<string, TermKind>> = {
 };
 
 function buildResolveUuid(entries: readonly Pf2eEntry[]): ResolveUuid {
-  const byId = new Map(entries.map((entry) => [entry.id, entry] as const));
+  const resolveTarget = buildUuidResolver(entries);
   return (uuidPath: string): UuidResolution | undefined => {
-    const upstreamId = extractUpstreamId(uuidPath);
-    if (upstreamId === undefined) {
-      return undefined;
-    }
-    const target = byId.get(deterministicId(upstreamId));
+    const target = resolveTarget(uuidPath);
     if (target === undefined) {
       return undefined;
     }

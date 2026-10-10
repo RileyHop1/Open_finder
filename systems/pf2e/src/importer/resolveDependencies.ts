@@ -31,9 +31,9 @@
 import type { ChoiceSetElement, GrantItemElement, RuleElement } from '@hearthtable/core';
 
 import type { Pf2eEntry } from '../content/entry.js';
-import { deterministicId } from './deterministicId.js';
 import type { DraftPf2eEntry } from './draftEntry.js';
 import type { MappedElement, UnresolvedTagChoice } from './elementMapper.js';
+import { buildUuidResolver, type UuidTargetResolver } from './upstreamUuid.js';
 
 export interface DependencyDrop {
   readonly id: string;
@@ -49,37 +49,29 @@ export interface ResolveDependenciesResult {
 }
 
 /**
- * The upstream `_id` a `Compendium....Item.<id>`-shaped uuid names -- the
- * same value `deterministicId` was originally derived from when that
- * target's own id was computed, so re-deriving it here always agrees with
- * the target's real id without any lookup table in between.
+ * The kept entry a grant uuid names. Resolved against *every* draft, not just
+ * the survivors, so a name that is ambiguous stays ambiguous after one of the
+ * candidates is dropped; the target must then still be in `kept`.
  */
-/** Exported for `resolveEntryText.ts`'s own, display-only `@UUID` resolution -- see that module's doc for why reusing this is safe even though resolving `@UUID` in prose is otherwise declined above. */
-export function extractUpstreamId(uuid: string): string | undefined {
-  const lastDot = uuid.lastIndexOf('.');
-  if (lastDot === -1 || lastDot === uuid.length - 1) {
-    return undefined;
-  }
-  return uuid.slice(lastDot + 1);
-}
-
 function findGrantTarget(
   uuid: string,
   kept: ReadonlyMap<string, DraftPf2eEntry>,
+  resolveTarget: UuidTargetResolver<DraftPf2eEntry>,
 ): DraftPf2eEntry | undefined {
-  const upstreamId = extractUpstreamId(uuid);
-  return upstreamId === undefined ? undefined : kept.get(deterministicId(upstreamId));
+  const target = resolveTarget(uuid);
+  return target === undefined ? undefined : kept.get(target.id);
 }
 
 /** `undefined` means every reference `entry` makes resolves within `kept`. */
 function findBrokenDependency(
   entry: DraftPf2eEntry,
   kept: ReadonlyMap<string, DraftPf2eEntry>,
+  resolveTarget: UuidTargetResolver<DraftPf2eEntry>,
 ): string | undefined {
   for (const element of entry.ruleElements) {
     if (
       element.kind === 'unresolvedGrantItem' &&
-      findGrantTarget(element.uuid, kept) === undefined
+      findGrantTarget(element.uuid, kept, resolveTarget) === undefined
     ) {
       return 'grant-target-excluded';
     }
@@ -117,6 +109,7 @@ function resolveElement(
   element: MappedElement,
   kept: ReadonlyMap<string, DraftPf2eEntry>,
   owner: DraftPf2eEntry,
+  resolveTarget: UuidTargetResolver<DraftPf2eEntry>,
 ): RuleElement | undefined {
   if (element.kind === 'unresolvedTagChoice') {
     return resolveTagChoice(element, kept, owner);
@@ -135,7 +128,7 @@ function resolveElement(
   if (element.kind !== 'unresolvedGrantItem') {
     return element;
   }
-  const target = findGrantTarget(element.uuid, kept) as DraftPf2eEntry;
+  const target = findGrantTarget(element.uuid, kept, resolveTarget) as DraftPf2eEntry;
   const resolved: GrantItemElement = {
     kind: 'grantItem',
     packId: target.packId,
@@ -190,9 +183,10 @@ function resolveTagChoice(
 function resolveEntry(
   entry: DraftPf2eEntry,
   kept: ReadonlyMap<string, DraftPf2eEntry>,
+  resolveTarget: UuidTargetResolver<DraftPf2eEntry>,
 ): Pf2eEntry {
   const ruleElements = entry.ruleElements.flatMap((element) => {
-    const resolved = resolveElement(element, kept, entry);
+    const resolved = resolveElement(element, kept, entry, resolveTarget);
     return resolved === undefined ? [] : [resolved];
   });
   if (entry.kind === 'classFeature') {
@@ -246,6 +240,7 @@ export function resolveDependencies(
   entries: readonly DraftPf2eEntry[],
 ): ResolveDependenciesResult {
   const kept = new Map(entries.map((entry) => [entry.id, entry] as const));
+  const resolveTarget = buildUuidResolver(entries);
   const drops: DependencyDrop[] = [];
 
   let round = 0;
@@ -254,7 +249,7 @@ export function resolveDependencies(
     round++;
     droppedThisRound = false;
     for (const entry of [...kept.values()]) {
-      const reason = findBrokenDependency(entry, kept);
+      const reason = findBrokenDependency(entry, kept, resolveTarget);
       if (reason !== undefined) {
         kept.delete(entry.id);
         drops.push({ id: entry.id, slug: entry.slug, kind: entry.kind, reason, round });
@@ -265,7 +260,7 @@ export function resolveDependencies(
 
   return {
     kept: [...kept.values()]
-      .map((entry) => resolveEntry(entry, kept))
+      .map((entry) => resolveEntry(entry, kept, resolveTarget))
       .map((entry) => clearUnresolvedConsumableSpell(entry, kept)),
     drops,
   };
