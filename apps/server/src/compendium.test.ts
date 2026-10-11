@@ -201,7 +201,12 @@ describe('search', () => {
     beforeEach(() => {
       writePack('feats', [
         feat('swordplay', 1, 'general'),
-        feat('rune-lore', 1, 'ancestry', ['dwarf']),
+        entry('feats', 'rune-lore', 'rune-lore', 'feat', {
+          level: 1,
+          category: 'ancestry',
+          traits: ['dwarf'],
+          prerequisites: ['trained in Crafting'],
+        }),
         feat('deep-step', 5, 'ancestry', ['dwarf']),
         feat('sudden-charge', 1, 'class', ['fighter']),
         feat('fleet', 3, 'general'),
@@ -236,6 +241,9 @@ describe('search', () => {
       });
       expect(index.search({ q: 'hill-dwarf' })[0]).toMatchObject({
         ancestrySlug: 'dwarf',
+      });
+      expect(index.search({ q: 'rune-lore' })[0]).toMatchObject({
+        prerequisites: ['trained in Crafting'],
       });
       expect(index.search({ q: 'changeling' })[0]).not.toHaveProperty('ancestrySlug');
       expect(index.search({ q: 'rope' })[0]).not.toHaveProperty('level');

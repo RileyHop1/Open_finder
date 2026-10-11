@@ -177,6 +177,20 @@ name a Lore of their own, stored as `<name>-lore`. The picks go in
 class or background already trains, is noted in words and still applied
 (ADR 0023). Skill increases are a level-up choice, not part of creation.
 
+The **feats** step has a picker for each feat slot open at level 1 (an
+ancestry feat and a class feat, from the class's own advancement table). A slot
+lists the feats of its category up to the slot's level, narrowed by trait to
+the character's own ancestry or class, with the feats whose prerequisites are
+met first. A prerequisite is shown in words with a mark: simple ones ("trained
+in Athletics") are checked against the skills the character is trained in
+(`featPlan.ts`), a higher rank reads as not met at creation, and anything else
+says "check with your GM". "Show every ... feat" lifts the narrowing. A feat
+outside the narrowed list, or with a prerequisite that reads as unmet, can be
+taken and says so (ADR 0023). A pick replaces the one before it in the same
+slot and is stored in `build.feats`; picking another ancestry or class drops
+that slot's pick. The search summaries carry each feat's prerequisites so the
+list needs no per-feat fetch.
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived

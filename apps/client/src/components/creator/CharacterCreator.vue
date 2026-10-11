@@ -13,7 +13,7 @@
  * opened it when it closes, Tab stays inside, Escape closes it and keeps the
  * draft. The draft is saved in this browser as it changes.
  */
-import type { Attribute, BuildRef } from '@hearthtable/pf2e';
+import type { Attribute, BuildRef, FeatSlot } from '@hearthtable/pf2e';
 import {
   computed,
   onBeforeUnmount,
@@ -29,6 +29,7 @@ import BackgroundStep from './BackgroundStep.vue';
 import AttributesStep from './AttributesStep.vue';
 import ClassChoicesStep from './ClassChoicesStep.vue';
 import ClassStep from './ClassStep.vue';
+import FeatsStep from './FeatsStep.vue';
 import SkillsStep from './SkillsStep.vue';
 import type { BoostSectionId } from './boostPlan.js';
 import {
@@ -58,6 +59,7 @@ function pickClass(ref: BuildRef | undefined): void {
   draft.build.class = ref;
   draft.keyAttribute = undefined;
   draft.build.classChoices = {};
+  draft.build.feats = draft.build.feats.filter((f) => f.slot !== 'class');
 }
 
 /** Picking an ancestry clears the heritage: it belonged to the one before. */
@@ -65,12 +67,22 @@ function pickAncestry(ref: BuildRef | undefined): void {
   draft.build.ancestry = ref;
   draft.build.heritage = undefined;
   delete draft.boostPicks.ancestry;
+  draft.build.feats = draft.build.feats.filter((f) => f.slot !== 'ancestry');
 }
 
 /** Picking a background clears its boost choice: the options belonged to the one before. */
 function pickBackground(ref: BuildRef | undefined): void {
   draft.build.background = ref;
   delete draft.boostPicks['background-choice'];
+}
+
+/** Sets the feat in one slot, replacing the one before; `undefined` clears it. */
+function pickFeat(slot: string, level: number, ref: BuildRef | undefined): void {
+  const others = draft.build.feats.filter((f) => !(f.slot === slot && f.level === level));
+  draft.build.feats =
+    ref === undefined
+      ? others
+      : [...others, { slot: slot as FeatSlot, level, feat: ref }];
 }
 
 /** Turns one skill on or off in the picks. */
@@ -198,6 +210,14 @@ function trapTab(event: KeyboardEvent): void {
           :picks="draft.boostPicks"
           :key-attribute="draft.keyAttribute"
           @toggle="toggleBoost"
+        />
+        <FeatsStep
+          v-else-if="draft.step === 'feats'"
+          :build="draft.build"
+          :ancestry="entries.ancestry"
+          :background="entries.background"
+          :class-entry="entries.class"
+          @pick="pickFeat"
         />
         <SkillsStep
           v-else-if="draft.step === 'skills'"

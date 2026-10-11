@@ -24,6 +24,7 @@ export const entrySummarySchema = z.object({
   traits: z.array(z.string()),
   level: z.number().optional(),
   category: z.string().optional(),
+  prerequisites: z.array(z.string()).optional(),
   classSlugs: z.array(z.string()).optional(),
   ancestrySlug: z.string().optional(),
 });

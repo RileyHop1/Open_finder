@@ -35,6 +35,8 @@ export interface EntrySummary {
   readonly level?: number;
   /** Feats only: ancestry, class, general, skill or archetype. */
   readonly category?: string;
+  /** Feats only: the prerequisites as written, so a list can show them without fetching every feat. */
+  readonly prerequisites?: readonly string[];
   /** Class features only: the classes that grant them. */
   readonly classSlugs?: readonly string[];
   /** Heritages only: the ancestry they belong to (absent means a versatile heritage). */
@@ -116,7 +118,9 @@ function summarize(entry: Pf2eEntry): EntrySummary {
     ...(entry.kind === 'feat' || entry.kind === 'classFeature'
       ? { level: entry.level }
       : {}),
-    ...(entry.kind === 'feat' ? { category: entry.category } : {}),
+    ...(entry.kind === 'feat'
+      ? { category: entry.category, prerequisites: entry.prerequisites }
+      : {}),
     ...(entry.kind === 'classFeature' ? { classSlugs: entry.classSlugs } : {}),
     ...(entry.kind === 'heritage' && entry.ancestrySlug !== undefined
       ? { ancestrySlug: entry.ancestrySlug }
