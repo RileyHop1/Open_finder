@@ -70,7 +70,7 @@ describe('previewOf', () => {
   it('uses the name, and replays the draft’s boosts into the attributes', () => {
     const draft = emptyDraft();
     draft.name = '  Valeria ';
-    draft.build.boosts = [{ level: 1, source: 'free', attributes: ['str', 'con'] }];
+    draft.boostPicks.free = ['str', 'con'];
     const { actor } = previewOf(draft);
     expect(actor.name).toBe('Valeria');
     expect(actor.system).toMatchObject({ attributes: { str: 1, con: 1 } });
@@ -78,7 +78,7 @@ describe('previewOf', () => {
 
   it('carries warnings through, and still shows the character', () => {
     const draft = emptyDraft();
-    draft.build.boosts = [{ level: 1, source: 'free', attributes: ['str', 'str'] }];
+    draft.boostPicks.free = ['str', 'str'];
     const { actor, warnings } = previewOf(draft);
     expect(warnings).toEqual([
       { kind: 'duplicate-boost', level: 1, source: 'free', attribute: 'str' },
@@ -86,11 +86,30 @@ describe('previewOf', () => {
     expect(actor.system).toMatchObject({ attributes: { str: 2 } });
   });
 
+  it('adds the ancestry’s fixed boosts and the class’s key attribute without being picked', () => {
+    const { actor } = previewOf(emptyDraft(), {
+      ancestry: {
+        hp: 8,
+        speed: 30,
+        boosts: ['str', 'con'],
+        freeBoosts: 0,
+        flaws: [],
+      } as never,
+      class: {
+        hpPerLevel: 10,
+        keyAttributeOptions: ['dex'],
+        proficiencies: undefined,
+        skills: { trainedSkillCount: 0, automaticallyTrained: [] },
+      } as never,
+    });
+    expect(actor.system).toMatchObject({ attributes: { str: 1, con: 1, dex: 1 } });
+  });
+
   it('starts at full health: ancestry HP plus (class HP + Con) per level', () => {
     const draft = emptyDraft();
-    draft.build.boosts = [{ level: 1, source: 'free', attributes: ['con'] }];
+    draft.boostPicks.free = ['con'];
     const { actor } = previewOf(draft, {
-      ancestry: { hp: 8, speed: 30 } as never,
+      ancestry: { hp: 8, speed: 30, boosts: [], freeBoosts: 0, flaws: [] } as never,
       class: {
         hpPerLevel: 10,
         keyAttributeOptions: ['str'],

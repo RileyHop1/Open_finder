@@ -358,4 +358,19 @@ describe('CharacterCreator', () => {
     expect(loadDraft().build.classChoices).toEqual({});
     wrapper.unmount();
   });
+
+  it('places a free boost on the attributes step, shows it on the preview, and saves the pick', async () => {
+    const wrapper = mountCreator();
+    await wrapper.findAll('.rail button')[4]?.trigger('click');
+    expect(wrapper.get('.step h3').text()).toBe('Attributes');
+
+    const strength = wrapper.findAll('.toggle')[0];
+    await strength?.trigger('click');
+    expect(loadDraft().boostPicks.free).toEqual(['str']);
+    expect(wrapper.get('.modifiers').text()).toContain('+1');
+
+    await strength?.trigger('click');
+    expect(loadDraft().boostPicks.free).toEqual([]);
+    wrapper.unmount();
+  });
 });
