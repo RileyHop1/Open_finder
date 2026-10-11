@@ -108,6 +108,33 @@ const entries: Pf2eEntry[] = [
     classSlugs: ['invented-vanguard'],
     level: 9,
   }),
+  pf2eEntrySchema.parse({
+    ...base('class-features', 'invented-instinct'),
+    kind: 'classFeature',
+    classSlugs: ['invented-vanguard'],
+    level: 3,
+    ruleElements: [
+      {
+        kind: 'choiceSet',
+        prompt: 'Choose Invented Instinct',
+        choices: [
+          { label: 'Alpha', value: 'alpha' },
+          { label: 'Beta', value: 'beta' },
+        ],
+        rollOptionPrefix: 'instinct',
+        grantsFromPackId: 'class-features',
+      },
+    ],
+  }),
+  ...['alpha', 'beta'].map((slug) =>
+    pf2eEntrySchema.parse({
+      ...base('class-features', slug),
+      kind: 'classFeature',
+      classSlugs: ['invented-vanguard'],
+      level: 3,
+      tags: ['vanguard-instinct'],
+    }),
+  ),
   pf2eEntrySchema.parse({ ...base('equipment', 'rope'), kind: 'gear' }),
   pf2eEntrySchema.parse({
     ...base('feats', 'sudden-charge'),
@@ -219,6 +246,32 @@ describe('applyBuild', () => {
     expect(sheet.level).toBe(9);
     expect(sheet.keyAttribute).toBe('dex');
     expect(sheet.items.map((i) => i.entry.slug)).toContain('late-feature');
+  });
+
+  it('grants the class feature the build chose, and records the choice', () => {
+    const { owner, actorId } = character();
+    applyBuild(store, owner, compendium, {
+      actorId,
+      build: { ...BUILD, classChoices: { instinct: 'alpha' } },
+      level: 3,
+    });
+
+    const sheet = sheetOf(actorId);
+    const slugs = sheet.items.map((i) => i.entry.slug);
+    expect(slugs).toContain('invented-instinct');
+    expect(slugs).toContain('alpha');
+    expect(slugs).not.toContain('beta');
+    expect(sheet.choices).toEqual({ instinct: 'alpha' });
+  });
+
+  it('grants neither alternative when the choice has not been made', () => {
+    const { owner, actorId } = character();
+    applyBuild(store, owner, compendium, { actorId, build: BUILD, level: 3 });
+
+    const slugs = sheetOf(actorId).items.map((i) => i.entry.slug);
+    expect(slugs).toContain('invented-instinct');
+    expect(slugs).not.toContain('alpha');
+    expect(slugs).not.toContain('beta');
   });
 
   it('is safe to apply twice: no duplicate items, and hand-added items survive', () => {

@@ -57,7 +57,19 @@ export type DeriveWarning =
       readonly slot: string;
       readonly level: number;
     }
-  | { readonly kind: 'missing-entry'; readonly packId: string; readonly slug: string };
+  | { readonly kind: 'missing-entry'; readonly packId: string; readonly slug: string }
+  /** A choice a granted feature asks for (instinct, racket, ...) that the build has not made yet. */
+  | {
+      readonly kind: 'choice-not-made';
+      readonly choice: string;
+      readonly feature: string;
+    }
+  /** A choice the build made that is not among the options the feature offers. Still applied. */
+  | {
+      readonly kind: 'choice-not-offered';
+      readonly choice: string;
+      readonly value: string;
+    };
 
 export interface DerivedCharacter {
   readonly level: number;
@@ -69,6 +81,8 @@ export interface DerivedCharacter {
   readonly speed: number;
   /** Class features due by `level`, plus picked feats and everything they grant, de-duplicated. */
   readonly items: readonly ItemEntry[];
+  /** The choices made for the features above, keyed by the choice (`rollOptionPrefix`): what the sheet stores as the character's `choices`. */
+  readonly choices: Readonly<Record<string, string>>;
   readonly warnings: readonly DeriveWarning[];
 }
 
@@ -163,6 +177,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
 
   // Items: class features due by level, picked feats, then everything they grant.
   const items: ItemEntry[] = [];
+  const choices: Record<string, string> = {};
   const seen = new Set<string>();
   const add = (entry: ItemEntry, depth: number) => {
     const id = key(entry.packId, entry.slug);
@@ -185,6 +200,36 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
           });
         } else {
           add(granted, depth + 1);
+        }
+      } else if (element.kind === 'choiceSet') {
+        const chosen = build.classChoices[element.rollOptionPrefix];
+        if (chosen === undefined) {
+          warnings.push({
+            kind: 'choice-not-made',
+            choice: element.rollOptionPrefix,
+            feature: entry.slug,
+          });
+          continue;
+        }
+        choices[element.rollOptionPrefix] = chosen;
+        if (!element.choices.some((c) => c.value === chosen)) {
+          warnings.push({
+            kind: 'choice-not-offered',
+            choice: element.rollOptionPrefix,
+            value: chosen,
+          });
+        }
+        if (element.grantsFromPackId !== undefined) {
+          const granted = inputs.resolve(element.grantsFromPackId, chosen);
+          if (granted === undefined) {
+            warnings.push({
+              kind: 'missing-entry',
+              packId: element.grantsFromPackId,
+              slug: chosen,
+            });
+          } else {
+            add(granted, depth + 1);
+          }
         }
       }
     }
@@ -252,6 +297,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     classHp: inputs.class?.hpPerLevel ?? 0,
     speed: inputs.ancestry?.speed ?? 25,
     items,
+    choices,
     warnings,
   };
 }
