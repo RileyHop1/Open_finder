@@ -296,4 +296,68 @@ describe('deriveCharacter', () => {
       { kind: 'duplicate-boost', level: 1, source: 'free', attribute: 'str' },
     ]);
   });
+
+  describe('class choices', () => {
+    const instinct: ClassFeatureEntry = {
+      ...feature('instinct', 1),
+      ruleElements: [
+        {
+          kind: 'choiceSet',
+          prompt: 'Choose Instinct',
+          choices: [
+            { label: 'Alpha', value: 'alpha' },
+            { label: 'Beta', value: 'beta' },
+          ],
+          rollOptionPrefix: 'instinct',
+          grantsFromPackId: 'class-features',
+        },
+      ],
+    };
+    const alpha = feature('alpha', 1, ['instinct']);
+    const beta = feature('beta', 1, ['instinct']);
+    const all = new Map([alpha, beta].map((f) => [`class-features/${f.slug}`, f]));
+    const derive = (classChoices: Record<string, string>) =>
+      deriveCharacter({
+        build: { ...emptyBuild, classChoices },
+        level: 1,
+        classFeatures: [instinct, alpha, beta],
+        resolve: (p, s) => all.get(`${p}/${s}`),
+      });
+
+    it('grants the chosen feature, not its alternatives, and records the choice', () => {
+      const d = derive({ instinct: 'alpha' });
+      expect(d.items.map((i) => i.slug)).toEqual(['instinct', 'alpha']);
+      expect(d.choices).toEqual({ instinct: 'alpha' });
+      expect(d.warnings).toEqual([]);
+    });
+
+    it('warns, and grants neither, when the choice has not been made', () => {
+      const d = derive({});
+      expect(d.items.map((i) => i.slug)).toEqual(['instinct']);
+      expect(d.choices).toEqual({});
+      expect(d.warnings).toEqual([
+        { kind: 'choice-not-made', choice: 'instinct', feature: 'instinct' },
+      ]);
+    });
+
+    it('applies a choice the feature does not offer, with a warning (ADR 0023)', () => {
+      const d = derive({ instinct: 'beta-prime' });
+      expect(d.choices).toEqual({ instinct: 'beta-prime' });
+      expect(d.warnings).toEqual([
+        { kind: 'choice-not-offered', choice: 'instinct', value: 'beta-prime' },
+        { kind: 'missing-entry', packId: 'class-features', slug: 'beta-prime' },
+      ]);
+    });
+
+    it('ignores a choice for a feature the character does not have yet', () => {
+      const d = deriveCharacter({
+        build: { ...emptyBuild, classChoices: { instinct: 'alpha' } },
+        level: 1,
+        classFeatures: [{ ...instinct, level: 5 }, alpha, beta],
+        resolve: (p, s) => all.get(`${p}/${s}`),
+      });
+      expect(d.items).toEqual([]);
+      expect(d.choices).toEqual({});
+    });
+  });
 });

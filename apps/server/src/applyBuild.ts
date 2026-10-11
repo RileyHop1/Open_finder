@@ -229,6 +229,7 @@ export function applyBuild(
       classHp: derived.classHp,
       speed: derived.speed,
       items: [...before.items, ...newItems],
+      choices: { ...before.choices, ...derived.choices },
       build: build.data,
       ...(ref(ancestry) === undefined ? {} : { ancestry: ref(ancestry) }),
       ...(ref(heritage) === undefined ? {} : { heritage: ref(heritage) }),

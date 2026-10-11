@@ -53,6 +53,15 @@ never refuses a choice.
 - **Granted items:** `grantItem` elements are followed to `MAX_GRANT_DEPTH`
   (3) and de-duplicated by pack and slug; an entry that cannot be found is a
   `missing-entry` warning.
+- **Class choices:** a granted feature with a `choiceSet` (Instinct, Racket,
+  Hunter's Edge, Methodology, Style...) reads its answer from
+  `build.classChoices`, keyed by the choice's `rollOptionPrefix`. When the set
+  has `grantsFromPackId`, the chosen feature is granted (and its own grants
+  followed); its unchosen alternatives never are. The answers made come back as
+  `choices`, which `actor.applyBuild` merges into the sheet's own `choices` so
+  the rule-element roll options see them. A choice not yet made is a
+  `choice-not-made` warning and grants nothing; one the feature does not offer
+  is applied anyway with a `choice-not-offered` warning (ADR 0023).
 - **Warnings:** a key attribute the class does not offer, more trained skills
   than the class plus Intelligence allow, a skill increase or feat taken at a
   level or slot the class does not have, a missing entry, and the boost
