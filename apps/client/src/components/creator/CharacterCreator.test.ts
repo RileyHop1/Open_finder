@@ -373,4 +373,16 @@ describe('CharacterCreator', () => {
     expect(loadDraft().boostPicks.free).toEqual([]);
     wrapper.unmount();
   });
+
+  it('picks skills on the skills step and saves them in the build', async () => {
+    const wrapper = mountCreator();
+    await wrapper.findAll('.rail button')[5]?.trigger('click');
+    expect(wrapper.get('.step h3').text()).toBe('Skills');
+
+    await wrapper.findAll('.skills .toggle')[0]?.trigger('click');
+    expect(loadDraft().build.trainedSkills).toEqual(['acrobatics']);
+    await wrapper.findAll('.skills .toggle')[0]?.trigger('click');
+    expect(loadDraft().build.trainedSkills).toEqual([]);
+    wrapper.unmount();
+  });
 });
