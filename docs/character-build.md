@@ -155,6 +155,19 @@ whose choice the importer could not map (Champion's cause, for one) is listed
 with a note to settle it with the GM. The class's level 1 features load with
 the class (`useCreatorEntries`).
 
+The **attributes** step places the level 1 boosts: the ancestry's (its fixed
+ones shown as already on, plus its free ones), the background's (one from the
+two it offers, one free), four free boosts, and the class's key attribute
+(chosen in the Class step). Each source is a row of toggles and a table beside
+them shows every modifier live, with a note where a boost past +4 is only a
+partial one. The draft keeps only what the player *picked* (`boostPicks`); the
+fixed boosts and the key attribute are read from the entries every time
+(`boostPlan.ts`, `composeBoosts`), so changing the ancestry or class can never
+leave a stale boost behind. The composed boosts go into the preview now and
+into the build when the character is created. Too many or too few picks in a
+source, an option the background does not offer, or the same attribute twice,
+are noted in words and still applied (ADR 0023).
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived

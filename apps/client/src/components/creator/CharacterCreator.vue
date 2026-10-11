@@ -13,7 +13,7 @@
  * opened it when it closes, Tab stays inside, Escape closes it and keeps the
  * draft. The draft is saved in this browser as it changes.
  */
-import type { BuildRef } from '@hearthtable/pf2e';
+import type { Attribute, BuildRef } from '@hearthtable/pf2e';
 import {
   computed,
   onBeforeUnmount,
@@ -26,8 +26,10 @@ import {
 import CharacterSheet from '../sheet/CharacterSheet.vue';
 import AncestryStep from './AncestryStep.vue';
 import BackgroundStep from './BackgroundStep.vue';
+import AttributesStep from './AttributesStep.vue';
 import ClassChoicesStep from './ClassChoicesStep.vue';
 import ClassStep from './ClassStep.vue';
+import type { BoostSectionId } from './boostPlan.js';
 import {
   CREATOR_STEPS,
   clearDraft,
@@ -61,6 +63,21 @@ function pickClass(ref: BuildRef | undefined): void {
 function pickAncestry(ref: BuildRef | undefined): void {
   draft.build.ancestry = ref;
   draft.build.heritage = undefined;
+  delete draft.boostPicks.ancestry;
+}
+
+/** Picking a background clears its boost choice: the options belonged to the one before. */
+function pickBackground(ref: BuildRef | undefined): void {
+  draft.build.background = ref;
+  delete draft.boostPicks['background-choice'];
+}
+
+/** Turns one attribute on or off in one boost section. */
+function toggleBoost(section: BoostSectionId, attribute: Attribute): void {
+  const picked = draft.boostPicks[section] ?? [];
+  draft.boostPicks[section] = picked.includes(attribute)
+    ? picked.filter((a) => a !== attribute)
+    : [...picked, attribute];
 }
 const index = computed(() => CREATOR_STEPS.findIndex((s) => s.id === draft.step));
 const current = computed(() => CREATOR_STEPS[index.value]);
@@ -156,7 +173,7 @@ function trapTab(event: KeyboardEvent): void {
           v-else-if="draft.step === 'background'"
           :build="draft.build"
           :background="entries.background"
-          @pick-background="(ref) => (draft.build.background = ref)"
+          @pick-background="pickBackground"
         />
         <ClassStep
           v-else-if="draft.step === 'class'"
@@ -165,6 +182,13 @@ function trapTab(event: KeyboardEvent): void {
           :key-attribute="draft.keyAttribute"
           @pick-class="pickClass"
           @pick-key-attribute="(attribute) => (draft.keyAttribute = attribute)"
+        />
+        <AttributesStep
+          v-else-if="draft.step === 'attributes'"
+          :entries="entries"
+          :picks="draft.boostPicks"
+          :key-attribute="draft.keyAttribute"
+          @toggle="toggleBoost"
         />
         <ClassChoicesStep
           v-else-if="draft.step === 'class-choices'"

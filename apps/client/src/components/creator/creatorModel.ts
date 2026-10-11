@@ -24,6 +24,8 @@ import {
 } from '@hearthtable/pf2e';
 import { z } from 'zod';
 
+import { boostPicksSchema, composeBoosts } from './boostPlan.js';
+
 /** The creator's steps, in order. */
 export const CREATOR_STEPS = [
   { id: 'ancestry', label: 'Ancestry' },
@@ -46,6 +48,8 @@ export const creatorDraftSchema = z.object({
   step: z.enum(stepIds).default('ancestry'),
   build: characterBuildSchema.default(characterBuildSchema.parse({})),
   keyAttribute: attributeSchema.optional(),
+  /** What the player picked for level 1 attribute boosts; the fixed ones come from the entries (`boostPlan.ts`). */
+  boostPicks: boostPicksSchema.default({}),
 });
 
 export type CreatorDraft = z.infer<typeof creatorDraftSchema>;
@@ -134,8 +138,12 @@ const PREVIEW_ID = '00000000-0000-4000-8000-000000000001';
 
 /** The character the draft would make at level 1, as an actor the real sheet can show. */
 export function previewOf(draft: CreatorDraft, entries: PreviewEntries = {}): Preview {
+  const build = {
+    ...draft.build,
+    ...composeBoosts(entries, draft.boostPicks, draft.keyAttribute),
+  };
   const derived = deriveCharacter({
-    build: draft.build,
+    build,
     level: 1,
     keyAttribute: draft.keyAttribute,
     ...entries,
@@ -152,7 +160,7 @@ export function previewOf(draft: CreatorDraft, entries: PreviewEntries = {}): Pr
     classHp: derived.classHp,
     speed: derived.speed,
     hp: { current: 0 },
-    build: draft.build,
+    build,
   });
   // Starts at full health, like a character the server creates.
   const maxHp =
