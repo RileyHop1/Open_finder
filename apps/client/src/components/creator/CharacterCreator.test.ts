@@ -385,4 +385,63 @@ describe('CharacterCreator', () => {
     expect(loadDraft().build.trainedSkills).toEqual([]);
     wrapper.unmount();
   });
+
+  it('picks a feat in a slot, replaces it with another, and forgets it when the class changes', async () => {
+    const feat = (slug: string) => ({
+      packId: 'feats',
+      slug,
+      name: slug,
+      kind: 'feat',
+      traits: [],
+      level: 1,
+      category: 'class',
+      prerequisites: [],
+    });
+    vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(true);
+    vi.mocked(compendiumApi.searchCompendium).mockImplementation((params) =>
+      Promise.resolve(
+        params?.kind === 'feat'
+          ? [feat('first-feat'), feat('second-feat')]
+          : params?.kind === 'class'
+            ? [
+                {
+                  packId: 'classes',
+                  slug: 'fighter',
+                  name: 'Fighter',
+                  kind: 'class',
+                  traits: [],
+                },
+                {
+                  packId: 'classes',
+                  slug: 'rogue',
+                  name: 'Rogue',
+                  kind: 'class',
+                  traits: [],
+                },
+              ]
+            : [],
+      ),
+    );
+    const wrapper = mountCreator();
+    await wrapper.findAll('.rail button')[6]?.trigger('click');
+    await flushPromises();
+    expect(wrapper.get('.step h3').text()).toBe('Feats');
+
+    const classSlot = () =>
+      wrapper.findAll('fieldset').find((f) => f.text().includes('Class feat'));
+    await classSlot()?.findAll('input[type="radio"]')[0]?.setValue(true);
+    expect(loadDraft().build.feats).toEqual([
+      { slot: 'class', level: 1, feat: { packId: 'feats', slug: 'first-feat' } },
+    ]);
+    await classSlot()?.findAll('input[type="radio"]')[1]?.setValue(true);
+    expect(loadDraft().build.feats.map((f) => f.feat.slug)).toEqual(['second-feat']);
+
+    // Pick a class, then another: the class feat belonged to nobody in particular, so it goes.
+    await wrapper.findAll('.rail button')[2]?.trigger('click');
+    await flushPromises();
+    await wrapper.findAll('input[name="class"]')[0]?.setValue(true);
+    await wrapper.findAll('input[name="class"]')[1]?.setValue(true);
+    expect(loadDraft().build.feats).toEqual([]);
+    wrapper.unmount();
+  });
 });
