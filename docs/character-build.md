@@ -168,6 +168,15 @@ into the build when the character is created. Too many or too few picks in a
 source, an option the background does not offer, or the same attribute twice,
 are noted in words and still applied (ADR 0023).
 
+The **skills** step shows the sixteen skills as toggles. The skills the class
+and the background train outright are shown as already on ("trained by your
+class"); the player picks the rest, as many as the class's count plus
+Intelligence (read from the boosts picked so far, never below zero), and can
+name a Lore of their own, stored as `<name>-lore`. The picks go in
+`build.trainedSkills`, which `deriveCharacter` trains. Too many, or a skill the
+class or background already trains, is noted in words and still applied
+(ADR 0023). Skill increases are a level-up choice, not part of creation.
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived

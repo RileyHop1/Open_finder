@@ -29,6 +29,7 @@ import BackgroundStep from './BackgroundStep.vue';
 import AttributesStep from './AttributesStep.vue';
 import ClassChoicesStep from './ClassChoicesStep.vue';
 import ClassStep from './ClassStep.vue';
+import SkillsStep from './SkillsStep.vue';
 import type { BoostSectionId } from './boostPlan.js';
 import {
   CREATOR_STEPS,
@@ -70,6 +71,14 @@ function pickAncestry(ref: BuildRef | undefined): void {
 function pickBackground(ref: BuildRef | undefined): void {
   draft.build.background = ref;
   delete draft.boostPicks['background-choice'];
+}
+
+/** Turns one skill on or off in the picks. */
+function toggleSkill(skill: string): void {
+  const picked = draft.build.trainedSkills;
+  draft.build.trainedSkills = picked.includes(skill)
+    ? picked.filter((s) => s !== skill)
+    : [...picked, skill];
 }
 
 /** Turns one attribute on or off in one boost section. */
@@ -189,6 +198,14 @@ function trapTab(event: KeyboardEvent): void {
           :picks="draft.boostPicks"
           :key-attribute="draft.keyAttribute"
           @toggle="toggleBoost"
+        />
+        <SkillsStep
+          v-else-if="draft.step === 'skills'"
+          :entries="entries"
+          :boost-picks="draft.boostPicks"
+          :key-attribute="draft.keyAttribute"
+          :picked="draft.build.trainedSkills"
+          @toggle="toggleSkill"
         />
         <ClassChoicesStep
           v-else-if="draft.step === 'class-choices'"
