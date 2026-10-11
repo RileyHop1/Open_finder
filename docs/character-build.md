@@ -206,3 +206,16 @@ keeps or accepts each line.
 ## Starting equipment
 A new character starts with 15 gp to spend **(confirm)**. Spending over it is
 shown as a warning, never blocked.
+
+The **equipment** step (`EquipmentStep.vue`, `equipmentPlan.ts`) browses
+weapons, armor and gear from the compendium (by kind and name, with prices from
+the search summaries) and keeps a shopping list with quantities and a running
+total against the purse: "Spent 1 gp 2 sp of 15 gp. You keep 13 gp 8 sp."
+Going over the purse is a warning that says to check with the GM, and an item
+with no known price counts as free and is named. The list is kept in the
+creator's draft, not in the build record, because gear is not something the
+derivation grants; when the character is created the creator adds each item
+(`actor.addItem`) and gives the change (`actor.adjustCoins`), and a character
+that went over gets no change rather than negative coins. Amounts are shown as
+gold, silver and copper (a starting purse reads as "15 gp", not "1 pp 5 gp").
+Items are not limited by level here **(confirm)**.

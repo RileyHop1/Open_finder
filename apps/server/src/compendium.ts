@@ -37,6 +37,8 @@ export interface EntrySummary {
   readonly category?: string;
   /** Feats only: the prerequisites as written, so a list can show them without fetching every feat. */
   readonly prerequisites?: readonly string[];
+  /** Weapons, armor and gear: the price in copper, when the entry has one. */
+  readonly priceInCopper?: number;
   /** Class features only: the classes that grant them. */
   readonly classSlugs?: readonly string[];
   /** Heritages only: the ancestry they belong to (absent means a versatile heritage). */
@@ -120,6 +122,10 @@ function summarize(entry: Pf2eEntry): EntrySummary {
       : {}),
     ...(entry.kind === 'feat'
       ? { category: entry.category, prerequisites: entry.prerequisites }
+      : {}),
+    ...((entry.kind === 'weapon' || entry.kind === 'armor' || entry.kind === 'gear') &&
+    entry.priceInCopper !== undefined
+      ? { priceInCopper: entry.priceInCopper }
       : {}),
     ...(entry.kind === 'classFeature' ? { classSlugs: entry.classSlugs } : {}),
     ...(entry.kind === 'heritage' && entry.ancestrySlug !== undefined

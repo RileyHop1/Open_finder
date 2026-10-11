@@ -158,7 +158,7 @@ describe('search', () => {
       weapon('longsword', 'Longsword'),
       weapon('shortsword', 'Shortsword'),
       weapon('sword-cane', 'Sword Cane'),
-      entry('equipment', 'rope', 'Rope'),
+      entry('equipment', 'rope', 'Rope', 'gear', { priceInCopper: 10 }),
     ]);
     writePack('feats', [
       entry('feats', 'swordplay', 'Swordplay', 'feat', {
@@ -245,6 +245,7 @@ describe('search', () => {
       expect(index.search({ q: 'rune-lore' })[0]).toMatchObject({
         prerequisites: ['trained in Crafting'],
       });
+      expect(index.search({ q: 'rope' })[0]).toMatchObject({ priceInCopper: 10 });
       expect(index.search({ q: 'changeling' })[0]).not.toHaveProperty('ancestrySlug');
       expect(index.search({ q: 'rope' })[0]).not.toHaveProperty('level');
     });

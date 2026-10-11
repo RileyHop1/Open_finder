@@ -444,4 +444,29 @@ describe('CharacterCreator', () => {
     expect(loadDraft().build.feats).toEqual([]);
     wrapper.unmount();
   });
+
+  it('buys an item on the equipment step and keeps the list in the draft', async () => {
+    vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
+      {
+        packId: 'equipment',
+        slug: 'rope',
+        name: 'Rope',
+        kind: 'gear',
+        traits: [],
+        priceInCopper: 10,
+      },
+    ]);
+    const wrapper = mountCreator();
+    await wrapper.findAll('.rail button')[7]?.trigger('click');
+    await flushPromises();
+    expect(wrapper.get('.step h3').text()).toBe('Equipment');
+
+    await wrapper.get('button[aria-label="Add Rope"]').trigger('click');
+    await wrapper.get('button[aria-label="Add Rope"]').trigger('click');
+    expect(loadDraft().equipment).toEqual([
+      { packId: 'equipment', slug: 'rope', name: 'Rope', priceInCopper: 10, quantity: 2 },
+    ]);
+    expect(wrapper.get('.budget').text()).toContain('Spent 2 sp of 15 gp');
+    wrapper.unmount();
+  });
 });

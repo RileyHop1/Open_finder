@@ -25,6 +25,7 @@ export const entrySummarySchema = z.object({
   level: z.number().optional(),
   category: z.string().optional(),
   prerequisites: z.array(z.string()).optional(),
+  priceInCopper: z.number().optional(),
   classSlugs: z.array(z.string()).optional(),
   ancestrySlug: z.string().optional(),
 });
