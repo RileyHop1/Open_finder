@@ -142,7 +142,18 @@ special features are set up in a later update; picking one of those shows a
 visible warning and is never refused. A chosen class shows its Hit Points per
 level, its trained skills, and its starting proficiencies in words, and offers
 the key attribute as a choice when the class has more than one. Picking a
-class forgets the key attribute chosen for the one before.
+class forgets the key attribute and the class choices made for the one before.
+
+The **class choices** step asks the questions the class's level 1 features ask
+(`classChoices.ts` walks them: a Barbarian's instinct, a Rogue's racket, a
+Ranger's Hunter's Edge, an Investigator's methodology, a Swashbuckler's style,
+and the question a pick itself asks, such as which animal). Each is a radio
+group; every option shows what it grants, and the answer is written to
+`build.classChoices`, from which `deriveCharacter` grants the picked feature.
+A question left open is marked "(not chosen yet)", never blocked. A feature
+whose choice the importer could not map (Champion's cause, for one) is listed
+with a note to settle it with the GM. The class's level 1 features load with
+the class (`useCreatorEntries`).
 
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies

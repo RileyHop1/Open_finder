@@ -11,6 +11,8 @@ import {
   ancestryEntrySchema,
   backgroundEntrySchema,
   classEntrySchema,
+  classFeatureEntrySchema,
+  type ClassFeatureEntry,
   heritageEntrySchema,
   type AncestryEntry,
   type BackgroundEntry,
@@ -22,13 +24,15 @@ import {
 import { shallowReactive, watch } from 'vue';
 import type { z } from 'zod';
 
-import { getPf2eEntry } from '../../api/compendium.js';
+import { getPf2eEntry, searchCompendium } from '../../api/compendium.js';
 
 export interface CreatorEntries {
   ancestry?: AncestryEntry | undefined;
   heritage?: HeritageEntry | undefined;
   background?: BackgroundEntry | undefined;
   class?: ClassEntry | undefined;
+  /** The class's features due at level 1, and the alternatives its choices offer. */
+  classFeatures?: ClassFeatureEntry[] | undefined;
 }
 
 /** The entry for `ref` if it exists and is the expected kind, else `undefined`. Never throws. */
@@ -45,6 +49,31 @@ async function fetchEntry<T>(
     return parsed?.success ? parsed.data : undefined;
   } catch {
     return undefined;
+  }
+}
+
+/** The class's level 1 features, fetched in full. Never throws; a feature that cannot be fetched is left out. */
+async function fetchClassFeatures(
+  ref: BuildRef | undefined,
+): Promise<ClassFeatureEntry[]> {
+  if (ref === undefined) {
+    return [];
+  }
+  try {
+    const summaries = await searchCompendium({
+      kind: 'classFeature',
+      classSlug: ref.slug,
+      maxLevel: 1,
+      limit: 200,
+    });
+    const found = await Promise.all(
+      summaries.map((s) =>
+        fetchEntry({ packId: s.packId, slug: s.slug }, classFeatureEntrySchema),
+      ),
+    );
+    return found.flatMap((f) => (f === undefined ? [] : [f]));
+  } catch {
+    return [];
   }
 }
 
@@ -80,5 +109,17 @@ export function useCreatorEntries(build: () => CharacterBuild): CreatorEntries {
   track('heritage', (b) => b.heritage, heritageEntrySchema);
   track('background', (b) => b.background, backgroundEntrySchema);
   track('class', (b) => b.class, classEntrySchema);
+
+  watch(
+    () => build().class?.slug ?? '',
+    async () => {
+      const ref = build().class;
+      const features = await fetchClassFeatures(ref);
+      if ((build().class?.slug ?? '') === (ref?.slug ?? '')) {
+        entries.classFeatures = features;
+      }
+    },
+    { immediate: true },
+  );
   return entries;
 }

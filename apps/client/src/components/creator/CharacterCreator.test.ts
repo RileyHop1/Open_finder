@@ -265,4 +265,97 @@ describe('CharacterCreator', () => {
     expect(loadDraft().keyAttribute).toBeUndefined();
     again.unmount();
   });
+
+  it('offers the class’s choices on their own step, saves the pick, and forgets it when the class changes', async () => {
+    const NOW = '2026-10-01T00:00:00.000Z';
+    const feature = (slug: string, extra: Record<string, unknown> = {}) => ({
+      id: crypto.randomUUID(),
+      schemaVersion: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+      packId: 'classFeatures',
+      slug,
+      name: slug,
+      kind: 'classFeature',
+      provenance: {
+        publication: 'Pathfinder Player Core',
+        license: 'ORC',
+        remaster: true,
+      },
+      traits: [],
+      ruleElements: [],
+      description: '',
+      classSlugs: ['fighter'],
+      level: 1,
+      ...extra,
+    });
+    const features = [
+      feature('stance', {
+        ruleElements: [
+          {
+            kind: 'choiceSet',
+            prompt: 'Choose Stance',
+            choices: [
+              { label: 'High', value: 'high' },
+              { label: 'Low', value: 'low' },
+            ],
+            rollOptionPrefix: 'stance',
+            grantsFromPackId: 'classFeatures',
+          },
+        ],
+      }),
+      feature('high', { tags: ['stance'] }),
+      feature('low', { tags: ['stance'] }),
+    ];
+    vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(true);
+    vi.mocked(compendiumApi.searchCompendium).mockImplementation((params) =>
+      Promise.resolve(
+        params?.kind === 'classFeature'
+          ? features.map((f) => ({
+              packId: f.packId,
+              slug: f.slug,
+              name: f.name,
+              kind: 'classFeature',
+              traits: [],
+            }))
+          : [
+              {
+                packId: 'classes',
+                slug: 'fighter',
+                name: 'Fighter',
+                kind: 'class',
+                traits: [],
+              },
+              {
+                packId: 'classes',
+                slug: 'rogue',
+                name: 'Rogue',
+                kind: 'class',
+                traits: [],
+              },
+            ],
+      ),
+    );
+    vi.mocked(compendiumApi.getPf2eEntry).mockImplementation((_pack, slug) =>
+      Promise.resolve(features.find((f) => f.slug === slug) as never),
+    );
+
+    const wrapper = mountCreator();
+    await wrapper.findAll('.rail button')[2]?.trigger('click');
+    await flushPromises();
+    await wrapper.findAll('input[name="class"]')[0]?.setValue(true);
+    await flushPromises();
+    await wrapper.findAll('.rail button')[3]?.trigger('click');
+    expect(wrapper.get('.step h3').text()).toBe('Class choices');
+
+    await wrapper.findAll('input[name="choice-stance"]')[1]?.setValue(true);
+    expect(loadDraft().build.classChoices).toEqual({ stance: 'low' });
+
+    // Back to the class step and pick another: the old class’s answers go.
+    await wrapper.findAll('.rail button')[2]?.trigger('click');
+    await flushPromises();
+    await wrapper.findAll('input[name="class"]')[1]?.setValue(true);
+    expect(loadDraft().build.classChoices).toEqual({});
+    wrapper.unmount();
+  });
 });
