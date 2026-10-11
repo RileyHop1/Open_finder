@@ -44,8 +44,11 @@ const TERM_KIND_BY_CONTENT_KIND: Readonly<Record<string, TermKind>> = {
   action: 'action',
 };
 
-function buildResolveUuid(entries: readonly Pf2eEntry[]): ResolveUuid {
-  const resolveTarget = buildUuidResolver(entries);
+function buildResolveUuid(
+  entries: readonly Pf2eEntry[],
+  folderById: ReadonlyMap<string, string>,
+): ResolveUuid {
+  const resolveTarget = buildUuidResolver(entries, (entry) => folderById.get(entry.id));
   return (uuidPath: string): UuidResolution | undefined => {
     const target = resolveTarget(uuidPath);
     if (target === undefined) {
@@ -73,8 +76,11 @@ export interface ResolveEntryTextResult {
 }
 
 /** No entry has `text` until the next PR in this stack wires `htmlToRichText` into the per-kind mappers -- until then, every entry's `text` is `undefined` and this is a no-op pass. */
-export function resolveEntryText(entries: readonly Pf2eEntry[]): ResolveEntryTextResult {
-  const resolveUuid = buildResolveUuid(entries);
+export function resolveEntryText(
+  entries: readonly Pf2eEntry[],
+  folderById: ReadonlyMap<string, string> = new Map(),
+): ResolveEntryTextResult {
+  const resolveUuid = buildResolveUuid(entries, folderById);
   const warnings: string[] = [];
   const resolved = entries.map((entry) => {
     if (entry.text === undefined) {

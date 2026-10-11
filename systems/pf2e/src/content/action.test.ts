@@ -28,9 +28,9 @@ describe('actionEntrySchema', () => {
     expect(actionEntrySchema.safeParse(makeAction({ actionCost })).success).toBe(true);
   });
 
-  it('requires an actionCost -- unlike a feat, an action always has one', () => {
+  it('allows no actionCost, for a passive action', () => {
     const { actionCost: _actionCost, ...rest } = makeAction();
-    expect(actionEntrySchema.safeParse(rest).success).toBe(false);
+    expect(actionEntrySchema.safeParse(rest).success).toBe(true);
   });
 
   it('rejects a trait that is not a valid slug', () => {

@@ -16,7 +16,8 @@ import { actionCostSchema, traitSlugSchema } from './common.js';
 export const actionEntrySchema = compendiumEntrySchema.extend({
   kind: z.literal('action'),
   traits: z.array(traitSlugSchema).readonly().default([]),
-  actionCost: actionCostSchema,
+  /** Absent for a passive action (Pursue a Lead, Cast a Spell): something a character does as part of other play, with no action cost of its own. */
+  actionCost: actionCostSchema.optional(),
 });
 
 export type ActionEntry = z.infer<typeof actionEntrySchema>;

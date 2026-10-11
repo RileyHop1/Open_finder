@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { deterministicId } from './deterministicId.js';
-import { buildUuidResolver } from './upstreamUuid.js';
+import { buildUuidResolver, upstreamFolderOf } from './upstreamUuid.js';
 
 const entry = (id: string, packId: string, name: string) => ({
   id: deterministicId(id),
@@ -43,5 +43,26 @@ describe('buildUuidResolver', () => {
     expect(
       buildUuidResolver([dotted])('Compendium.pf2e.feats-srd.Item.Mr. Invented'),
     ).toBe(dotted);
+  });
+
+  it('uses the upstream folder to tell apart entries that share a name and a packId', () => {
+    const player = entry('aaaaaaaaaaaaaaa1', 'actions', 'Shared');
+    const glossary = entry('aaaaaaaaaaaaaaa2', 'actions', 'Shared');
+    const folders = new Map([
+      [player.id, 'actions'],
+      [glossary.id, 'bestiary-ability-glossary-srd'],
+    ]);
+    const resolveWithFolders = buildUuidResolver([player, glossary], (e) =>
+      folders.get(e.id),
+    );
+
+    expect(resolveWithFolders('Compendium.pf2e.actionspf2e.Item.Shared')).toBe(player);
+    expect(
+      buildUuidResolver([player, glossary])('Compendium.pf2e.actionspf2e.Item.Shared'),
+    ).toBeUndefined();
+  });
+
+  it('reads the folder from a path under packs/', () => {
+    expect(upstreamFolderOf('pf2e/actions/basic/cast-a-spell.json')).toBe('actions');
   });
 });

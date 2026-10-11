@@ -96,19 +96,28 @@ describe('mapAction -- fails closed', () => {
     ).toEqual({ ok: false, reason: 'malformed-system' });
   });
 
-  it('rejects a missing action cost -- unlike a feat, an action always has one', () => {
+  it('rejects a missing action type -- only an explicit `passive` goes without a cost', () => {
     expect(mapAction(makeEntry({}), PROVENANCE, IMPORTED_AT)).toEqual({
       ok: false,
       reason: 'missing-or-unrecognized-action-cost',
     });
   });
 
-  it('rejects a passive action type -- there is no passive action, only a passive feat', () => {
+  it('accepts an explicitly passive action, with no cost', () => {
+    const result = mapAction(
+      makeEntry({ actionType: { value: 'passive' } }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entry).not.toHaveProperty('actionCost');
+    }
+  });
+
+  it('still rejects an action whose type is not recognized', () => {
     expect(
-      mapAction(makeEntry({ actionType: { value: 'passive' } }), PROVENANCE, IMPORTED_AT),
-    ).toEqual({
-      ok: false,
-      reason: 'missing-or-unrecognized-action-cost',
-    });
+      mapAction(makeEntry({ actionType: { value: 'bogus' } }), PROVENANCE, IMPORTED_AT),
+    ).toEqual({ ok: false, reason: 'missing-or-unrecognized-action-cost' });
   });
 });
