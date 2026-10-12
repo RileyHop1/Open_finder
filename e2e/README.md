@@ -25,8 +25,15 @@ holds the creature half.
 
 Milestone 8's flow starts in `tests/character-creator.spec.ts`: the guided creator
 opens as a full-screen dialog and can be left by mouse (its Close button is not
-covered by the floating table menu) and by Escape. The two-browser creation flow is
-added to that spec next.
+covered by the floating table menu) and by Escape.
+
+The creation flow is `creator/m8a-creator.spec.ts` (`pnpm test:creator`, its own config
+and a fixture compendium in `creator/fixtures/`, all invented): a player walks every
+step of the creator (ancestry through review), creates the character, and the numbers on
+the new sheet (hit points, AC, saves, Perception, skills, the feats and gear, the change
+in the purse) are checked against values worked out by hand in the spec's header. The GM
+then opens the same character on their own screen. The spec was checked to fail when an
+expected number is wrong.
 
 `tests/helpers.ts` holds the shared steps. The server's active world is
 process-wide and nothing deactivates it, so only the first spec of a run finds

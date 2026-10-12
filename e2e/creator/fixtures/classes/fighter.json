@@ -1,0 +1,72 @@
+{
+  "id": "00000000-0000-4000-8000-000000000004",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "classes",
+  "slug": "fighter",
+  "name": "Invented Fighter",
+  "kind": "class",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [],
+  "description": "An invented invented fighter.",
+  "keyAttributeOptions": ["str", "dex"],
+  "hpPerLevel": 10,
+  "proficiencies": {
+    "perception": {
+      "trained": 1
+    },
+    "savingThrows": {
+      "fortitude": {
+        "expert": 1
+      },
+      "reflex": {
+        "trained": 1
+      },
+      "will": {
+        "trained": 1
+      }
+    },
+    "classDc": {
+      "trained": 1
+    },
+    "weapons": {
+      "unarmed": {
+        "trained": 1
+      },
+      "simple": {
+        "trained": 1
+      },
+      "martial": {
+        "trained": 1
+      },
+      "advanced": {}
+    },
+    "armor": {
+      "unarmored": {
+        "trained": 1
+      },
+      "light": {
+        "trained": 1
+      },
+      "medium": {},
+      "heavy": {}
+    }
+  },
+  "skills": {
+    "trainedSkillCount": 3,
+    "automaticallyTrained": ["athletics"]
+  },
+  "advancement": {
+    "ancestryFeatLevels": [1],
+    "classFeatLevels": [1],
+    "generalFeatLevels": [3],
+    "skillFeatLevels": [2],
+    "skillIncreaseLevels": [3]
+  }
+}

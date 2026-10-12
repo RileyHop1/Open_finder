@@ -1,0 +1,25 @@
+{
+  "id": "00000000-0000-4000-8000-000000000001",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "ancestries",
+  "slug": "invented-folk",
+  "name": "Invented Folk",
+  "kind": "ancestry",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [],
+  "description": "An invented invented folk.",
+  "hp": 8,
+  "size": "medium",
+  "speed": 25,
+  "boosts": ["con"],
+  "freeBoosts": 1,
+  "flaws": [],
+  "languages": ["common"]
+}

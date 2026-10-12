@@ -19,6 +19,7 @@
     "test:combat": "pnpm --filter @hearthtable/e2e test:combat",
     "test:rules": "pnpm --filter @hearthtable/e2e test:rules",
     "test:loot": "pnpm --filter @hearthtable/e2e test:loot",
+    "test:creator": "pnpm --filter @hearthtable/e2e test:creator",
     "test:perf": "pnpm --filter @hearthtable/e2e test:perf",
     "build": "pnpm -r --if-present build"
   },
