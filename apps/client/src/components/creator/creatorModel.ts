@@ -25,6 +25,7 @@ import {
 import { z } from 'zod';
 
 import { boostPicksSchema, composeBoosts } from './boostPlan.js';
+import { equipmentLineSchema } from './equipmentPlan.js';
 
 /** The creator's steps, in order. */
 export const CREATOR_STEPS = [
@@ -50,6 +51,8 @@ export const creatorDraftSchema = z.object({
   keyAttribute: attributeSchema.optional(),
   /** What the player picked for level 1 attribute boosts; the fixed ones come from the entries (`boostPlan.ts`). */
   boostPicks: boostPicksSchema.default({}),
+  /** The shopping list for the starting purse; gear is not part of the build (`equipmentPlan.ts`). */
+  equipment: z.array(equipmentLineSchema).default([]),
 });
 
 export type CreatorDraft = z.infer<typeof creatorDraftSchema>;

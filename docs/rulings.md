@@ -779,7 +779,7 @@ ruling from silently drifting.
   when it is exceeded.
 - **Alternative reading:** disable the buy button at the budget.
 - **Why:** ADR 0023. A GM may grant extra starting funds.
-- **Golden test:** lands with the equipment step (W9).
+- **Golden test:** `apps/client/src/components/creator/equipmentPlan.test.ts` (one sword and two ropes cost 120 cp and leave 13 gp 8 sp). Whether the shop is limited by item level is also **(confirm)**; we do not limit it.
 - **Override:** the purse and the item list are editable on the sheet.
 
 ### Feat, skill increase and boost levels

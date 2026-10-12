@@ -29,9 +29,11 @@ import BackgroundStep from './BackgroundStep.vue';
 import AttributesStep from './AttributesStep.vue';
 import ClassChoicesStep from './ClassChoicesStep.vue';
 import ClassStep from './ClassStep.vue';
+import EquipmentStep from './EquipmentStep.vue';
 import FeatsStep from './FeatsStep.vue';
 import SkillsStep from './SkillsStep.vue';
 import type { BoostSectionId } from './boostPlan.js';
+import { type EquipmentLine, addLine, setQuantity } from './equipmentPlan.js';
 import {
   CREATOR_STEPS,
   clearDraft,
@@ -74,6 +76,14 @@ function pickAncestry(ref: BuildRef | undefined): void {
 function pickBackground(ref: BuildRef | undefined): void {
   draft.build.background = ref;
   delete draft.boostPicks['background-choice'];
+}
+
+function buyItem(item: Omit<EquipmentLine, 'quantity'>): void {
+  draft.equipment = addLine(draft.equipment, item);
+}
+
+function changeQuantity(packId: string, slug: string, quantity: number): void {
+  draft.equipment = setQuantity(draft.equipment, packId, slug, quantity);
 }
 
 /** Sets the feat in one slot, replacing the one before; `undefined` clears it. */
@@ -210,6 +220,12 @@ function trapTab(event: KeyboardEvent): void {
           :picks="draft.boostPicks"
           :key-attribute="draft.keyAttribute"
           @toggle="toggleBoost"
+        />
+        <EquipmentStep
+          v-else-if="draft.step === 'equipment'"
+          :lines="draft.equipment"
+          @add="buyItem"
+          @quantity="changeQuantity"
         />
         <FeatsStep
           v-else-if="draft.step === 'feats'"
