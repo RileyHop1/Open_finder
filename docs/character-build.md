@@ -191,6 +191,26 @@ slot and is stored in `build.feats`; picking another ancestry or class drops
 that slot's pick. The search summaries carry each feat's prerequisites so the
 list needs no per-feat fetch.
 
+The **review** step shows the whole character in words (what is chosen and
+what is not, the attribute modifiers, class choices, extra skills, feats,
+equipment and what it cost) and a "Things to check" list: every warning the
+derivation raised, as a sentence (`reviewModel.ts`). Nothing there blocks
+**Create character**. A missing-entry warning is not shown, because the preview
+has no compendium to look entries up in; the server looks them up for real.
+
+### Creating the character
+`createCharacterFromDraft` (`createCharacter.ts`) runs the operations in order:
+`actor.create` with the name ("New character" if blank), a wait for the new
+actor to arrive (the server picks its id), `actor.applyBuild` with the composed
+build (`buildOf`: the picks plus the boosts and flaws the entries add up to) and
+the key attribute, `actor.addItem` for each piece of equipment, and
+`actor.adjustCoins` with the change. The client sends only choices and the names
+of compendium entries. If a later step is refused the character already exists,
+so the result names the step, the draft is forgotten (a second Create would make
+a duplicate), the sheet opens, and the player finishes there; if the create
+itself is refused nothing was made and the choices are kept. On success the
+draft is forgotten, the creator closes and the new character's sheet opens.
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived

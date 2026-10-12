@@ -18,6 +18,7 @@ import {
   characterDataSchema,
   deriveCharacter,
   newCharacterData,
+  type CharacterBuild,
   type CharacterData,
   type DeriveInputs,
   type DeriveWarning,
@@ -139,12 +140,20 @@ export interface Preview {
 /** A fixed id: the preview is never stored, so every draft can share one. */
 const PREVIEW_ID = '00000000-0000-4000-8000-000000000001';
 
-/** The character the draft would make at level 1, as an actor the real sheet can show. */
-export function previewOf(draft: CreatorDraft, entries: PreviewEntries = {}): Preview {
-  const build = {
+/** The build the draft stands for: the picks plus the boosts and flaws the entries and boost picks add up to (`boostPlan.ts`). This is what the server is sent when the character is created. */
+export function buildOf(
+  draft: CreatorDraft,
+  entries: PreviewEntries = {},
+): CharacterBuild {
+  return {
     ...draft.build,
     ...composeBoosts(entries, draft.boostPicks, draft.keyAttribute),
   };
+}
+
+/** The character the draft would make at level 1, as an actor the real sheet can show. */
+export function previewOf(draft: CreatorDraft, entries: PreviewEntries = {}): Preview {
+  const build = buildOf(draft, entries);
   const derived = deriveCharacter({
     build,
     level: 1,
