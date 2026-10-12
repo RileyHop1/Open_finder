@@ -944,6 +944,12 @@ watch(
   },
 );
 
+/** A character the guided creator made: open its sheet. */
+function openCreated(actorId: string): void {
+  selectedId.value = actorId;
+  void openDrawer();
+}
+
 /** Makes a character and, once it arrives, opens its sheet; resolves to whether the server accepted it. */
 async function createCharacter(name: string): Promise<boolean> {
   openNextNew.value = true;
@@ -1447,7 +1453,11 @@ async function createCharacter(name: string): Promise<boolean> {
         </div>
       </div>
     </div>
-    <CharacterCreator v-if="creatorOpen" @close="creatorOpen = false" />
+    <CharacterCreator
+      v-if="creatorOpen"
+      @close="creatorOpen = false"
+      @created="openCreated"
+    />
   </div>
 </template>
 

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as compendiumApi from '../../api/compendium.js';
 
+import { useDocumentsStore } from '../../stores/documents.js';
 import CharacterCreator from './CharacterCreator.vue';
 import { loadDraft } from './creatorModel.js';
 
@@ -467,6 +468,25 @@ describe('CharacterCreator', () => {
       { packId: 'equipment', slug: 'rope', name: 'Rope', priceInCopper: 10, quantity: 2 },
     ]);
     expect(wrapper.get('.budget').text()).toContain('Spent 2 sp of 15 gp');
+    wrapper.unmount();
+  });
+
+  it('creates from the review step, and keeps the draft when the server refuses', async () => {
+    const wrapper = mountCreator();
+    const documents = useDocumentsStore();
+    const send = vi.spyOn(documents, 'send').mockResolvedValue(false);
+    await wrapper.findAll('.rail button')[8]?.trigger('click');
+    expect(wrapper.get('.step h3').text()).toBe('Review');
+
+    await wrapper.get('.create').trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('actor.create', {
+      kind: 'character',
+      name: 'New character',
+    });
+    expect(wrapper.get('[role="alert"]').text()).toContain('Nothing was created');
+    expect(wrapper.emitted('created')).toBeUndefined();
+    expect(wrapper.emitted('close')).toBeUndefined();
     wrapper.unmount();
   });
 });

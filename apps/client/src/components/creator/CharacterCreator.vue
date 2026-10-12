@@ -19,6 +19,7 @@ import {
   onBeforeUnmount,
   onMounted,
   reactive,
+  ref,
   useTemplateRef,
   watch,
 } from 'vue';
@@ -31,11 +32,14 @@ import ClassChoicesStep from './ClassChoicesStep.vue';
 import ClassStep from './ClassStep.vue';
 import EquipmentStep from './EquipmentStep.vue';
 import FeatsStep from './FeatsStep.vue';
+import ReviewStep from './ReviewStep.vue';
 import SkillsStep from './SkillsStep.vue';
 import type { BoostSectionId } from './boostPlan.js';
 import { type EquipmentLine, addLine, setQuantity } from './equipmentPlan.js';
+import { createCharacterFromDraft, newActorWaiter } from './createCharacter.js';
 import {
   CREATOR_STEPS,
+  buildOf,
   clearDraft,
   loadDraft,
   nextStep,
@@ -44,8 +48,9 @@ import {
   saveDraft,
 } from './creatorModel.js';
 import { useCreatorEntries } from './useCreatorEntries.js';
+import { useDocumentsStore } from '../../stores/documents.js';
 
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; created: [actorId: string] }>();
 
 const draft = reactive(loadDraft());
 const root = useTemplateRef<HTMLElement>('root');
@@ -55,6 +60,46 @@ watch(draft, () => saveDraft(draft), { deep: true });
 
 const entries = useCreatorEntries(() => draft.build);
 const preview = computed(() => previewOf(draft, entries));
+
+const documents = useDocumentsStore();
+const creating = ref(false);
+const failure = ref<string>();
+
+/** Makes the character on the server from the draft, then hands it over and closes. */
+async function create(): Promise<void> {
+  creating.value = true;
+  failure.value = undefined;
+  const result = await createCharacterFromDraft(
+    {
+      name: draft.name,
+      build: buildOf(draft, entries),
+      keyAttribute: draft.keyAttribute,
+      equipment: draft.equipment,
+    },
+    {
+      send: (type, payload) => documents.send(type, payload),
+      knownActorIds: () => new Set(documents.actors.map((a) => a.id)),
+      waitForNewActor: newActorWaiter(() => documents.actors),
+      lastError: () => documents.error,
+    },
+  );
+  creating.value = false;
+  if (result.ok) {
+    clearDraft();
+    emit('created', result.actorId);
+    emit('close');
+    return;
+  }
+  if (result.actorId !== undefined) {
+    // The character exists, so a second Create would make a duplicate: forget the draft and
+    // finish on the sheet rather than lose the work done.
+    clearDraft();
+    failure.value = `${result.message}. The character was made, so you can finish it on its sheet.`;
+    emit('created', result.actorId);
+    return;
+  }
+  failure.value = `${result.message}. Nothing was created; your choices are kept.`;
+}
 
 /** Picking a class clears the key attribute and class choices: they belonged to the one before. */
 function pickClass(ref: BuildRef | undefined): void {
@@ -249,6 +294,21 @@ function trapTab(event: KeyboardEvent): void {
           :class-entry="entries.class"
           :features="entries.classFeatures"
           @pick="(choice, value) => (draft.build.classChoices[choice] = value)"
+        />
+        <ReviewStep
+          v-else-if="draft.step === 'review'"
+          :draft="draft"
+          :warnings="preview.warnings"
+          :actor="preview.actor"
+          :names="{
+            ancestry: entries.ancestry?.name,
+            heritage: entries.heritage?.name,
+            background: entries.background?.name,
+            class: entries.class?.name,
+          }"
+          :creating="creating"
+          :failure="failure"
+          @create="create"
         />
         <template v-else>
           <h3>{{ current?.label }}</h3>
