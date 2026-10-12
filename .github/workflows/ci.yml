@@ -110,6 +110,8 @@ jobs:
 
       - run: pnpm test:loot
 
+      - run: pnpm test:creator
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

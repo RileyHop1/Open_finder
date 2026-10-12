@@ -1,0 +1,37 @@
+{
+  "id": "00000000-0000-4000-8000-000000000005",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "classFeatures",
+  "slug": "invented-stance",
+  "name": "Invented Stance",
+  "kind": "classFeature",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [
+    {
+      "kind": "choiceSet",
+      "prompt": "Choose Invented Stance",
+      "choices": [
+        {
+          "label": "High Stance",
+          "value": "high-stance"
+        },
+        {
+          "label": "Low Stance",
+          "value": "low-stance"
+        }
+      ],
+      "rollOptionPrefix": "stance",
+      "grantsFromPackId": "classFeatures"
+    }
+  ],
+  "description": "An invented invented stance.",
+  "classSlugs": ["fighter"],
+  "level": 1
+}
