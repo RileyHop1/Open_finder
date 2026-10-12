@@ -23,6 +23,11 @@ compendium monster is **not** used: the config's compendium is empty on purpose,
 ownership is the same rule for a GM-owned character; the server's `tokens.test.ts`
 holds the creature half.
 
+Milestone 8's flow starts in `tests/character-creator.spec.ts`: the guided creator
+opens as a full-screen dialog and can be left by mouse (its Close button is not
+covered by the floating table menu) and by Escape. The two-browser creation flow is
+added to that spec next.
+
 `tests/helpers.ts` holds the shared steps. The server's active world is
 process-wide and nothing deactivates it, so only the first spec of a run finds
 the campaign list; `createAndActivateCampaign` drives the UI when it can and
