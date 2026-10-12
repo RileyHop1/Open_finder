@@ -362,6 +362,12 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+/* The table menu (gear) button floats fixed over the top-right corner at a higher
+   z-index than any panel, so the header leaves room for it or it would sit on Close. */
+.creator-header {
+  padding-right: calc(var(--touch-target-min) + var(--space-2) + var(--space-3));
+}
+
 .creator-footer {
   justify-content: space-between;
   border-top: 1px solid var(--color-border);
