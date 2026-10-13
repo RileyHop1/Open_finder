@@ -54,3 +54,4 @@ than a tidy file.
 | [0022](0022-map-first-table-layout.md) | Map-first table layout: the map fills the screen, everything else overlays it | Accepted |
 | [0023](0023-calculate-dont-enforce.md) | Calculate, don't enforce: automate the math, leave rulings to the table | Accepted |
 | [0024](0024-character-build-record.md) | Character build: store the choices beside the numbers, derive by a pure function | Accepted |
+| [0025](0025-spellcasting-model.md) | Spellcasting: entries on the character, class tables of our own, slots tracked and never enforced | Accepted |
