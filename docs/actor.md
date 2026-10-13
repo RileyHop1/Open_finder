@@ -81,6 +81,8 @@ total is derived by `prepareCharacter` and never stored.
 | `items` | Embedded copies of weapon, armor, gear, feat, classFeature, spell, and action entries, each with its own id, an optional `source`, `equipped`, and `quantity` |
 | `conditions` | `{ slug, value? }`, one per slug. Modifiers are computed, never stored ([conditions.md](conditions.md)) |
 | `persistentDamage` | `{ id, formula, damageType, source? }[]`, default empty. Persistent damage still burning, one entry per damage type (`systems/pf2e/src/content/persistentDamage.ts`). Absent in an actor stored before it existed, which parses as none |
+| `spellcasting` | `SpellcastingEntry[]`, default empty. One entry per way of casting: its tradition, casting attribute, proficiency rank, cantrips, and its slots and spells ([ADR 0025](adr/0025-spellcasting-model.md), [spellcasting.md](spellcasting.md)). Absent in an actor stored before it existed, which parses as a non-caster |
+| `focusPoints` | `{ max, current }`, non-negative integers defaulting to 0. The shared pool of focus points. Absent in an older actor, which parses as none |
 | `choices` | Made `choiceSet` selections, keyed by `rollOptionPrefix` |
 | `build` | Optional. The choices the character was built from (`docs/character-build.md`, ADR 0024); absent on a hand-built character. Never read by rolls |
 

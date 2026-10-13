@@ -25,6 +25,7 @@ import { featEntrySchema } from './feat.js';
 import { gearEntrySchema } from './gear.js';
 import { persistentDamageSchema } from './persistentDamage.js';
 import { spellEntrySchema } from './spell.js';
+import { focusPointsSchema, spellcastingEntrySchema } from './spellcasting.js';
 import { weaponEntrySchema } from './weapon.js';
 
 const rank = () => proficiencyRankSchema.default('untrained');
@@ -159,6 +160,10 @@ export const characterDataSchema = z
     conditions: z.array(appliedConditionSchema).default([]),
     /** Persistent damage still burning; empty when none (`persistentDamage.ts`). */
     persistentDamage: z.array(persistentDamageSchema).default([]),
+    /** The ways this character casts spells (ADR 0025, `docs/spellcasting.md`); empty for a non-caster, and for a character stored before the field existed. */
+    spellcasting: z.array(spellcastingEntrySchema).default([]),
+    /** The shared pool of focus points; zero for a character with no focus spells. */
+    focusPoints: focusPointsSchema.default({ max: 0, current: 0 }),
     /** Already-made `choiceSet` selections, keyed by the element's `rollOptionPrefix` (see `applyRuleElements`). */
     choices: z.record(z.string().min(1), z.string().min(1)).default({}),
     /** The choices this character was built from (ADR 0024). Absent for a hand-built character. */
@@ -170,6 +175,12 @@ export const characterDataSchema = z
       message: 'two items cannot share an id',
       path: ['items'],
     },
+  )
+  .refine(
+    (data) =>
+      new Set(data.spellcasting.map((entry) => entry.id)).size ===
+      data.spellcasting.length,
+    { message: 'two spellcasting entries cannot share an id', path: ['spellcasting'] },
   )
   .refine(
     (data) =>
