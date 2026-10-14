@@ -371,6 +371,14 @@ export {
 export { ZERO_COINS, coinsSchema, type Coins } from './content/coins.js';
 
 export {
+  deriveSpellcasting,
+  mergeSpellcasting,
+  type DerivedSpellcasting,
+  type DerivedSpellcastingResult,
+  type SpellcastingWarning,
+} from './rules/deriveSpellcasting.js';
+
+export {
   CASTER_CLASS_SLUGS,
   CASTER_TABLES,
   isCasterClass,
