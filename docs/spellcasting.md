@@ -4,8 +4,8 @@ How a character's spellcasting is stored and shown. The decision and its
 alternatives are in [ADR 0025](adr/0025-spellcasting-model.md); this page is the
 shape of the data, and grows as each stage lands.
 
-**Status:** the data shape, the class tables and the derivation (below) exist. The
-statistics, the cast operations and the Spells tab are later PRs of milestone 8(b).
+**Status:** the data shape, the class tables, the derivation and the statistics (below)
+exist. The cast operations and the Spells tab are later PRs of milestone 8(b).
 
 ## On the character
 `system.spellcasting` is a list of **spellcasting entries** (default empty, so a
@@ -89,6 +89,23 @@ add the spellcasting by hand until then.
 The casting attribute follows the key attribute `actor.applyBuild` settles on: the
 one sent, else the one already on the sheet if the class offers it, else the class's
 first option (so a blank sheet's `str` never becomes a Wizard's casting attribute).
+
+## Statistics
+Each entry has a **spell attack** and a **spell DC**, built into `prepareCharacter`'s
+`statistics` like every other number (ADR 0008), keyed `spellAttack:<entry id>` and
+`spellDc:<entry id>`, so each comes with a modifier breakdown:
+
+- spell attack: the casting attribute modifier plus the entry's proficiency (its own
+  `rank` and the level), plus any modifiers. A check total, so no base.
+- spell DC: `10 +` the same two lines, plus any modifiers.
+
+Rule-element modifiers reach them by selector: `spell-attack` (and `attack`, which a
+strike also uses) for the roll, `spell-dc` for the DC, and `all` for both. Conditions
+apply by the casting attribute: stupefied hits an Intelligence, Wisdom or Charisma
+caster's roll and DC, frightened and sickened hit both, prone is a circumstance
+penalty to the attack roll only. Two entries each get their own pair. Golden tests:
+`rules/spellStatistics.test.ts` (the arithmetic and the conditions) and
+`golden/casterStatistics.test.ts` (each caster, end to end from its class).
 
 ## Nothing is checked
 The schema accepts what the rules would call a mistake: more prepared rows than

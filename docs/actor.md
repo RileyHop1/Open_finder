@@ -104,8 +104,9 @@ server's roll handlers, and the golden tests all call it, so a value is computed
 one way. It returns:
 
 - `statistics`, keyed `ac`, `fortitude`, `reflex`, `will`, `perception`,
-  `classDc`, and `skill:<slug>` for all sixteen named skills plus any Lore in
-  `ranks.skills`. Each is a `Statistic` with its full modifier breakdown.
+  `classDc`, `skill:<slug>` for all sixteen named skills plus any Lore in
+  `ranks.skills`, and for each spellcasting entry `spellAttack:<entry id>` and
+  `spellDc:<entry id>`. Each is a `Statistic` with its full modifier breakdown.
 - `hp`: stored `current` and `temp`, plus `max` as a `Statistic`.
 - `strikes`: one per equipped weapon (below).
 - `inertItems`: items carrying automation we could not map, for the sheet to
@@ -122,7 +123,9 @@ Strikes come from `prepareStrikes` (below) and ride along as `strikes`.
 rule elements. Weapons, armor, and gear only while `equipped`.
 
 **Selectors.** A rule element's `selector` picks its statistic: `ac`,
-`fortitude`/`reflex`/`will`, `perception`, `class-dc`, `skill:<slug>`, `hp`.
+`fortitude`/`reflex`/`will`, `perception`, `class-dc`, `skill:<slug>`, `spell-attack`,
+`spell-dc`, `hp`. (`attack` and `all` also reach a spell attack roll; `all` also reaches
+a spell DC.)
 The importer passes upstream selector strings through, so these upstream
 spellings are accepted as aliases: a bare skill slug (`athletics`),
 `saving-throw` (all three saves), `skill-check` (all skills), and `all`

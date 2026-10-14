@@ -179,10 +179,13 @@ export {
   buildClassDc,
   buildPerception,
   buildSkill,
+  buildSpellAttack,
+  buildSpellDc,
   SKILLS,
   type BuildClassDcOptions,
   type BuildPerceptionOptions,
   type BuildSkillOptions,
+  type BuildSpellStatisticOptions,
   type Skill,
 } from './rules/skills.js';
 
