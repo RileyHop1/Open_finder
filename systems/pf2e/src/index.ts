@@ -371,6 +371,18 @@ export {
 export { ZERO_COINS, coinsSchema, type Coins } from './content/coins.js';
 
 export {
+  CASTER_CLASS_SLUGS,
+  CASTER_TABLES,
+  isCasterClass,
+  rankOpensAt,
+  slotsAtLevel,
+  spellcastingRankAtLevel,
+  type CasterClassSlug,
+  type CasterTable,
+  type SlotStyle,
+} from './rules/spellcastingTables.js';
+
+export {
   focusPointsSchema,
   preparedEntrySchema,
   preparedSpellSchema,
