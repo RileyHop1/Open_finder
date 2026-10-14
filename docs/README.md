@@ -24,6 +24,7 @@ If a page and CLAUDE.md disagree, CLAUDE.md wins and the page is a bug.
 | [rules-reference.md](rules-reference.md) | `RichText`, tooltips, the reference book's own-words pages and term syntax, the Rules drawer | 6 |
 | [inventory.md](inventory.md) | Coins, item price and Bulk, encumbrance, consumables, and the transfer operation | 7 |
 | [character-build.md](character-build.md) | The `build` record, derivation, boost math, progression tables, applying a build, level-up | 8 |
+| [spellcasting.md](spellcasting.md) | Spellcasting entries, slots, prepared and spontaneous state, focus points | 8 |
 
 ## Decisions
 [adr/](adr/) — Architecture Decision Records. Start with

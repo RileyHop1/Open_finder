@@ -371,6 +371,19 @@ export {
 export { ZERO_COINS, coinsSchema, type Coins } from './content/coins.js';
 
 export {
+  focusPointsSchema,
+  preparedEntrySchema,
+  preparedSpellSchema,
+  spellRankKeySchema,
+  spellcastingEntrySchema,
+  spontaneousEntrySchema,
+  spontaneousSlotsSchema,
+  type FocusPoints,
+  type PreparedSpell,
+  type SpellcastingEntry,
+} from './content/spellcasting.js';
+
+export {
   adjustCoins,
   coinsToCopper,
   copperToCoins,
