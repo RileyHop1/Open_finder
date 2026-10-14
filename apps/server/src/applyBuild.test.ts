@@ -97,6 +97,24 @@ const entries: Pf2eEntry[] = [
     },
   }),
   pf2eEntrySchema.parse({
+    ...base('classes', 'invented-scholar'),
+    kind: 'class',
+    keyAttributeOptions: ['int'],
+    hpPerLevel: 6,
+    proficiencies: {
+      perception: { trained: 1 },
+      savingThrows: {
+        fortitude: { trained: 1 },
+        reflex: { trained: 1 },
+        will: { expert: 1 },
+      },
+      classDc: { trained: 1 },
+      weapons: { unarmed: {}, simple: { trained: 1 }, martial: {}, advanced: {} },
+      armor: { unarmored: { trained: 1 }, light: {}, medium: {}, heavy: {} },
+    },
+    skills: { trainedSkillCount: 2, automaticallyTrained: [] },
+  }),
+  pf2eEntrySchema.parse({
     ...base('class-features', 'rally'),
     kind: 'classFeature',
     classSlugs: ['invented-vanguard'],
@@ -272,6 +290,39 @@ describe('applyBuild', () => {
     expect(slugs).toContain('invented-instinct');
     expect(slugs).not.toContain('alpha');
     expect(slugs).not.toContain('beta');
+  });
+
+  describe('the key attribute', () => {
+    it('is the class’s own when none is sent, not the blank sheet’s default of Strength', () => {
+      const { owner, actorId } = character();
+      expect(sheetOf(actorId).keyAttribute).toBe('str');
+      applyBuild(store, owner, compendium, {
+        actorId,
+        build: { class: { packId: 'classes', slug: 'invented-scholar' } },
+      });
+      expect(sheetOf(actorId).keyAttribute).toBe('int');
+    });
+
+    it('is the one that was sent, when there is one', () => {
+      const { owner, actorId } = character();
+      applyBuild(store, owner, compendium, {
+        actorId,
+        build: BUILD,
+        keyAttribute: 'dex',
+      });
+      expect(sheetOf(actorId).keyAttribute).toBe('dex');
+    });
+
+    it('keeps an earlier choice the class offers when applied again without one', () => {
+      const { owner, actorId } = character();
+      applyBuild(store, owner, compendium, {
+        actorId,
+        build: BUILD,
+        keyAttribute: 'dex',
+      });
+      applyBuild(store, owner, compendium, { actorId, build: BUILD, level: 2 });
+      expect(sheetOf(actorId).keyAttribute).toBe('dex');
+    });
   });
 
   it('is safe to apply twice: no duplicate items, and hand-added items survive', () => {
