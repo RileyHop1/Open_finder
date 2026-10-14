@@ -170,3 +170,53 @@ export function buildClassDc(options: BuildClassDcOptions): Statistic {
     options.rollOptions === undefined ? {} : { rollOptions: options.rollOptions },
   );
 }
+
+export interface BuildSpellStatisticOptions {
+  /** The spellcasting entry's casting attribute (Intelligence for a Wizard, Charisma for a Bard). */
+  readonly attribute: Attribute;
+  readonly attributeModifiers: Readonly<Record<Attribute, number>>;
+  /** The entry's own spellcasting proficiency rank, separate from the class DC's. */
+  readonly proficiencyRank: ProficiencyRank;
+  readonly level: number;
+  readonly extraModifiers?: readonly Modifier[];
+  readonly rollOptions?: ReadonlySet<string>;
+}
+
+/** The modifier line for the casting attribute, and the rank-and-level line. */
+function spellBase(options: BuildSpellStatisticOptions): Modifier[] {
+  return [
+    {
+      slug: options.attribute,
+      label: ATTRIBUTE_LABELS[options.attribute],
+      type: 'ability',
+      value: options.attributeModifiers[options.attribute],
+      source: 'ability',
+      enabled: true,
+    },
+    proficiencyModifier(options.proficiencyRank, options.level),
+  ];
+}
+
+/** A spell attack roll: `casting attribute + proficiency`, plus `extraModifiers`. A check total, so no base constant (like a skill). */
+export function buildSpellAttack(options: BuildSpellStatisticOptions): Statistic {
+  return resolveStatistic(
+    [...spellBase(options), ...(options.extraModifiers ?? [])],
+    options.rollOptions === undefined ? {} : { rollOptions: options.rollOptions },
+  );
+}
+
+/** A spell DC: `10 + casting attribute + proficiency`, plus `extraModifiers`. A DC, so the base 10 (like the class DC). */
+export function buildSpellDc(options: BuildSpellStatisticOptions): Statistic {
+  const base: Modifier = {
+    slug: 'base',
+    label: 'Base',
+    type: 'untyped',
+    value: 10,
+    source: 'base',
+    enabled: true,
+  };
+  return resolveStatistic(
+    [base, ...spellBase(options), ...(options.extraModifiers ?? [])],
+    options.rollOptions === undefined ? {} : { rollOptions: options.rollOptions },
+  );
+}

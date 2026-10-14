@@ -33,7 +33,14 @@ import { buildArmorClass, buildSave, SAVE_TYPES } from './defenses.js';
 import { buildMaxHitPoints } from './hitPoints.js';
 import type { PreparedStrike } from './prepareStrikes.js';
 import { prepareStrikes } from './prepareStrikes.js';
-import { buildClassDc, buildPerception, buildSkill, SKILLS } from './skills.js';
+import {
+  buildClassDc,
+  buildPerception,
+  buildSkill,
+  buildSpellAttack,
+  buildSpellDc,
+  SKILLS,
+} from './skills.js';
 
 /** Item kinds that grant nothing until equipped. Everything else is always active. */
 const EQUIPMENT_KINDS: ReadonlySet<string> = new Set(['weapon', 'armor', 'gear']);
@@ -46,7 +53,7 @@ export interface InertItem {
 }
 
 export interface PreparedCharacter {
-  /** Keyed like the golden fixtures: `ac`, `fortitude`, `reflex`, `will`, `perception`, `classDc`, `skill:<slug>`. */
+  /** Keyed like the golden fixtures: `ac`, `fortitude`, `reflex`, `will`, `perception`, `classDc`, `skill:<slug>`, and per spellcasting entry `spellAttack:<entry id>` and `spellDc:<entry id>`. */
   readonly statistics: Readonly<Record<string, Statistic>>;
   readonly hp: {
     readonly current: number;
@@ -146,6 +153,28 @@ export function prepareCharacter(data: CharacterData): PreparedCharacter {
       extraModifiers: extras([`skill:${skill}`, skill, 'skill-check', 'all'], {
         kind: 'skill',
         skill,
+      }),
+    });
+  }
+
+  for (const entry of data.spellcasting) {
+    const spell = {
+      ...common,
+      attribute: entry.attribute,
+      proficiencyRank: entry.rank,
+    };
+    statistics[`spellAttack:${entry.id}`] = buildSpellAttack({
+      ...spell,
+      extraModifiers: extras(['spell-attack', 'attack', 'all'], {
+        kind: 'attack',
+        attribute: entry.attribute,
+      }),
+    });
+    statistics[`spellDc:${entry.id}`] = buildSpellDc({
+      ...spell,
+      extraModifiers: extras(['spell-dc', 'all'], {
+        kind: 'classDc',
+        keyAttribute: entry.attribute,
       }),
     });
   }
