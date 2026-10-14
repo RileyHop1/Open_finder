@@ -4,7 +4,7 @@ How a character's spellcasting is stored and shown. The decision and its
 alternatives are in [ADR 0025](adr/0025-spellcasting-model.md); this page is the
 shape of the data, and grows as each stage lands.
 
-**Status:** the data shape (below) exists. The class tables, the derivation, the
+**Status:** the data shape and the class tables (below) exist. The derivation, the
 statistics, the cast operations and the Spells tab are later PRs of milestone 8(b).
 
 ## On the character
@@ -42,6 +42,28 @@ refers to them by **item id**, so removing a spell is the existing item removal.
 (ADR 0025 sketched `max` and `used` for both kinds. Prepared entries keep their
 usage in the rows instead, for the reason above; the decision is otherwise
 unchanged.)
+
+## The class tables
+`systems/pf2e/src/rules/spellcastingTables.ts` holds what the imported data does
+not: for each of the seven casters, whether it prepares or is spontaneous, its
+tradition (or the class choice that decides it: the Witch's patron, the
+Sorcerer's bloodline), its level 1 cantrips, and a slot style. `slotsAtLevel`
+turns a style and a level into slots per rank, and `spellcastingRankAtLevel` gives
+the proficiency rank (trained, expert at 7, master at 15, legendary at 19).
+
+| Class | Kind | Tradition | Slot style |
+| --- | --- | --- | --- |
+| Bard | spontaneous | occult | standard |
+| Cleric | prepared | divine | standard |
+| Druid | prepared | primal | standard |
+| Oracle | spontaneous | divine | standard |
+| Sorcerer | spontaneous | by bloodline | one more per rank |
+| Witch | prepared | by patron | standard |
+| Wizard | prepared | arcane | standard (plus the curriculum's extra slots) |
+
+The casting attribute is not in the table: it is the class's key attribute,
+already in the imported class. **Every number is (confirm)**, and what was and was
+not checked is in [rulings.md](rulings.md) ("Spell slots per rank, by level").
 
 ## Nothing is checked
 The schema accepts what the rules would call a mistake: more prepared rows than

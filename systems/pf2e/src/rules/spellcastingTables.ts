@@ -1,0 +1,116 @@
+/**
+ * The seven casters' spellcasting tables (ADR 0025, `docs/spellcasting.md`):
+ * the facts about each class that the imported data does not carry. Upstream
+ * gives a class only a flag (`spellcasting: 1`); the slots, the cantrips and the
+ * tradition exist only as prose and as a table the pack never includes, so they
+ * are our own authored data.
+ *
+ * **Every number here is (confirm)** against Archives of Nethys, which the
+ * sandbox this was written in could not reach. What was checked instead:
+ * the slot counts for levels 1 to 10 match the sample characters Paizo
+ * publishes in the pinned upstream pack (read, never copied), for the Bard,
+ * Cleric, Druid, Oracle, Sorcerer and Witch, and the Wizard's base counts (the
+ * curriculum's extra slots are not here; they come with the Wizard). Levels 11
+ * to 20 follow the same pattern but were not checked against anything.
+ *
+ * Pure data and arithmetic; none of it refuses anything (ADR 0023).
+ */
+
+import type { ProficiencyRank } from '../content/common.js';
+import type { MagicalTradition } from '../content/spell.js';
+
+export const CASTER_CLASS_SLUGS = [
+  'bard',
+  'cleric',
+  'druid',
+  'oracle',
+  'sorcerer',
+  'witch',
+  'wizard',
+] as const;
+
+export type CasterClassSlug = (typeof CASTER_CLASS_SLUGS)[number];
+
+/** Whether `slug` names one of the seven casters this milestone builds. */
+export function isCasterClass(slug: string): slug is CasterClassSlug {
+  return (CASTER_CLASS_SLUGS as readonly string[]).includes(slug);
+}
+
+/**
+ * How many slots a class gets per rank, as a style:
+ * - `standard`: 2 slots when a rank first opens, 3 from the next level (the
+ *   first rank opens at level 1 with 2, then 3 from level 2).
+ * - `sorcerer`: one more of each, so 3 when a rank opens and 4 after.
+ * The tenth rank is a single slot at level 19 in both.
+ */
+export type SlotStyle = 'standard' | 'sorcerer';
+
+export interface CasterTable {
+  readonly kind: 'prepared' | 'spontaneous';
+  /**
+   * A fixed tradition, or the name of the class choice that decides it (the
+   * Witch's patron, the Sorcerer's bloodline). Resolving the choice belongs to
+   * those classes' own PRs.
+   */
+  readonly tradition: MagicalTradition | { readonly choice: string };
+  /** Cantrips known or prepared at level 1 (the Wizard's school adds one, in its own PR). */
+  readonly cantrips: number;
+  readonly slots: SlotStyle;
+}
+
+export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
+  bard: { kind: 'spontaneous', tradition: 'occult', cantrips: 5, slots: 'standard' },
+  cleric: { kind: 'prepared', tradition: 'divine', cantrips: 5, slots: 'standard' },
+  druid: { kind: 'prepared', tradition: 'primal', cantrips: 5, slots: 'standard' },
+  oracle: { kind: 'spontaneous', tradition: 'divine', cantrips: 5, slots: 'standard' },
+  sorcerer: {
+    kind: 'spontaneous',
+    tradition: { choice: 'bloodline' },
+    cantrips: 5,
+    slots: 'sorcerer',
+  },
+  witch: {
+    kind: 'prepared',
+    tradition: { choice: 'patron' },
+    cantrips: 5,
+    slots: 'standard',
+  },
+  wizard: { kind: 'prepared', tradition: 'arcane', cantrips: 5, slots: 'standard' },
+};
+
+/** The level a rank's slots first open: rank 1 at 1, rank r at 2r - 1, the tenth at 19. */
+export function rankOpensAt(rank: number): number {
+  return rank >= 10 ? 19 : 2 * rank - 1;
+}
+
+/**
+ * The slots per rank at `level` for a slot style, as `rank -> count`, leaving
+ * out ranks not open yet. A level outside 1 to 20 is clamped.
+ */
+export function slotsAtLevel(style: SlotStyle, level: number): Record<number, number> {
+  const at = Math.min(20, Math.max(1, Math.floor(level)));
+  const base = style === 'sorcerer' ? 3 : 2;
+  const slots: Record<number, number> = {};
+  for (let rank = 1; rank <= 10; rank++) {
+    const opens = rankOpensAt(rank);
+    if (at < opens) {
+      continue;
+    }
+    if (rank === 10) {
+      slots[rank] = 1;
+    } else {
+      // The first rank opens at level 1 and gains its extra slot at level 2;
+      // every other rank gains it the level after it opens.
+      slots[rank] = at === opens ? base : base + 1;
+    }
+  }
+  return slots;
+}
+
+/** The spellcasting proficiency rank at `level`: trained, then expert at 7, master at 15, legendary at 19. */
+export function spellcastingRankAtLevel(level: number): ProficiencyRank {
+  if (level >= 19) return 'legendary';
+  if (level >= 15) return 'master';
+  if (level >= 7) return 'expert';
+  return 'trained';
+}

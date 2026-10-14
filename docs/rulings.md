@@ -797,3 +797,33 @@ ruling from silently drifting.
 - **Override:** a player may pick a feat in any slot (a warning, not a
   refusal).
 
+
+### Spell slots per rank, by level
+- **Rules text:** the "Spells per Day" table of each caster in Player Core and
+  Player Core 2. **(confirm)** The upstream data does not carry these tables (a
+  class has only a `spellcasting` flag), so the numbers are our own authored data
+  in `systems/pf2e/src/rules/spellcastingTables.ts` (ADR 0025).
+- **The ambiguity:** none intended. Recorded so a wrong number is a visible data
+  fix, and so what was and was not checked is written down.
+- **Our reading:** a rank opens at level 1 for the first rank, `2r - 1` for rank
+  `r`, and at 19 for the tenth (one slot). Standard casters (Bard, Cleric, Druid,
+  Oracle, Witch, Wizard) get 2 slots when a rank opens and 3 from the next level;
+  the Sorcerer gets one more of each (3, then 4). Spellcasting proficiency is
+  trained, then expert at 7, master at 15, legendary at 19. Every caster has 5
+  cantrips at level 1.
+- **What was checked, and against what:** the functions were run against every
+  caster among the sample characters Paizo publishes in the pinned upstream pack
+  (read only, nothing copied). 21 of 26 match exactly, covering the Bard,
+  Cleric, Druid, Oracle, Sorcerer and Witch at levels 1 to 10. The five that
+  differ: three Wizards and their curriculum's extra slot per rank (not in the
+  base table; it arrives with the Wizard), a Cleric entry that was a different
+  casting source, and one Level 1 Bard with one slot more than the other Level 1
+  Bard (probably a feat; **unresolved**).
+- **Not checked at all:** levels 11 to 20 (the same pattern, extended), the tenth
+  rank's single slot at level 19, and spellcasting proficiency levels for any class
+  other than as the class feature names show them. The repertoire sizes of the
+  spontaneous casters are not here: the samples include spells from feats and
+  bloodlines, so they could not be read cleanly. They arrive with their classes.
+- **Alternative reading:** none known.
+- **Golden test:** `systems/pf2e/src/rules/spellcastingTables.test.ts`.
+- **Override:** every count is editable on the sheet once the Spells tab lands.
