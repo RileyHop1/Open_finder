@@ -115,6 +115,24 @@ const entries: Pf2eEntry[] = [
     skills: { trainedSkillCount: 2, automaticallyTrained: [] },
   }),
   pf2eEntrySchema.parse({
+    ...base('classes', 'wizard'),
+    kind: 'class',
+    keyAttributeOptions: ['int'],
+    hpPerLevel: 6,
+    proficiencies: {
+      perception: { trained: 1 },
+      savingThrows: {
+        fortitude: { trained: 1 },
+        reflex: { trained: 1 },
+        will: { expert: 1 },
+      },
+      classDc: { trained: 1 },
+      weapons: { unarmed: {}, simple: { trained: 1 }, martial: {}, advanced: {} },
+      armor: { unarmored: { trained: 1 }, light: {}, medium: {}, heavy: {} },
+    },
+    skills: { trainedSkillCount: 2, automaticallyTrained: [] },
+  }),
+  pf2eEntrySchema.parse({
     ...base('class-features', 'rally'),
     kind: 'classFeature',
     classSlugs: ['invented-vanguard'],
@@ -322,6 +340,63 @@ describe('applyBuild', () => {
       });
       applyBuild(store, owner, compendium, { actorId, build: BUILD, level: 2 });
       expect(sheetOf(actorId).keyAttribute).toBe('dex');
+    });
+  });
+
+  describe('spellcasting', () => {
+    const WIZARD_BUILD = { class: { packId: 'classes', slug: 'wizard' } };
+
+    it('gives a caster its spellcasting entry, from the class and level', () => {
+      const { owner, actorId } = character();
+      applyBuild(store, owner, compendium, { actorId, build: WIZARD_BUILD, level: 3 });
+
+      const [entry, ...rest] = sheetOf(actorId).spellcasting;
+      expect(rest).toEqual([]);
+      expect(entry).toMatchObject({
+        kind: 'prepared',
+        source: 'class:wizard',
+        tradition: 'arcane',
+        attribute: 'int',
+        rank: 'trained',
+        slots: { '1': 3, '2': 2 },
+      });
+    });
+
+    it('gives a non-caster none', () => {
+      const { owner, actorId } = character();
+      applyBuild(store, owner, compendium, { actorId, build: BUILD });
+      expect(sheetOf(actorId).spellcasting).toEqual([]);
+    });
+
+    it('keeps what play changed when it is applied again at a higher level', () => {
+      const { owner, actorId } = character();
+      applyBuild(store, owner, compendium, { actorId, build: WIZARD_BUILD, level: 1 });
+      const first = sheetOf(actorId).spellcasting;
+      const played = first.map((e) =>
+        e.kind === 'prepared'
+          ? {
+              ...e,
+              prepared: [
+                { rank: 1, itemId: crypto.randomUUID(), expended: true },
+                { rank: 1, itemId: crypto.randomUUID(), expended: false },
+              ],
+            }
+          : e,
+      );
+      updateActor(store, owner, {
+        actorId,
+        changes: { 'system.spellcasting': played },
+      });
+
+      applyBuild(store, owner, compendium, { actorId, build: WIZARD_BUILD, level: 5 });
+
+      const [entry, ...rest] = sheetOf(actorId).spellcasting;
+      expect(rest).toEqual([]);
+      expect(entry?.id).toBe(first[0]?.id);
+      expect(entry).toMatchObject({ slots: { '1': 3, '2': 3, '3': 2 } });
+      expect(
+        entry?.kind === 'prepared' ? entry.prepared.map((p) => p.expended) : [],
+      ).toEqual([true, false]);
     });
   });
 

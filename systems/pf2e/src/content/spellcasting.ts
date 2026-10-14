@@ -38,6 +38,11 @@ const countSchema = z.number().int().nonnegative();
 /** Fields every kind of entry has. */
 const entryBaseSchema = z.object({
   id: idSchema,
+  /**
+   * Which build source made this entry (`class:wizard`), so applying a build again
+   * updates it instead of adding a second. Absent for an entry made by hand.
+   */
+  source: z.string().min(1).max(100).optional(),
   /** What the sheet calls it ("Wizard spellcasting"). */
   name: z.string().min(1).max(100),
   tradition: magicalTraditionSchema,

@@ -4,7 +4,7 @@ How a character's spellcasting is stored and shown. The decision and its
 alternatives are in [ADR 0025](adr/0025-spellcasting-model.md); this page is the
 shape of the data, and grows as each stage lands.
 
-**Status:** the data shape and the class tables (below) exist. The derivation, the
+**Status:** the data shape, the class tables and the derivation (below) exist. The
 statistics, the cast operations and the Spells tab are later PRs of milestone 8(b).
 
 ## On the character
@@ -64,6 +64,31 @@ the proficiency rank (trained, expert at 7, master at 15, legendary at 19).
 The casting attribute is not in the table: it is the class's key attribute,
 already in the imported class. **Every number is (confirm)**, and what was and was
 not checked is in [rulings.md](rulings.md) ("Spell slots per rank, by level").
+
+## Derivation
+`deriveSpellcasting` (`rules/deriveSpellcasting.ts`) is pure and proposes only the
+**static** parts of a caster's entry from the class and level: `source`
+(`class:wizard`, so a re-apply finds it), name, kind, tradition, casting attribute
+(the character's key attribute, see below), spellcasting rank, the slot maximums
+and how many cantrips the class has. `deriveCharacter` returns it as
+`spellcasting`.
+
+`mergeSpellcasting` puts it on the character, and it is where play state is
+protected: an entry with the same `source` has its static parts updated and
+**keeps** the slots used, the prepared spells, the repertoire, the signature spells
+and the cantrips; with none, a new empty entry is added. It never removes an entry,
+and a hand-made entry (no `source`) is never touched. `actor.applyBuild` calls it,
+so applying a build again, or levelling up, only raises the maximums.
+
+A class whose tradition depends on a choice (the Witch's patron, the Sorcerer's
+bloodline) gets **no entry yet** and a `spellcasting-tradition-undecided` warning,
+because how a patron or bloodline maps to a tradition is that class's own PR; the
+Draconic bloodline even varies by dragon. The creator's review tells the player to
+add the spellcasting by hand until then.
+
+The casting attribute follows the key attribute `actor.applyBuild` settles on: the
+one sent, else the one already on the sheet if the class offers it, else the class's
+first option (so a blank sheet's `str` never becomes a Wizard's casting attribute).
 
 ## Nothing is checked
 The schema accepts what the rules would call a mistake: more prepared rows than

@@ -30,6 +30,7 @@ import {
   classFeatureEntrySchema,
   deriveCharacter,
   heritageEntrySchema,
+  mergeSpellcasting,
   prepareCharacter,
 } from '@hearthtable/pf2e';
 import type { z } from 'zod';
@@ -253,6 +254,9 @@ export function applyBuild(
       speed: derived.speed,
       items: [...before.items, ...newItems],
       choices: { ...before.choices, ...derived.choices },
+      spellcasting: mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
+        crypto.randomUUID(),
+      ),
       build: build.data,
       ...(ref(ancestry) === undefined ? {} : { ancestry: ref(ancestry) }),
       ...(ref(heritage) === undefined ? {} : { heritage: ref(heritage) }),

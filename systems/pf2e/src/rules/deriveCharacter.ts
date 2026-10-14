@@ -21,6 +21,11 @@ import { rankAtLevel } from '../content/class.js';
 import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { HeritageEntry } from '../content/heritage.js';
 import { applyBoosts, type BoostWarning } from './boosts.js';
+import {
+  type DerivedSpellcasting,
+  type SpellcastingWarning,
+  deriveSpellcasting,
+} from './deriveSpellcasting.js';
 import { featSlotsUpTo, skillIncreasesUpTo } from './progression.js';
 
 type ItemEntry = CharacterItem['entry'];
@@ -45,6 +50,7 @@ export interface DeriveInputs {
 
 export type DeriveWarning =
   | BoostWarning
+  | SpellcastingWarning
   | { readonly kind: 'key-attribute-not-offered'; readonly attribute: Attribute }
   | {
       readonly kind: 'too-many-trained-skills';
@@ -83,6 +89,8 @@ export interface DerivedCharacter {
   readonly items: readonly ItemEntry[];
   /** The choices made for the features above, keyed by the choice (`rollOptionPrefix`): what the sheet stores as the character's `choices`. */
   readonly choices: Readonly<Record<string, string>>;
+  /** The spellcasting the class gives at this level (its static parts); absent for a class that does not cast, or whose tradition is not yet decided. */
+  readonly spellcasting: DerivedSpellcasting | undefined;
   readonly warnings: readonly DeriveWarning[];
 }
 
@@ -288,6 +296,9 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     }
   }
 
+  const casting = deriveSpellcasting(inputs.class, level, keyAttribute);
+  warnings.push(...casting.warnings);
+
   return {
     level,
     attributes: boosts.attributes,
@@ -298,6 +309,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     speed: inputs.ancestry?.speed ?? 25,
     items,
     choices,
+    spellcasting: casting.spellcasting,
     warnings,
   };
 }
