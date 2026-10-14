@@ -964,6 +964,43 @@ export const actorUseItemOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Cast a spell (ADR 0025, `docs/spellcasting.md`): spend what it costs and post a
+ * `spellCast` card with the spell's text and, for a spell that makes a target
+ * roll, the DC. `itemId` names the `spell` item on the character. A slot costs
+ * something unless the spell is a cantrip, so a non-cantrip, non-`focus` cast
+ * names the `entryId` whose slot is spent; `rank` is the rank cast at and defaults
+ * to the spell's own. `focus` spends a focus point instead of a slot. Nothing is
+ * refused for having nothing to spend: the card says it was overspent (ADR 0023).
+ * Owner or GM only.
+ */
+export const actorCastSpellOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.castSpell'),
+  payload: z.object({
+    actorId: idSchema,
+    itemId: idSchema,
+    entryId: idSchema.optional(),
+    rank: z.number().int().min(1).max(10).optional(),
+    focus: z.boolean().optional(),
+  }),
+});
+
+/** Refocus: regain one focus point, up to the pool's maximum. Owner or GM only. */
+export const actorRefocusOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.refocus'),
+  payload: z.object({ actorId: idSchema }),
+});
+
+/**
+ * Daily preparation for a caster: every spell slot is available again (spontaneous
+ * slots used go to none, prepared spells are no longer cast). Focus points are not
+ * touched; they come back by refocusing. Owner or GM only.
+ */
+export const actorRestSpellsOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.restSpells'),
+  payload: z.object({ actorId: idSchema }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -1027,6 +1064,9 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   partyAdjustCoinsOperationSchema,
   inventoryTransferOperationSchema,
   actorUseItemOperationSchema,
+  actorCastSpellOperationSchema,
+  actorRefocusOperationSchema,
+  actorRestSpellsOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;

@@ -210,6 +210,73 @@ describe('ChatLog', () => {
     expect(card.find('.result').text()).toBe('Total 15');
   });
 
+  describe('a spell cast card', () => {
+    const cast = (extra: Record<string, unknown> = {}): ChatMessage => {
+      const now = new Date().toISOString();
+      return {
+        id: crypto.randomUUID(),
+        worldId: crypto.randomUUID(),
+        type: 'chatMessage',
+        schemaVersion: 1,
+        permissions: { default: 'observer', seats: {} },
+        createdAt: now,
+        updatedAt: now,
+        seatId: crypto.randomUUID(),
+        kind: 'spellCast',
+        actorId: crypto.randomUUID(),
+        actorName: 'Valeria',
+        spellName: 'Invented Burst',
+        castRank: 2,
+        cost: 'slot',
+        overspent: false,
+        text: 'It bursts.',
+        ...extra,
+      } as unknown as ChatMessage;
+    };
+
+    it('names the caster, the spell, its rank, the DC and the save', async () => {
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([
+        cast({ tradition: 'arcane', dc: 17, save: 'reflex', basic: true }),
+      ]);
+      const wrapper = mountChatLog();
+      await flushPromises();
+      const text = wrapper.text().replace(/\s+/g, ' ');
+      expect(text).toContain('Valeria cast Invented Burst');
+      expect(text).toContain('rank 2');
+      expect(text).toContain('DC 17 basic reflex');
+      expect(text).toContain('It bursts.');
+      expect(wrapper.find('.overspent').exists()).toBe(false);
+    });
+
+    it('shows the spell attack bonus for an attack spell, and a cantrip as a cantrip', async () => {
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([
+        cast({ cost: 'cantrip', castRank: 1, attackBonus: 7 }),
+      ]);
+      const wrapper = mountChatLog();
+      await flushPromises();
+      const text = wrapper.text().replace(/\s+/g, ' ');
+      expect(text).toContain('cantrip, rank 1');
+      expect(text).toContain('spell attack +7');
+    });
+
+    it('says in words when there was nothing left to spend, never by colour alone', async () => {
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([cast({ overspent: true })]);
+      const wrapper = mountChatLog();
+      await flushPromises();
+      expect(wrapper.get('.overspent').text()).toContain('Nothing left to spend');
+      expect(wrapper.get('.overspent').text()).toContain('−1 slot');
+    });
+
+    it('says a focus point when that is what was missing', async () => {
+      vi.mocked(chatApi.listChatMessages).mockResolvedValue([
+        cast({ cost: 'focus', overspent: true }),
+      ]);
+      const wrapper = mountChatLog();
+      await flushPromises();
+      expect(wrapper.get('.overspent').text()).toContain('−1 focus point');
+    });
+  });
+
   it('renders a roll message with a details breakdown showing the total and each term', async () => {
     const seat = makeSeat({ name: 'Riley' });
     const roll = makeRollMessage(seat.id);

@@ -4,8 +4,9 @@ How a character's spellcasting is stored and shown. The decision and its
 alternatives are in [ADR 0025](adr/0025-spellcasting-model.md); this page is the
 shape of the data, and grows as each stage lands.
 
-**Status:** the data shape, the class tables, the derivation and the statistics (below)
-exist. The cast operations and the Spells tab are later PRs of milestone 8(b).
+**Status:** the data shape, the class tables, the derivation, the statistics and the cast
+operations (below) exist. The Spells tab and each class's wizard step are later PRs of
+milestone 8(b).
 
 ## On the character
 `system.spellcasting` is a list of **spellcasting entries** (default empty, so a
@@ -106,6 +107,33 @@ caster's roll and DC, frightened and sickened hit both, prone is a circumstance
 penalty to the attack roll only. Two entries each get their own pair. Golden tests:
 `rules/spellStatistics.test.ts` (the arithmetic and the conditions) and
 `golden/casterStatistics.test.ts` (each caster, end to end from its class).
+
+## Casting
+Three operations change the state ([operations.md](operations.md)); the rules are pure
+functions in `rules/castSpell.ts`, and the server module is `apps/server/src/castSpell.ts`.
+
+- **`actor.castSpell`** spends what the spell costs and posts a `spellCast` card
+  ([chatMessage.md](chatMessage.md)) with the spell's text, the DC of its save, or the
+  spell attack bonus. A *cantrip* costs nothing. A *focus* cast spends a focus point.
+  Anything else spends a *slot* of the rank cast at (the spell's own rank unless the
+  player heightens it), from the entry it names. Cantrips and focus spells heighten to
+  half the caster's level, rounded up.
+- **`actor.refocus`** regains one focus point, up to the maximum.
+- **`actor.restSpells`** is daily preparation: all slots available again. It does not
+  touch focus points.
+
+What a slot cast does depends on the kind of entry. A *spontaneous* entry counts the slot
+as used, **even past its maximum**, so it reads "-1 slot". A *prepared* entry marks one
+prepared copy of that spell, at that rank, as cast; casting a spell that is not
+prepared, or whose copies are all cast, changes nothing. Focus points stop at zero.
+In every case the cast **still happens** and the card says so in words ("Nothing left to
+spend: cast anyway (-1 slot)"), because the person clicking makes the ruling (ADR 0023).
+The GM can set any count by hand.
+
+The spell attack is rolled as an ordinary check on the entry's `spellAttack:<id>`
+statistic (`actor.rollCheck`), so it has a breakdown and a DC like any other roll. A
+focus spell has no entry of its own yet, so its card takes the DC of the first entry of
+its tradition; focus entries arrive with the classes that have focus spells.
 
 ## Nothing is checked
 The schema accepts what the rules would call a mistake: more prepared rows than

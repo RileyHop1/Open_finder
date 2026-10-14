@@ -18,7 +18,7 @@ already fixes to the literal `'chatMessage'` (that's what makes it a
 | Field | Type | Notes |
 | --- | --- | --- |
 | `seatId` | UUID | The seat that sent this message. **Required, not optional** — a connection can't send a `chat.*` operation at all until it has claimed a seat (see [operations.md](operations.md)), so a ChatMessage with no sender isn't a state that can arise |
-| `kind` | `'text' \| 'roll' \| 'check' \| 'strikeAttack' \| 'strikeDamage' \| 'itemUse'` | Discriminant |
+| `kind` | `'text' \| 'roll' \| 'check' \| 'strikeAttack' \| 'strikeDamage' \| 'itemUse' \| 'spellCast'` | Discriminant |
 | `text` | non-empty string | Only on `kind: 'text'`; also present (and may be empty) on `kind: 'itemUse'` — see below |
 | `roll` | `RollResult` | On `kind: 'roll'` and `kind: 'check'`, always; on `kind: 'itemUse'`, only when the item's text contained a dice expression — see below |
 | (check fields) | | Only on `kind: 'check'` — see "The `check` variant" |
@@ -123,6 +123,26 @@ whole table like any other chat message, so its `breakdown` shows the printed
 bonus. The monster's sheet stays hidden (the actor is `none` for players); only
 the roll is not. A secret GM roll is a later feature (the Definition of Done's
 override path is the GM re-rolling or adjusting the number).
+
+## The `spellCast` variant
+
+Casting a spell (`actor.castSpell`, ADR 0025 — see [spellcasting.md](spellcasting.md)).
+Every field is a snapshot at the moment of the cast. It extends the envelope with:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `actorId`, `actorName` | UUID, string | Whose sheet |
+| `spellName` | string | The spell's name |
+| `castRank` | 1 to 10 | The rank it was cast at; a cantrip or focus spell is half the caster's level, rounded up |
+| `cost` | `'slot' \| 'cantrip' \| 'focus'` | What was spent: a slot of `castRank`, nothing, or a focus point |
+| `overspent` | boolean | True when there was nothing to spend. The cast still happened (ADR 0023) and the card says so in words |
+| `tradition` | string, optional | The casting entry's tradition |
+| `dc`, `save`, `basic` | optional | For a spell that makes a target roll: the spell DC, the save, and whether it is a basic save |
+| `attackBonus` | integer, optional | For a spell with the `attack` trait: the spell attack bonus |
+| `text` | string | The spell's rules text |
+
+There is no `roll`: the attack is rolled separately, as an ordinary `check` on the entry's
+`spellAttack:<id>` statistic. `chat.adjustRoll` refuses a `spellCast` message like `itemUse`.
 
 ## The `itemUse` variant
 
