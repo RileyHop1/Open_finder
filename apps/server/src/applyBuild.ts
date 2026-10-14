@@ -121,6 +121,27 @@ function hasSource(
   );
 }
 
+/**
+ * The key attribute the derivation starts from. The caller's choice wins. Without
+ * one, the character's current key attribute is kept only if the class offers it (a
+ * choice made earlier, kept through a level-up); otherwise the derivation falls back
+ * to the class's own first option. A blank sheet's default is `str`, which is not a
+ * choice anyone made, and must not override a Wizard's Intelligence.
+ */
+function keyAttributeFor(
+  chosen: CharacterData['keyAttribute'] | undefined,
+  current: CharacterData['keyAttribute'],
+  cls: { keyAttributeOptions: readonly string[] } | undefined,
+): CharacterData['keyAttribute'] | undefined {
+  if (chosen !== undefined) {
+    return chosen;
+  }
+  if (cls === undefined || cls.keyAttributeOptions.includes(current)) {
+    return current;
+  }
+  return undefined;
+}
+
 export function applyBuild(
   store: WorldStore,
   seat: Seat,
@@ -185,9 +206,11 @@ export function applyBuild(
     const derived = deriveCharacter({
       build: build.data,
       level,
-      keyAttribute:
-        (keyAttribute as CharacterData['keyAttribute'] | undefined) ??
+      keyAttribute: keyAttributeFor(
+        keyAttribute as CharacterData['keyAttribute'] | undefined,
         before.keyAttribute,
+        cls,
+      ),
       ancestry,
       heritage,
       background,
