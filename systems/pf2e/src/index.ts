@@ -336,6 +336,7 @@ export {
   characterBuildSchema,
   featPickSchema,
   featSlotSchema,
+  spellPicksSchema,
   type AttributeBoost,
   type BoostLevel,
   type BoostSource,
@@ -343,6 +344,7 @@ export {
   type CharacterBuild,
   type FeatPick,
   type FeatSlot,
+  type SpellPicks,
 } from './content/characterBuild.js';
 
 export {
@@ -385,6 +387,7 @@ export {
 export {
   deriveSpellcasting,
   mergeSpellcasting,
+  addSpellPicks,
   type DerivedSpellcasting,
   type DerivedSpellcastingResult,
   type SpellcastingWarning,

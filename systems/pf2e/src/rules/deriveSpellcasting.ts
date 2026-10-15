@@ -158,3 +158,31 @@ export function mergeSpellcasting(
     ? [...existing, next]
     : existing.map((e, i) => (i === index ? next : e));
 }
+
+const union = (list: readonly string[], more: readonly string[]): string[] => [
+  ...list,
+  ...more.filter((id, i) => !list.includes(id) && more.indexOf(id) === i),
+];
+
+/**
+ * The build's picked spells, by item id, added to the entry from `source`: the
+ * cantrips to its cantrips, and the ranked spells to a spontaneous entry's
+ * repertoire. A prepared entry's ranked picks are only items on the character
+ * (a Wizard's spellbook, a Cleric's first choices); preparing them is play.
+ * Only ever adds, like the rest of the merge, and leaves the other entries alone.
+ */
+export function addSpellPicks(
+  entries: readonly SpellcastingEntry[],
+  source: string,
+  picks: { readonly cantrips: readonly string[]; readonly ranked: readonly string[] },
+): SpellcastingEntry[] {
+  return entries.map((entry) => {
+    if (entry.source !== source) {
+      return entry;
+    }
+    const cantrips = union(entry.cantrips, picks.cantrips);
+    return entry.kind === 'spontaneous'
+      ? { ...entry, cantrips, repertoire: union(entry.repertoire, picks.ranked) }
+      : { ...entry, cantrips };
+  });
+}

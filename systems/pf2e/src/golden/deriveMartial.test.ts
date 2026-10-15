@@ -334,6 +334,7 @@ describe.each(MARTIALS)('$name (level 1), derived from a build', (m) => {
       feats: [],
       languages: [],
       classChoices: {},
+      spells: { cantrips: [], ranked: [] },
     },
     level: 1,
     ancestry,

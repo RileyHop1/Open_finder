@@ -66,6 +66,19 @@ export const featPickSchema = z.object({
 
 export type FeatPick = z.infer<typeof featPickSchema>;
 
+/**
+ * The spells picked for the class's spellcasting (ADR 0025): the cantrips, and the
+ * ranked spells -- a spontaneous caster's repertoire, a prepared caster's first
+ * spells (a Wizard's spellbook). Each is granted as a `spell` item; how many is a
+ * warning, never a limit.
+ */
+export const spellPicksSchema = z.object({
+  cantrips: z.array(buildRefSchema).default([]),
+  ranked: z.array(buildRefSchema).default([]),
+});
+
+export type SpellPicks = z.infer<typeof spellPicksSchema>;
+
 export const characterBuildSchema = z.object({
   ancestry: buildRefSchema.optional(),
   heritage: buildRefSchema.optional(),
@@ -84,6 +97,7 @@ export const characterBuildSchema = z.object({
   languages: z.array(z.string().min(1)).default([]),
   /** Class- and feature-specific picks (racket, instinct, methodology, ...), keyed by the choice that offered them. */
   classChoices: z.record(z.string().min(1), z.string().min(1)).default({}),
+  spells: spellPicksSchema.default({ cantrips: [], ranked: [] }),
 });
 
 export type CharacterBuild = z.infer<typeof characterBuildSchema>;

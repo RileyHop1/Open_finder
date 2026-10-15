@@ -132,6 +132,40 @@ const entries: Pf2eEntry[] = [
     },
     skills: { trainedSkillCount: 2, automaticallyTrained: [] },
   }),
+  // The same stub as a spontaneous caster: only the slug decides the casting table.
+  pf2eEntrySchema.parse({
+    ...base('classes', 'bard'),
+    kind: 'class',
+    keyAttributeOptions: ['cha'],
+    hpPerLevel: 8,
+    proficiencies: {
+      perception: { expert: 1 },
+      savingThrows: {
+        fortitude: { trained: 1 },
+        reflex: { trained: 1 },
+        will: { expert: 1 },
+      },
+      classDc: { trained: 1 },
+      weapons: { unarmed: {}, simple: { trained: 1 }, martial: {}, advanced: {} },
+      armor: { unarmored: { trained: 1 }, light: { trained: 1 }, medium: {}, heavy: {} },
+    },
+    skills: { trainedSkillCount: 4, automaticallyTrained: [] },
+  }),
+  ...[
+    ['invented-spark', ['cantrip']],
+    ['invented-glow', ['cantrip']],
+    ['invented-burst', []],
+  ].map(([slug, traits]) =>
+    pf2eEntrySchema.parse({
+      ...base('spells', slug as string),
+      kind: 'spell',
+      traits,
+      rank: 1,
+      traditions: ['arcane', 'occult'],
+      castTime: '2',
+      range: { kind: 'feet', value: 30 },
+    }),
+  ),
   pf2eEntrySchema.parse({
     ...base('class-features', 'rally'),
     kind: 'classFeature',
@@ -360,6 +394,71 @@ describe('applyBuild', () => {
         rank: 'trained',
         slots: { '1': 3, '2': 2 },
       });
+    });
+
+    const spellRef = (slug: string) => ({ packId: 'spells', slug });
+    const idOf = (actorId: string, slug: string) =>
+      sheetOf(actorId).items.find((i) => i.entry.slug === slug)?.id;
+
+    it('grants the picked spells and puts them in a spontaneous caster’s lists', () => {
+      const { owner, actorId } = character();
+      applyBuild(store, owner, compendium, {
+        actorId,
+        build: {
+          class: { packId: 'classes', slug: 'bard' },
+          spells: {
+            cantrips: [spellRef('invented-spark')],
+            ranked: [spellRef('invented-burst')],
+          },
+        },
+      });
+
+      const [entry] = sheetOf(actorId).spellcasting;
+      expect(entry?.cantrips).toEqual([idOf(actorId, 'invented-spark')]);
+      expect(entry?.kind === 'spontaneous' ? entry.repertoire : []).toEqual([
+        idOf(actorId, 'invented-burst'),
+      ]);
+    });
+
+    it('gives a prepared caster the ranked picks as items only, to prepare in play', () => {
+      const { owner, actorId } = character();
+      applyBuild(store, owner, compendium, {
+        actorId,
+        build: {
+          ...WIZARD_BUILD,
+          spells: {
+            cantrips: [spellRef('invented-spark')],
+            ranked: [spellRef('invented-burst')],
+          },
+        },
+      });
+
+      const [entry] = sheetOf(actorId).spellcasting;
+      expect(entry?.cantrips).toEqual([idOf(actorId, 'invented-spark')]);
+      expect(entry?.kind === 'prepared' ? entry.prepared : undefined).toEqual([]);
+      expect(idOf(actorId, 'invented-burst')).toBeDefined();
+    });
+
+    it('adds picks on a second apply without duplicating items or list ids', () => {
+      const { owner, actorId } = character();
+      const build = (cantrips: string[]) => ({
+        class: { packId: 'classes', slug: 'bard' },
+        spells: { cantrips: cantrips.map(spellRef), ranked: [] },
+      });
+      applyBuild(store, owner, compendium, { actorId, build: build(['invented-spark']) });
+      applyBuild(store, owner, compendium, {
+        actorId,
+        build: build(['invented-spark', 'invented-glow']),
+      });
+
+      const sheet = sheetOf(actorId);
+      expect(sheet.items.filter((i) => i.entry.slug === 'invented-spark')).toHaveLength(
+        1,
+      );
+      expect(sheet.spellcasting[0]?.cantrips).toEqual([
+        idOf(actorId, 'invented-spark'),
+        idOf(actorId, 'invented-glow'),
+      ]);
     });
 
     it('gives a non-caster none', () => {

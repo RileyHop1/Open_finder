@@ -98,6 +98,7 @@ const emptyBuild: CharacterBuild = {
   feats: [],
   languages: [],
   classChoices: {},
+  spells: { cantrips: [], ranked: [] },
 };
 
 const noEntries = () => undefined;
@@ -358,6 +359,64 @@ describe('deriveCharacter', () => {
       });
       expect(d.items).toEqual([]);
       expect(d.choices).toEqual({});
+    });
+  });
+
+  describe('spell picks', () => {
+    const spell = (slug: string, cantrip: boolean): ItemEntry => ({
+      ...base(slug, 'spells'),
+      kind: 'spell',
+      traits: cantrip ? ['cantrip'] : [],
+      rank: 1,
+      traditions: ['occult'],
+      castTime: '2',
+      range: { kind: 'touch' },
+      sustained: false,
+    });
+    const all = new Map<string, ItemEntry>([
+      ...['c1', 'c2', 'c3', 'c4', 'c5', 'c6'].map(
+        (slug) => [`spells/${slug}`, spell(slug, true)] as const,
+      ),
+      ['spells/r1', spell('r1', false)],
+      ['feats/not-magic', feat('not-magic')],
+    ]);
+    const bard = { ...cls, slug: 'bard', name: 'Bard' };
+    const ref = (slug: string, packId = 'spells') => ({ packId, slug });
+    const derive = (cantrips: string[], ranked: { packId: string; slug: string }[]) =>
+      deriveCharacter({
+        build: {
+          ...emptyBuild,
+          spells: { cantrips: cantrips.map((c) => ref(c)), ranked },
+        },
+        level: 1,
+        class: bard,
+        resolve: (p, s) => all.get(`${p}/${s}`),
+      });
+
+    it('grants every picked spell and hands the picks back by ref', () => {
+      const d = derive(['c1', 'c2'], [ref('r1')]);
+      expect(d.items.map((i) => i.slug)).toEqual(['c1', 'c2', 'r1']);
+      expect(d.spellPicks).toEqual({
+        cantrips: [ref('c1'), ref('c2')],
+        ranked: [ref('r1')],
+      });
+      expect(d.warnings).toEqual([]);
+    });
+
+    it('warns past the class’s cantrips but grants them all (ADR 0023)', () => {
+      const d = derive(['c1', 'c2', 'c3', 'c4', 'c5', 'c6'], []);
+      expect(d.spellPicks.cantrips).toHaveLength(6);
+      expect(d.warnings).toEqual([{ kind: 'too-many-cantrips', chosen: 6, allowed: 5 }]);
+    });
+
+    it('leaves out a pick that is missing or is not a spell, and says so', () => {
+      const d = derive([], [ref('gone'), ref('not-magic', 'feats')]);
+      expect(d.spellPicks.ranked).toEqual([]);
+      expect(d.items.map((i) => i.slug)).not.toContain('not-magic');
+      expect(d.warnings).toEqual([
+        { kind: 'missing-entry', packId: 'spells', slug: 'gone' },
+        { kind: 'not-a-spell', packId: 'feats', slug: 'not-magic' },
+      ]);
     });
   });
 });

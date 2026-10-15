@@ -39,6 +39,10 @@ export function warningText(warning: DeriveWarning): string | undefined {
       return `${titleCase(warning.value)} is not one of the options for ${titleCase(warning.choice)}.`;
     case 'spellcasting-tradition-undecided':
       return `${titleCase(warning.classSlug)} casts from the tradition of your ${warning.choice}, which this app cannot set up yet. Add the spellcasting by hand on the sheet.`;
+    case 'too-many-cantrips':
+      return `${warning.chosen} cantrips chosen but the class has ${warning.allowed}.`;
+    case 'not-a-spell':
+      return `${titleCase(warning.slug)} was picked as a spell but is not one, so it is left out.`;
     // The preview has no compendium to look entries up in, so every grant would read as
     // missing here; the server looks them up for real when the character is created.
     case 'missing-entry':
