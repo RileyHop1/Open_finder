@@ -176,6 +176,7 @@ export {
   actorCastSpellOperationSchema,
   actorRefocusOperationSchema,
   actorRestSpellsOperationSchema,
+  actorSetSpellcastingOperationSchema,
   actorUseItemOperationSchema,
   type CoinsDelta,
   MAX_HIT_POINT_CHANGE,

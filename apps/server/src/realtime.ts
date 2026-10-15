@@ -65,6 +65,7 @@ import {
 } from './actors.js';
 import { rollActorCheck } from './checks.js';
 import { adjustActorCoins } from './coins.js';
+import { setSpellcasting } from './spellcasting.js';
 import { transferInventory } from './transfer.js';
 import { useItem } from './useItem.js';
 import { castSpell, refocus, restSpells } from './castSpell.js';
@@ -805,6 +806,11 @@ function dispatch(
     case 'actor.restSpells': {
       const seat = requireSeat(store, socket);
       const actor = restSpells(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.setSpellcasting': {
+      const seat = requireSeat(store, socket);
+      const actor = setSpellcasting(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [actor] };
     }
     default:

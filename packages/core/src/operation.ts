@@ -1001,6 +1001,24 @@ export const actorRestSpellsOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Replace one of a character's spellcasting entries whole (ADR 0025,
+ * `docs/spellcasting.md`), or add it when no entry has that id. This is how the
+ * lists change -- what is prepared or known, the cantrips, the slot counts --
+ * because `actor.update` never writes into an array. The server checks `entry`
+ * against the PF2e schema (core is system-agnostic, so it is opaque here) and
+ * nothing else: a spell at the wrong rank, more rows than slots or a count set by
+ * hand are all accepted (ADR 0023). Last write wins, as `actor.setQuickbar` does.
+ * Owner or GM only.
+ */
+export const actorSetSpellcastingOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.setSpellcasting'),
+  payload: z.object({
+    actorId: idSchema,
+    entry: z.record(z.string(), z.unknown()),
+  }),
+});
+
+/**
  * Every operation type a client may currently send. The server validates
  * an incoming message against this union before doing anything else with
  * it (ADR 0005, step one of "validate, apply, sequence, broadcast"). New
@@ -1067,6 +1085,7 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorCastSpellOperationSchema,
   actorRefocusOperationSchema,
   actorRestSpellsOperationSchema,
+  actorSetSpellcastingOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
