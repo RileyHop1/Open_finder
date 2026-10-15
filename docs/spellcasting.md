@@ -135,6 +135,26 @@ statistic (`actor.rollCheck`), so it has a breakdown and a DC like any other rol
 focus spell has no entry of its own yet, so its card takes the DC of the first entry of
 its tradition; focus entries arrive with the classes that have focus spells.
 
+## The Spells tab
+`SpellsPanel.vue` (laid out by `sheet/spellsModel.ts`, which is pure) shows, above the
+plain spell list:
+
+- the **focus pool** with a Refocus button, and **Rest (daily preparation)**;
+- per entry, the **spell attack** (with a Roll button) and **spell DC**, each opening its
+  breakdown like any other number;
+- **slots per rank**, as pips and as words ("1 of 2 left"; "-1 (1 over the maximum)"
+  past the maximum). The pips are decoration (`aria-hidden`, outlined when empty, dashed
+  when over), so nothing depends on colour or shape;
+- **cantrips**, the **prepared rows** by slot rank or the **repertoire** by spell rank,
+  and **focus spells**, each with a Cast button. A prepared row that was cast reads
+  "(cast)" and offers "Cast again". A spontaneous spell has a rank menu when a higher
+  slot exists, so heightening is a choice at the moment of casting.
+
+Cast buttons are never disabled for having nothing left (ADR 0023); the cast goes
+through and the chat card says it was overspent. The tab is read-only for a viewer who
+cannot edit the character. Adding spells and choosing what is prepared or known is not
+here yet: for now spells come in through the plain list below the panel (or a build).
+
 ## Nothing is checked
 The schema accepts what the rules would call a mistake: more prepared rows than
 slots, a row at the wrong rank, a signature spell that is not in the repertoire,
