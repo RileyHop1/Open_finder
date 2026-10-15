@@ -12,12 +12,18 @@
  * are text, so nothing rests on colour or shape alone.
  */
 import type { Actor, Statistic } from '@hearthtable/core';
-import { characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
-import { computed, reactive } from 'vue';
+import {
+  characterDataSchema,
+  prepareCharacter,
+  type SpellcastingEntry,
+} from '@hearthtable/pf2e';
+import { computed, reactive, ref } from 'vue';
 
 import RulesTerm from '../RulesTerm.vue';
 import StatBreakdown from '../StatBreakdown.vue';
 import { signed } from './format.js';
+import SpellListEditor from './SpellListEditor.vue';
+import { spellOptions } from './spellEdits.js';
 import {
   type CastableSpell,
   type EntryView,
@@ -31,6 +37,10 @@ const emit = defineEmits<{
   refocus: [];
   rest: [];
   roll: [statistic: string];
+  /** A hand edit of one entry, sent whole with `actor.setSpellcasting`. */
+  setEntry: [entry: SpellcastingEntry];
+  /** A hand edit of the focus pool, sent with `actor.update`. */
+  focus: [changes: { max?: number; current?: number }];
 }>();
 
 const data = computed(() => {
@@ -43,6 +53,19 @@ const view = computed(() =>
 const statistics = computed(() =>
   data.value === undefined ? {} : prepareCharacter(data.value).statistics,
 );
+
+/** Whether the lists, slot counts and focus pool are open for hand editing. */
+const editing = ref(false);
+const options = computed(() =>
+  data.value === undefined ? [] : spellOptions(data.value.items),
+);
+
+function onFocus(field: 'max' | 'current', event: Event): void {
+  const value = Math.trunc(Number((event.target as HTMLInputElement).value));
+  if (Number.isFinite(value) && value >= 0) {
+    emit('focus', { [field]: value });
+  }
+}
 
 /** The rank each spontaneous spell is cast at, when the player has chosen a higher one. */
 const heighten = reactive<Record<string, number>>({});
@@ -109,6 +132,37 @@ function pips(slots: RankSlots): { filled: boolean }[] {
       </p>
       <button v-if="editable" type="button" @click="emit('refocus')">Refocus</button>
     </section>
+
+    <p v-if="editable" class="edit-toggle">
+      <button type="button" :aria-pressed="editing" @click="editing = !editing">
+        {{ editing ? 'Done editing spells' : 'Edit spells' }}
+      </button>
+    </p>
+
+    <fieldset v-if="editing" class="focus-edit">
+      <legend>Focus points (by hand)</legend>
+      <label>
+        Maximum
+        <input
+          type="number"
+          min="0"
+          inputmode="numeric"
+          :value="view.focus.max"
+          @change="onFocus('max', $event)"
+        />
+      </label>
+      <label>
+        Current
+        <input
+          type="number"
+          min="0"
+          inputmode="numeric"
+          :value="view.focus.current"
+          @change="onFocus('current', $event)"
+        />
+      </label>
+      <span v-if="view.focus.max > 3" class="hint">The rules cap the pool at 3.</span>
+    </fieldset>
 
     <p v-if="editable && view.entries.length > 0" class="rest">
       <button type="button" @click="emit('rest')">Rest (daily preparation)</button>
@@ -239,6 +293,13 @@ function pips(slots: RankSlots): { filled: boolean }[] {
         </ul>
       </section>
 
+      <SpellListEditor
+        v-if="editing"
+        :entry="entry.entry"
+        :options="options"
+        @change="(next) => emit('setEntry', next)"
+      />
+
       <p v-if="entry.missing > 0" class="note">
         {{ entry.missing }} spell{{ entry.missing === 1 ? '' : 's' }} listed here
         {{ entry.missing === 1 ? 'is' : 'are' }} no longer on this character.
@@ -298,6 +359,7 @@ p {
 
 .focus,
 .rest,
+.focus-edit,
 .numbers,
 .slots li,
 .spell-group li {
@@ -350,7 +412,12 @@ ul {
 }
 
 button,
-select {
+select,
+input {
   min-height: var(--touch-target-min);
+}
+
+.focus-edit input {
+  width: 4rem;
 }
 </style>

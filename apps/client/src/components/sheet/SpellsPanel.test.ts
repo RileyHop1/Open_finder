@@ -264,4 +264,41 @@ describe('SpellsPanel', () => {
       '1 spell listed here is no longer on this character',
     );
   });
+
+  it('opens hand editing, and sends an edited entry whole', async () => {
+    const wrapper = mountPanel(cleric());
+    expect(wrapper.find('[aria-label="Edit Cleric spellcasting"]').exists()).toBe(false);
+    await wrapper.find('button[aria-pressed="false"]').trigger('click');
+    expect(wrapper.find('button[aria-pressed="true"]').text()).toBe(
+      'Done editing spells',
+    );
+
+    await wrapper
+      .find('[aria-label="Edit Cleric spellcasting"] input[type="number"]')
+      .setValue('3');
+    const [entry] = wrapper.emitted('setEntry')?.[0] ?? [];
+    expect(entry).toMatchObject({ id: ENTRY_ID, slots: { '1': 3 } });
+  });
+
+  it('sets the focus pool by hand, and warns past the cap of 3', async () => {
+    const wrapper = mountPanel(cleric());
+    await wrapper.find('button[aria-pressed="false"]').trigger('click');
+    const [max, current] = wrapper.findAll('.focus-edit input');
+    await max?.setValue('4');
+    await current?.setValue('2');
+    expect(wrapper.emitted('focus')).toEqual([[{ max: 4 }], [{ current: 2 }]]);
+
+    await wrapper.setProps({
+      actor: actorWith({
+        ...cleric().system,
+        focusPoints: { max: 4, current: 2 },
+      }),
+    });
+    expect(wrapper.text()).toContain('The rules cap the pool at 3.');
+  });
+
+  it('offers no editing to someone who cannot edit the character', () => {
+    const wrapper = mountPanel(cleric(), false);
+    expect(wrapper.text()).not.toContain('Edit spells');
+  });
 });
