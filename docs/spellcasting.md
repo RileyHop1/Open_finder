@@ -135,6 +135,25 @@ statistic (`actor.rollCheck`), so it has a breakdown and a DC like any other rol
 focus spell has no entry of its own yet, so its card takes the DC of the first entry of
 its tradition; focus entries arrive with the classes that have focus spells.
 
+## Editing the lists
+`actor.setSpellcasting` ([operations.md](operations.md)) replaces one entry whole, or adds
+a new one. It is the only way to change what is prepared or known, the cantrips or the
+slot counts, because `actor.update` never writes into an array
+(`packages/core/src/patch.ts`). Focus points are an object, so `system.focusPoints.max`
+and `.current` are set with `actor.update` like any other number.
+
+The client sends the whole entry and the server stores it, checking only that it is a
+well-formed entry ([Nothing is checked](#nothing-is-checked)). Two things are kept by the
+server: the entry's build `source` (so applying a build again still updates the entry it
+made) and the one-id-one-entry rule. It is last write wins, like `actor.setQuickbar`: an
+edit made from a stale sheet can undo a cast made a moment before it. For a table of five
+friends that is cheaper than a patch language for entries.
+
+*Rejected: one operation per change* (`prepareSpell`, `learnSpell`, `setSlotMax`, ...).
+Each would be a few lines on the server, but the sheet needs a dozen of them and every
+later caster step would want another. One whole-entry operation covers them, and the
+pure edits stay on the client where they are tested without a server.
+
 ## The Spells tab
 `SpellsPanel.vue` (laid out by `sheet/spellsModel.ts`, which is pure) shows, above the
 plain spell list:
