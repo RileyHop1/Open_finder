@@ -171,8 +171,23 @@ plain spell list:
 
 Cast buttons are never disabled for having nothing left (ADR 0023); the cast goes
 through and the chat card says it was overspent. The tab is read-only for a viewer who
-cannot edit the character. Adding spells and choosing what is prepared or known is not
-here yet: for now spells come in through the plain list below the panel (or a build).
+cannot edit the character.
+
+**Edit spells** (owner or GM) opens hand editing, in `SpellListEditor.vue` with the pure
+edits in `sheet/spellEdits.ts`:
+
+- slot counts per rank (a field for each rank with slots and one above the highest);
+- cantrips, the prepared rows (spell and slot rank) or the repertoire, picked from the
+  spell items the character has. A spell gets onto the character through the plain list
+  below the panel ("Add from the compendium") or a build;
+- the focus pool's maximum and current points (`actor.update`), with a note past the
+  rules' cap of 3.
+
+Each change sends the whole entry with `actor.setSpellcasting`. Nothing is refused: a
+spell above the slot's rank can be prepared there with a warning in words, more rows than
+slots are fine, and a reference to a spell the character no longer has is listed as
+"(missing spell)" with a Remove button. Adding or removing a whole entry by hand is not
+offered yet; entries come from a build.
 
 ## Nothing is checked
 The schema accepts what the rules would call a mistake: more prepared rows than

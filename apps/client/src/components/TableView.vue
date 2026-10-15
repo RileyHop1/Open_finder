@@ -1377,6 +1377,18 @@ async function createCharacter(name: string): Promise<boolean> {
                       @cast="(payload) => sendItem('actor.castSpell', payload)"
                       @refocus="sendItem('actor.refocus', {})"
                       @rest="sendItem('actor.restSpells', {})"
+                      @set-entry="(entry) => sendItem('actor.setSpellcasting', { entry })"
+                      @focus="
+                        (focus) =>
+                          saveChanges(
+                            Object.fromEntries(
+                              Object.entries(focus).map(([k, v]) => [
+                                `system.focusPoints.${k}`,
+                                v,
+                              ]),
+                            ),
+                          )
+                      "
                       @roll="
                         (statistic) =>
                           roll('actor.rollCheck', { statistic, ...dcPayload })
