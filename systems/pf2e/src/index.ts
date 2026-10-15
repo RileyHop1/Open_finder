@@ -374,6 +374,15 @@ export {
 export { ZERO_COINS, coinsSchema, type Coins } from './content/coins.js';
 
 export {
+  cantripRank,
+  refocus,
+  restEntry,
+  spendFocus,
+  spendSlot,
+  type SpendResult,
+} from './rules/castSpell.js';
+
+export {
   deriveSpellcasting,
   mergeSpellcasting,
   type DerivedSpellcasting,

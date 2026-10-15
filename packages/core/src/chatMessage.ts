@@ -233,6 +233,37 @@ export const chatItemUseMessageSchema = chatMessageBaseSchema.extend({
 
 export type ChatItemUseMessage = z.infer<typeof chatItemUseMessageSchema>;
 
+/**
+ * Casting a spell (`actor.castSpell`, ADR 0025). `spellName`, `castRank`, `text`
+ * and the numbers are snapshots at the moment of the cast, so the card still reads
+ * correctly after the spell is removed or the character changes.
+ *
+ * `cost` says what was spent: a `slot` of `castRank`, nothing for a `cantrip`, or
+ * a `focus` point. `overspent` is true when it was cast with nothing to spend (a
+ * spontaneous caster past their slots, a prepared spell that was not prepared or
+ * was already cast, no focus point left): the cast still happens (ADR 0023) and the
+ * card says so. `dc` and `save` are present for a spell that makes a target roll
+ * (`basic` marks a basic save), and `attackBonus` for a spell attack. The attack is
+ * rolled separately, as a check on the entry's `spellAttack:<id>` statistic.
+ */
+export const chatSpellCastMessageSchema = chatMessageBaseSchema.extend({
+  kind: z.literal('spellCast'),
+  actorId: idSchema,
+  actorName: z.string().min(1),
+  spellName: z.string().min(1),
+  castRank: z.number().int().min(1).max(10),
+  cost: z.enum(['slot', 'cantrip', 'focus']),
+  overspent: z.boolean(),
+  tradition: z.string().min(1).optional(),
+  dc: z.number().int().optional(),
+  save: z.string().min(1).optional(),
+  basic: z.boolean().optional(),
+  attackBonus: z.number().int().optional(),
+  text: z.string(),
+});
+
+export type ChatSpellCastMessage = z.infer<typeof chatSpellCastMessageSchema>;
+
 /** Every shape a `ChatMessage` document can take. */
 export const chatMessageSchema = z.discriminatedUnion('kind', [
   chatTextMessageSchema,
@@ -241,6 +272,7 @@ export const chatMessageSchema = z.discriminatedUnion('kind', [
   chatStrikeAttackMessageSchema,
   chatStrikeDamageMessageSchema,
   chatItemUseMessageSchema,
+  chatSpellCastMessageSchema,
 ]);
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

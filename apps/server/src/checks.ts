@@ -35,6 +35,9 @@ const ROLLABLE = new Set(['perception', 'fortitude', 'reflex', 'will']);
 
 /** `perception` -> `Perception`; `skill:lore-wine` -> `Lore Wine`. */
 function labelFor(statistic: string): string {
+  if (statistic.startsWith('spellAttack:')) {
+    return 'Spell attack';
+  }
   const name = statistic.startsWith('skill:')
     ? statistic.slice('skill:'.length)
     : statistic;
@@ -81,7 +84,9 @@ export function rollActorCheck(
   const { raw } = loadOwnedDocument(store, seat, payload.actorId, 'actor', 'actor');
   const actor: Actor = actorSchema.parse(raw);
   const isRollable =
-    ROLLABLE.has(payload.statistic) || payload.statistic.startsWith('skill:');
+    ROLLABLE.has(payload.statistic) ||
+    payload.statistic.startsWith('skill:') ||
+    payload.statistic.startsWith('spellAttack:');
   const prepared = isRollable ? preparedStatistics(actor)[payload.statistic] : undefined;
   if (prepared === undefined) {
     throw new OperationRejected(`${payload.statistic} cannot be rolled as a check`);

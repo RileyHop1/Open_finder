@@ -827,3 +827,21 @@ ruling from silently drifting.
 - **Alternative reading:** none known.
 - **Golden test:** `systems/pf2e/src/rules/spellcastingTables.test.ts`.
 - **Override:** every count is editable on the sheet once the Spells tab lands.
+
+### Casting: cantrip rank, refocus and daily preparation
+- **Rules text:** the spellcasting rules in Player Core (cantrips and focus spells
+  heighten, Refocus, daily preparations). **(confirm)** These are from memory; Archives of
+  Nethys was not reachable when this was written.
+- **The ambiguity:** whether daily preparation also refills the focus pool. We
+  understand that Refocus is what regains focus points and that a new day does not top
+  the pool up, so `actor.restSpells` does not touch focus points. **(confirm)**
+- **Our reading:** a cantrip or focus spell is cast at half the caster's level, rounded
+  up, and costs nothing (a cantrip) or one focus point; Refocus regains one point up to
+  the maximum; resting makes every spell slot available again. Casting with nothing to
+  spend still casts, and the card says so.
+- **Alternative reading:** refuse the cast, or refill the focus pool on rest.
+- **Why:** ADR 0023, and a wrong refill is worse than an adjustable gap: the GM can set
+  focus points by hand.
+- **Golden test:** `systems/pf2e/src/rules/castSpell.test.ts` and
+  `apps/server/src/castSpell.test.ts`.
+- **Override:** every count is editable on the sheet.

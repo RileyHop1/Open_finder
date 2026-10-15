@@ -164,6 +164,31 @@ async function handleSubmit(): Promise<void> {
             :sender="seatName(entry.seatId)"
             :is-gm="lobbyStore.mySeat?.isGM === true"
           />
+          <template v-else-if="entry.kind === 'spellCast'">
+            <span class="sender">{{ entry.actorName }} cast {{ entry.spellName }}</span>
+            <span>
+              (<template v-if="entry.cost === 'cantrip'"
+                >cantrip, rank {{ entry.castRank }}</template
+              ><template v-else-if="entry.cost === 'focus'"
+                >focus spell, rank {{ entry.castRank }}</template
+              ><template v-else>rank {{ entry.castRank }}</template
+              >)<template v-if="entry.tradition"> · {{ entry.tradition }}</template
+              ><template v-if="entry.dc !== undefined">
+                · DC {{ entry.dc }}
+                <template v-if="entry.save"
+                  >{{ entry.basic ? 'basic ' : '' }}{{ entry.save }}</template
+                ></template
+              ><template v-if="entry.attackBonus !== undefined">
+                · spell attack {{ entry.attackBonus >= 0 ? '+' : ''
+                }}{{ entry.attackBonus }}</template
+              >
+            </span>
+            <strong v-if="entry.overspent" class="overspent">
+              Nothing left to spend: cast anyway (−1
+              {{ entry.cost === 'focus' ? 'focus point' : 'slot' }})
+            </strong>
+            <span v-if="entry.text">{{ entry.text }}</span>
+          </template>
           <template v-else-if="entry.kind === 'itemUse'">
             <span class="sender">{{ entry.actorName }} used {{ entry.itemName }}:</span>
             <span v-if="entry.text">{{ entry.text }}</span>

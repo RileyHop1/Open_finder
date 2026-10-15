@@ -67,6 +67,7 @@ import { rollActorCheck } from './checks.js';
 import { adjustActorCoins } from './coins.js';
 import { transferInventory } from './transfer.js';
 import { useItem } from './useItem.js';
+import { castSpell, refocus, restSpells } from './castSpell.js';
 import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import { settlePersistentDamage } from './persistentDamage.js';
 import { promptReactions } from './reactions.js';
@@ -328,7 +329,11 @@ function handleChatAdjustRoll(
   if (!message.success) {
     throw new OperationRejected(`no chat message found with id ${payload.messageId}`);
   }
-  if (message.data.kind === 'text' || message.data.kind === 'itemUse') {
+  if (
+    message.data.kind === 'text' ||
+    message.data.kind === 'itemUse' ||
+    message.data.kind === 'spellCast'
+  ) {
     throw new OperationRejected('this message is not a roll');
   }
   const dc = 'dc' in message.data ? message.data.dc : undefined;
@@ -786,6 +791,21 @@ function dispatch(
       const seat = requireSeat(store, socket);
       const { documents } = useItem(store, seat, cryptoRandomSource, operation.payload);
       return { seatId: seat.id, seats: [], documents: [...documents] };
+    }
+    case 'actor.castSpell': {
+      const seat = requireSeat(store, socket);
+      const { documents } = castSpell(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [...documents] };
+    }
+    case 'actor.refocus': {
+      const seat = requireSeat(store, socket);
+      const actor = refocus(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.restSpells': {
+      const seat = requireSeat(store, socket);
+      const actor = restSpells(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
     }
     default:
       return assertNever(operation);
