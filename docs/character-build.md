@@ -25,6 +25,7 @@ hand-built and stays valid. It holds choices only, never results:
 | `feats` | `{ slot, level, feat }`: slot is `ancestry`, `class`, `skill`, `general` or `archetype` |
 | `languages` | Chosen languages |
 | `classChoices` | Class- and feature-specific picks (racket, instinct, methodology, style, and so on), keyed by the choice that offered them. Named apart from the character's own `choices`, which holds rule-element selections |
+| `spells` | `{ cantrips, ranked }`: the spells picked for the class's spellcasting, as compendium references. Each is granted as a `spell` item; the cantrips go in the class entry's cantrips and, for a spontaneous caster, the ranked picks in its repertoire ([spellcasting.md](spellcasting.md)). Defaults to none of either |
 
 The key attribute stays where it already is, on the character
 (`keyAttribute`); the build does not duplicate it. The schema stores choices

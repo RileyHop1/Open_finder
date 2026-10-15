@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { SpellcastingEntry } from '../content/spellcasting.js';
 import {
   type DerivedSpellcasting,
+  addSpellPicks,
   deriveSpellcasting,
   mergeSpellcasting,
 } from './deriveSpellcasting.js';
@@ -156,5 +157,51 @@ describe('mergeSpellcasting', () => {
   it('is stable: merging the same derivation twice changes nothing', () => {
     const once = mergeSpellcasting([], derivedPrepared(5), newId);
     expect(mergeSpellcasting(once, derivedPrepared(5), newId)).toEqual(once);
+  });
+});
+
+describe('addSpellPicks', () => {
+  const common = {
+    name: 'Invented spellcasting',
+    tradition: 'occult',
+    attribute: 'cha',
+    rank: 'trained',
+  } as const;
+  const bard: SpellcastingEntry = {
+    ...common,
+    id: crypto.randomUUID(),
+    source: 'class:bard',
+    kind: 'spontaneous',
+    cantrips: ['a'],
+    slots: {},
+    repertoire: ['x'],
+    signature: [],
+  };
+  const other: SpellcastingEntry = {
+    ...common,
+    id: crypto.randomUUID(),
+    kind: 'prepared',
+    cantrips: [],
+    slots: {},
+    prepared: [],
+  };
+
+  it('adds to the source’s cantrips and repertoire once each, keeping what was there', () => {
+    const [next, untouched] = addSpellPicks([bard, other], 'class:bard', {
+      cantrips: ['a', 'b', 'b'],
+      ranked: ['x', 'y'],
+    });
+    expect(next?.cantrips).toEqual(['a', 'b']);
+    expect(next?.kind === 'spontaneous' ? next.repertoire : []).toEqual(['x', 'y']);
+    expect(untouched).toBe(other);
+  });
+
+  it('gives a prepared entry the cantrips only', () => {
+    const prepared = { ...other, source: 'class:wizard' };
+    const [next] = addSpellPicks([prepared], 'class:wizard', {
+      cantrips: ['c'],
+      ranked: ['y'],
+    });
+    expect(next).toEqual({ ...prepared, cantrips: ['c'] });
   });
 });

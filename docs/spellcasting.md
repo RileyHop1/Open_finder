@@ -81,6 +81,18 @@ and the cantrips; with none, a new empty entry is added. It never removes an ent
 and a hand-made entry (no `source`) is never touched. `actor.applyBuild` calls it,
 so applying a build again, or levelling up, only raises the maximums.
 
+**Spell picks** are the build's `spells` (`{ cantrips, ranked }`, compendium
+references). `deriveCharacter` grants each as an item and returns the ones that
+resolved as `spellPicks`; a pick that is missing or is not a spell is left out with a
+warning (`missing-entry`, `not-a-spell`), and more cantrips than the class has is a
+`too-many-cantrips` warning, with all of them still granted (ADR 0023).
+`addSpellPicks` then puts their item ids in the class entry: the cantrips in its
+cantrips, and for a spontaneous caster the ranked picks in its repertoire. A prepared
+caster's ranked picks are only items (a Wizard's spellbook, a Cleric's first choices);
+preparing them is play. Like the merge, it only adds, so a pick removed from the build
+stays on the sheet until removed there. How many ranked spells a class picks is that
+class's own PR; no repertoire size is checked yet.
+
 A class whose tradition depends on a choice (the Witch's patron, the Sorcerer's
 bloodline) gets **no entry yet** and a `spellcasting-tradition-undecided` warning,
 because how a patron or bloodline maps to a tradition is that class's own PR; the

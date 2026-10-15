@@ -70,6 +70,14 @@ export type DeriveWarning =
       readonly choice: string;
       readonly feature: string;
     }
+  /** A spell pick that names something other than a spell. Not granted. */
+  | { readonly kind: 'not-a-spell'; readonly packId: string; readonly slug: string }
+  /** More cantrips picked than the class has. All are granted. */
+  | {
+      readonly kind: 'too-many-cantrips';
+      readonly chosen: number;
+      readonly allowed: number;
+    }
   /** A choice the build made that is not among the options the feature offers. Still applied. */
   | {
       readonly kind: 'choice-not-offered';
@@ -91,6 +99,11 @@ export interface DerivedCharacter {
   readonly choices: Readonly<Record<string, string>>;
   /** The spellcasting the class gives at this level (its static parts); absent for a class that does not cast, or whose tradition is not yet decided. */
   readonly spellcasting: DerivedSpellcasting | undefined;
+  /** The picked spells that resolved, by compendium ref; the caller puts their item ids in the class entry's lists. */
+  readonly spellPicks: {
+    readonly cantrips: readonly { readonly packId: string; readonly slug: string }[];
+    readonly ranked: readonly { readonly packId: string; readonly slug: string }[];
+  };
   readonly warnings: readonly DeriveWarning[];
 }
 
@@ -299,6 +312,34 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   const casting = deriveSpellcasting(inputs.class, level, keyAttribute);
   warnings.push(...casting.warnings);
 
+  // Spell picks: granted as items, and handed back for the class entry's lists.
+  const pickSpells = (picks: readonly { packId: string; slug: string }[]) =>
+    picks.flatMap((pick) => {
+      const entry = inputs.resolve(pick.packId, pick.slug);
+      if (entry === undefined) {
+        warnings.push({ kind: 'missing-entry', packId: pick.packId, slug: pick.slug });
+        return [];
+      }
+      if (entry.kind !== 'spell') {
+        warnings.push({ kind: 'not-a-spell', packId: pick.packId, slug: pick.slug });
+        return [];
+      }
+      add(entry, MAX_GRANT_DEPTH);
+      return [{ packId: entry.packId, slug: entry.slug }];
+    });
+  const spellPicks = {
+    cantrips: pickSpells(build.spells.cantrips),
+    ranked: pickSpells(build.spells.ranked),
+  };
+  const allowedCantrips = casting.spellcasting?.cantrips;
+  if (allowedCantrips !== undefined && build.spells.cantrips.length > allowedCantrips) {
+    warnings.push({
+      kind: 'too-many-cantrips',
+      chosen: build.spells.cantrips.length,
+      allowed: allowedCantrips,
+    });
+  }
+
   return {
     level,
     attributes: boosts.attributes,
@@ -310,6 +351,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     items,
     choices,
     spellcasting: casting.spellcasting,
+    spellPicks,
     warnings,
   };
 }

@@ -13,6 +13,7 @@ describe('characterBuildSchema', () => {
       feats: [],
       languages: [],
       classChoices: {},
+      spells: { cantrips: [], ranked: [] },
     });
   });
 

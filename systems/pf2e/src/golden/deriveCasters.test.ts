@@ -25,6 +25,7 @@ const emptyBuild: CharacterBuild = {
   feats: [],
   languages: [],
   classChoices: {},
+  spells: { cantrips: [], ranked: [] },
 };
 
 const classStub = (slug: string, key: Attribute): ClassEntry =>

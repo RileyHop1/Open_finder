@@ -30,6 +30,7 @@ import {
   classFeatureEntrySchema,
   deriveCharacter,
   heritageEntrySchema,
+  addSpellPicks,
   mergeSpellcasting,
   prepareCharacter,
 } from '@hearthtable/pf2e';
@@ -243,6 +244,21 @@ export function applyBuild(
       }
     }
 
+    // The picked spells' item ids (existing copies count), into the class entry's lists.
+    const allItems = [...before.items, ...newItems];
+    const idsOf = (refs: readonly BuildRef[]) =>
+      refs.flatMap((r) => {
+        const item = allItems.find((i) => hasSource([i], r.packId, r.slug));
+        return item === undefined ? [] : [item.id];
+      });
+    const withPicks = (entries: CharacterData['spellcasting']) =>
+      derived.spellcasting === undefined
+        ? entries
+        : addSpellPicks(entries, derived.spellcasting.source, {
+            cantrips: idsOf(derived.spellPicks.cantrips),
+            ranked: idsOf(derived.spellPicks.ranked),
+          });
+
     const next: CharacterData = {
       ...before,
       level,
@@ -254,8 +270,10 @@ export function applyBuild(
       speed: derived.speed,
       items: [...before.items, ...newItems],
       choices: { ...before.choices, ...derived.choices },
-      spellcasting: mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
-        crypto.randomUUID(),
+      spellcasting: withPicks(
+        mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
+          crypto.randomUUID(),
+        ),
       ),
       build: build.data,
       ...(ref(ancestry) === undefined ? {} : { ancestry: ref(ancestry) }),
