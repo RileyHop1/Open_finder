@@ -43,6 +43,10 @@ export interface EntrySummary {
   readonly classSlugs?: readonly string[];
   /** Heritages only: the ancestry they belong to (absent means a versatile heritage). */
   readonly ancestrySlug?: string;
+  /** Spells only: the spell's rank (a cantrip is rank 1 with the `cantrip` trait). */
+  readonly rank?: number;
+  /** Spells only: the traditions whose lists it is on (none for a focus spell). */
+  readonly traditions?: readonly string[];
 }
 
 export interface SearchOptions {
@@ -60,6 +64,10 @@ export interface SearchOptions {
   readonly classSlug?: string | undefined;
   /** Only heritages of this ancestry. */
   readonly ancestrySlug?: string | undefined;
+  /** Only spells of exactly this rank. */
+  readonly rank?: number | undefined;
+  /** Only spells on this tradition's list. */
+  readonly tradition?: string | undefined;
   /** Case-insensitive; names starting with it rank before names merely containing it. */
   readonly q?: string | undefined;
   /** Default 50, at most 200. */
@@ -131,6 +139,7 @@ function summarize(entry: Pf2eEntry): EntrySummary {
     ...(entry.kind === 'heritage' && entry.ancestrySlug !== undefined
       ? { ancestrySlug: entry.ancestrySlug }
       : {}),
+    ...(entry.kind === 'spell' ? { rank: entry.rank, traditions: entry.traditions } : {}),
   };
 }
 
@@ -153,6 +162,13 @@ function matchesFilters(summary: EntrySummary, options: SearchOptions): boolean 
   if (options.trait !== undefined && !summary.traits.includes(options.trait))
     return false;
   if (options.level !== undefined && summary.level !== options.level) return false;
+  if (options.rank !== undefined && summary.rank !== options.rank) return false;
+  if (
+    options.tradition !== undefined &&
+    summary.traditions?.includes(options.tradition) !== true
+  ) {
+    return false;
+  }
   if (
     options.maxLevel !== undefined &&
     (summary.level === undefined || summary.level > options.maxLevel)

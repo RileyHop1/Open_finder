@@ -109,6 +109,8 @@ const compendiumSearchQuerySchema = z.object({
   trait: z.string().min(1).max(60).optional(),
   classSlug: z.string().min(1).max(80).optional(),
   ancestrySlug: z.string().min(1).max(80).optional(),
+  rank: z.coerce.number().int().min(1).max(10).optional(),
+  tradition: z.string().min(1).max(40).optional(),
   limit: z.coerce.number().int().min(1).max(MAX_SEARCH_LIMIT).optional(),
 });
 

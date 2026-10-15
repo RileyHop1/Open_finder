@@ -282,6 +282,56 @@ describe('search', () => {
       ]);
       expect(slugs({ classSlug: 'fighter', level: 3 })).toEqual(['bravery']);
     });
+
+    describe('spells', () => {
+      const spell = (
+        slug: string,
+        rank: number,
+        traditions: string[],
+        traits: string[] = [],
+      ) =>
+        entry('spells', slug, slug, 'spell', {
+          rank,
+          traditions,
+          traits,
+          castTime: '2',
+          range: { kind: 'touch' },
+        });
+
+      beforeEach(() => {
+        writePack('spells', [
+          spell('zap', 1, ['arcane', 'occult'], ['cantrip']),
+          spell('lull', 1, ['occult']),
+          spell('mend', 1, ['divine', 'primal']),
+          spell('blast', 3, ['arcane']),
+          spell('ki-strike', 1, [], ['focus']),
+        ]);
+      });
+
+      it('carries a spell’s rank and traditions on its summary', () => {
+        expect(loadCompendium(root).search({ q: 'blast' })[0]).toMatchObject({
+          rank: 3,
+          traditions: ['arcane'],
+        });
+        expect(loadCompendium(root).search({ q: 'ki-strike' })[0]).toMatchObject({
+          traditions: [],
+        });
+      });
+
+      it('filters by exact rank and by tradition, with the trait for cantrips', () => {
+        expect(slugs({ kind: 'spell', rank: 1 })).toEqual([
+          'ki-strike',
+          'lull',
+          'mend',
+          'zap',
+        ]);
+        expect(slugs({ tradition: 'occult' })).toEqual(['lull', 'zap']);
+        expect(slugs({ tradition: 'occult', trait: 'cantrip' })).toEqual(['zap']);
+        expect(slugs({ tradition: 'arcane', rank: 3 })).toEqual(['blast']);
+        // Entries that are not spells never match a spell filter.
+        expect(slugs({ rank: 1, q: 'swordplay' })).toEqual([]);
+      });
+    });
   });
 
   it('returns summaries, not whole entries', () => {

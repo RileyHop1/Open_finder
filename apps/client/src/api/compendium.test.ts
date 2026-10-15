@@ -59,7 +59,7 @@ describe('searchCompendium', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/search');
   });
 
-  it('sends the level, category, trait, class and ancestry filters when given', async () => {
+  it('sends the level, category, trait, class, ancestry, rank and tradition filters when given', async () => {
     fetchMock.mockImplementation(() => jsonResponse([]));
     await searchCompendium({
       kind: 'feat',
@@ -73,7 +73,11 @@ describe('searchCompendium', () => {
     expect(fetchMock).toHaveBeenLastCalledWith(
       '/api/compendium/search?kind=feat&level=1&maxLevel=3&category=ancestry&trait=dwarf&classSlug=fighter&ancestrySlug=dwarf',
     );
-    await searchCompendium({ category: '', trait: '' });
+    await searchCompendium({ kind: 'spell', rank: 1, tradition: 'occult' });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/compendium/search?kind=spell&rank=1&tradition=occult',
+    );
+    await searchCompendium({ category: '', trait: '', tradition: '' });
     expect(fetchMock).toHaveBeenLastCalledWith('/api/compendium/search');
   });
 
