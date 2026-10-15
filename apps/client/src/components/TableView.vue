@@ -118,6 +118,7 @@ import HitPointsPanel from './sheet/HitPointsPanel.vue';
 import { featGroups, spellGroups } from './sheet/featsModel.js';
 import InventoryPanel from './sheet/InventoryPanel.vue';
 import ItemGroupsPanel from './sheet/ItemGroupsPanel.vue';
+import SpellsPanel from './sheet/SpellsPanel.vue';
 import PartyStashPanel from './sheet/PartyStashPanel.vue';
 import StrikesPanel from './sheet/StrikesPanel.vue';
 
@@ -1369,6 +1370,18 @@ async function createCharacter(name: string): Promise<boolean> {
                     />
                   </template>
                   <template #spells>
+                    <SpellsPanel
+                      :actor="selected"
+                      :editable="canEdit"
+                      :rollable="canEdit"
+                      @cast="(payload) => sendItem('actor.castSpell', payload)"
+                      @refocus="sendItem('actor.refocus', {})"
+                      @rest="sendItem('actor.restSpells', {})"
+                      @roll="
+                        (statistic) =>
+                          roll('actor.rollCheck', { statistic, ...dcPayload })
+                      "
+                    />
                     <ItemGroupsPanel
                       title="Spells"
                       :groups="spellGroups(selectedItems)"
