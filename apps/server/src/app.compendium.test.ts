@@ -125,6 +125,9 @@ describe('with imported content', () => {
       'maxLevel=abc',
       'category=',
       'trait=',
+      'rank=0',
+      'rank=11',
+      'tradition=',
     ]) {
       const response = await app.inject({
         method: 'GET',

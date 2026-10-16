@@ -28,6 +28,8 @@ export const entrySummarySchema = z.object({
   priceInCopper: z.number().optional(),
   classSlugs: z.array(z.string()).optional(),
   ancestrySlug: z.string().optional(),
+  rank: z.number().optional(),
+  traditions: z.array(z.string()).optional(),
 });
 
 export type EntrySummary = z.infer<typeof entrySummarySchema>;
@@ -50,6 +52,10 @@ export interface SearchParams {
   classSlug?: string;
   /** Heritages of this ancestry. */
   ancestrySlug?: string;
+  /** Spells of exactly this rank. */
+  rank?: number;
+  /** Spells on this tradition's list. */
+  tradition?: string;
 }
 
 async function getJson<T>(url: string, schema: z.ZodType<T>, action: string): Promise<T> {
@@ -79,13 +85,19 @@ export function searchCompendium(params: SearchParams = {}): Promise<EntrySummar
   if (params.limit !== undefined) {
     query.set('limit', String(params.limit));
   }
-  for (const key of ['level', 'maxLevel'] as const) {
+  for (const key of ['level', 'maxLevel', 'rank'] as const) {
     const value = params[key];
     if (value !== undefined) {
       query.set(key, String(value));
     }
   }
-  for (const key of ['category', 'trait', 'classSlug', 'ancestrySlug'] as const) {
+  for (const key of [
+    'category',
+    'trait',
+    'classSlug',
+    'ancestrySlug',
+    'tradition',
+  ] as const) {
     const value = params[key];
     if (value !== undefined && value !== '') {
       query.set(key, value);
