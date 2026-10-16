@@ -138,7 +138,10 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
 
       <section
         v-if="
-          gifts.spells.length > 0 || gifts.focusPoints > 0 || gifts.pending.length > 0
+          gifts.spells.length > 0 ||
+          gifts.focusPoints > 0 ||
+          gifts.pending.length > 0 ||
+          gifts.font !== undefined
         "
         class="gifts"
         aria-labelledby="spells-gifts-title"
@@ -152,6 +155,21 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
               :label="titleCase(gift.slug)"
             />:
             {{ gift.why === 'choice' ? `from your ${gift.choice}` : WHY[gift.why] }}
+          </li>
+          <li v-if="gifts.font !== undefined">
+            {{ gifts.font.name }}: {{ gifts.font.count }} extra slots at your highest
+            rank, each holding
+            <template v-if="gifts.font.spell !== undefined">
+              <RulesTerm
+                term-kind="spell"
+                :slug="gifts.font.spell"
+                :label="titleCase(gifts.font.spell)"
+              />
+            </template>
+            <template v-else>
+              {{ gifts.font.options.map(titleCase).join(' or ') }}, once you choose your
+              font (Class choices step)
+            </template>
           </li>
           <li v-if="gifts.focusPoints > 0">
             {{ gifts.focusPoints }} Focus Point{{ gifts.focusPoints === 1 ? '' : 's' }}

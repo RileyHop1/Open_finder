@@ -10,6 +10,7 @@
 import {
   CASTER_TABLES,
   CLASS_SPELL_GRANTS,
+  fontAt,
   grantedSpells,
   isCasterClass,
   slotsAtLevel,
@@ -97,6 +98,18 @@ export interface ClassGifts {
   readonly focusPoints: number;
   /** Class choices that will add a spell once they are made (a Bard's muse). */
   readonly pending: readonly string[];
+  /**
+   * A font's extra slots at level 1 (a Cleric's Divine Font): the spell they hold
+   * once the font is chosen, else every spell it could be.
+   */
+  readonly font:
+    | {
+        readonly name: string;
+        readonly count: number;
+        readonly spell: string | undefined;
+        readonly options: readonly string[];
+      }
+    | undefined;
 }
 
 /** What `classSlug` gives by itself (`classSpells.ts` in the PF2e system), given the choices made so far. */
@@ -121,5 +134,22 @@ export function classGifts(
     ],
     focusPoints: granted.focusPoints,
     pending: Object.keys(byChoice).filter((choice) => classChoices[choice] === undefined),
+    font: fontGift(classSlug, classChoices),
   };
+}
+
+function fontGift(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): ClassGifts['font'] {
+  const font = fontAt(classSlug, classChoices, 1);
+  const grant = classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug]?.font;
+  return font === undefined || grant === undefined
+    ? undefined
+    : {
+        name: font.name,
+        count: font.count,
+        spell: font.spell,
+        options: Object.values(grant.spells),
+      };
 }
