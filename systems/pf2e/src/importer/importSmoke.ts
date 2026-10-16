@@ -21,8 +21,10 @@
  * dependency-drop rate stayed under a sane ceiling.
  */
 
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { MAGICAL_TRADITIONS } from '../content/spell.js';
 import { runImporter } from './runImporter.js';
 import { UPSTREAM_COMMIT, UPSTREAM_PACKS_CHECKSUM, UPSTREAM_REPO } from './upstream.js';
 
@@ -88,6 +90,27 @@ try {
     failures.push(
       `expected at least ${EXPECTED_MIN_CLASS_FEATURES} class features, imported ${featureCount ?? 0}`,
     );
+  }
+
+  // Every tradition's list must have spells. The importer once read traditions from a
+  // field upstream does not have, and every spell came through on no list at all.
+  const spellsDir = join(outputDir, 'spells');
+  const perTradition = new Map<string, number>(MAGICAL_TRADITIONS.map((t) => [t, 0]));
+  if (existsSync(spellsDir)) {
+    for (const file of readdirSync(spellsDir).filter((f) => f.endsWith('.json'))) {
+      const spell = JSON.parse(readFileSync(join(spellsDir, file), 'utf8')) as {
+        traditions?: unknown;
+      };
+      for (const tradition of Array.isArray(spell.traditions) ? spell.traditions : []) {
+        if (typeof tradition === 'string' && perTradition.has(tradition)) {
+          perTradition.set(tradition, (perTradition.get(tradition) ?? 0) + 1);
+        }
+      }
+    }
+  }
+  const emptyTraditions = [...perTradition].filter(([, n]) => n === 0).map(([t]) => t);
+  if (emptyTraditions.length > 0) {
+    failures.push(`no spells on the ${emptyTraditions.join(', ')} list(s)`);
   }
 
   const dependencyDropRate =

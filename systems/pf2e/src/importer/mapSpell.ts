@@ -148,9 +148,14 @@ export function mapSpell(
     return { ok: false, reason: 'unparseable-range' };
   }
 
-  const traditions = (nestedStringArrayField(system, 'traditions', 'value') ?? []).filter(
-    isMagicalTradition,
-  );
+  // Upstream keeps the traditions in `system.traits.traditions` (checked against the
+  // pinned data: Fear lists all four there, and `system.traditions` does not exist).
+  // `system.traditions.value` is an older shape, kept as a fallback.
+  const traditions = (
+    nestedStringArrayField(system, 'traits', 'traditions') ??
+    nestedStringArrayField(system, 'traditions', 'value') ??
+    []
+  ).filter(isMagicalTradition);
   const rawTraits = nestedStringArrayField(system, 'traits', 'value') ?? [];
   const traits = filterValidTraitSlugs(
     rawTraits,
