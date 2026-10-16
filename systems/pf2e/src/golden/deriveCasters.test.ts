@@ -5,6 +5,9 @@ import { deriveCharacter } from '../rules/deriveCharacter.js';
 import type { ClassEntry } from '../content/class.js';
 import type { CharacterBuild } from '../content/characterBuild.js';
 import type { Attribute } from '../content/common.js';
+import type { CharacterItem } from '../content/character.js';
+
+type ItemEntry = CharacterItem['entry'];
 
 /**
  * The spellcasting each of the seven casters is built with, through the real
@@ -38,12 +41,32 @@ const classStub = (slug: string, key: Attribute): ClassEntry =>
     skills: { trainedSkillCount: 2, automaticallyTrained: [] },
   }) as unknown as ClassEntry;
 
-const casting = (slug: string, key: Attribute, level: number) =>
+/** Any spell the derivation asks for, as an invented stub: the grant table names spells by slug. */
+const spellStub = (packId: string, slug: string) =>
+  packId === 'spells'
+    ? ({
+        packId,
+        slug,
+        name: slug,
+        kind: 'spell',
+        traits: [],
+        ruleElements: [],
+        rank: 1,
+        traditions: [],
+      } as unknown as ItemEntry)
+    : undefined;
+
+const casting = (
+  slug: string,
+  key: Attribute,
+  level: number,
+  classChoices: Record<string, string> = {},
+) =>
   deriveCharacter({
-    build: emptyBuild,
+    build: { ...emptyBuild, classChoices },
     level,
     class: classStub(slug, key),
-    resolve: () => undefined,
+    resolve: spellStub,
   });
 
 describe('level 1 casters', () => {
@@ -78,6 +101,43 @@ describe('level 1 casters', () => {
       choice,
       classSlug: slug,
     });
+  });
+});
+
+describe('what a class grants by itself', () => {
+  it('a level 1 Enigma bard: a composition cantrip, a focus spell, the muse’s spell, 1 focus point', () => {
+    const derived = casting('bard', 'cha', 1, { muse: 'enigma' });
+    expect(derived.focusPoints).toBe(1);
+    expect(derived.spellPicks.cantrips.map((r) => r.slug)).toEqual(['courageous-anthem']);
+    expect(derived.spellPicks.ranked.map((r) => r.slug)).toEqual(['sure-strike']);
+    expect(derived.items.map((i) => i.slug)).toEqual([
+      'counter-performance',
+      'courageous-anthem',
+      'sure-strike',
+    ]);
+  });
+
+  it.each([
+    ['maestro', 'soothe'],
+    ['polymath', 'phantasmal-minion'],
+    ['warrior', 'fear'],
+  ])('a %s bard learns %s', (muse, spell) => {
+    expect(
+      casting('bard', 'cha', 1, { muse }).spellPicks.ranked.map((r) => r.slug),
+    ).toEqual([spell]);
+  });
+
+  it('the other casters grant nothing yet', () => {
+    for (const [slug, key] of [
+      ['cleric', 'wis'],
+      ['druid', 'wis'],
+      ['oracle', 'cha'],
+      ['wizard', 'int'],
+    ] as const) {
+      const derived = casting(slug, key, 1);
+      expect(derived.focusPoints).toBe(0);
+      expect(derived.spellPicks).toEqual({ cantrips: [], ranked: [] });
+    }
   });
 });
 

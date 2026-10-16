@@ -378,18 +378,31 @@ describe('deriveCharacter', () => {
         (slug) => [`spells/${slug}`, spell(slug, true)] as const,
       ),
       ['spells/r1', spell('r1', false)],
+      ['spells/r2', spell('r2', false)],
+      ['spells/r3', spell('r3', false)],
+      // Invented entries under the slugs the Bard's grant table names (`classSpells.ts`).
+      ['spells/courageous-anthem', spell('courageous-anthem', true)],
+      ['spells/counter-performance', spell('counter-performance', false)],
+      ['spells/sure-strike', spell('sure-strike', false)],
       ['feats/not-magic', feat('not-magic')],
     ]);
-    const bard = { ...cls, slug: 'bard', name: 'Bard' };
+    // A spontaneous caster the class-grant table has no row for, so only the picks count.
+    const oracle = { ...cls, slug: 'oracle', name: 'Oracle' };
     const ref = (slug: string, packId = 'spells') => ({ packId, slug });
-    const derive = (cantrips: string[], ranked: { packId: string; slug: string }[]) =>
+    const derive = (
+      cantrips: string[],
+      ranked: { packId: string; slug: string }[],
+      cast = oracle,
+      classChoices: Record<string, string> = {},
+    ) =>
       deriveCharacter({
         build: {
           ...emptyBuild,
+          classChoices,
           spells: { cantrips: cantrips.map((c) => ref(c)), ranked },
         },
         level: 1,
-        class: bard,
+        class: cast,
         resolve: (p, s) => all.get(`${p}/${s}`),
       });
 
@@ -417,6 +430,42 @@ describe('deriveCharacter', () => {
         { kind: 'missing-entry', packId: 'spells', slug: 'gone' },
         { kind: 'not-a-spell', packId: 'feats', slug: 'not-magic' },
       ]);
+    });
+
+    it('warns past a spontaneous caster’s repertoire (its slots), granting them all', () => {
+      const d = derive([], [ref('r1'), ref('r2'), ref('r3')]);
+      expect(d.spellPicks.ranked).toHaveLength(3);
+      expect(d.warnings).toEqual([
+        { kind: 'too-many-known-spells', chosen: 3, allowed: 2 },
+      ]);
+    });
+
+    describe('what the class grants by itself', () => {
+      const bard = { ...cls, slug: 'bard', name: 'Bard' };
+
+      it('grants the class’s cantrip, focus spell and the muse’s spell, and its focus pool', () => {
+        const d = derive(['c1'], [ref('r1')], bard, { muse: 'enigma' });
+        expect(d.focusPoints).toBe(1);
+        expect(d.spellPicks).toEqual({
+          cantrips: [ref('c1'), ref('courageous-anthem')],
+          ranked: [ref('r1'), ref('sure-strike')],
+        });
+        expect(d.items.map((i) => i.slug)).toContain('counter-performance');
+        // The granted spells are not counted against the picks.
+        expect(d.warnings).toEqual([]);
+      });
+
+      it('adds no muse spell before the muse is chosen', () => {
+        const d = derive([], [], bard);
+        expect(d.spellPicks.ranked).toEqual([]);
+        expect(d.spellPicks.cantrips).toEqual([ref('courageous-anthem')]);
+      });
+
+      it('gives a class with no row no focus pool and nothing extra', () => {
+        const d = derive(['c1'], [], oracle);
+        expect(d.focusPoints).toBe(0);
+        expect(d.spellPicks.cantrips).toEqual([ref('c1')]);
+      });
     });
   });
 });

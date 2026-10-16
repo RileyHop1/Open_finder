@@ -21,6 +21,7 @@ import { rankAtLevel } from '../content/class.js';
 import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { HeritageEntry } from '../content/heritage.js';
 import { applyBoosts, type BoostWarning } from './boosts.js';
+import { CLASS_SPELLS_PACK, grantedSpells } from './classSpells.js';
 import {
   type DerivedSpellcasting,
   type SpellcastingWarning,
@@ -78,6 +79,12 @@ export type DeriveWarning =
       readonly chosen: number;
       readonly allowed: number;
     }
+  /** More ranked spells picked than a spontaneous caster's slots (its repertoire size). All are granted. */
+  | {
+      readonly kind: 'too-many-known-spells';
+      readonly chosen: number;
+      readonly allowed: number;
+    }
   /** A choice the build made that is not among the options the feature offers. Still applied. */
   | {
       readonly kind: 'choice-not-offered';
@@ -99,11 +106,17 @@ export interface DerivedCharacter {
   readonly choices: Readonly<Record<string, string>>;
   /** The spellcasting the class gives at this level (its static parts); absent for a class that does not cast, or whose tradition is not yet decided. */
   readonly spellcasting: DerivedSpellcasting | undefined;
-  /** The picked spells that resolved, by compendium ref; the caller puts their item ids in the class entry's lists. */
+  /**
+   * The picked spells that resolved, plus the ones the class grants (`classSpells.ts`:
+   * a Bard's composition cantrip, its muse's spell), by compendium ref; the caller
+   * puts their item ids in the class entry's lists.
+   */
   readonly spellPicks: {
     readonly cantrips: readonly { readonly packId: string; readonly slug: string }[];
     readonly ranked: readonly { readonly packId: string; readonly slug: string }[];
   };
+  /** The focus pool the class gives (0 for none); the caller only ever raises the sheet's. */
+  readonly focusPoints: number;
   readonly warnings: readonly DeriveWarning[];
 }
 
@@ -327,10 +340,29 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
       add(entry, MAX_GRANT_DEPTH);
       return [{ packId: entry.packId, slug: entry.slug }];
     });
+  // What the class grants by itself (not counted against the picks below).
+  const granted = grantedSpells(inputs.class?.slug, build.classChoices);
+  const refs = (slugs: readonly string[]) =>
+    slugs.map((slug) => ({ packId: CLASS_SPELLS_PACK, slug }));
+  pickSpells(refs(granted.focusSpells));
   const spellPicks = {
-    cantrips: pickSpells(build.spells.cantrips),
-    ranked: pickSpells(build.spells.ranked),
+    cantrips: [
+      ...pickSpells(build.spells.cantrips),
+      ...pickSpells(refs(granted.cantrips)),
+    ],
+    ranked: [...pickSpells(build.spells.ranked), ...pickSpells(refs(granted.ranked))],
   };
+  const derivedSlots = casting.spellcasting?.slots;
+  if (casting.spellcasting?.kind === 'spontaneous' && derivedSlots !== undefined) {
+    const known = Object.values(derivedSlots).reduce((sum, n) => sum + n, 0);
+    if (build.spells.ranked.length > known) {
+      warnings.push({
+        kind: 'too-many-known-spells',
+        chosen: build.spells.ranked.length,
+        allowed: known,
+      });
+    }
+  }
   const allowedCantrips = casting.spellcasting?.cantrips;
   if (allowedCantrips !== undefined && build.spells.cantrips.length > allowedCantrips) {
     warnings.push({
@@ -352,6 +384,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     choices,
     spellcasting: casting.spellcasting,
     spellPicks,
+    focusPoints: granted.focusPoints,
     warnings,
   };
 }

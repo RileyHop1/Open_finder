@@ -90,8 +90,21 @@ warning (`missing-entry`, `not-a-spell`), and more cantrips than the class has i
 cantrips, and for a spontaneous caster the ranked picks in its repertoire. A prepared
 caster's ranked picks are only items (a Wizard's spellbook, a Cleric's first choices);
 preparing them is play. Like the merge, it only adds, so a pick removed from the build
-stays on the sheet until removed there. How many ranked spells a class picks is that
-class's own PR; no repertoire size is checked yet.
+stays on the sheet until removed there. A spontaneous caster's repertoire holds as many
+ranked spells as it has slots (`too-many-known-spells` past that, still granted); a
+prepared caster's ranked picks are not counted yet.
+
+**What a class grants by itself** is `rules/classSpells.ts`, our own data because the
+imported class features say it only in prose. A row names the focus pool the class
+starts with, the cantrips and focus spells it grants, and the spells a class choice adds
+(`byChoice`, keyed like `build.classChoices`). `deriveCharacter` grants them as items and
+adds them to `spellPicks` (cantrips to the cantrips, choice spells to the ranked ones),
+never counting them against the picks, and returns the pool as `focusPoints`.
+`actor.applyBuild` only ever raises the sheet's focus pool, so a point spent in play stays
+spent. The **Bard** has a row: Courageous Anthem (a composition cantrip), Counter
+Performance (a focus spell), a pool of 1, and its muse's spell (Enigma: Sure Strike,
+Maestro: Soothe, Polymath: Phantasmal Minion, Warrior: Fear). The other casters get
+theirs in their own PRs.
 
 A class whose tradition depends on a choice (the Witch's patron, the Sorcerer's
 bloodline) gets **no entry yet** and a `spellcasting-tradition-undecided` warning,

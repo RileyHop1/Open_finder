@@ -18,6 +18,9 @@ describe('warningText', () => {
     expect(warningText({ kind: 'key-attribute-not-offered', attribute: 'cha' })).toBe(
       'Charisma is not one of the key attributes this class offers.',
     );
+    expect(warningText({ kind: 'too-many-known-spells', chosen: 3, allowed: 2 })).toBe(
+      '3 spells chosen to know but your repertoire holds 2.',
+    );
     expect(warningText({ kind: 'too-many-cantrips', chosen: 6, allowed: 5 })).toBe(
       '6 cantrips chosen but the class has 5.',
     );

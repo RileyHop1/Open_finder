@@ -270,6 +270,15 @@ export function applyBuild(
       speed: derived.speed,
       items: [...before.items, ...newItems],
       choices: { ...before.choices, ...derived.choices },
+      // The class's focus pool only ever raises the sheet's, keeping points already spent spent.
+      focusPoints:
+        derived.focusPoints > before.focusPoints.max
+          ? {
+              max: derived.focusPoints,
+              current:
+                before.focusPoints.current + derived.focusPoints - before.focusPoints.max,
+            }
+          : before.focusPoints,
       spellcasting: withPicks(
         mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
           crypto.randomUUID(),
