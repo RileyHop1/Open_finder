@@ -34,12 +34,18 @@ export type MagicalTradition = (typeof MAGICAL_TRADITIONS)[number];
 
 export const magicalTraditionSchema = z.enum(MAGICAL_TRADITIONS);
 
-/** A spell's range: a fixed distance, or one of the three special cases that aren't a distance at all. */
+/**
+ * A spell's range: a fixed distance, one of the special cases that aren't a
+ * distance at all, or the range as written (`text`) when it is prose no rule
+ * reads ("planetary", "see text", "touch or 30 feet"). A spell with no Range line
+ * has no `range` at all (`spellEntrySchema.range` is optional).
+ */
 export const spellRangeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('self') }),
   z.object({ kind: z.literal('touch') }),
   z.object({ kind: z.literal('feet'), value: z.number().int().positive() }),
   z.object({ kind: z.literal('unlimited') }),
+  z.object({ kind: z.literal('text'), text: z.string().min(1).max(200) }),
 ]);
 
 export type SpellRange = z.infer<typeof spellRangeSchema>;
@@ -117,7 +123,8 @@ export const spellEntrySchema = compendiumEntrySchema.extend({
   traditions: z.array(magicalTraditionSchema).readonly().default([]),
   /** Usually one of `ACTION_COSTS`' values; a free string rather than that schema so a rare non-standard cast time (e.g. a slow ritual-like effect) doesn't need special-casing. */
   castTime: z.string().min(1),
-  range: spellRangeSchema,
+  /** Absent for a spell with no Range line (one that affects you, or an emanation from you). */
+  range: spellRangeSchema.optional(),
   area: spellAreaSchema.optional(),
   /** Free text ("1 creature", "5 willing creatures"); no v1 rules math parses a target count. */
   targets: z.string().min(1).optional(),
