@@ -297,6 +297,11 @@ failed parse fails the whole entry closed rather than guessing:
   upstream tags a sustained spell in its traits list rather than a distinct
   boolean.
 - `defense.save.{statistic,basic}` maps to our `{ save, basic }`.
+- **The traditions are `traits.traditions`** (checked against the pinned data,
+  2026-10-16: Fear lists all four there and `system.traditions` does not
+  exist). The mapper first read `traditions.value`, so every spell came
+  through on no list; that older shape is kept as a fallback. A focus spell is
+  on no list. `import-smoke` now fails if any tradition ends up with no spells.
 
 **Heightening is deliberately never mapped.** Upstream's heightened effects
 are typically prose embedded in the main description under a "Heightened

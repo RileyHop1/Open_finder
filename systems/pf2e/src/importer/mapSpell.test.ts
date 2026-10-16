@@ -40,7 +40,7 @@ describe('mapSpell -- success', () => {
     const result = mapSpell(
       makeEntry({
         ...baseSystem(),
-        traditions: { value: ['arcane', 'occult'] },
+        traits: { value: [], traditions: ['arcane', 'occult'] },
         slug: 'invented-bolt',
         description: { value: '<p>Zap.</p>' },
       }),
@@ -70,6 +70,22 @@ describe('mapSpell -- success', () => {
         sustained: false,
       },
     });
+  });
+
+  it('reads the traditions where upstream keeps them, and still the older shape', () => {
+    const traditionsOf = (system: Record<string, unknown>) => {
+      const result = mapSpell(makeEntry(baseSystem(system)), PROVENANCE, IMPORTED_AT);
+      return result.ok ? result.entry.traditions : undefined;
+    };
+    expect(
+      traditionsOf({ traits: { value: [], traditions: ['divine', 'primal'] } }),
+    ).toEqual(['divine', 'primal']);
+    expect(traditionsOf({ traditions: { value: ['occult'] } })).toEqual(['occult']);
+    // A focus spell is on no list; an unknown tradition is dropped.
+    expect(traditionsOf({ traits: { value: ['focus'], traditions: [] } })).toEqual([]);
+    expect(
+      traditionsOf({ traits: { value: [], traditions: ['elemental', 'arcane'] } }),
+    ).toEqual(['arcane']);
   });
 
   it.each([
