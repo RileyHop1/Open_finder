@@ -388,6 +388,9 @@ export {
   deriveSpellcasting,
   mergeSpellcasting,
   addSpellPicks,
+  deriveFont,
+  highestRank,
+  prepareFont,
   type DerivedSpellcasting,
   type DerivedSpellcastingResult,
   type SpellcastingWarning,
@@ -396,8 +399,11 @@ export {
 export {
   CLASS_SPELL_GRANTS,
   CLASS_SPELLS_PACK,
+  fontAt,
   grantedSpells,
   type ClassSpellGrants,
+  type FontAtLevel,
+  type FontGrant,
   type GrantedSpells,
 } from './rules/classSpells.js';
 

@@ -141,6 +141,38 @@ describe('what a class grants by itself', () => {
   });
 });
 
+describe('a Cleric’s Divine Font', () => {
+  it.each([
+    [1, 'heal', 1, 4],
+    [5, 'harm', 3, 5],
+    [15, 'heal', 8, 6],
+  ] as const)('at level %i (%s): rank %i, %i slots', (level, choice, rank, count) => {
+    const derived = casting('cleric', 'wis', level, { 'divine-font': choice });
+    expect(derived.font).toMatchObject({
+      spellcasting: {
+        source: 'class:cleric:font',
+        name: 'Divine Font',
+        kind: 'prepared',
+        tradition: 'divine',
+        slots: { [rank]: count },
+        cantrips: 0,
+      },
+      spell: { packId: 'spells', slug: choice },
+      rank,
+      count,
+    });
+  });
+
+  it('has its slots but no spell before the font is chosen, and no other caster has one', () => {
+    expect(casting('cleric', 'wis', 1).font).toMatchObject({
+      spell: undefined,
+      count: 4,
+    });
+    expect(casting('bard', 'cha', 1).font).toBeUndefined();
+    expect(casting('wizard', 'int', 1).font).toBeUndefined();
+  });
+});
+
 describe('a caster levelling up', () => {
   it('a level 5 cleric has three ranks and is still trained', () => {
     const derived = casting('cleric', 'wis', 5).spellcasting;

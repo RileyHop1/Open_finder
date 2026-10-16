@@ -21,11 +21,13 @@ import { rankAtLevel } from '../content/class.js';
 import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { HeritageEntry } from '../content/heritage.js';
 import { applyBoosts, type BoostWarning } from './boosts.js';
-import { CLASS_SPELLS_PACK, grantedSpells } from './classSpells.js';
+import { CLASS_SPELLS_PACK, fontAt, grantedSpells } from './classSpells.js';
 import {
   type DerivedSpellcasting,
   type SpellcastingWarning,
+  deriveFont,
   deriveSpellcasting,
+  highestRank,
 } from './deriveSpellcasting.js';
 import { featSlotsUpTo, skillIncreasesUpTo } from './progression.js';
 
@@ -117,6 +119,19 @@ export interface DerivedCharacter {
   };
   /** The focus pool the class gives (0 for none); the caller only ever raises the sheet's. */
   readonly focusPoints: number;
+  /**
+   * A font's own entry (a Cleric's Divine Font) and what its slots hold: `spell` in
+   * every one of `count` slots at `rank` (`prepareFont`). `spell` is undefined while
+   * the choice is not made. Absent for a class with no font, or no spellcasting yet.
+   */
+  readonly font:
+    | {
+        readonly spellcasting: DerivedSpellcasting;
+        readonly spell: { readonly packId: string; readonly slug: string } | undefined;
+        readonly rank: number;
+        readonly count: number;
+      }
+    | undefined;
   readonly warnings: readonly DeriveWarning[];
 }
 
@@ -352,6 +367,21 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     ],
     ranked: [...pickSpells(build.spells.ranked), ...pickSpells(refs(granted.ranked))],
   };
+  // A font: its own prepared entry, with the chosen spell in every slot.
+  const fontGrant = fontAt(inputs.class?.slug, build.classChoices, level);
+  const font =
+    fontGrant === undefined || casting.spellcasting === undefined
+      ? undefined
+      : {
+          spellcasting: deriveFont(casting.spellcasting, fontGrant.name, fontGrant.count),
+          spell:
+            fontGrant.spell === undefined
+              ? undefined
+              : pickSpells(refs([fontGrant.spell]))[0],
+          rank: highestRank(casting.spellcasting),
+          count: fontGrant.count,
+        };
+
   const derivedSlots = casting.spellcasting?.slots;
   if (casting.spellcasting?.kind === 'spontaneous' && derivedSlots !== undefined) {
     const known = Object.values(derivedSlots).reduce((sum, n) => sum + n, 0);
@@ -385,6 +415,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     spellcasting: casting.spellcasting,
     spellPicks,
     focusPoints: granted.focusPoints,
+    font,
     warnings,
   };
 }

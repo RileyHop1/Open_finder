@@ -132,6 +132,25 @@ const entries: Pf2eEntry[] = [
     },
     skills: { trainedSkillCount: 2, automaticallyTrained: [] },
   }),
+  // A prepared divine caster with a font: again only the slug decides the tables.
+  pf2eEntrySchema.parse({
+    ...base('classes', 'cleric'),
+    kind: 'class',
+    keyAttributeOptions: ['wis'],
+    hpPerLevel: 8,
+    proficiencies: {
+      perception: { trained: 1 },
+      savingThrows: {
+        fortitude: { trained: 1 },
+        reflex: { trained: 1 },
+        will: { expert: 1 },
+      },
+      classDc: { trained: 1 },
+      weapons: { unarmed: {}, simple: { trained: 1 }, martial: {}, advanced: {} },
+      armor: { unarmored: { trained: 1 }, light: {}, medium: {}, heavy: {} },
+    },
+    skills: { trainedSkillCount: 2, automaticallyTrained: [] },
+  }),
   // The same stub as a spontaneous caster: only the slug decides the casting table.
   pf2eEntrySchema.parse({
     ...base('classes', 'bard'),
@@ -159,6 +178,7 @@ const entries: Pf2eEntry[] = [
     ['courageous-anthem', ['cantrip']],
     ['counter-performance', ['focus']],
     ['sure-strike', []],
+    ['heal', []],
   ].map(([slug, traits]) =>
     pf2eEntrySchema.parse({
       ...base('spells', slug as string),
@@ -471,6 +491,52 @@ describe('applyBuild', () => {
       });
       applyBuild(store, owner, compendium, { actorId, build: bard });
       expect(sheetOf(actorId).focusPoints).toEqual({ max: 1, current: 0 });
+    });
+
+    it('gives a Cleric a Divine Font entry with the chosen spell in every slot', () => {
+      const { owner, actorId } = character();
+      const cleric = {
+        class: { packId: 'classes', slug: 'cleric' },
+        classChoices: { 'divine-font': 'heal' },
+      };
+      applyBuild(store, owner, compendium, { actorId, build: cleric, level: 1 });
+
+      const [main, font, ...rest] = sheetOf(actorId).spellcasting;
+      expect(rest).toEqual([]);
+      expect(main).toMatchObject({ source: 'class:cleric', slots: { '1': 2 } });
+      expect(font).toMatchObject({
+        source: 'class:cleric:font',
+        name: 'Divine Font',
+        kind: 'prepared',
+        tradition: 'divine',
+        slots: { '1': 4 },
+      });
+      const healId = idOf(actorId, 'heal');
+      expect(font?.kind === 'prepared' ? font.prepared : []).toEqual(
+        Array.from({ length: 4 }, () => ({ rank: 1, itemId: healId, expended: false })),
+      );
+
+      // A slot cast in play stays cast when the build is applied again at the same level.
+      const castOne = sheetOf(actorId).spellcasting.map((e) =>
+        e.kind === 'prepared' && e.source === 'class:cleric:font'
+          ? { ...e, prepared: e.prepared.map((r, i) => ({ ...r, expended: i === 0 })) }
+          : e,
+      );
+      updateActor(store, owner, { actorId, changes: { 'system.spellcasting': castOne } });
+      applyBuild(store, owner, compendium, { actorId, build: cleric, level: 1 });
+      const again = sheetOf(actorId).spellcasting[1];
+      expect(again?.id).toBe(font?.id);
+      expect(
+        again?.kind === 'prepared' ? again.prepared.map((r) => r.expended) : [],
+      ).toEqual([true, false, false, false]);
+
+      // At level 5 the font moves to the new highest rank, with five slots.
+      applyBuild(store, owner, compendium, { actorId, build: cleric, level: 5 });
+      const level5 = sheetOf(actorId).spellcasting[1];
+      expect(level5).toMatchObject({ slots: { '3': 5 } });
+      expect(
+        level5?.kind === 'prepared' ? level5.prepared.map((r) => r.rank) : [],
+      ).toEqual([3, 3, 3, 3, 3]);
     });
 
     it('adds picks on a second apply without duplicating items or list ids', () => {

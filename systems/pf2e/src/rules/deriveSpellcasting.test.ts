@@ -4,8 +4,11 @@ import type { SpellcastingEntry } from '../content/spellcasting.js';
 import {
   type DerivedSpellcasting,
   addSpellPicks,
+  deriveFont,
   deriveSpellcasting,
+  highestRank,
   mergeSpellcasting,
+  prepareFont,
 } from './deriveSpellcasting.js';
 
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -203,5 +206,69 @@ describe('addSpellPicks', () => {
       ranked: ['y'],
     });
     expect(next).toEqual({ ...prepared, cantrips: ['c'] });
+  });
+});
+
+describe('the font entry', () => {
+  const cleric: DerivedSpellcasting = {
+    source: 'class:cleric',
+    name: 'Cleric spellcasting',
+    kind: 'prepared',
+    tradition: 'divine',
+    attribute: 'wis',
+    rank: 'trained',
+    slots: { 1: 3, 2: 3, 3: 2 },
+    cantrips: 5,
+  };
+
+  it('sits beside the class entry: same tradition and proficiency, its slots at the highest rank', () => {
+    expect(highestRank(cleric)).toBe(3);
+    expect(highestRank({ slots: {} })).toBe(1);
+    expect(deriveFont(cleric, 'Divine Font', 5)).toEqual({
+      ...cleric,
+      source: 'class:cleric:font',
+      name: 'Divine Font',
+      slots: { 3: 5 },
+      cantrips: 0,
+    });
+  });
+
+  const font = (prepared: { rank: number; itemId: string; expended: boolean }[]) =>
+    ({
+      id: ID(7),
+      source: 'class:cleric:font',
+      name: 'Divine Font',
+      kind: 'prepared',
+      tradition: 'divine',
+      attribute: 'wis',
+      rank: 'trained',
+      cantrips: [],
+      slots: { '1': 4 },
+      prepared,
+    }) as SpellcastingEntry;
+  const other = { ...font([]), id: ID(8), source: 'class:cleric' } as SpellcastingEntry;
+
+  it('prepares the chosen spell in every slot, keeping copies already cast cast', () => {
+    const [next, untouched] = prepareFont(
+      [font([{ rank: 1, itemId: 'heal', expended: true }]), other],
+      'class:cleric:font',
+      'heal',
+      1,
+      4,
+    );
+    expect(next?.kind === 'prepared' ? next.prepared.map((r) => r.expended) : []).toEqual(
+      [true, false, false, false],
+    );
+    expect(untouched).toBe(other);
+  });
+
+  it('starts fresh at a new rank or a new spell, and prepares nothing before the choice', () => {
+    const cast = font([{ rank: 1, itemId: 'heal', expended: true }]);
+    const [moved] = prepareFont([cast], 'class:cleric:font', 'heal', 3, 5);
+    expect(moved?.kind === 'prepared' ? moved.prepared : []).toEqual(
+      Array.from({ length: 5 }, () => ({ rank: 3, itemId: 'heal', expended: false })),
+    );
+    const [none] = prepareFont([cast], 'class:cleric:font', undefined, 1, 4);
+    expect(none?.kind === 'prepared' ? none.prepared : undefined).toEqual([]);
   });
 });
