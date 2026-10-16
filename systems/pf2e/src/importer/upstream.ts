@@ -22,3 +22,7 @@ export const UPSTREAM_PACKS_CHECKSUM =
 
 export const UPSTREAM_LANG_CHECKSUM =
   'sha256:2956d62b22d446c3347a5d8ab545da67b5303959c68fe32afa5503f7d14f15b6';
+
+/** `static/lang/re-en.json`, the Remaster strings most rule-element labels live in, checksummed with `checksumFile` like `UPSTREAM_LANG_CHECKSUM`. */
+export const UPSTREAM_RE_LANG_CHECKSUM =
+  'sha256:5c8949441fde67b1b00e818d5ee2566542afa12b3f0c9a9c5747f0669ded99d9';

@@ -382,4 +382,89 @@ describe('runImporter', () => {
       ).toThrow(/lang checksum mismatch/);
     });
   });
+
+  describe('rule-element labels from re-en.json', () => {
+    const CHOICE_FEAT = {
+      ...KEPT_FEAT,
+      _id: '9999999999999999',
+      name: 'Invented Chooser',
+      system: {
+        ...KEPT_FEAT.system,
+        rules: [
+          {
+            key: 'ChoiceSet',
+            prompt: 'PF2E.SpecificRule.Invented.Prompt',
+            rollOption: 'invented',
+            choices: [{ label: 'PF2E.SpecificRule.Invented.First', value: 'first' }],
+          },
+        ],
+      },
+    };
+
+    /** Writes `<upstreamDir>/static/lang/re-en.json` and returns its checksum. */
+    function setReLangFixture(
+      upstreamDir: string,
+      json: Record<string, unknown>,
+    ): string {
+      const langDir = join(upstreamDir, 'static', 'lang');
+      mkdirSync(langDir, { recursive: true });
+      const langPath = join(langDir, 're-en.json');
+      writeFileSync(langPath, JSON.stringify(json));
+      return checksumFile(langPath);
+    }
+
+    const RE_LANG = {
+      PF2E: { SpecificRule: { Invented: { Prompt: 'Pick one.', First: 'The first' } } },
+    };
+
+    it('resolves a choice’s prompt and labels from the pinned re-en.json', () => {
+      const { upstream, upstreamDir } = setUpstreamFixture([CHOICE_FEAT]);
+      const reLangChecksum = setReLangFixture(upstreamDir, RE_LANG);
+      const outputDir = makeTempDir();
+
+      const summary = runImporter({
+        upstream: { ...upstream, reLangChecksum },
+        upstreamDir,
+        outputDir,
+        skipFetch: true,
+        importedAt: '2026-10-16T00:00:00.000Z',
+      });
+
+      expect(summary.labelsGuessed).toBe(0);
+      const written = JSON.parse(
+        readFileSync(join(outputDir, 'feats', 'invented-chooser.json'), 'utf8'),
+      ) as { ruleElements: unknown[] };
+      expect(written.ruleElements[0]).toMatchObject({
+        prompt: 'Pick one.',
+        choices: [{ label: 'The first', value: 'first' }],
+      });
+    });
+
+    it('guesses, and counts, without the file; and refuses a re-en.json that does not match its pin', () => {
+      const { upstream, upstreamDir } = setUpstreamFixture([CHOICE_FEAT]);
+      const summary = runImporter({
+        upstream,
+        upstreamDir,
+        outputDir: makeTempDir(),
+        skipFetch: true,
+        importedAt: '2026-10-16T00:00:00.000Z',
+      });
+      expect(summary.labelsGuessed).toBe(2);
+
+      setReLangFixture(upstreamDir, RE_LANG);
+      expect(() =>
+        runImporter({
+          upstream: {
+            ...upstream,
+            reLangChecksum:
+              'sha256:0000000000000000000000000000000000000000000000000000000000000',
+          },
+          upstreamDir,
+          outputDir: makeTempDir(),
+          skipFetch: true,
+          importedAt: '2026-10-16T00:00:00.000Z',
+        }),
+      ).toThrow(/lang checksum mismatch/);
+    });
+  });
 });
