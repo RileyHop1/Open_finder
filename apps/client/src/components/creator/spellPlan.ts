@@ -9,7 +9,10 @@
 
 import {
   CASTER_TABLES,
+  CLASS_SPELL_GRANTS,
+  grantedSpells,
   isCasterClass,
+  slotsAtLevel,
   type BuildRef,
   type MagicalTradition,
   type SpellPicks,
@@ -29,6 +32,8 @@ export interface CastingPlan {
   /** The class choice that decides the tradition, when one does. */
   readonly traditionChoice: string | undefined;
   readonly cantrips: number;
+  /** How many rank 1 spells a spontaneous caster knows (its slots); `undefined` for a prepared caster, not counted yet. */
+  readonly known: number | undefined;
   /** What the rank 1 picks are, in words, for the step's heading. */
   readonly rankedLabel: string;
 }
@@ -46,6 +51,10 @@ export function castingPlan(classSlug: string | undefined): CastingPlan | undefi
     traditionChoice:
       typeof table.tradition === 'string' ? undefined : table.tradition.choice,
     cantrips: table.cantrips,
+    known:
+      table.kind === 'spontaneous'
+        ? Object.values(slotsAtLevel(table.slots, 1)).reduce((sum, n) => sum + n, 0)
+        : undefined,
     rankedLabel:
       classSlug === 'wizard'
         ? 'Rank 1 spells in your spellbook'
@@ -72,5 +81,45 @@ export function togglePick(
   return {
     ...picks,
     [which]: isPicked(list, ref) ? list.filter((r) => !same(r, ref)) : [...list, ref],
+  };
+}
+
+/** One spell the class gives by itself, and why, for the step to list. */
+export interface ClassGift {
+  readonly slug: string;
+  readonly why: 'cantrip' | 'focus' | 'choice';
+  /** For `choice`: the class choice that gave it (`muse`). */
+  readonly choice?: string;
+}
+
+export interface ClassGifts {
+  readonly spells: readonly ClassGift[];
+  readonly focusPoints: number;
+  /** Class choices that will add a spell once they are made (a Bard's muse). */
+  readonly pending: readonly string[];
+}
+
+/** What `classSlug` gives by itself (`classSpells.ts` in the PF2e system), given the choices made so far. */
+export function classGifts(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): ClassGifts {
+  const granted = grantedSpells(classSlug, classChoices);
+  const byChoice =
+    classSlug === undefined ? {} : (CLASS_SPELL_GRANTS[classSlug]?.byChoice ?? {});
+  const fromChoices = Object.entries(byChoice).flatMap(([choice, byValue]) => {
+    const chosen = classChoices[choice];
+    return chosen === undefined
+      ? []
+      : (byValue[chosen] ?? []).map((slug) => ({ slug, why: 'choice' as const, choice }));
+  });
+  return {
+    spells: [
+      ...granted.cantrips.map((slug) => ({ slug, why: 'cantrip' as const })),
+      ...granted.focusSpells.map((slug) => ({ slug, why: 'focus' as const })),
+      ...fromChoices,
+    ],
+    focusPoints: granted.focusPoints,
+    pending: Object.keys(byChoice).filter((choice) => classChoices[choice] === undefined),
   };
 }

@@ -25,7 +25,7 @@ import {
 } from '../../api/compendium.js';
 import RulesTerm from '../RulesTerm.vue';
 import { titleCase } from '../sheet/format.js';
-import { TRADITIONS, castingPlan, isPicked } from './spellPlan.js';
+import { TRADITIONS, castingPlan, classGifts, isPicked } from './spellPlan.js';
 
 const props = defineProps<{
   build: CharacterBuild;
@@ -89,6 +89,14 @@ const offList = computed(
   () => plan.value?.tradition !== undefined && tradition.value !== plan.value.tradition,
 );
 const cantripCount = computed(() => props.build.spells.cantrips.length);
+const rankedCount = computed(() => props.build.spells.ranked.length);
+const gifts = computed(() =>
+  classGifts(props.classEntry?.slug ?? props.build.class?.slug, props.build.classChoices),
+);
+const WHY: Readonly<Record<string, string>> = {
+  cantrip: 'a cantrip, in addition to the ones you choose',
+  focus: 'a focus spell, cast with a Focus Point',
+};
 const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug });
 </script>
 
@@ -128,6 +136,33 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
       <p v-if="error" role="alert">{{ error }}</p>
       <p v-if="loading" role="status">Loading spells…</p>
 
+      <section
+        v-if="
+          gifts.spells.length > 0 || gifts.focusPoints > 0 || gifts.pending.length > 0
+        "
+        class="gifts"
+        aria-labelledby="spells-gifts-title"
+      >
+        <h4 id="spells-gifts-title">Your class also gives you</h4>
+        <ul>
+          <li v-for="gift in gifts.spells" :key="gift.slug">
+            <RulesTerm
+              term-kind="spell"
+              :slug="gift.slug"
+              :label="titleCase(gift.slug)"
+            />:
+            {{ gift.why === 'choice' ? `from your ${gift.choice}` : WHY[gift.why] }}
+          </li>
+          <li v-if="gifts.focusPoints > 0">
+            {{ gifts.focusPoints }} Focus Point{{ gifts.focusPoints === 1 ? '' : 's' }}
+          </li>
+        </ul>
+        <p v-for="choice in gifts.pending" :key="choice" class="note">
+          Your {{ choice }} adds a spell once you choose it (Class choices step).
+        </p>
+        <p class="note">These are not counted against the spells you choose below.</p>
+      </section>
+
       <fieldset class="picks">
         <legend>Cantrips</legend>
         <p class="count" :class="{ over: cantripCount > plan.cantrips }">
@@ -154,7 +189,18 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
 
       <fieldset class="picks">
         <legend>{{ plan.rankedLabel }}</legend>
-        <p class="count">{{ build.spells.ranked.length }} chosen</p>
+        <p
+          v-if="plan.known !== undefined"
+          class="count"
+          :class="{ over: rankedCount > plan.known }"
+        >
+          {{ rankedCount }} of {{ plan.known }} chosen{{
+            rankedCount > plan.known
+              ? ` (${rankedCount - plan.known} more than your repertoire holds)`
+              : ''
+          }}
+        </p>
+        <p v-else class="count">{{ rankedCount }} chosen</p>
         <ul>
           <li v-for="s in ranked" :key="s.slug">
             <label class="check">
@@ -187,6 +233,15 @@ p {
 
 .note {
   color: var(--color-text-muted);
+}
+
+.gifts h4 {
+  margin: 0 0 var(--space-1);
+}
+
+.gifts ul {
+  margin: 0 0 var(--space-1);
+  padding-left: var(--space-4);
 }
 
 .warning,
