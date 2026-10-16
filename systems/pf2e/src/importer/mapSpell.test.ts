@@ -97,6 +97,12 @@ describe('mapSpell -- success', () => {
     // Real upstream data (Create Water) encodes touch range this way
     // instead of the string "touch" -- see mapRange's own doc comment.
     ['0 feet', { kind: 'touch' }],
+    ['1,000 feet', { kind: 'feet', value: 1000 }],
+    ['1 mile', { kind: 'feet', value: 5280 }],
+    ['100 miles', { kind: 'feet', value: 528000 }],
+    // Prose is kept as written rather than guessed at.
+    ['planetary', { kind: 'text', text: 'planetary' }],
+    ['touch or 30 feet', { kind: 'text', text: 'touch or 30 feet' }],
   ] as const)('parses range %s', (rangeValue, expected) => {
     const result = mapSpell(
       makeEntry(baseSystem({ range: { value: rangeValue } })),
@@ -232,13 +238,11 @@ describe('mapSpell -- fails closed', () => {
     });
   });
 
-  it('rejects an unparseable range', () => {
-    expect(
-      mapSpell(
-        makeEntry(baseSystem({ range: { value: 'a very long way' } })),
-        PROVENANCE,
-        IMPORTED_AT,
-      ),
-    ).toEqual({ ok: false, reason: 'unparseable-range' });
+  it('keeps a spell with no Range line, with no range (Sure Strike, an emanation from you)', () => {
+    for (const range of [{ value: '' }, { value: '   ' }, undefined]) {
+      const result = mapSpell(makeEntry(baseSystem({ range })), PROVENANCE, IMPORTED_AT);
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.entry).not.toHaveProperty('range');
+    }
   });
 });

@@ -284,10 +284,17 @@ beyond the envelope every mapper already carries.
 `mapSpell.ts` is the most involved content mapper, because upstream stores
 several spell fields as loosely-structured or free-text strings where our
 schema wants a real structure -- every parse below is `(confirm)`, and a
-failed parse fails the whole entry closed rather than guessing:
+failed parse fails the whole entry closed rather than guessing (the range is
+the exception: prose is kept as written, see below):
 
 - `range.value` is a human-readable string (`"30 feet"`, `"touch"`,
   `"self"`, `"unlimited"`), parsed into the discriminated `SpellRange`.
+  `1,000 feet` and `N miles` are distances. An **empty** range (204 in-scope
+  spells, such as Sure Strike and the Bard's compositions) means the spell has
+  no Range line, so `range` is left out; prose ("planetary", "see text") is
+  kept as `{ kind: 'text' }`. Both used to fail the entry as
+  `unparseable-range`, which dropped 227 spells (checked against the pinned
+  data, 2026-10-16: 436 spells imported before, 663 after).
 - `time.value` is `"1"`/`"2"`/`"3"`/`"reaction"`/`"free"` for the common
   case (translated to our `ACTION_COSTS` vocabulary) or free text for a
   slower cast (passed through unchanged).

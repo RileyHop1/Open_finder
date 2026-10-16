@@ -28,7 +28,7 @@ need to special-case one.
 | `rank` | integer 1-10 | Cantrip status is a trait (`cantrip`), not a separate field |
 | `traditions` | `readonly MagicalTradition[]`, default `[]` | Empty for a focus spell (tied to a class, not a tradition) |
 | `castTime` | non-empty string | Usually one of `ACTION_COSTS`' values |
-| `range` | [SpellRange](#spellrange) | |
+| `range` | [SpellRange](#spellrange), optional | Absent for a spell with no Range line (one that affects you, or an emanation from you) |
 | `area` | `{ shape, size }`, optional | `shape` is the same four values milestone 5's area templates will use |
 | `targets` | string, optional | Free text; no v1 math parses a target count |
 | `duration` | string, optional | Absent means instantaneous, PF2e's default |
@@ -39,7 +39,9 @@ need to special-case one.
 ### `SpellRange`
 
 A discriminated union: `{ kind: 'self' }`, `{ kind: 'touch' }`,
-`{ kind: 'feet', value }`, or `{ kind: 'unlimited' }`.
+`{ kind: 'feet', value }`, `{ kind: 'unlimited' }`, or `{ kind: 'text', text }`
+for a range written in prose that no rule reads ("planetary", "see text",
+"touch or 30 feet"), kept as written.
 
 ### `SpellHeightening`
 

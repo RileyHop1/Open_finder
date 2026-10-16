@@ -85,18 +85,35 @@ function mapCastTime(timeValue: string): string {
  * onto `{ kind: 'touch' }` rather than `{ kind: 'feet', value: 0 }`, which
  * `spellRangeSchema` would reject outright (`feet.value` is `.positive()`
  * on purpose -- a real ranged distance is never zero).
+ *
+ * **An empty range is no range, and prose is kept as written.** Checked against
+ * the pinned data (2026-10-16): of the in-scope spells this once dropped as
+ * unparseable, 204 have an empty range (Sure Strike, the Bard's compositions:
+ * spells that affect you or emanate from you) and about two dozen are prose
+ * ("planetary", "see text", "touch or 30 feet"). Neither is a reason to lose the
+ * spell. `1,000 feet` and `N miles` are distances.
  */
 function mapRange(rangeValue: string): SpellRange | undefined {
   const trimmed = rangeValue.trim().toLowerCase();
+  if (trimmed === '') return undefined;
   if (trimmed === 'touch') return { kind: 'touch' };
   if (trimmed === 'self') return { kind: 'self' };
   if (trimmed === 'unlimited') return { kind: 'unlimited' };
-  const match = /^(\d+)\s*(?:feet|foot)$/.exec(trimmed);
-  if (match) {
-    const value = Number.parseInt(match[1]!, 10);
+  const feet = /^([\d,]+)\s*(?:feet|foot)$/.exec(trimmed);
+  if (feet) {
+    const value = Number.parseInt(feet[1]!.replaceAll(',', ''), 10);
     return value === 0 ? { kind: 'touch' } : { kind: 'feet', value };
   }
-  return undefined;
+  const miles = /^([\d,]+)\s*miles?$/.exec(trimmed);
+  if (miles) {
+    return {
+      kind: 'feet',
+      value: Number.parseInt(miles[1]!.replaceAll(',', ''), 10) * 5280,
+    };
+  }
+  // Prose no rule reads ("planetary", "see text", "touch or 30 feet"): kept as
+  // written rather than guessed at, and rather than losing the spell over it.
+  return { kind: 'text', text: rangeValue.trim().slice(0, 200) };
 }
 
 function mapArea(area: unknown): SpellArea | undefined {
@@ -142,11 +159,9 @@ export function mapSpell(
   }
   const castTime = mapCastTime(rawTimeValue);
 
+  // No Range line (empty or missing upstream) means the spell has no range at all.
   const rawRangeValue = nestedStringField(system, 'range', 'value');
-  const range = rawRangeValue !== undefined ? mapRange(rawRangeValue) : undefined;
-  if (range === undefined) {
-    return { ok: false, reason: 'unparseable-range' };
-  }
+  const range = rawRangeValue === undefined ? undefined : mapRange(rawRangeValue);
 
   // Upstream keeps the traditions in `system.traits.traditions` (checked against the
   // pinned data: Fear lists all four there, and `system.traditions` does not exist).
@@ -196,7 +211,7 @@ export function mapSpell(
       rank,
       traditions,
       castTime,
-      range,
+      ...(range === undefined ? {} : { range }),
       ...(area !== undefined ? { area } : {}),
       ...(targets !== undefined && targets.length > 0 ? { targets } : {}),
       ...(duration !== undefined && duration.length > 0 ? { duration } : {}),
