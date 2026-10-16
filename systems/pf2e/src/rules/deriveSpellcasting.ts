@@ -186,3 +186,63 @@ export function addSpellPicks(
       : { ...entry, cantrips };
   });
 }
+
+/** The highest rank `derived` has slots in (1 for none). */
+export function highestRank(derived: Pick<DerivedSpellcasting, 'slots'>): number {
+  const ranks = Object.keys(derived.slots).map(Number);
+  return ranks.length === 0 ? 1 : Math.max(...ranks);
+}
+
+/**
+ * A font as its own prepared entry beside `main` (a Cleric's Divine Font): the same
+ * tradition, attribute and proficiency, `count` slots at `main`'s highest rank, no
+ * cantrips. Its source is `main`'s plus `:font`, so a re-apply finds it.
+ */
+export function deriveFont(
+  main: DerivedSpellcasting,
+  name: string,
+  count: number,
+): DerivedSpellcasting {
+  return {
+    ...main,
+    source: `${main.source}:font`,
+    name,
+    kind: 'prepared',
+    slots: { [highestRank(main)]: count },
+    cantrips: 0,
+  };
+}
+
+/**
+ * The font entry from `source` with `itemId` prepared in every one of its `count`
+ * slots at `rank`. Copies already cast at that rank stay cast (up to `count`), so
+ * re-applying a build does not hand back a spent slot; with no spell chosen yet
+ * (`itemId` undefined) nothing is prepared. Other entries are left alone.
+ */
+export function prepareFont(
+  entries: readonly SpellcastingEntry[],
+  source: string,
+  itemId: string | undefined,
+  rank: number,
+  count: number,
+): SpellcastingEntry[] {
+  return entries.map((entry) => {
+    if (entry.source !== source || entry.kind !== 'prepared') {
+      return entry;
+    }
+    if (itemId === undefined) {
+      return { ...entry, prepared: [] };
+    }
+    const spent = entry.prepared.filter(
+      (row) => row.itemId === itemId && row.rank === rank && row.expended,
+    ).length;
+    return {
+      ...entry,
+      prepared: Array.from({ length: count }, (_, i) => ({
+        rank,
+        itemId,
+        expended: i < Math.min(spent, count),
+      })),
+    };
+  });
+}

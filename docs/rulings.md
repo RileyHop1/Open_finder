@@ -850,6 +850,26 @@ ruling from silently drifting.
   grants by itself") and `apps/server/src/applyBuild.test.ts`.
 - **Override:** every list and the focus pool are editable on the sheet ("Edit spells").
 
+### The Cleric's Divine Font
+- **Rules text:** the Cleric's Divine Font class feature in Player Core. Checked against
+  the pinned upstream text (2026-10-16), not Archives of Nethys: **(confirm)**.
+- **The ambiguity:** how to model slots that hold only one spell. We make them their own
+  prepared entry ("Divine Font") with the spell already prepared in each, rather than
+  extra slots on the Cleric's entry that the player would have to fill with Heal by hand
+  every day.
+- **Our reading:** 4 extra slots at the highest rank of cleric spell slots, 5 from level
+  5, 6 from level 15, holding only Heal (healing font) or only Harm (harmful font), by
+  the font chosen. Which font a deity allows is not checked (deities are not imported):
+  the player picks, the GM rules.
+- **Alternative reading:** add the slots to the class entry and leave them to be
+  prepared like any other.
+- **Why:** it saves the table a daily chore and a miscount, and the font's slots are
+  listed and cast apart from the rest the way the rules describe them.
+- **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` ("a Cleric's Divine
+  Font") and `apps/server/src/applyBuild.test.ts`.
+- **Override:** the entry's slots and prepared spells are editable on the sheet ("Edit
+  spells").
+
 ### Casting: cantrip rank, refocus and daily preparation
 - **Rules text:** the spellcasting rules in Player Core (cantrips and focus spells
   heighten, Refocus, daily preparations). **(confirm)** These are from memory; Archives of

@@ -32,6 +32,7 @@ import {
   heritageEntrySchema,
   addSpellPicks,
   mergeSpellcasting,
+  prepareFont,
   prepareCharacter,
 } from '@hearthtable/pf2e';
 import type { z } from 'zod';
@@ -258,6 +259,23 @@ export function applyBuild(
             cantrips: idsOf(derived.spellPicks.cantrips),
             ranked: idsOf(derived.spellPicks.ranked),
           });
+    // A font (a Cleric's Divine Font): its own entry, the chosen spell in every slot.
+    const withFont = (entries: CharacterData['spellcasting']) => {
+      const font = derived.font;
+      if (font === undefined) {
+        return entries;
+      }
+      const merged = mergeSpellcasting(entries, font.spellcasting, () =>
+        crypto.randomUUID(),
+      );
+      return prepareFont(
+        merged,
+        font.spellcasting.source,
+        font.spell === undefined ? undefined : idsOf([font.spell])[0],
+        font.rank,
+        font.count,
+      );
+    };
 
     const next: CharacterData = {
       ...before,
@@ -279,9 +297,11 @@ export function applyBuild(
                 before.focusPoints.current + derived.focusPoints - before.focusPoints.max,
             }
           : before.focusPoints,
-      spellcasting: withPicks(
-        mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
-          crypto.randomUUID(),
+      spellcasting: withFont(
+        withPicks(
+          mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
+            crypto.randomUUID(),
+          ),
         ),
       ),
       build: build.data,

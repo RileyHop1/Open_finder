@@ -103,8 +103,18 @@ never counting them against the picks, and returns the pool as `focusPoints`.
 `actor.applyBuild` only ever raises the sheet's focus pool, so a point spent in play stays
 spent. The **Bard** has a row: Courageous Anthem (a composition cantrip), Counter
 Performance (a focus spell), a pool of 1, and its muse's spell (Enigma: Sure Strike,
-Maestro: Soothe, Polymath: Phantasmal Minion, Warrior: Fear). The other casters get
-theirs in their own PRs.
+Maestro: Soothe, Polymath: Phantasmal Minion, Warrior: Fear).
+
+A row can also carry a **font**: extra slots at the class's highest rank that hold only
+one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5
+from level 5, 6 from level 15) holding only Heal or only Harm, by the `divine-font`
+choice. `deriveFont` makes it its own prepared entry beside the class's (source
+`class:cleric:font`, named "Divine Font", the same tradition, attribute and
+proficiency), and `prepareFont` puts the chosen spell in every slot, so the Spells tab
+lists "Heal" four times, each cast with one button. Re-applying the build keeps copies
+already cast cast; levelling up moves the slots to the new highest rank, fresh. Before
+the font is chosen the entry has its slots and nothing prepared. The other casters get
+their rows in their own PRs.
 
 A class whose tradition depends on a choice (the Witch's patron, the Sorcerer's
 bloodline) gets **no entry yet** and a `spellcasting-tradition-undecided` warning,
