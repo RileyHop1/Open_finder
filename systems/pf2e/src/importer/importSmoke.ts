@@ -26,7 +26,13 @@ import { join } from 'node:path';
 
 import { MAGICAL_TRADITIONS } from '../content/spell.js';
 import { runImporter } from './runImporter.js';
-import { UPSTREAM_COMMIT, UPSTREAM_PACKS_CHECKSUM, UPSTREAM_REPO } from './upstream.js';
+import {
+  UPSTREAM_COMMIT,
+  UPSTREAM_LANG_CHECKSUM,
+  UPSTREAM_PACKS_CHECKSUM,
+  UPSTREAM_RE_LANG_CHECKSUM,
+  UPSTREAM_REPO,
+} from './upstream.js';
 
 /**
  * Above this fraction of read entries dropped by dependency resolution,
@@ -55,6 +61,8 @@ try {
       repo: UPSTREAM_REPO,
       commit: UPSTREAM_COMMIT,
       packsChecksum: UPSTREAM_PACKS_CHECKSUM,
+      langChecksum: UPSTREAM_LANG_CHECKSUM,
+      reLangChecksum: UPSTREAM_RE_LANG_CHECKSUM,
     },
     upstreamDir,
     outputDir,
@@ -111,6 +119,14 @@ try {
   const emptyTraditions = [...perTradition].filter(([, n]) => n === 0).map(([t]) => t);
   if (emptyTraditions.length > 0) {
     failures.push(`no spells on the ${emptyTraditions.join(', ')} list(s)`);
+  }
+
+  // Every rule-element label key resolves from the pinned lang files; a guess means
+  // the keys and the strings have drifted apart.
+  if (summary.labelsGuessed > 0) {
+    failures.push(
+      `${summary.labelsGuessed} rule-element label key(s) had no lang string`,
+    );
   }
 
   const dependencyDropRate =

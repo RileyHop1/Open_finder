@@ -20,6 +20,7 @@ import { runImporter } from './runImporter.js';
 import {
   UPSTREAM_COMMIT,
   UPSTREAM_LANG_CHECKSUM,
+  UPSTREAM_RE_LANG_CHECKSUM,
   UPSTREAM_PACKS_CHECKSUM,
   UPSTREAM_REPO,
 } from './upstream.js';
@@ -38,6 +39,7 @@ try {
       commit: UPSTREAM_COMMIT,
       packsChecksum: UPSTREAM_PACKS_CHECKSUM,
       langChecksum: UPSTREAM_LANG_CHECKSUM,
+      reLangChecksum: UPSTREAM_RE_LANG_CHECKSUM,
     },
     upstreamDir,
     outputDir,
@@ -54,6 +56,7 @@ try {
   console.log(`  mapping failed: ${JSON.stringify(summary.mappingFailed)}`);
   console.log(`  dropped by dependency resolution: ${summary.dependencyDropped}`);
   console.log(`  dropped for a duplicate slug: ${summary.duplicatesDropped}`);
+  console.log(`  labels guessed (no lang string): ${summary.labelsGuessed}`);
   console.log(`kept ${summary.kept} entries across ${summary.packs.length} packs`);
   for (const pack of summary.packs) {
     console.log(`  ${pack.packId}: ${pack.entryCount}`);

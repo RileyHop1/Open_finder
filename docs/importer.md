@@ -23,6 +23,7 @@ UPSTREAM_REPO = 'https://github.com/foundryvtt/pf2e.git'
 UPSTREAM_COMMIT = '<40-character SHA>'
 UPSTREAM_PACKS_CHECKSUM = 'sha256:<64 hex characters>'
 UPSTREAM_LANG_CHECKSUM = 'sha256:<64 hex characters>'
+UPSTREAM_RE_LANG_CHECKSUM = 'sha256:<64 hex characters>'
 ```
 
 Per [adr/0011-importer-pipeline.md](adr/0011-importer-pipeline.md), both the
@@ -35,7 +36,11 @@ SHA would otherwise pull different bytes without any diff in this repo.
 added as the source for the trait glossary (below). It is optional on
 `RunImporterOptions.upstream`: a caller that omits it (every hermetic test
 but the trait-glossary ones) skips the whole trait-glossary step, rather
-than needing a lang fixture it doesn't care about.
+than needing a lang fixture it doesn't care about. `UPSTREAM_RE_LANG_CHECKSUM`
+pins a third file, `static/lang/re-en.json`, the Remaster strings most
+rule-element labels resolve from ([Rule-element labels](#rule-element-labels));
+it is optional in the same way. Both lang checksums are `sha256` of the file's
+bytes (`checksumFile`).
 
 ## Fetching
 
@@ -560,6 +565,20 @@ into the coverage report below as `traitMisses` (detailed) /
 `traitMissCount` (aggregate) -- the same detailed/aggregate split every
 other slug-bearing field in that report already uses.
 
+## Rule-element labels
+
+Upstream leaves localization keys in some rule elements' display strings: a
+choice's prompt and option labels (`PF2E.SpecificRule.Cleric.DivineFont.Healing`)
+and a modifier's label (`PF2E.SkillVariant.VsEmotion`). Shown as they are, the
+creator would offer a Cleric "PF2E.SpecificRule.Cleric.DivineFont.Healing".
+`resolveLabelKeys.ts` runs after text resolution and before writing: every such
+key is looked up in the pinned `re-en.json` (then `en.json`), and one neither
+has gets a readable guess from the key itself (`DivineFont.Prompt` becomes
+"Divine Font") and is counted in the summary's `labelsGuessed`, so a guess is
+never silent. Against the pinned data (2026-10-16) every key resolves and
+nothing is guessed; `import-smoke` fails if that changes. Prose is not touched
+here; that is `resolveEntryText.ts`.
+
 ## The coverage report (ADR 0004 decision 5)
 
 `coverageReport.ts` answers CLAUDE.md's open question -- "which
@@ -670,8 +689,9 @@ To move the pin to a new upstream commit:
    mismatch the CLI itself reports if the old checksum is still in place).
 4. Update `UPSTREAM_PACKS_CHECKSUM` in `upstream.ts` to the result.
 5. Run `checksumFile` against the fetched `static/lang/en.json` the same
-   way, and update `UPSTREAM_LANG_CHECKSUM` to that result.
-6. Open a reviewed PR with all three changes together -- never one without
+   way, and update `UPSTREAM_LANG_CHECKSUM` to that result; then the same for
+   `static/lang/re-en.json` and `UPSTREAM_RE_LANG_CHECKSUM`.
+6. Open a reviewed PR with all four changes together -- never one without
    the others, per ADR 0003's "re-importing is a deliberate, reviewed PR."
 
 ## Testing
@@ -683,6 +703,9 @@ To move the pin to a new upstream commit:
 - `fetchUpstream.test.ts`: the exact git command sequence -- sparse-checkout
   before fetch, long paths enabled, checkout after fetch, only `packs/` and
   `static/lang` requested.
+- `resolveLabelKeys.test.ts`: choice prompts, choice labels and modifier
+  labels resolved from the lang strings, other text and elements untouched,
+  and the readable guess (counted once) for a key with no string.
 - `traitGlossary.test.ts`: `traitLangKey`'s suffix-stripping heuristic
   (die-size, bare-number, single-letter, and the "never strip the only
   segment" edge case), `flattenLangStrings` on nested objects and on

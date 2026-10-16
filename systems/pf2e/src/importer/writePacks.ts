@@ -68,6 +68,8 @@ export interface UpstreamPin {
   readonly packsChecksum: string;
   /** `static/lang/en.json`'s own checksum (ADR 0020), verified independently of `packsChecksum`. Optional: a caller that only wants `packs/` content (every hermetic test but the trait-glossary ones) can omit it, which skips the whole trait-glossary step in `runImporter.ts` -- see its module doc. */
   readonly langChecksum?: string;
+  /** `static/lang/re-en.json`'s own checksum: the file most rule-element labels resolve from (`resolveLabelKeys.ts`). Optional for the same reason. */
+  readonly reLangChecksum?: string;
 }
 
 export interface WritePacksOptions {

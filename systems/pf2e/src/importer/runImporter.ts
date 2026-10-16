@@ -44,6 +44,7 @@ import { readUpstreamEntries, type UpstreamEntry } from './reader.js';
 import { asRecord } from './upstreamHelpers.js';
 import { resolveDependencies } from './resolveDependencies.js';
 import { upstreamFolderOf } from './upstreamUuid.js';
+import { resolveLabelKeys } from './resolveLabelKeys.js';
 import { resolveEntryText } from './resolveEntryText.js';
 import { applyScopeFilter } from './scopeFilter.js';
 import {
@@ -122,6 +123,8 @@ export interface RunImporterSummary {
   readonly kept: number;
   readonly packs: readonly { readonly packId: string; readonly entryCount: number }[];
   readonly coverage: CoverageAggregate;
+  /** Rule-element labels left as localization keys no lang string matched, so a readable guess stands in (`resolveLabelKeys.ts`). */
+  readonly labelsGuessed: number;
 }
 
 export function runImporter(options: RunImporterOptions): RunImporterSummary {
@@ -192,8 +195,26 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
     folderById,
   );
 
+  // Upstream's lang files, each under its own pinned checksum (ADR 0020). `en.json`
+  // holds the trait glossary's strings; `re-en.json` most rule-element labels.
+  // A hermetic test may omit either checksum, which skips that file.
+  const langDir = join(options.upstreamDir, 'static', 'lang');
+  const langStrings =
+    options.upstream.langChecksum === undefined
+      ? undefined
+      : readPinnedLang(join(langDir, 'en.json'), options.upstream.langChecksum);
+  const reLangStrings =
+    options.upstream.reLangChecksum === undefined
+      ? undefined
+      : readPinnedLang(join(langDir, 're-en.json'), options.upstream.reLangChecksum);
+
+  const labelled = resolveLabelKeys(
+    textResolved,
+    new Map([...(langStrings ?? []), ...(reLangStrings ?? [])]),
+  );
+
   const { packs, drops: duplicateDrops } = writePacks({
-    entries: textResolved,
+    entries: labelled.entries,
     outputDir: options.outputDir,
     upstream: options.upstream,
     generatedAt: options.importedAt,
@@ -203,22 +224,14 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
   // exclude them here too, so the coverage report's counts describe what
   // was actually written, not what merely survived dependency resolution.
   const droppedIds = new Set(duplicateDrops.map((drop) => drop.id));
-  const written = textResolved.filter((entry) => !droppedIds.has(entry.id));
+  const written = labelled.entries.filter((entry) => !droppedIds.has(entry.id));
 
   // Trait glossary (ADR 0020 decision 5), scoped to exactly the traits
   // `written` actually carries. Skipped entirely with no `langChecksum` --
   // every hermetic test but the trait-glossary ones cares only about
   // `packs/`, and the real importer (`index.ts`) always supplies one.
   let traitMisses: readonly string[] = [];
-  if (options.upstream.langChecksum !== undefined) {
-    const langPath = join(options.upstreamDir, 'static', 'lang', 'en.json');
-    const langChecksum = checksumFile(langPath);
-    if (langChecksum !== options.upstream.langChecksum) {
-      throw new Error(
-        `upstream lang checksum mismatch: expected ${options.upstream.langChecksum}, got ${langChecksum} -- refusing to import unverified content`,
-      );
-    }
-    const langStrings = flattenLangStrings(JSON.parse(readFileSync(langPath, 'utf8')));
+  if (langStrings !== undefined) {
     const traitSlugs = written.flatMap((entry) => entry.traits);
     const glossary = buildTraitGlossary(traitSlugs, langStrings);
     writeTraitGlossary(glossary.entries, options.outputDir);
@@ -244,5 +257,17 @@ export function runImporter(options: RunImporterOptions): RunImporterSummary {
     kept: kept.length,
     packs,
     coverage: aggregateCoverage(report),
+    labelsGuessed: labelled.guessed.length,
   };
+}
+
+/** A lang file's strings, flattened, after checking its bytes against the pin. */
+function readPinnedLang(path: string, expected: string): ReadonlyMap<string, string> {
+  const actual = checksumFile(path);
+  if (actual !== expected) {
+    throw new Error(
+      `upstream lang checksum mismatch for ${path}: expected ${expected}, got ${actual} -- refusing to import unverified content`,
+    );
+  }
+  return flattenLangStrings(JSON.parse(readFileSync(path, 'utf8')));
 }
