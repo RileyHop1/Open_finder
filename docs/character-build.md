@@ -210,7 +210,9 @@ counted against its repertoire, which holds as many spells as it has slots ("1 o
 "Your class also gives you" names what the class grants by itself
 (`classSpells.ts` in the PF2e system): for a Bard, Courageous Anthem, Counter
 Performance, 1 Focus Point, and its muse's spell once the muse is chosen (until
-then a note says the muse will add one). These are not counted against the
+then a note says the muse will add one); for a Cleric, its Divine Font, "4 extra
+slots at your highest rank, each holding Heal" (or "Heal or Harm, once you choose
+your font" before the choice). These are not counted against the
 picks. A class that does not cast says so.
 
 The **review** step shows the whole character in words (what is chosen and

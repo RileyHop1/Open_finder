@@ -152,8 +152,26 @@ describe('SpellsStep', () => {
     expect(wrapper.text()).not.toContain('Your muse adds a spell');
   });
 
-  it('shows no class gifts, and counts picks plainly, for a prepared caster with none', async () => {
+  it('shows a Cleric’s Divine Font: Heal or Harm until the font is chosen, then the one', async () => {
     const wrapper = mountStep(buildFor('cleric'));
+    await flushPromises();
+    const gifts = wrapper.get('[aria-labelledby="spells-gifts-title"]');
+    expect(gifts.text()).toContain('Divine Font: 4 extra slots at your highest rank');
+    expect(gifts.text()).toContain('Heal or Harm, once you choose your font');
+
+    await wrapper.setProps({
+      build: characterBuildSchema.parse({
+        class: { packId: 'classes', slug: 'cleric' },
+        classChoices: { 'divine-font': 'heal' },
+      }),
+    });
+    const chosen = wrapper.get('[aria-labelledby="spells-gifts-title"]').text();
+    expect(chosen).not.toContain('once you choose');
+    expect(chosen).toMatch(/each holding\s+Heal/);
+  });
+
+  it('shows no class gifts, and counts picks plainly, for a prepared caster with none', async () => {
+    const wrapper = mountStep(buildFor('druid'));
     await flushPromises();
     expect(wrapper.find('[aria-labelledby="spells-gifts-title"]').exists()).toBe(false);
     expect(wrapper.findAll('fieldset')[1]?.text()).toContain('0 chosen');

@@ -60,6 +60,7 @@ describe('classGifts', () => {
       ],
       focusPoints: 1,
       pending: ['muse'],
+      font: undefined,
     });
   });
 
@@ -69,12 +70,24 @@ describe('classGifts', () => {
     expect(gifts.pending).toEqual([]);
   });
 
-  it('gives a class with no row nothing', () => {
-    expect(classGifts('cleric', {})).toEqual({ spells: [], focusPoints: 0, pending: [] });
-    expect(classGifts(undefined, {})).toEqual({
+  it('gives a Cleric its Divine Font: four slots for Heal or Harm, then the one chosen', () => {
+    expect(classGifts('cleric', {})).toEqual({
       spells: [],
       focusPoints: 0,
       pending: [],
+      font: {
+        name: 'Divine Font',
+        count: 4,
+        spell: undefined,
+        options: ['heal', 'harm'],
+      },
     });
+    expect(classGifts('cleric', { 'divine-font': 'harm' }).font?.spell).toBe('harm');
+  });
+
+  it('gives a class with no row nothing', () => {
+    const none = { spells: [], focusPoints: 0, pending: [], font: undefined };
+    expect(classGifts('druid', {})).toEqual(none);
+    expect(classGifts(undefined, {})).toEqual(none);
   });
 });
