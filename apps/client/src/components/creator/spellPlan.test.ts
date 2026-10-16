@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { castingPlan, isPicked, togglePick } from './spellPlan.js';
+import { castingPlan, classGifts, isPicked, togglePick } from './spellPlan.js';
 
 describe('castingPlan', () => {
   it('has no plan for a class that does not cast, or no class', () => {
@@ -14,8 +14,11 @@ describe('castingPlan', () => {
       tradition: 'occult',
       traditionChoice: undefined,
       cantrips: 5,
+      known: 2,
       rankedLabel: 'Rank 1 spells you know',
     });
+    expect(castingPlan('sorcerer')?.known).toBe(3);
+    expect(castingPlan('cleric')?.known).toBeUndefined();
     expect(castingPlan('cleric')?.rankedLabel).toBe('Rank 1 spells to prepare from');
     expect(castingPlan('wizard')?.rankedLabel).toBe('Rank 1 spells in your spellbook');
   });
@@ -44,6 +47,34 @@ describe('togglePick', () => {
     expect(togglePick(togglePick(none, 'cantrips', zap), 'ranked', zap)).toEqual({
       cantrips: [zap],
       ranked: [zap],
+    });
+  });
+});
+
+describe('classGifts', () => {
+  it('lists the Bard’s cantrip, focus spell and pool, and waits for the muse', () => {
+    expect(classGifts('bard', {})).toEqual({
+      spells: [
+        { slug: 'courageous-anthem', why: 'cantrip' },
+        { slug: 'counter-performance', why: 'focus' },
+      ],
+      focusPoints: 1,
+      pending: ['muse'],
+    });
+  });
+
+  it('adds the muse’s spell once the muse is chosen', () => {
+    const gifts = classGifts('bard', { muse: 'warrior' });
+    expect(gifts.spells).toContainEqual({ slug: 'fear', why: 'choice', choice: 'muse' });
+    expect(gifts.pending).toEqual([]);
+  });
+
+  it('gives a class with no row nothing', () => {
+    expect(classGifts('cleric', {})).toEqual({ spells: [], focusPoints: 0, pending: [] });
+    expect(classGifts(undefined, {})).toEqual({
+      spells: [],
+      focusPoints: 0,
+      pending: [],
     });
   });
 });

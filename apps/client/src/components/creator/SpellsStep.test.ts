@@ -119,6 +119,46 @@ describe('SpellsStep', () => {
     expect(wrapper.text()).not.toContain('not your class');
   });
 
+  it('counts a Bard’s rank 1 picks against its repertoire, in words past it', async () => {
+    const two = [
+      { packId: 'spells', slug: 'a' },
+      { packId: 'spells', slug: 'b' },
+      { packId: 'spells', slug: 'c' },
+    ];
+    const wrapper = mountStep(buildFor('bard', { cantrips: [], ranked: two as never }));
+    await flushPromises();
+    expect(wrapper.findAll('fieldset')[1]?.text()).toContain(
+      '3 of 2 chosen (1 more than your repertoire holds)',
+    );
+  });
+
+  it('lists what the Bard’s class gives, and that the muse adds a spell once chosen', async () => {
+    const wrapper = mountStep(buildFor('bard'));
+    await flushPromises();
+    const gifts = wrapper.get('[aria-labelledby="spells-gifts-title"]');
+    expect(gifts.text()).toContain('Courageous Anthem');
+    expect(gifts.text()).toContain('Counter Performance');
+    expect(gifts.text()).toContain('1 Focus Point');
+    expect(gifts.text()).toContain('Your muse adds a spell once you choose it');
+
+    await wrapper.setProps({
+      build: characterBuildSchema.parse({
+        class: { packId: 'classes', slug: 'bard' },
+        classChoices: { muse: 'enigma' },
+      }),
+    });
+    expect(wrapper.text()).toContain('Sure Strike');
+    expect(wrapper.text()).toContain('from your muse');
+    expect(wrapper.text()).not.toContain('Your muse adds a spell');
+  });
+
+  it('shows no class gifts, and counts picks plainly, for a prepared caster with none', async () => {
+    const wrapper = mountStep(buildFor('cleric'));
+    await flushPromises();
+    expect(wrapper.find('[aria-labelledby="spells-gifts-title"]').exists()).toBe(false);
+    expect(wrapper.findAll('fieldset')[1]?.text()).toContain('0 chosen');
+  });
+
   it('says when no content has been imported', async () => {
     vi.mocked(compendiumApi.isCompendiumAvailable).mockResolvedValue(false);
     const wrapper = mountStep(buildFor('bard'));

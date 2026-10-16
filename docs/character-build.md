@@ -204,8 +204,14 @@ with a note that it is not the class's own; a Witch or Sorcerer, whose list
 depends on a choice the app cannot map yet, is asked to choose the list that
 goes with it. Picks go in `build.spells` ([spellcasting.md](spellcasting.md)).
 More cantrips than the class has is counted in words and warned about on
-review; nothing is refused (ADR 0023). How many rank 1 spells each class picks
-arrives with that class's own PR. A class that does not cast says so.
+review; nothing is refused (ADR 0023). A spontaneous caster's rank 1 picks are
+counted against its repertoire, which holds as many spells as it has slots ("1 of
+2 chosen" for a Bard); a prepared caster's are not counted yet. Above the lists,
+"Your class also gives you" names what the class grants by itself
+(`classSpells.ts` in the PF2e system): for a Bard, Courageous Anthem, Counter
+Performance, 1 Focus Point, and its muse's spell once the muse is chosen (until
+then a note says the muse will add one). These are not counted against the
+picks. A class that does not cast says so.
 
 The **review** step shows the whole character in words (what is chosen and
 what is not, the attribute modifiers, class choices, extra skills, feats,
