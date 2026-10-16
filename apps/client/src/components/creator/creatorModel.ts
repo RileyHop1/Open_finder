@@ -37,6 +37,7 @@ export const CREATOR_STEPS = [
   { id: 'attributes', label: 'Attributes' },
   { id: 'skills', label: 'Skills' },
   { id: 'feats', label: 'Feats' },
+  { id: 'spells', label: 'Spells' },
   { id: 'equipment', label: 'Equipment' },
   { id: 'review', label: 'Review' },
 ] as const;

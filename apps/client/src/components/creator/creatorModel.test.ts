@@ -27,6 +27,7 @@ describe('steps', () => {
       'attributes',
       'skills',
       'feats',
+      'spells',
       'equipment',
       'review',
     ]);

@@ -34,6 +34,8 @@ import EquipmentStep from './EquipmentStep.vue';
 import FeatsStep from './FeatsStep.vue';
 import ReviewStep from './ReviewStep.vue';
 import SkillsStep from './SkillsStep.vue';
+import SpellsStep from './SpellsStep.vue';
+import { togglePick } from './spellPlan.js';
 import type { BoostSectionId } from './boostPlan.js';
 import { type EquipmentLine, addLine, setQuantity } from './equipmentPlan.js';
 import { createCharacterFromDraft, newActorWaiter } from './createCharacter.js';
@@ -101,12 +103,13 @@ async function create(): Promise<void> {
   failure.value = `${result.message}. Nothing was created; your choices are kept.`;
 }
 
-/** Picking a class clears the key attribute and class choices: they belonged to the one before. */
+/** Picking a class clears the key attribute, class choices, class feat and spells: they belonged to the one before. */
 function pickClass(ref: BuildRef | undefined): void {
   draft.build.class = ref;
   draft.keyAttribute = undefined;
   draft.build.classChoices = {};
   draft.build.feats = draft.build.feats.filter((f) => f.slot !== 'class');
+  draft.build.spells = { cantrips: [], ranked: [] };
 }
 
 /** Picking an ancestry clears the heritage: it belonged to the one before. */
@@ -279,6 +282,15 @@ function trapTab(event: KeyboardEvent): void {
           :background="entries.background"
           :class-entry="entries.class"
           @pick="pickFeat"
+        />
+        <SpellsStep
+          v-else-if="draft.step === 'spells'"
+          :build="draft.build"
+          :class-entry="entries.class"
+          @toggle="
+            (which, ref) =>
+              (draft.build.spells = togglePick(draft.build.spells, which, ref))
+          "
         />
         <SkillsStep
           v-else-if="draft.step === 'skills'"
