@@ -1,0 +1,235 @@
+<script setup lang="ts">
+/**
+ * The spells step (ADR 0025, `docs/spellcasting.md`): a caster's cantrips and
+ * rank 1 spells, from its tradition's list. The picks go in `build.spells`; when
+ * the character is created they become spell items and fill the class's
+ * spellcasting lists (cantrips, and a spontaneous caster's repertoire).
+ *
+ * Nothing is refused (ADR 0023). Another tradition's list can be browsed and
+ * picked from, with a note saying it is not the class's own; more cantrips than
+ * the class has is counted in words here and warned about on review. A class
+ * that does not cast says so, and the step can be skipped.
+ */
+import type {
+  BuildRef,
+  CharacterBuild,
+  ClassEntry,
+  MagicalTradition,
+} from '@hearthtable/pf2e';
+import { computed, ref, watch } from 'vue';
+
+import {
+  type EntrySummary,
+  isCompendiumAvailable,
+  searchCompendium,
+} from '../../api/compendium.js';
+import RulesTerm from '../RulesTerm.vue';
+import { titleCase } from '../sheet/format.js';
+import { TRADITIONS, castingPlan, isPicked } from './spellPlan.js';
+
+const props = defineProps<{
+  build: CharacterBuild;
+  classEntry: ClassEntry | undefined;
+}>();
+const emit = defineEmits<{ toggle: [which: 'cantrips' | 'ranked', ref: BuildRef] }>();
+
+const plan = computed(() =>
+  castingPlan(props.classEntry?.slug ?? props.build.class?.slug),
+);
+const tradition = ref<MagicalTradition>('arcane');
+watch(
+  plan,
+  (next) => {
+    tradition.value = next?.tradition ?? tradition.value;
+  },
+  { immediate: true },
+);
+
+const available = ref<boolean>();
+const cantrips = ref<EntrySummary[]>([]);
+const ranked = ref<EntrySummary[]>([]);
+const loading = ref(false);
+const error = ref<string>();
+
+async function load(): Promise<void> {
+  if (plan.value === undefined) {
+    return;
+  }
+  loading.value = true;
+  error.value = undefined;
+  try {
+    available.value ??= await isCompendiumAvailable();
+    if (available.value) {
+      const [c, r] = await Promise.all([
+        searchCompendium({
+          kind: 'spell',
+          tradition: tradition.value,
+          trait: 'cantrip',
+          limit: 200,
+        }),
+        searchCompendium({
+          kind: 'spell',
+          tradition: tradition.value,
+          rank: 1,
+          limit: 200,
+        }),
+      ]);
+      cantrips.value = c;
+      ranked.value = r.filter((s) => !s.traits.includes('cantrip'));
+    }
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'could not load the spells';
+  } finally {
+    loading.value = false;
+  }
+}
+watch([plan, tradition], load, { immediate: true });
+
+const offList = computed(
+  () => plan.value?.tradition !== undefined && tradition.value !== plan.value.tradition,
+);
+const cantripCount = computed(() => props.build.spells.cantrips.length);
+const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug });
+</script>
+
+<template>
+  <section class="spells-step" aria-labelledby="spells-step-title">
+    <h3 id="spells-step-title">Spells</h3>
+
+    <p v-if="plan === undefined" class="note">
+      {{
+        classEntry === undefined && build.class === undefined
+          ? 'Pick a class first. If it casts spells, you choose them here.'
+          : 'This class does not cast spells, so there is nothing to choose here.'
+      }}
+    </p>
+
+    <template v-else>
+      <p v-if="plan.traditionChoice !== undefined" class="note">
+        Your {{ plan.traditionChoice }} decides which list you cast from. Choose the list
+        that goes with it below; the app cannot work it out for you yet.
+      </p>
+
+      <label class="tradition">
+        Spell list
+        <select v-model="tradition">
+          <option v-for="t in TRADITIONS" :key="t" :value="t">
+            {{ titleCase(t) }}{{ t === plan.tradition ? ' (your class)' : '' }}
+          </option>
+        </select>
+      </label>
+      <p v-if="offList" class="warning" role="status">
+        This is not your class's list. You can still pick from it; check with your GM.
+      </p>
+
+      <p v-if="available === false" class="note">
+        No game content has been imported yet, so there are no spells to choose from.
+      </p>
+      <p v-if="error" role="alert">{{ error }}</p>
+      <p v-if="loading" role="status">Loading spells…</p>
+
+      <fieldset class="picks">
+        <legend>Cantrips</legend>
+        <p class="count" :class="{ over: cantripCount > plan.cantrips }">
+          {{ cantripCount }} of {{ plan.cantrips }} chosen{{
+            cantripCount > plan.cantrips
+              ? ` (${cantripCount - plan.cantrips} more than your class has)`
+              : ''
+          }}
+        </p>
+        <ul>
+          <li v-for="s in cantrips" :key="s.slug">
+            <label class="check">
+              <input
+                type="checkbox"
+                :checked="isPicked(build.spells.cantrips, refOf(s))"
+                @change="emit('toggle', 'cantrips', refOf(s))"
+              />
+              <span class="visually-hidden">Choose {{ s.name }}</span>
+            </label>
+            <RulesTerm term-kind="spell" :slug="s.slug" :label="s.name" />
+          </li>
+        </ul>
+      </fieldset>
+
+      <fieldset class="picks">
+        <legend>{{ plan.rankedLabel }}</legend>
+        <p class="count">{{ build.spells.ranked.length }} chosen</p>
+        <ul>
+          <li v-for="s in ranked" :key="s.slug">
+            <label class="check">
+              <input
+                type="checkbox"
+                :checked="isPicked(build.spells.ranked, refOf(s))"
+                @change="emit('toggle', 'ranked', refOf(s))"
+              />
+              <span class="visually-hidden">Choose {{ s.name }}</span>
+            </label>
+            <RulesTerm term-kind="spell" :slug="s.slug" :label="s.name" />
+          </li>
+        </ul>
+      </fieldset>
+    </template>
+  </section>
+</template>
+
+<style scoped>
+.spells-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+h3,
+p {
+  margin: 0;
+}
+
+.note {
+  color: var(--color-text-muted);
+}
+
+.warning,
+.count.over {
+  font-weight: bold;
+}
+
+.tradition {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.picks ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.picks li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  cursor: pointer;
+}
+
+input[type='checkbox'] {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+select {
+  min-height: var(--touch-target-min);
+}
+</style>

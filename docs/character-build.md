@@ -114,7 +114,7 @@ supplies the starting rank; the table supplies `master`, `expert` and
 `CharacterCreator.vue` (`apps/client/src/components/creator/`) is the
 full-screen wizard, opened from the Characters panel's "Guided creation…"
 button. A step rail (Ancestry, Background, Class, Class choices, Attributes,
-Skills, Feats, Equipment, Review) runs down the left, the current step is in
+Skills, Feats, Spells, Equipment, Review) runs down the left, the current step is in
 the middle, and the real character sheet shows the character so far on the
 right, derived live with `deriveCharacter`. It is a modal dialog: focus moves
 in, Tab stays inside, Escape closes it.
@@ -143,7 +143,8 @@ special features are set up in a later update; picking one of those shows a
 visible warning and is never refused. A chosen class shows its Hit Points per
 level, its trained skills, and its starting proficiencies in words, and offers
 the key attribute as a choice when the class has more than one. Picking a
-class forgets the key attribute and the class choices made for the one before.
+class forgets the key attribute, the class choices, the class feat and the spell
+picks made for the one before.
 
 The **class choices** step asks the questions the class's level 1 features ask
 (`classChoices.ts` walks them: a Barbarian's instinct, a Rogue's racket, a
@@ -191,6 +192,20 @@ taken and says so (ADR 0023). A pick replaces the one before it in the same
 slot and is stored in `build.feats`; picking another ancestry or class drops
 that slot's pick. The search summaries carry each feat's prerequisites so the
 list needs no per-feat fetch.
+
+The **spells** step is for casters (`spellPlan.ts` reads the class's casting
+table). It lists the cantrips and the rank 1 spells of the class's tradition
+(compendium search by `tradition`, `trait=cantrip` and `rank=1`) as checkboxes,
+each name a tooltip, and counts the cantrips against the class's ("3 of 5
+chosen"). The rank 1 heading says what the picks are for: spells you know
+(spontaneous), your spellbook (Wizard) or spells to prepare from (other prepared
+casters). Another tradition's list can be chosen from a menu and picked from,
+with a note that it is not the class's own; a Witch or Sorcerer, whose list
+depends on a choice the app cannot map yet, is asked to choose the list that
+goes with it. Picks go in `build.spells` ([spellcasting.md](spellcasting.md)).
+More cantrips than the class has is counted in words and warned about on
+review; nothing is refused (ADR 0023). How many rank 1 spells each class picks
+arrives with that class's own PR. A class that does not cast says so.
 
 The **review** step shows the whole character in words (what is chosen and
 what is not, the attribute modifiers, class choices, extra skills, feats,

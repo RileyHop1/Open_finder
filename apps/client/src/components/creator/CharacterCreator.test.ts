@@ -36,6 +36,7 @@ describe('CharacterCreator', () => {
       'Attributes',
       'Skills',
       'Feats',
+      'Spells',
       'Equipment',
       'Review',
     ]);
@@ -56,11 +57,11 @@ describe('CharacterCreator', () => {
     expect(back?.attributes('disabled')).toBeDefined();
     await next?.trigger('click');
     expect(wrapper.get('.step h3').text()).toBe('Background');
-    expect(wrapper.get('.progress').text()).toBe('Step 2 of 9');
+    expect(wrapper.get('.progress').text()).toBe('Step 2 of 10');
     await back?.trigger('click');
     expect(wrapper.get('.step h3').text()).toBe('Ancestry');
 
-    await stepButtons(wrapper)[8]?.trigger('click');
+    await stepButtons(wrapper)[9]?.trigger('click');
     expect(wrapper.get('.step h3').text()).toBe('Review');
     expect(next?.attributes('disabled')).toBeDefined();
     wrapper.unmount();
@@ -458,7 +459,7 @@ describe('CharacterCreator', () => {
       },
     ]);
     const wrapper = mountCreator();
-    await wrapper.findAll('.rail button')[7]?.trigger('click');
+    await wrapper.findAll('.rail button')[8]?.trigger('click');
     await flushPromises();
     expect(wrapper.get('.step h3').text()).toBe('Equipment');
 
@@ -475,7 +476,7 @@ describe('CharacterCreator', () => {
     const wrapper = mountCreator();
     const documents = useDocumentsStore();
     const send = vi.spyOn(documents, 'send').mockResolvedValue(false);
-    await wrapper.findAll('.rail button')[8]?.trigger('click');
+    await wrapper.findAll('.rail button')[9]?.trigger('click');
     expect(wrapper.get('.step h3').text()).toBe('Review');
 
     await wrapper.get('.create').trigger('click');
