@@ -187,6 +187,23 @@ as `unsupported-choice-filter` rather than showing the wrong list. A tag with
 no kept feature goes `inert` as `no-features-for-tag`. The upstream prompt is a
 translation key, so the resolved prompt is `Choose <feature name>`.
 
+**Progression flags.** Some picks bring a feature at each of several levels. A
+Cleric's Warpriest doctrine has an `ActiveEffectLike` that overrides
+`flags.system.cleric` with one class-feature uuid per level (`firstDoctrine:
+"Compendium.pf2e.classfeatures.Item.First Doctrine (Warpriest)"`, and so on to
+the final doctrine), and generic features ("Second Doctrine") grant "whatever the
+flag names" at their levels. Our subset has no flags, so `mapFlagGrants` turns
+such an effect (mode `override`, path `flags.system.*`, no predicate, every value
+a class-feature uuid) into one `UnresolvedFlagGrant` per feature; the generic
+features still drop (`grant-target-excluded`), since nothing sets the flag they
+read. `deriveCharacter` grants a class feature only from its own level, so the
+doctrine's benefits still arrive on time. These grants are **soft**: a target
+that was not kept leaves the element `inert` (`flag-grant-target-excluded`, as the
+effect was before) instead of dropping the entry, because upstream's Toxicologist
+names an Advanced Vials feature with no class trait, which fails closed. Checked
+against the pinned data (2026-10-16): the two Cleric doctrines and the four
+Alchemist research fields are the only core-book entries with this shape.
+
 **A known v1 gap, surfaced rather than worked around:**
 `grantItemElementSchema` and `choiceSetElementSchema` have no `predicate`
 field in `@hearthtable/core` -- neither was expected to need conditional

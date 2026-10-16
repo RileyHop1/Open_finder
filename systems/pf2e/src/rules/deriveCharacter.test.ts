@@ -468,4 +468,51 @@ describe('deriveCharacter', () => {
       });
     });
   });
+
+  describe('class features granted by other features', () => {
+    const grantFeature = (slug: string) => ({
+      kind: 'grantItem' as const,
+      packId: 'class-features',
+      slug,
+    });
+    const step = (slug: string, level: number) => feature(slug, level);
+    // A doctrine: chosen at level 1 (tagged), granting a benefit at each of its levels.
+    const warpath = {
+      ...feature('warpath', 1, ['invented-doctrine']),
+      ruleElements: [grantFeature('first-step'), grantFeature('second-step')],
+    };
+    const doctrine = {
+      ...feature('doctrine', 1),
+      ruleElements: [
+        {
+          kind: 'choiceSet' as const,
+          prompt: 'Choose Doctrine',
+          choices: [{ label: 'Warpath', value: 'warpath' }],
+          rollOptionPrefix: 'doctrine',
+          grantsFromPackId: 'class-features',
+        },
+      ],
+    };
+    const features = [doctrine, warpath, step('first-step', 1), step('second-step', 3)];
+    const byKey = new Map(features.map((f) => [`${f.packId}/${f.slug}`, f as ItemEntry]));
+    const derive = (level: number, classChoices: Record<string, string>) =>
+      deriveCharacter({
+        build: { ...emptyBuild, classChoices },
+        level,
+        class: cls,
+        classFeatures: features,
+        resolve: (p, s) => byKey.get(`${p}/${s}`),
+      });
+
+    it('grants a benefit only from its own level', () => {
+      const slugs = (level: number) =>
+        derive(level, { doctrine: 'warpath' }).items.map((i) => i.slug);
+      expect(slugs(1)).toEqual(['doctrine', 'warpath', 'first-step']);
+      expect(slugs(3)).toEqual(['doctrine', 'warpath', 'first-step', 'second-step']);
+    });
+
+    it('does not grant a feature another feature grants on its own, so no doctrine is free', () => {
+      expect(derive(3, {}).items.map((i) => i.slug)).toEqual(['doctrine']);
+    });
+  });
 });

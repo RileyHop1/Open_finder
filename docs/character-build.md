@@ -53,7 +53,13 @@ never refuses a choice.
   are the whole story.
 - **Granted items:** `grantItem` elements are followed to `MAX_GRANT_DEPTH`
   (3) and de-duplicated by pack and slug; an entry that cannot be found is a
-  `missing-entry` warning.
+  `missing-entry` warning. A class feature is granted only from its own level,
+  however it is granted: a Cleric's doctrine grants all six of its benefits, and
+  each arrives at the level it names.
+- **Class features due by level:** every untagged feature of the class at or below
+  the level, except one another of the class's features grants. A doctrine's
+  benefits are untagged upstream, so without that rule every Cleric would get both
+  doctrines' benefits; they come only through the doctrine chosen.
 - **Class choices:** a granted feature with a `choiceSet` (Instinct, Racket,
   Hunter's Edge, Methodology, Style...) reads its answer from
   `build.classChoices`, keyed by the choice's `rollOptionPrefix`. When the set

@@ -230,7 +230,9 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   const seen = new Set<string>();
   const add = (entry: ItemEntry, depth: number) => {
     const id = key(entry.packId, entry.slug);
-    if (seen.has(id)) {
+    // A class feature arrives at its own level, however it is granted: a doctrine
+    // grants all six of its benefits, each taken at the level it names.
+    if (seen.has(id) || (entry.kind === 'classFeature' && entry.level > level)) {
       return;
     }
     seen.add(id);
@@ -306,9 +308,22 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     }
   }
 
-  // A tagged feature is one alternative of a choice, granted only by making it.
+  // A tagged feature is one alternative of a choice, granted only by making it; one
+  // another feature grants (a doctrine's benefits) arrives through that feature.
+  const grantedByAnother = new Set(
+    (inputs.classFeatures ?? []).flatMap((f) =>
+      f.ruleElements.flatMap((e) =>
+        e.kind === 'grantItem' ? [key(e.packId, e.slug)] : [],
+      ),
+    ),
+  );
   for (const feature of [...(inputs.classFeatures ?? [])]
-    .filter((f) => f.level <= level && f.tags.length === 0)
+    .filter(
+      (f) =>
+        f.level <= level &&
+        f.tags.length === 0 &&
+        !grantedByAnother.has(key(f.packId, f.slug)),
+    )
     .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))) {
     add(feature, 0);
   }

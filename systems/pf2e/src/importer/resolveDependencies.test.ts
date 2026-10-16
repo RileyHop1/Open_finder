@@ -264,6 +264,30 @@ describe('resolveDependencies -- grantItem resolution', () => {
   });
 });
 
+describe('resolveDependencies -- a progression flag’s grants', () => {
+  it('grants a kept target, and leaves a missing one inert without dropping the entry', () => {
+    const target = makeFeat('ffffffffffffffff');
+    const doctrine = makeFeat('eeeeeeeeeeeeeeee', {
+      ruleElements: [
+        { kind: 'unresolvedFlagGrant', uuid: grantUuidFor('ffffffffffffffff') },
+        { kind: 'unresolvedFlagGrant', uuid: grantUuidFor('0000000000000000') },
+      ],
+    });
+
+    const result = resolveDependencies([doctrine, target]);
+
+    expect(result.drops).toEqual([]);
+    expect(result.kept.find((e) => e.id === doctrine.id)?.ruleElements).toEqual([
+      { kind: 'grantItem', packId: 'feats', slug: target.slug },
+      {
+        kind: 'inert',
+        upstreamKind: 'ActiveEffectLike',
+        reason: 'flag-grant-target-excluded',
+      },
+    ]);
+  });
+});
+
 describe('resolveDependencies -- cascading fixed point', () => {
   it('drops an A-grants-B-grants-C chain in successive rounds when C was excluded from the start', () => {
     const b = makeFeat('2222222222222222', {

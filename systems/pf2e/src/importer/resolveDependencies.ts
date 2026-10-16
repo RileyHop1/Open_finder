@@ -125,6 +125,17 @@ function resolveElement(
           reason: 'chosen-grant-without-choice',
         };
   }
+  if (element.kind === 'unresolvedFlagGrant') {
+    // Soft: a target that was not kept leaves the flag inert, as it was before.
+    const target = findGrantTarget(element.uuid, kept, resolveTarget);
+    return target === undefined
+      ? {
+          kind: 'inert',
+          upstreamKind: 'ActiveEffectLike',
+          reason: 'flag-grant-target-excluded',
+        }
+      : { kind: 'grantItem', packId: target.packId, slug: target.slug };
+  }
   if (element.kind !== 'unresolvedGrantItem') {
     return element;
   }
