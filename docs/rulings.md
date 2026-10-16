@@ -828,6 +828,28 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/spellcastingTables.test.ts`.
 - **Override:** every count is editable on the sheet once the Spells tab lands.
 
+### What a class grants by itself (the Bard)
+- **Rules text:** the Bard's Composition Spells, muse and Spell Repertoire class
+  features in Player Core. Checked against the pinned upstream text (2026-10-16), not
+  against Archives of Nethys, which was not reachable: **(confirm)**.
+- **The ambiguity:** none intended. Upstream carries these only as prose (the muse and
+  composition features have no grant elements), so they are our own data in
+  `systems/pf2e/src/rules/classSpells.ts`.
+- **Our reading:** a Bard starts with a focus pool of 1, the Counter Performance focus
+  spell and the Courageous Anthem composition cantrip (in addition to the five picked
+  cantrips). Each muse adds a spell to the repertoire: Enigma, Sure Strike; Maestro,
+  Soothe; Polymath, Phantasmal Minion; Warrior, Fear. At level 1 a Bard learns two rank 1
+  spells; a spontaneous caster's repertoire is read as holding as many ranked spells as
+  it has slots, and the granted spells do not count against it.
+- **Found while checking, unresolved:** the upstream Oracle and Sorcerer spellcasting
+  text both say three rank 1 spells a day at level 1, but the slot table gives the
+  Oracle two (the standard style), which matched the published Oracle samples. Settled
+  in the Oracle's own PR.
+- **Alternative reading:** none known.
+- **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` ("what a class
+  grants by itself") and `apps/server/src/applyBuild.test.ts`.
+- **Override:** every list and the focus pool are editable on the sheet ("Edit spells").
+
 ### Casting: cantrip rank, refocus and daily preparation
 - **Rules text:** the spellcasting rules in Player Core (cantrips and focus spells
   heighten, Refocus, daily preparations). **(confirm)** These are from memory; Archives of

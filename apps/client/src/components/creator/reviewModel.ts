@@ -41,6 +41,8 @@ export function warningText(warning: DeriveWarning): string | undefined {
       return `${titleCase(warning.classSlug)} casts from the tradition of your ${warning.choice}, which this app cannot set up yet. Add the spellcasting by hand on the sheet.`;
     case 'too-many-cantrips':
       return `${warning.chosen} cantrips chosen but the class has ${warning.allowed}.`;
+    case 'too-many-known-spells':
+      return `${warning.chosen} spells chosen to know but your repertoire holds ${warning.allowed}.`;
     case 'not-a-spell':
       return `${titleCase(warning.slug)} was picked as a spell but is not one, so it is left out.`;
     // The preview has no compendium to look entries up in, so every grant would read as

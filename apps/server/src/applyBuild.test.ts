@@ -155,6 +155,10 @@ const entries: Pf2eEntry[] = [
     ['invented-spark', ['cantrip']],
     ['invented-glow', ['cantrip']],
     ['invented-burst', []],
+    // Invented entries under the slugs the Bard's grant table names (`classSpells.ts`).
+    ['courageous-anthem', ['cantrip']],
+    ['counter-performance', ['focus']],
+    ['sure-strike', []],
   ].map(([slug, traits]) =>
     pf2eEntrySchema.parse({
       ...base('spells', slug as string),
@@ -414,7 +418,11 @@ describe('applyBuild', () => {
       });
 
       const [entry] = sheetOf(actorId).spellcasting;
-      expect(entry?.cantrips).toEqual([idOf(actorId, 'invented-spark')]);
+      // The Bard's own composition cantrip comes after the picks (`classSpells.ts`).
+      expect(entry?.cantrips).toEqual([
+        idOf(actorId, 'invented-spark'),
+        idOf(actorId, 'courageous-anthem'),
+      ]);
       expect(entry?.kind === 'spontaneous' ? entry.repertoire : []).toEqual([
         idOf(actorId, 'invented-burst'),
       ]);
@@ -439,6 +447,32 @@ describe('applyBuild', () => {
       expect(idOf(actorId, 'invented-burst')).toBeDefined();
     });
 
+    it('gives a Bard its granted spells and focus pool, raising the pool only once', () => {
+      const { owner, actorId } = character();
+      const bard = {
+        class: { packId: 'classes', slug: 'bard' },
+        classChoices: { muse: 'enigma' },
+      };
+      applyBuild(store, owner, compendium, { actorId, build: bard });
+
+      const sheet = sheetOf(actorId);
+      const [entry] = sheet.spellcasting;
+      expect(sheet.focusPoints).toEqual({ max: 1, current: 1 });
+      expect(entry?.cantrips).toEqual([idOf(actorId, 'courageous-anthem')]);
+      expect(entry?.kind === 'spontaneous' ? entry.repertoire : []).toEqual([
+        idOf(actorId, 'sure-strike'),
+      ]);
+      expect(idOf(actorId, 'counter-performance')).toBeDefined();
+
+      // A point spent in play stays spent when the build is applied again.
+      updateActor(store, owner, {
+        actorId,
+        changes: { 'system.focusPoints.current': 0 },
+      });
+      applyBuild(store, owner, compendium, { actorId, build: bard });
+      expect(sheetOf(actorId).focusPoints).toEqual({ max: 1, current: 0 });
+    });
+
     it('adds picks on a second apply without duplicating items or list ids', () => {
       const { owner, actorId } = character();
       const build = (cantrips: string[]) => ({
@@ -457,6 +491,7 @@ describe('applyBuild', () => {
       );
       expect(sheet.spellcasting[0]?.cantrips).toEqual([
         idOf(actorId, 'invented-spark'),
+        idOf(actorId, 'courageous-anthem'),
         idOf(actorId, 'invented-glow'),
       ]);
     });

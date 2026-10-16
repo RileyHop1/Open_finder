@@ -394,6 +394,14 @@ export {
 } from './rules/deriveSpellcasting.js';
 
 export {
+  CLASS_SPELL_GRANTS,
+  CLASS_SPELLS_PACK,
+  grantedSpells,
+  type ClassSpellGrants,
+  type GrantedSpells,
+} from './rules/classSpells.js';
+
+export {
   CASTER_CLASS_SLUGS,
   CASTER_TABLES,
   isCasterClass,
