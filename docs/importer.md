@@ -426,6 +426,27 @@ outside 0 to 4 is left out. Against the pinned data (2026-10-16), 99 kept class
 features carry rank-ups; the hundredth core-book one, Performer's Heart, has no
 class trait upstream and fails closed.
 
+**Skill training and grants for the class itself** (`classFeatureRules.ts`) need
+to know the feature's own class, so the class-feature mapper reads them before the
+ordinary element mapper:
+
+- `ActiveEffectLike` upgrading `system.skills.<skill>.rank` becomes the feature's
+  `skillRankUps` (the Thief racket trains Thievery, a methodology or bloodline its
+  skills, a Druid order its order skill). A chosen skill (`{item|flags...}` in the
+  path) stays inert.
+- `GrantItem` whose predicate holds for the feature's own class becomes a plain
+  grant: a Druid order grants its feat (`{ or: ["class:druid",
+  "feat:order-explorer:animal-order"] }`), an Oracle mystery or Champion cause its
+  benefits.
+
+A predicate *holds for the own class* when every term does: `class:<x>` for one of
+the feature's classes, an `or` with any holding term, or a `not` of a feat or of
+the feature's granter, which names another route to the same feature (a feat
+taken later, Crossblooded Evolution). Any other predicate leaves the element inert
+([rulings.md](rulings.md), "Reading predicates on class features"). Against the
+pinned data (2026-10-17) 42 kept class features train a skill, and the dependency
+drops are unchanged.
+
 ### The creature mapper (C.7g)
 
 **A creature's strikes live outside `system`.** Every other mapper reads

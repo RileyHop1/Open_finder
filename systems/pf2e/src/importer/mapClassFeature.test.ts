@@ -62,6 +62,7 @@ describe('mapClassFeature -- success', () => {
         level: 1,
         tags: [],
         rankUps: {},
+        skillRankUps: {},
       },
     });
   });
@@ -165,5 +166,39 @@ describe('mapClassFeature -- rank-ups', () => {
 
   it('is empty for a feature that raises nothing', () => {
     expect(rankUpsOf(undefined)).toEqual({});
+  });
+});
+
+describe('mapClassFeature -- skill training and own-class grants', () => {
+  it('reads a feature’s skill training and grants its feat to its own class', () => {
+    const result = mapClassFeature(
+      makeEntry(
+        baseSystem({
+          rules: [
+            {
+              key: 'ActiveEffectLike',
+              mode: 'upgrade',
+              path: 'system.skills.athletics.rank',
+              predicate: [{ not: 'feat:invented-explorer:invented-bulwark-stance' }],
+              value: 1,
+            },
+            {
+              key: 'GrantItem',
+              predicate: [{ or: ['class:invented-vanguard', 'feat:invented-explorer'] }],
+              uuid: 'Compendium.pf2e.feats-srd.Item.Invented Companion',
+            },
+          ],
+        }),
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok && result.entry.skillRankUps).toEqual({ athletics: 'trained' });
+    expect(result.ok && result.entry.ruleElements).toEqual([
+      {
+        kind: 'unresolvedGrantItem',
+        uuid: 'Compendium.pf2e.feats-srd.Item.Invented Companion',
+      },
+    ]);
   });
 });

@@ -151,6 +151,7 @@ function makeClassFeature(
     level: 1,
     tags: [],
     rankUps: {},
+    skillRankUps: {},
     ...overrides,
   };
 }
