@@ -18,6 +18,15 @@ describe('warningText', () => {
     expect(warningText({ kind: 'key-attribute-not-offered', attribute: 'cha' })).toBe(
       'Charisma is not one of the key attributes this class offers.',
     );
+    expect(
+      warningText({
+        kind: 'skill-trained-twice',
+        skill: 'athletics',
+        feature: 'animal-order',
+      }),
+    ).toBe(
+      'Animal Order trains Athletics, which is already trained: choose one more skill in the Skills step instead.',
+    );
     expect(warningText({ kind: 'too-many-known-spells', chosen: 3, allowed: 2 })).toBe(
       '3 spells chosen to know but your repertoire holds 2.',
     );

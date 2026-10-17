@@ -6,8 +6,9 @@
  *
  * It *proposes*. Nothing here refuses a choice; a rules problem comes back
  * in `warnings` and the value is still derived (ADR 0023). Ranks are the
- * class's starting ones, then skills and skill increases, then every class
- * feature's `rankUps` from its level on (`docs/character-build.md` "Rank-ups").
+ * class's starting ones, then the trained skills, then every class feature's
+ * `rankUps` and `skillRankUps` from its level on, then skill increases
+ * (`docs/character-build.md` "Rank-ups").
  */
 
 import type { AncestryEntry } from '../content/ancestry.js';
@@ -59,6 +60,12 @@ export type DeriveWarning =
       readonly allowed: number;
     }
   | { readonly kind: 'skill-increase-not-available'; readonly level: number }
+  /** A class feature trains a skill the character is already trained in; the rules give another skill of their choice, so one more pick is allowed. */
+  | {
+      readonly kind: 'skill-trained-twice';
+      readonly skill: string;
+      readonly feature: string;
+    }
   | {
       readonly kind: 'feat-slot-not-available';
       readonly slot: string;
@@ -200,27 +207,6 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   (inputs.class?.skills.automaticallyTrained ?? []).forEach(train);
   (inputs.background?.trainedSkills ?? []).forEach(train);
   build.trainedSkills.forEach(train);
-
-  const allowed =
-    (inputs.class?.skills.trainedSkillCount ?? 0) + Math.max(0, boosts.attributes.int);
-  if (inputs.class !== undefined && build.trainedSkills.length > allowed) {
-    warnings.push({
-      kind: 'too-many-trained-skills',
-      chosen: build.trainedSkills.length,
-      allowed,
-    });
-  }
-
-  const increaseLevels = skillIncreasesUpTo(level, inputs.class?.advancement);
-  const increases = [...build.skillIncreases]
-    .filter((i) => i.level <= level)
-    .sort((a, b) => a.level - b.level);
-  for (const increase of increases) {
-    if (!increaseLevels.includes(increase.level)) {
-      warnings.push({ kind: 'skill-increase-not-available', level: increase.level });
-    }
-    skills[increase.skill] = nextRank(skills[increase.skill] ?? 'untrained');
-  }
 
   // Items: class features due by level, picked feats, then everything they grant.
   const items: ItemEntry[] = [];
@@ -381,6 +367,47 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
         raised[own] = better(raised[own], rank);
       }
     }
+  }
+
+  // Skills a class feature trains (a Thief's Thievery, a Druid order's skill). One
+  // already trained is still applied, with a warning: the rules have the character
+  // train another skill of their choice instead, so one more pick is allowed.
+  let trainedTwice = 0;
+  for (const item of items) {
+    if (item.kind !== 'classFeature') {
+      continue;
+    }
+    for (const [skill, rank] of Object.entries(item.skillRankUps)) {
+      const had = skills[skill] ?? 'untrained';
+      if (rank === 'trained' && had !== 'untrained') {
+        trainedTwice++;
+        warnings.push({ kind: 'skill-trained-twice', skill, feature: item.slug });
+      }
+      skills[skill] = better(had, rank);
+    }
+  }
+
+  const allowed =
+    (inputs.class?.skills.trainedSkillCount ?? 0) +
+    Math.max(0, boosts.attributes.int) +
+    trainedTwice;
+  if (inputs.class !== undefined && build.trainedSkills.length > allowed) {
+    warnings.push({
+      kind: 'too-many-trained-skills',
+      chosen: build.trainedSkills.length,
+      allowed,
+    });
+  }
+
+  const increaseLevels = skillIncreasesUpTo(level, inputs.class?.advancement);
+  const increases = [...build.skillIncreases]
+    .filter((i) => i.level <= level)
+    .sort((a, b) => a.level - b.level);
+  for (const increase of increases) {
+    if (!increaseLevels.includes(increase.level)) {
+      warnings.push({ kind: 'skill-increase-not-available', level: increase.level });
+    }
+    skills[increase.skill] = nextRank(skills[increase.skill] ?? 'untrained');
   }
 
   const casting = deriveSpellcasting(

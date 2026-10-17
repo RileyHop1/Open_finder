@@ -29,6 +29,8 @@ export function warningText(warning: DeriveWarning): string | undefined {
       return `${ATTRIBUTE_NAMES[warning.attribute]} is not one of the key attributes this class offers.`;
     case 'too-many-trained-skills':
       return `${warning.chosen} skills chosen but only ${warning.allowed} allowed.`;
+    case 'skill-trained-twice':
+      return `${titleCase(warning.feature)} trains ${titleCase(warning.skill)}, which is already trained: choose one more skill in the Skills step instead.`;
     case 'skill-increase-not-available':
       return `A skill increase at level ${warning.level} is not available to this class.`;
     case 'feat-slot-not-available':
