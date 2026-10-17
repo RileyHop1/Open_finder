@@ -150,6 +150,7 @@ function makeClassFeature(
     classSlugs: [`invented-class-${upstreamId}`],
     level: 1,
     tags: [],
+    rankUps: {},
     ...overrides,
   };
 }

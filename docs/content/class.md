@@ -53,6 +53,7 @@ is milestone 8's wizard, not this schema.
 | --- | --- | --- |
 | `classSlugs` | string[] | Which classes grant this, by slug in the `classes` pack (a feature several classes share lists each) |
 | `level` | integer 1-20 | |
+| `rankUps` | partial record of `perception`, `fortitude`, `reflex`, `will`, `classDc`, `spellcasting`, `unarmed`, `simple`, `martial`, `advanced`, `unarmored`, `light`, `medium`, `heavy` to a proficiency rank, default `{}` | The ranks this feature raises to from its level on (Bravery: Will expert). A raise, never a lowering |
 
 The relationship is stored on the feature, not as a list on the class entry
 -- a class has dozens of features across 20 levels, and this keeps each side
