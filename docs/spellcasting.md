@@ -49,8 +49,10 @@ unchanged.)
 not: for each of the seven casters, whether it prepares or is spontaneous, its
 tradition (or the class choice that decides it: the Witch's patron, the
 Sorcerer's bloodline), its level 1 cantrips, and a slot style. `slotsAtLevel`
-turns a style and a level into slots per rank, and `spellcastingRankAtLevel` gives
-the proficiency rank (trained, expert at 7, master at 15, legendary at 19).
+turns a style and a level into slots per rank. The spellcasting proficiency rank is
+not in the table: it comes from the class features' `rankUps` (Expert Spellcaster at
+7, a Cloistered Cleric's third doctrine at 7, a Warpriest's fourth at 11), and
+`deriveCharacter` passes it in, trained when nothing raises it.
 
 | Class | Kind | Tradition | Slot style |
 | --- | --- | --- | --- |

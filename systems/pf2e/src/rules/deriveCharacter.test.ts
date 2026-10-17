@@ -516,4 +516,42 @@ describe('deriveCharacter', () => {
       expect(derive(3, {}).items.map((i) => i.slug)).toEqual(['doctrine']);
     });
   });
+
+  describe('rank-ups', () => {
+    const raising = (
+      slug: string,
+      level: number,
+      rankUps: ClassFeatureEntry['rankUps'],
+    ) => ({
+      ...feature(slug, level),
+      rankUps,
+    });
+    const features = [
+      raising('bravery', 3, { will: 'expert', perception: 'expert' }),
+      raising('expertise', 5, { classDc: 'expert', martial: 'expert', light: 'trained' }),
+      // A rank-up never lowers: the class's trained Fortitude stays trained.
+      raising('quirk', 1, { fortitude: 'untrained' }),
+    ];
+    const ranks = (level: number) =>
+      deriveCharacter({
+        build: emptyBuild,
+        level,
+        class: cls,
+        classFeatures: features,
+        resolve: noEntries,
+      }).ranks;
+
+    it('raises each rank a class feature names, from the feature’s level on', () => {
+      expect(ranks(1)).toMatchObject({ will: 'trained', perception: 'trained' });
+      expect(ranks(3)).toMatchObject({ will: 'expert', perception: 'expert' });
+      const at5 = ranks(5);
+      expect(at5.classDc).toBe('expert');
+      expect(at5.weapons.martial).toBe('expert');
+      expect(at5.armor.light).toBe('trained');
+    });
+
+    it('never lowers a rank', () => {
+      expect(ranks(5).fortitude).toBe('trained');
+    });
+  });
 });

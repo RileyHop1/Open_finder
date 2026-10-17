@@ -48,9 +48,8 @@ never refuses a choice.
 
 - **Ranks:** the class's progressions through `rankAtLevel`, then skills
   (the class's automatic ones, the background's, and the build's chosen ones),
-  then each skill increase raises its skill one step. Until the rank-up table
-  exists (below) ranks are right at level 1, where the imported starting ranks
-  are the whole story.
+  then each skill increase raises its skill one step, then each class feature's
+  rank-ups (below).
 - **Granted items:** `grantItem` elements are followed to `MAX_GRANT_DEPTH`
   (3) and de-duplicated by pack and slug; an entry that cannot be found is a
   `missing-entry` warning. A class feature is granted only from its own level,
@@ -113,10 +112,21 @@ grants it, as `rankUps` (Bravery: Will expert at 3; Expert Spellcaster:
 spellcasting expert at 7; a Warpriest's first doctrine: light and medium armor
 trained and Fortitude expert at 1). The importer reads them from upstream's
 `system.subfeatures.proficiencies` ([importer.md](importer.md)), so no rank-up
-table needs authoring. Applying them in `deriveCharacter` is the next step;
-until it lands, ranks are right only at level 1, and not for a class feature that
-changes a level 1 rank (a Warpriest). Every class is trained in its class DC at
-level 1 **(confirm)**.
+table needs authoring. `deriveCharacter` applies every class feature the character
+has (each from its own level, a doctrine's through the doctrine chosen): a save,
+Perception, the class DC, a weapon or armor category, or the spellcasting rank is
+raised to the better of what the class gives and what the feature names, never
+lowered. Checked on the pinned data (2026-10-17): a Fighter is expert in Will at 3
+(Bravery) and in its class DC at 11; a Warpriest is expert in Fortitude and trained
+in light and medium armor at 1 and casts as an expert at 11, a Cloistered Cleric at
+7; a Ruffian is trained in medium armor and a Thief is not.
+
+**Not raised, and flagged instead:** a rank-up upstream writes as a conditional
+effect rather than in the feature's rank-ups (Armor Mastery's heavy armor, which
+skips the Barbarian), or one tied to a chosen weapon group (Fighter Weapon Mastery)
+or a deity's favored weapon. Those stay inert ("automation not applied") and the GM
+sets the rank on the sheet. Every class is trained in its class DC at level 1
+**(confirm)**.
 
 ## The creator
 `CharacterCreator.vue` (`apps/client/src/components/creator/`) is the

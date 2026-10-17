@@ -20,12 +20,7 @@ import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { ClassEntry } from '../content/class.js';
 import type { MagicalTradition } from '../content/spell.js';
 import type { SpellcastingEntry } from '../content/spellcasting.js';
-import {
-  CASTER_TABLES,
-  isCasterClass,
-  slotsAtLevel,
-  spellcastingRankAtLevel,
-} from './spellcastingTables.js';
+import { CASTER_TABLES, isCasterClass, slotsAtLevel } from './spellcastingTables.js';
 
 export interface DerivedSpellcasting {
   /** Which build source this entry belongs to (`class:wizard`), so a re-apply finds it. */
@@ -56,13 +51,17 @@ export interface DerivedSpellcastingResult {
 /**
  * The spellcasting `cls` gives at `level`, or none for a class that does not
  * cast. `traditionOf` maps a class choice (its key and chosen value) to a
- * tradition for the classes that need one; no class supplies it yet.
+ * tradition for the classes that need one; no class supplies it yet. `rank` is
+ * the spellcasting proficiency, which the class features raise (Expert
+ * Spellcaster, a Cloistered Cleric's third doctrine; `deriveCharacter` works it
+ * out from their `rankUps`).
  */
 export function deriveSpellcasting(
   cls: Pick<ClassEntry, 'slug' | 'name'> | undefined,
   level: number,
   attribute: Attribute,
   traditionOf?: (choice: string) => MagicalTradition | undefined,
+  rank: ProficiencyRank = 'trained',
 ): DerivedSpellcastingResult {
   if (cls === undefined || !isCasterClass(cls.slug)) {
     return { warnings: [] };
@@ -87,7 +86,7 @@ export function deriveSpellcasting(
       kind: table.kind,
       tradition,
       attribute,
-      rank: spellcastingRankAtLevel(level),
+      rank,
       slots: slotsAtLevel(table.slots, level),
       cantrips: table.cantrips,
     },

@@ -808,9 +808,11 @@ ruling from silently drifting.
 - **Our reading:** a rank opens at level 1 for the first rank, `2r - 1` for rank
   `r`, and at 19 for the tenth (one slot). Standard casters (Bard, Cleric, Druid,
   Oracle, Witch, Wizard) get 2 slots when a rank opens and 3 from the next level;
-  the Sorcerer gets one more of each (3, then 4). Spellcasting proficiency is
-  trained, then expert at 7, master at 15, legendary at 19. Every caster has 5
-  cantrips at level 1.
+  the Sorcerer gets one more of each (3, then 4). Every caster has 5 cantrips at
+  level 1. Spellcasting proficiency is no longer in this table: it is each class
+  feature's rank-up from the imported data (Expert Spellcaster and the rest; a
+  Cleric by doctrine), which replaced a flat "expert at 7, master at 15, legendary
+  at 19" that was wrong for a Warpriest (expert at 11).
 - **What was checked, and against what:** the functions were run against every
   caster among the sample characters Paizo publishes in the pinned upstream pack
   (read only, nothing copied). 21 of 26 match exactly, covering the Bard,
