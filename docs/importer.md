@@ -382,11 +382,13 @@ The guessed shape this replaced would have imported every real class with
 reached". Failing closed on a missing number is what makes that impossible
 now, and `import-smoke` asserts all sixteen core-four classes arrive.
 
-**What upstream does not carry: rank-ups.** The level at which a class
-improves a rank (Fighter Expertise, Weapon Legend, and the rest) is in the
-class feature's description text; its rule elements are empty. The importer
-therefore cannot produce a full progression, and the rank-up levels are our
-own hand-authored data (`docs/character-build.md`, "Rank-ups").
+**Rank-ups are on the class features, not the class.** The level at which a
+class improves a rank (Bravery, Fighter Expertise, Weapon Legend, Expert
+Spellcaster, a Warpriest's doctrines) is not in the class item or in any rule
+element: it is the class feature's `system.subfeatures.proficiencies`, read by
+`mapClassFeature.ts` into `rankUps` (below). An earlier note here said upstream
+did not carry rank-ups at all; it does, in that field, which was found while
+working on the Cleric (2026-10-17).
 
 It also reads the class's five advancement lists (`ancestryFeatLevels`,
 `classFeatLevels`, `generalFeatLevels`, `skillFeatLevels`,
@@ -414,6 +416,15 @@ feature's choice, so it is never granted just because the class reaches its
 level (`deriveCharacter` skips it). A feature with no traits fails
 closed (`missing-class-trait`), and `import-smoke` asserts the pack is not
 empty.
+
+A feature's **`rankUps`** come from `system.subfeatures.proficiencies`
+(`{ fortitude: { rank: 2 }, light: { rank: 1 } }`, ranks 0 to 4): the ranks it
+raises to, by name. The keys are the saves, `perception`, `spellcasting`, and the
+weapon and armor categories; a key that is one of the feature's own class slugs
+(`fighter`, `alchemist`) is that class's class DC. An unknown key or a rank
+outside 0 to 4 is left out. Against the pinned data (2026-10-16), 99 kept class
+features carry rank-ups; the hundredth core-book one, Performer's Heart, has no
+class trait upstream and fails closed.
 
 ### The creature mapper (C.7g)
 

@@ -18,7 +18,12 @@
 
 import type { Provenance } from '@hearthtable/core';
 
-import type { ClassFeatureEntry } from '../content/class.js';
+import {
+  RANK_UP_TARGETS,
+  type ClassFeatureEntry,
+  type RankUpTarget,
+} from '../content/class.js';
+import { PROFICIENCY_RANKS, type ProficiencyRank } from '../content/common.js';
 import { traitSlugSchema } from '../content/common.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
@@ -33,6 +38,38 @@ import {
   nestedStringField,
   slugify,
 } from './upstreamHelpers.js';
+
+/**
+ * The ranks a feature raises, from upstream's `system.subfeatures.proficiencies`:
+ * `{ fortitude: { rank: 2 }, light: { rank: 1 } }`, ranks 0 to 4. A key that is one
+ * of the feature's own class slugs (`fighter`, `alchemist`) is that class's class
+ * DC. Checked against the pinned data (2026-10-16): 100 core-book class features
+ * carry this, covering every class's save, Perception, weapon, armor, class DC and
+ * spellcasting rank-ups. A key we do not know, or a rank outside 0 to 4, is left
+ * out rather than guessed at.
+ */
+function mapRankUps(
+  system: Record<string, unknown>,
+  classSlugs: readonly string[],
+): ClassFeatureEntry['rankUps'] {
+  const proficiencies = asRecord(asRecord(system.subfeatures)?.proficiencies);
+  const rankUps: Partial<Record<RankUpTarget, ProficiencyRank>> = {};
+  for (const [key, value] of Object.entries(proficiencies ?? {})) {
+    const rank = asRecord(value)?.rank;
+    const target: string = classSlugs.includes(key) ? 'classDc' : key;
+    if (
+      typeof rank === 'number' &&
+      Number.isInteger(rank) &&
+      (RANK_UP_TARGETS as readonly string[]).includes(target)
+    ) {
+      const name = PROFICIENCY_RANKS[rank];
+      if (name !== undefined) {
+        rankUps[target as RankUpTarget] = name;
+      }
+    }
+  }
+  return rankUps;
+}
 
 export function mapClassFeature(
   entry: UpstreamEntry,
@@ -86,6 +123,7 @@ export function mapClassFeature(
       classSlugs,
       level,
       tags,
+      rankUps: mapRankUps(system, classSlugs),
     },
   };
 }

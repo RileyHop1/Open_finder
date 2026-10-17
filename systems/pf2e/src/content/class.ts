@@ -18,7 +18,7 @@ import { z } from 'zod';
 import { compendiumEntrySchema } from '@hearthtable/core';
 
 import type { ProficiencyRank } from './common.js';
-import { attributeSchema, traitSlugSchema } from './common.js';
+import { attributeSchema, proficiencyRankSchema, traitSlugSchema } from './common.js';
 
 /**
  * The level at which each proficiency rank is reached, for one statistic.
@@ -140,6 +140,32 @@ export const classEntrySchema = compendiumEntrySchema.extend({
 
 export type ClassEntry = z.infer<typeof classEntrySchema>;
 
+/**
+ * What a class feature can raise a rank in: the saves and Perception, the class DC,
+ * the spellcasting proficiency (spell attack and DC), and each weapon and armor
+ * category. Matches the statistics `CharacterRanks` holds.
+ */
+export const RANK_UP_TARGETS = [
+  'perception',
+  'fortitude',
+  'reflex',
+  'will',
+  'classDc',
+  'spellcasting',
+  'unarmed',
+  'simple',
+  'martial',
+  'advanced',
+  'unarmored',
+  'light',
+  'medium',
+  'heavy',
+] as const;
+
+export type RankUpTarget = (typeof RANK_UP_TARGETS)[number];
+
+export const rankUpTargetSchema = z.enum(RANK_UP_TARGETS);
+
 export const classFeatureEntrySchema = compendiumEntrySchema.extend({
   kind: z.literal('classFeature'),
   traits: z.array(traitSlugSchema).readonly().default([]),
@@ -154,6 +180,13 @@ export const classFeatureEntrySchema = compendiumEntrySchema.extend({
    * never automatically because the class reaches its level.
    */
   tags: z.array(z.string().min(1)).readonly().default([]),
+  /**
+   * The ranks this feature raises to, from its level on: Bravery makes Will expert,
+   * Expert Spellcaster makes spellcasting expert, a Warpriest's first doctrine makes
+   * light and medium armor trained and Fortitude expert. A raise, never a lowering:
+   * the derivation keeps the better of this and what the character already has.
+   */
+  rankUps: z.partialRecord(rankUpTargetSchema, proficiencyRankSchema).default({}),
 });
 
 export type ClassFeatureEntry = z.infer<typeof classFeatureEntrySchema>;

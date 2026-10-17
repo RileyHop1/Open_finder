@@ -50,6 +50,7 @@ function feature(slug: string, level: number, tags: string[] = []): ClassFeature
     classSlugs: ['invented'],
     level,
     tags,
+    rankUps: {},
   };
 }
 

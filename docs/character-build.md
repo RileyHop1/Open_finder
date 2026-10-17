@@ -108,13 +108,15 @@ not in class data. All remain **(confirm)** against Archives of Nethys.
 | Skill increases | 3 and every odd level after | **(confirm)** |
 
 ## Rank-ups
-Upstream gives a class's *starting* ranks but not when they improve (that is
-in feature description text). The rank-up levels are therefore our own table
-in `systems/pf2e/src/rules/progression.ts`, authored from the rules and
-pinned by golden tests, one entry per class and statistic. The importer
-supplies the starting rank; the table supplies `master`, `expert` and
-`legendary` levels. Every class is trained in its class DC at level 1
-**(confirm)**.
+The class gives the *starting* ranks; each rank-up is on the class feature that
+grants it, as `rankUps` (Bravery: Will expert at 3; Expert Spellcaster:
+spellcasting expert at 7; a Warpriest's first doctrine: light and medium armor
+trained and Fortitude expert at 1). The importer reads them from upstream's
+`system.subfeatures.proficiencies` ([importer.md](importer.md)), so no rank-up
+table needs authoring. Applying them in `deriveCharacter` is the next step;
+until it lands, ranks are right only at level 1, and not for a class feature that
+changes a level 1 rank (a Warpriest). Every class is trained in its class DC at
+level 1 **(confirm)**.
 
 ## The creator
 `CharacterCreator.vue` (`apps/client/src/components/creator/`) is the

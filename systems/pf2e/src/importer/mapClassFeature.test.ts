@@ -61,6 +61,7 @@ describe('mapClassFeature -- success', () => {
         classSlugs: ['invented-vanguard'],
         level: 1,
         tags: [],
+        rankUps: {},
       },
     });
   });
@@ -120,5 +121,49 @@ describe('mapClassFeature -- fails closed', () => {
         IMPORTED_AT,
       ),
     ).toEqual({ ok: false, reason: 'missing-or-invalid-level' });
+  });
+});
+
+describe('mapClassFeature -- rank-ups', () => {
+  const rankUpsOf = (proficiencies: unknown, traits = ['invented-vanguard']) => {
+    const result = mapClassFeature(
+      makeEntry(
+        baseSystem({ traits: { value: traits }, subfeatures: { proficiencies } }),
+      ),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    return result.ok ? result.entry.rankUps : undefined;
+  };
+
+  it('reads the ranks a feature raises to, by name', () => {
+    expect(
+      rankUpsOf({
+        fortitude: { rank: 2 },
+        light: { rank: 1 },
+        spellcasting: { rank: 4 },
+      }),
+    ).toEqual({ fortitude: 'expert', light: 'trained', spellcasting: 'legendary' });
+  });
+
+  it('reads a key that is one of the feature’s own classes as that class’s class DC', () => {
+    expect(rankUpsOf({ 'invented-vanguard': { attribute: null, rank: 2 } })).toEqual({
+      classDc: 'expert',
+    });
+  });
+
+  it('leaves out a key it does not know and a rank outside 0 to 4', () => {
+    expect(
+      rankUpsOf({
+        'weapon-base-invented': { rank: 2 },
+        will: { rank: 9 },
+        reflex: { rank: 'expert' },
+        perception: { rank: 3 },
+      }),
+    ).toEqual({ perception: 'master' });
+  });
+
+  it('is empty for a feature that raises nothing', () => {
+    expect(rankUpsOf(undefined)).toEqual({});
   });
 });
