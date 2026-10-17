@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { deriveCharacter } from '../rules/deriveCharacter.js';
 
-import type { ClassEntry } from '../content/class.js';
+import type { ClassEntry, ClassFeatureEntry } from '../content/class.js';
 import type { CharacterBuild } from '../content/characterBuild.js';
 import type { Attribute } from '../content/common.js';
 import type { CharacterItem } from '../content/character.js';
@@ -56,16 +56,39 @@ const spellStub = (packId: string, slug: string) =>
       } as unknown as ItemEntry)
     : undefined;
 
+/** An invented class feature that raises ranks from its level on, the way upstream's Expert Spellcaster does. */
+const rankUp = (
+  slug: string,
+  classSlug: string,
+  level: number,
+  rankUps: ClassFeatureEntry['rankUps'],
+  tags: string[] = [],
+): ClassFeatureEntry =>
+  ({
+    packId: 'class-features',
+    slug,
+    name: slug,
+    kind: 'classFeature',
+    traits: [],
+    ruleElements: [],
+    classSlugs: [classSlug],
+    level,
+    tags,
+    rankUps,
+  }) as unknown as ClassFeatureEntry;
+
 const casting = (
   slug: string,
   key: Attribute,
   level: number,
   classChoices: Record<string, string> = {},
+  classFeatures: ClassFeatureEntry[] = [],
 ) =>
   deriveCharacter({
     build: { ...emptyBuild, classChoices },
     level,
     class: classStub(slug, key),
+    classFeatures,
     resolve: spellStub,
   });
 
@@ -180,10 +203,111 @@ describe('a caster levelling up', () => {
     expect(derived?.rank).toBe('trained');
   });
 
+  // The spellcasting rank comes from the class features' rank-ups, not the level.
+  const spellcasterFeatures = (classSlug: string) => [
+    rankUp('expert-spellcaster', classSlug, 7, { spellcasting: 'expert' }),
+    rankUp('master-spellcaster', classSlug, 15, { spellcasting: 'master' }),
+    rankUp('legendary-spellcaster', classSlug, 19, { spellcasting: 'legendary' }),
+  ];
+
   it('a level 15 bard has eight ranks and is a master', () => {
-    const derived = casting('bard', 'cha', 15).spellcasting;
+    const derived = casting(
+      'bard',
+      'cha',
+      15,
+      {},
+      spellcasterFeatures('bard'),
+    ).spellcasting;
     expect(derived?.slots).toEqual({ 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 2 });
     expect(derived?.rank).toBe('master');
+  });
+
+  it.each([
+    [6, 'trained'],
+    [7, 'expert'],
+    [14, 'expert'],
+    [15, 'master'],
+    [19, 'legendary'],
+  ] as const)('a level %i wizard is %s', (level, rank) => {
+    expect(
+      casting('wizard', 'int', level, {}, spellcasterFeatures('wizard')).spellcasting
+        ?.rank,
+    ).toBe(rank);
+  });
+
+  it('is trained at any level when no class feature raises it', () => {
+    expect(casting('bard', 'cha', 15).spellcasting?.rank).toBe('trained');
+  });
+});
+
+describe('a Cleric’s doctrine sets its ranks', () => {
+  // Invented stand-ins for the two doctrines and their benefits, with the rank-ups
+  // upstream gives them: a Warpriest is an expert caster at 11, a Cloistered Cleric
+  // at 7; a Warpriest is trained in light and medium armor and expert in Fortitude
+  // from level 1.
+  const grant = (slug: string) => ({
+    kind: 'grantItem' as const,
+    packId: 'class-features',
+    slug,
+  });
+  const doctrine = (slug: string, benefits: string[]) => ({
+    ...rankUp(slug, 'cleric', 1, {}, ['cleric-doctrine']),
+    ruleElements: benefits.map(grant),
+  });
+  const features = [
+    {
+      ...rankUp('doctrine', 'cleric', 1, {}),
+      ruleElements: [
+        {
+          kind: 'choiceSet' as const,
+          prompt: 'Choose Doctrine',
+          choices: [
+            { label: 'Warpriest', value: 'warpriest' },
+            { label: 'Cloistered Cleric', value: 'cloistered-cleric' },
+          ],
+          rollOptionPrefix: 'doctrine',
+          grantsFromPackId: 'class-features',
+        },
+      ],
+    },
+    doctrine('warpriest', ['first-warpriest', 'fourth-warpriest']),
+    doctrine('cloistered-cleric', ['third-cloistered']),
+    rankUp('first-warpriest', 'cleric', 1, {
+      fortitude: 'expert',
+      light: 'trained',
+      medium: 'trained',
+    }),
+    rankUp('fourth-warpriest', 'cleric', 11, { spellcasting: 'expert' }),
+    rankUp('third-cloistered', 'cleric', 7, { spellcasting: 'expert' }),
+  ];
+  const byKey = new Map(features.map((f) => [`${f.packId}/${f.slug}`, f]));
+  const cleric = (level: number, doctrineChoice: string) =>
+    deriveCharacter({
+      build: { ...emptyBuild, classChoices: { doctrine: doctrineChoice } },
+      level,
+      class: classStub('cleric', 'wis'),
+      classFeatures: features,
+      resolve: (p, s) => byKey.get(`${p}/${s}`) ?? spellStub(p, s),
+    });
+
+  it('a level 1 Warpriest: expert Fortitude, trained in light and medium armor', () => {
+    const { ranks } = cleric(1, 'warpriest');
+    expect(ranks.fortitude).toBe('expert');
+    expect(ranks.armor).toMatchObject({ light: 'trained', medium: 'trained' });
+  });
+
+  it('a level 1 Cloistered Cleric gets none of that', () => {
+    const { ranks } = cleric(1, 'cloistered-cleric');
+    expect(ranks.fortitude).toBe('untrained');
+    expect(ranks.armor).toMatchObject({ light: 'untrained', medium: 'untrained' });
+  });
+
+  it.each([
+    ['cloistered-cleric', 7, 'expert'],
+    ['warpriest', 7, 'trained'],
+    ['warpriest', 11, 'expert'],
+  ] as const)('a %s at level %i casts as %s', (choice, level, rank) => {
+    expect(cleric(level, choice).spellcasting?.rank).toBe(rank);
   });
 });
 

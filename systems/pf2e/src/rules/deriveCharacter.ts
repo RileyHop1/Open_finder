@@ -5,18 +5,16 @@
  * `actor.applyBuild`) fetches the entries and writes the result.
  *
  * It *proposes*. Nothing here refuses a choice; a rules problem comes back
- * in `warnings` and the value is still derived (ADR 0023). Rank-ups beyond a
- * class's starting ranks are not derived yet (upstream does not carry them,
- * `docs/character-build.md` "Rank-ups"), so ranks are correct at the level
- * the imported progressions cover -- level 1 -- and skill increases are
- * applied on top.
+ * in `warnings` and the value is still derived (ADR 0023). Ranks are the
+ * class's starting ones, then skills and skill increases, then every class
+ * feature's `rankUps` from its level on (`docs/character-build.md` "Rank-ups").
  */
 
 import type { AncestryEntry } from '../content/ancestry.js';
 import type { BackgroundEntry } from '../content/background.js';
 import type { CharacterBuild } from '../content/characterBuild.js';
 import type { CharacterItem, CharacterRanks } from '../content/character.js';
-import type { ClassEntry, ClassFeatureEntry } from '../content/class.js';
+import type { ClassEntry, ClassFeatureEntry, RankUpTarget } from '../content/class.js';
 import { rankAtLevel } from '../content/class.js';
 import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { HeritageEntry } from '../content/heritage.js';
@@ -352,7 +350,46 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     }
   }
 
-  const casting = deriveSpellcasting(inputs.class, level, keyAttribute);
+  // Rank-ups: every class feature the character has raises the ranks it names
+  // (`rankUps`), never lowering one. The spellcasting rank starts at trained.
+  const raised: CharacterRanks = {
+    ...base,
+    weapons: { ...base.weapons },
+    armor: { ...base.armor },
+  };
+  let spellRank: ProficiencyRank = 'trained';
+  const better = (a: ProficiencyRank, b: ProficiencyRank): ProficiencyRank =>
+    RANK_ORDER.indexOf(b) > RANK_ORDER.indexOf(a) ? b : a;
+  for (const item of items) {
+    if (item.kind !== 'classFeature') {
+      continue;
+    }
+    for (const [target, rank] of Object.entries(item.rankUps) as [
+      RankUpTarget,
+      ProficiencyRank,
+    ][]) {
+      if (target === 'spellcasting') {
+        spellRank = better(spellRank, rank);
+      } else if (target in raised.weapons) {
+        const weapon = target as keyof CharacterRanks['weapons'];
+        raised.weapons[weapon] = better(raised.weapons[weapon], rank);
+      } else if (target in raised.armor) {
+        const armor = target as keyof CharacterRanks['armor'];
+        raised.armor[armor] = better(raised.armor[armor], rank);
+      } else {
+        const own = target as 'perception' | 'fortitude' | 'reflex' | 'will' | 'classDc';
+        raised[own] = better(raised[own], rank);
+      }
+    }
+  }
+
+  const casting = deriveSpellcasting(
+    inputs.class,
+    level,
+    keyAttribute,
+    undefined,
+    spellRank,
+  );
   warnings.push(...casting.warnings);
 
   // Spell picks: granted as items, and handed back for the class entry's lists.
@@ -421,7 +458,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     level,
     attributes: boosts.attributes,
     keyAttribute,
-    ranks: { ...base, skills },
+    ranks: { ...raised, skills },
     ancestryHp: inputs.ancestry?.hp ?? 0,
     classHp: inputs.class?.hpPerLevel ?? 0,
     speed: inputs.ancestry?.speed ?? 25,

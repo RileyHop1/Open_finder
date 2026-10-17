@@ -35,10 +35,13 @@ describe('deriveSpellcasting', () => {
     });
   });
 
-  it('follows the level: slots open, the proficiency rank rises', () => {
+  it('follows the level for its slots, and takes the proficiency rank it is given', () => {
     const at7 = deriveSpellcasting(wizard, 7, 'int').spellcasting;
     expect(at7?.slots).toEqual({ 1: 3, 2: 3, 3: 3, 4: 2 });
-    expect(at7?.rank).toBe('expert');
+    expect(at7?.rank).toBe('trained');
+    expect(
+      deriveSpellcasting(wizard, 7, 'int', undefined, 'expert').spellcasting?.rank,
+    ).toBe('expert');
   });
 
   it('says so, and gives no entry, when the tradition depends on a choice nothing resolves yet', () => {
