@@ -187,6 +187,12 @@ export const classFeatureEntrySchema = compendiumEntrySchema.extend({
    * the derivation keeps the better of this and what the character already has.
    */
   rankUps: z.partialRecord(rankUpTargetSchema, proficiencyRankSchema).default({}),
+  /**
+   * The skills this feature trains (or raises), by skill slug: the Thief racket
+   * trains Thievery, a Druid order its order skill. Like `rankUps`, a raise from the
+   * feature's level on, never a lowering.
+   */
+  skillRankUps: z.record(z.string().min(1), proficiencyRankSchema).default({}),
 });
 
 export type ClassFeatureEntry = z.infer<typeof classFeatureEntrySchema>;

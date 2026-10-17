@@ -872,6 +872,26 @@ ruling from silently drifting.
 - **Override:** the entry's slots and prepared spells are editable on the sheet ("Edit
   spells").
 
+### Reading predicates on class features
+- **Rules text:** none directly; this is how upstream's conditions on a class
+  feature's skill training and grants are read (`classFeatureRules.ts`).
+- **The ambiguity:** upstream writes some of them with a condition that names
+  another route to the same feature: a Druid order trains its skill "unless gained
+  through Order Explorer", a Sorcerer bloodline "unless granted by Crossblooded
+  Evolution", a Druid order grants its feat "to a Druid or through Order Explorer".
+- **Our reading:** a feature a character has through its own class takes the
+  ordinary route, so `class:<own class>`, an `or` that names it, and a `not` of a
+  feat or of a granter all hold; the skill is trained and the feat granted. Any other
+  condition (a level, a curse, a deity) is not read and the element stays inert, to
+  be applied by hand.
+- **Alternative reading:** leave every conditioned element inert.
+- **Why:** these are the common case of every Druid, Rogue, Investigator, Sorcerer
+  and Swashbuckler, and the other route (a feat, an archetype) is the exception the
+  GM can correct; leaving them all inert would leave every one of those characters
+  short a trained skill.
+- **Golden test:** `systems/pf2e/src/importer/classFeatureRules.test.ts`.
+- **Override:** every skill rank is editable on the sheet.
+
 ### Casting: cantrip rank, refocus and daily preparation
 - **Rules text:** the spellcasting rules in Player Core (cantrips and focus spells
   heighten, Refocus, daily preparations). **(confirm)** These are from memory; Archives of

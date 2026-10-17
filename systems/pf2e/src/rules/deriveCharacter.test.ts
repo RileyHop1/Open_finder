@@ -51,6 +51,7 @@ function feature(slug: string, level: number, tags: string[] = []): ClassFeature
     level,
     tags,
     rankUps: {},
+    skillRankUps: {},
   };
 }
 

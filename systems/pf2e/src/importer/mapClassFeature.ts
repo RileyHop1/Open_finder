@@ -25,6 +25,7 @@ import {
 } from '../content/class.js';
 import { PROFICIENCY_RANKS, type ProficiencyRank } from '../content/common.js';
 import { traitSlugSchema } from '../content/common.js';
+import { readClassFeatureRules } from './classFeatureRules.js';
 import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
 import { htmlToRichText } from './htmlToRichText.js';
@@ -102,7 +103,8 @@ export function mapClassFeature(
   const tags = nestedStringArrayField(system, 'traits', 'otherTags') ?? [];
   const description = nestedStringField(system, 'description', 'value') ?? '';
   const text = htmlToRichText(description);
-  const { elements } = mapEntryRuleElements(system.rules);
+  const read = readClassFeatureRules(system.rules, classSlugs);
+  const { elements } = mapEntryRuleElements(read.rules);
 
   return {
     ok: true,
@@ -124,6 +126,7 @@ export function mapClassFeature(
       level,
       tags,
       rankUps: mapRankUps(system, classSlugs),
+      skillRankUps: read.skillRankUps,
     },
   };
 }
