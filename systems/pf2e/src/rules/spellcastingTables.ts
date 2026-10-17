@@ -16,7 +16,6 @@
  * Pure data and arithmetic; none of it refuses anything (ADR 0023).
  */
 
-import type { ProficiencyRank } from '../content/common.js';
 import type { MagicalTradition } from '../content/spell.js';
 
 export const CASTER_CLASS_SLUGS = [
@@ -105,12 +104,4 @@ export function slotsAtLevel(style: SlotStyle, level: number): Record<number, nu
     }
   }
   return slots;
-}
-
-/** The spellcasting proficiency rank at `level`: trained, then expert at 7, master at 15, legendary at 19. */
-export function spellcastingRankAtLevel(level: number): ProficiencyRank {
-  if (level >= 19) return 'legendary';
-  if (level >= 15) return 'master';
-  if (level >= 7) return 'expert';
-  return 'trained';
 }

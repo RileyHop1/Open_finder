@@ -413,7 +413,6 @@ export {
   isCasterClass,
   rankOpensAt,
   slotsAtLevel,
-  spellcastingRankAtLevel,
   type CasterClassSlug,
   type CasterTable,
   type SlotStyle,

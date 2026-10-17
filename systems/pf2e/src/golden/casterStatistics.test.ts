@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Attribute } from '../content/common.js';
+import type { Attribute, ProficiencyRank } from '../content/common.js';
 import { characterDataSchema, newCharacterData } from '../content/character.js';
 import { deriveSpellcasting, mergeSpellcasting } from '../rules/deriveSpellcasting.js';
 import { prepareCharacter } from '../rules/prepareCharacter.js';
@@ -23,8 +23,20 @@ const casters: readonly [string, Attribute][] = [
   ['wizard', 'int'],
 ];
 
-function statisticsFor(slug: string, key: Attribute, level: number) {
-  const derived = deriveSpellcasting({ slug, name: slug }, level, key).spellcasting;
+/** The spellcasting rank is the class features' business (`deriveCasters.test.ts`); here it is given. */
+function statisticsFor(
+  slug: string,
+  key: Attribute,
+  level: number,
+  rank: ProficiencyRank = 'trained',
+) {
+  const derived = deriveSpellcasting(
+    { slug, name: slug },
+    level,
+    key,
+    undefined,
+    rank,
+  ).spellcasting;
   const base = newCharacterData();
   const data = characterDataSchema.parse({
     ...base,
@@ -50,7 +62,7 @@ describe.each(casters)('%s', (slug, key) => {
   });
 
   it('at level 7 (expert): attack +15, DC 25', () => {
-    const s = statisticsFor(slug, key, 7);
+    const s = statisticsFor(slug, key, 7, 'expert');
     expect(s[`spellAttack:${id}`]?.total).toBe(15);
     expect(s[`spellDc:${id}`]?.total).toBe(25);
   });

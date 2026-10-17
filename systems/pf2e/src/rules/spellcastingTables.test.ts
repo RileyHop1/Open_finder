@@ -6,7 +6,6 @@ import {
   isCasterClass,
   rankOpensAt,
   slotsAtLevel,
-  spellcastingRankAtLevel,
 } from './spellcastingTables.js';
 
 // Golden values: worked out by hand from the pattern in the module comment, and
@@ -55,21 +54,6 @@ describe('slotsAtLevel -- edges', () => {
 
   it('opens a rank at 2r - 1, and the tenth at 19', () => {
     expect([1, 2, 3, 9, 10].map(rankOpensAt)).toEqual([1, 3, 5, 17, 19]);
-  });
-});
-
-describe('spellcastingRankAtLevel', () => {
-  it.each([
-    [1, 'trained'],
-    [6, 'trained'],
-    [7, 'expert'],
-    [14, 'expert'],
-    [15, 'master'],
-    [18, 'master'],
-    [19, 'legendary'],
-    [20, 'legendary'],
-  ])('level %i is %s', (level, rank) => {
-    expect(spellcastingRankAtLevel(level)).toBe(rank);
   });
 });
 
