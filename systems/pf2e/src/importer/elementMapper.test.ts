@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mapRuleElement } from './elementMapper.js';
+import { mapRuleElement, mapRuleElements } from './elementMapper.js';
 
 // Synthetic, invented upstream-shaped rule elements throughout -- never
 // real content (ADR 0013).
@@ -341,5 +341,54 @@ describe('mapRuleElement -- everything else', () => {
       upstreamKind: 'unknown',
       reason: 'malformed-rule-element',
     });
+  });
+});
+
+describe('mapRuleElements -- a progression flag', () => {
+  const flag = (value: unknown, extra: Record<string, unknown> = {}) => ({
+    key: 'ActiveEffectLike',
+    mode: 'override',
+    path: 'flags.system.invented',
+    value,
+    ...extra,
+  });
+
+  it('becomes one soft grant per class feature it names (a Cleric doctrine)', () => {
+    expect(
+      mapRuleElements(
+        flag({
+          firstStep: 'Compendium.pf2e.classfeatures.Item.First Step (Invented)',
+          secondStep: 'Compendium.pf2e.classfeatures.Item.Second Step (Invented)',
+        }),
+      ),
+    ).toEqual([
+      {
+        kind: 'unresolvedFlagGrant',
+        uuid: 'Compendium.pf2e.classfeatures.Item.First Step (Invented)',
+      },
+      {
+        kind: 'unresolvedFlagGrant',
+        uuid: 'Compendium.pf2e.classfeatures.Item.Second Step (Invented)',
+      },
+    ]);
+  });
+
+  it('stays inert for a flag that names anything else, adds rather than overrides, or has a predicate', () => {
+    const one = 'Compendium.pf2e.classfeatures.Item.First Step (Invented)';
+    for (const raw of [
+      flag({ form: 'Compendium.pf2e.spell-effects.Item.Invented Form' }),
+      flag({ first: one, size: 2 }),
+      flag({ first: one }, { mode: 'add' }),
+      flag({ first: one }, { predicate: ['self:level'] }),
+      { ...flag({ first: one }), path: 'system.proficiencies.defenses.light.rank' },
+    ]) {
+      expect(mapRuleElements(raw)).toEqual([mapRuleElement(raw)]);
+      expect(mapRuleElements(raw)[0]).toMatchObject({ kind: 'inert' });
+    }
+  });
+
+  it('maps every other element exactly as mapRuleElement does', () => {
+    const grant = { key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.Invented' };
+    expect(mapRuleElements(grant)).toEqual([mapRuleElement(grant)]);
   });
 });

@@ -14,7 +14,7 @@
 import type { InertRuleElement } from '@hearthtable/core';
 
 import type { MappedElement } from './elementMapper.js';
-import { mapRuleElement } from './elementMapper.js';
+import { mapRuleElements } from './elementMapper.js';
 
 export interface Downgrade {
   readonly upstreamKind: string;
@@ -22,7 +22,7 @@ export interface Downgrade {
 }
 
 export interface RuleElementMappingResult {
-  /** In the same order as the input array; inert and unresolved-grant elements included. */
+  /** In the same order as the input array (one upstream element can stand for several); inert and unresolved-grant elements included. */
   readonly elements: readonly MappedElement[];
   readonly downgrades: readonly Downgrade[];
 }
@@ -55,7 +55,7 @@ export function mapEntryRuleElements(rules: unknown): RuleElementMappingResult {
     };
   }
 
-  const elements = rules.map(mapRuleElement);
+  const elements = rules.flatMap(mapRuleElements);
   const downgrades = elements
     .filter(isInert)
     .map((element) => ({ upstreamKind: element.upstreamKind, reason: element.reason }));

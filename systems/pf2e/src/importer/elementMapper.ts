@@ -67,6 +67,18 @@ export interface UnresolvedChosenGrant {
 }
 
 /**
+ * A class feature a progression flag names (`mapFlagGrants`). Softer than a
+ * `GrantItem`: the flag was inert before this mapping existed, so a target that was
+ * not imported leaves this element inert again rather than dropping the entry
+ * (`resolveDependencies.ts`). Upstream's Toxicologist names an Advanced Vials
+ * feature with no class trait, which fails closed; the Toxicologist stays.
+ */
+export interface UnresolvedFlagGrant {
+  readonly kind: 'unresolvedFlagGrant';
+  readonly uuid: string;
+}
+
+/**
  * Everything one call to `mapRuleElement` can produce. `grantItem` (the
  * core, resolved shape) never appears here -- see the module doc.
  * `choiceSet` needs no equivalent "unresolved" variant: once a predicated
@@ -82,6 +94,7 @@ export type MappedElement =
   | UnresolvedGrantItem
   | UnresolvedTagChoice
   | UnresolvedChosenGrant
+  | UnresolvedFlagGrant
   | InertRuleElement;
 
 function inert(upstreamKind: string, reason: string): InertRuleElement {
@@ -285,6 +298,59 @@ function mapChoiceSet(record: Record<string, unknown>): MappedElement {
     choices: mappedChoices,
     rollOptionPrefix: rollOption,
   };
+}
+
+/**
+ * `ActiveEffectLike` that sets an actor flag to class features, one per level of a
+ * progression: a Cleric's Warpriest doctrine sets `flags.system.cleric` to
+ * `{ firstDoctrine: "Compendium.pf2e.classfeatures.Item.First Doctrine (Warpriest)",
+ * ... }`, and generic features ("Second Doctrine") grant "whatever the flag names"
+ * at their levels. Our subset has no flags, but it has grants: the choice grants
+ * those features directly, and `deriveCharacter` grants a class feature only from
+ * its own level, so the progression still arrives on time. Checked against the
+ * pinned data (2026-10-16): the Cleric doctrines and the Alchemist research fields.
+ *
+ * `undefined` for anything else, which then maps the ordinary way.
+ */
+function mapFlagGrants(record: Record<string, unknown>): MappedElement[] | undefined {
+  const { key, mode, path, value, predicate } = record;
+  if (
+    key !== 'ActiveEffectLike' ||
+    mode !== 'override' ||
+    typeof path !== 'string' ||
+    !path.startsWith('flags.system.') ||
+    predicate !== undefined ||
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value)
+  ) {
+    return undefined;
+  }
+  const uuids = Object.values(value);
+  if (
+    uuids.length === 0 ||
+    !uuids.every((u) => typeof u === 'string' && u.startsWith(CLASS_FEATURE_UUID))
+  ) {
+    return undefined;
+  }
+  return (uuids as string[]).map((uuid) => ({ kind: 'unresolvedFlagGrant', uuid }));
+}
+
+const CLASS_FEATURE_UUID = 'Compendium.pf2e.classfeatures.';
+
+/**
+ * Maps one upstream rule element to the elements it stands for: usually one, but a
+ * flag that names a progression of class features becomes a grant per feature
+ * (`mapFlagGrants`).
+ */
+export function mapRuleElements(raw: unknown): MappedElement[] {
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
+    const grants = mapFlagGrants(raw as Record<string, unknown>);
+    if (grants !== undefined) {
+      return grants;
+    }
+  }
+  return [mapRuleElement(raw)];
 }
 
 /**
