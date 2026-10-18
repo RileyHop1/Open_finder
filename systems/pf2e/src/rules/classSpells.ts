@@ -9,7 +9,10 @@
  * Composition Spells feature names Counter Performance and Courageous Anthem and
  * a focus pool of 1, and each muse names the spell it adds to the repertoire. The
  * Cleric's Divine Font gives 4 extra slots at the highest rank (5 from level 5, 6
- * from level 15) that hold only Heal or only Harm, by the font chosen.
+ * from level 15) that hold only Heal or only Harm, by the font chosen. The
+ * Druid's Druidic Order gives a focus pool of 1 and each core order names its
+ * order spell (Animal: Heal Animal, Leaf: Cornucopia, Storm: Tempest Surge,
+ * Untamed: Untamed Shift).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -25,6 +28,10 @@ export interface ClassSpellGrants {
    * `rollOptionPrefix`, as `build.classChoices` keys it) and the chosen value.
    */
   readonly byChoice: Readonly<
+    Record<string, Readonly<Record<string, readonly string[]>>>
+  >;
+  /** Focus spells a class choice grants, keyed like `byChoice` (a Druid's order spell). */
+  readonly focusByChoice?: Readonly<
     Record<string, Readonly<Record<string, readonly string[]>>>
   >;
   /** Extra slots at the class's highest rank that hold only one spell (a Cleric's divine font). */
@@ -58,6 +65,20 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
         maestro: ['soothe'],
         polymath: ['phantasmal-minion'],
         warrior: ['fear'],
+      },
+    },
+  },
+  druid: {
+    focusPoints: 1,
+    cantrips: [],
+    focusSpells: [],
+    byChoice: {},
+    focusByChoice: {
+      druidicOrder: {
+        'animal-order': ['heal-animal'],
+        'leaf-order': ['cornucopia'],
+        'storm-order': ['tempest-surge'],
+        'untamed-order': ['untamed-shift'],
       },
     },
   },
@@ -99,15 +120,16 @@ export function grantedSpells(
   if (grants === undefined) {
     return { focusPoints: 0, cantrips: [], focusSpells: [], ranked: [] };
   }
-  const ranked = Object.entries(grants.byChoice).flatMap(([choice, byValue]) => {
-    const chosen = classChoices[choice];
-    return chosen === undefined ? [] : (byValue[chosen] ?? []);
-  });
+  const chosenFrom = (table: ClassSpellGrants['byChoice']) =>
+    Object.entries(table).flatMap(([choice, byValue]) => {
+      const chosen = classChoices[choice];
+      return chosen === undefined ? [] : (byValue[chosen] ?? []);
+    });
   return {
     focusPoints: grants.focusPoints,
     cantrips: grants.cantrips,
-    focusSpells: grants.focusSpells,
-    ranked,
+    focusSpells: [...grants.focusSpells, ...chosenFrom(grants.focusByChoice ?? {})],
+    ranked: chosenFrom(grants.byChoice),
   };
 }
 

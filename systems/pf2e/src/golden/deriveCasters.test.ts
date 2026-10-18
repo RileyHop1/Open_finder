@@ -151,10 +151,22 @@ describe('what a class grants by itself', () => {
     ).toEqual([spell]);
   });
 
+  it.each([
+    ['animal-order', 'heal-animal'],
+    ['leaf-order', 'cornucopia'],
+    ['storm-order', 'tempest-surge'],
+    ['untamed-order', 'untamed-shift'],
+  ])('a level 1 Druid of the %s: its order spell and 1 focus point', (order, spell) => {
+    const derived = casting('druid', 'wis', 1, { druidicOrder: order });
+    expect(derived.focusPoints).toBe(1);
+    expect(derived.items.map((i) => i.slug)).toContain(spell);
+    // An order spell is a focus spell: not a cantrip, not one to prepare.
+    expect(derived.spellPicks).toEqual({ cantrips: [], ranked: [] });
+  });
+
   it('the other casters grant nothing yet', () => {
     for (const [slug, key] of [
       ['cleric', 'wis'],
-      ['druid', 'wis'],
       ['oracle', 'cha'],
       ['wizard', 'int'],
     ] as const) {

@@ -13,6 +13,18 @@ describe('grantedSpells', () => {
     expect(grantedSpells('bard', { muse: 'maestro' }).ranked).toEqual(['soothe']);
   });
 
+  it('gives a Druid a focus pool of 1 and its order’s spell once the order is chosen', () => {
+    expect(grantedSpells('druid', {})).toEqual({
+      focusPoints: 1,
+      cantrips: [],
+      focusSpells: [],
+      ranked: [],
+    });
+    expect(grantedSpells('druid', { druidicOrder: 'storm-order' }).focusSpells).toEqual([
+      'tempest-surge',
+    ]);
+  });
+
   it('adds nothing for a choice value it does not know', () => {
     expect(grantedSpells('bard', { muse: 'invented-muse' }).ranked).toEqual([]);
   });

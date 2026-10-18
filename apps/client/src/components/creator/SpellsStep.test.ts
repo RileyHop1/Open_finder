@@ -171,10 +171,18 @@ describe('SpellsStep', () => {
   });
 
   it('shows no class gifts, and counts picks plainly, for a prepared caster with none', async () => {
-    const wrapper = mountStep(buildFor('druid'));
+    const wrapper = mountStep(buildFor('wizard'));
     await flushPromises();
     expect(wrapper.find('[aria-labelledby="spells-gifts-title"]').exists()).toBe(false);
     expect(wrapper.findAll('fieldset')[1]?.text()).toContain('0 chosen');
+  });
+
+  it('tells a Druid its order adds a spell, in words', async () => {
+    const wrapper = mountStep(buildFor('druid'));
+    await flushPromises();
+    const gifts = wrapper.get('[aria-labelledby="spells-gifts-title"]');
+    expect(gifts.text()).toContain('1 Focus Point');
+    expect(gifts.text()).toContain('Your druidic order adds a spell once you choose it');
   });
 
   it('says when no content has been imported', async () => {

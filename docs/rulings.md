@@ -830,7 +830,7 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/spellcastingTables.test.ts`.
 - **Override:** every count is editable on the sheet once the Spells tab lands.
 
-### What a class grants by itself (the Bard)
+### What a class grants by itself (the Bard, the Druid)
 - **Rules text:** the Bard's Composition Spells, muse and Spell Repertoire class
   features in Player Core. Checked against the pinned upstream text (2026-10-16), not
   against Archives of Nethys, which was not reachable: **(confirm)**.
@@ -842,7 +842,11 @@ ruling from silently drifting.
   cantrips). Each muse adds a spell to the repertoire: Enigma, Sure Strike; Maestro,
   Soothe; Polymath, Phantasmal Minion; Warrior, Fear. At level 1 a Bard learns two rank 1
   spells; a spontaneous caster's repertoire is read as holding as many ranked spells as
-  it has slots, and the granted spells do not count against it.
+  it has slots, and the granted spells do not count against it. A Druid starts with
+  a focus pool of 1 and its order's order spell: Animal, Heal Animal; Leaf,
+  Cornucopia; Storm, Tempest Surge; Untamed, Untamed Shift (checked against the
+  same pinned text, 2026-10-18). The Flame Order is from Rage of Elements, outside
+  the core books, so it is not imported.
 - **Found while checking, unresolved:** the upstream Oracle and Sorcerer spellcasting
   text both say three rank 1 spells a day at level 1, but the slot table gives the
   Oracle two (the standard style), which matched the published Oracle samples. Settled
