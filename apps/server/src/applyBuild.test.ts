@@ -539,6 +539,31 @@ describe('applyBuild', () => {
       ).toEqual([3, 3, 3, 3, 3]);
     });
 
+    it('gives a Wizard a curriculum entry beside its own, keeping it across levels', () => {
+      const { owner, actorId } = character();
+      const wizard = {
+        class: { packId: 'classes', slug: 'wizard' },
+        classChoices: { arcaneSchool: 'school-of-battle-magic' },
+      };
+      applyBuild(store, owner, compendium, { actorId, build: wizard, level: 1 });
+      const [main, curriculum, ...rest] = sheetOf(actorId).spellcasting;
+      expect(rest).toEqual([]);
+      expect(main).toMatchObject({ source: 'class:wizard', slots: { '1': 2 } });
+      expect(curriculum).toMatchObject({
+        source: 'class:wizard:curriculum',
+        name: 'Curriculum',
+        kind: 'prepared',
+        tradition: 'arcane',
+        slots: { '1': 1 },
+        prepared: [],
+      });
+
+      applyBuild(store, owner, compendium, { actorId, build: wizard, level: 3 });
+      const level3 = sheetOf(actorId).spellcasting[1];
+      expect(level3?.id).toBe(curriculum?.id);
+      expect(level3).toMatchObject({ slots: { '1': 1, '2': 1 } });
+    });
+
     it('adds picks on a second apply without duplicating items or list ids', () => {
       const { owner, actorId } = character();
       const build = (cantrips: string[]) => ({

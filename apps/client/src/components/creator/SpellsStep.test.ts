@@ -213,11 +213,27 @@ describe('SpellsStep', () => {
     expect(chosen).toMatch(/each holding\s+Heal/);
   });
 
-  it('shows no class gifts, and counts picks plainly, for a prepared caster with none', async () => {
-    const wrapper = mountStep(buildFor('wizard'));
+  it('shows no class gifts for a caster with none, and counts a prepared caster’s picks plainly', async () => {
+    const oracle = mountStep(buildFor('oracle'));
     await flushPromises();
-    expect(wrapper.find('[aria-labelledby="spells-gifts-title"]').exists()).toBe(false);
-    expect(wrapper.findAll('fieldset')[1]?.text()).toContain('0 chosen');
+    expect(oracle.find('[aria-labelledby="spells-gifts-title"]').exists()).toBe(false);
+    const wizard = mountStep(buildFor('wizard'));
+    await flushPromises();
+    expect(wizard.findAll('fieldset.picks')[1]?.text()).toContain('0 chosen');
+  });
+
+  it('names a Wizard’s school spell and curriculum once the school is chosen', async () => {
+    const wrapper = mountStep(
+      characterBuildSchema.parse({
+        class: { packId: 'classes', slug: 'wizard' },
+        classChoices: { arcaneSchool: 'school-of-battle-magic' },
+      }),
+    );
+    await flushPromises();
+    const gifts = wrapper.get('[aria-labelledby="spells-gifts-title"]').text();
+    expect(gifts).toContain('Force Bolt');
+    expect(gifts).toContain('Curriculum: 1 extra cantrip and 1 extra slot at each rank');
+    expect(gifts).toContain('1 Focus Point');
   });
 
   it('tells a Druid its order adds a spell, in words', async () => {

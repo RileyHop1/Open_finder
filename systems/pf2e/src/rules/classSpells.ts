@@ -16,7 +16,10 @@
  * patron's lesson names a hex cantrip and the spell the familiar learns; the first
  * hex (Patron's Puppet or Phase Familiar) and Wilding Steward's familiar spell
  * (Summon Animal or Summon Plant or Fungus) are picks, in `spellChoices` (checked
- * 2026-10-18).
+ * 2026-10-18). A Wizard starts with a focus pool of 1 and its school's initial school
+ * spell, and every school but Unified Magical Theory adds a curriculum: an extra
+ * cantrip and an extra slot at each rank up to 9 (the 10th rank's slot takes no extra
+ * slots), for curriculum spells only (checked 2026-10-19).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -46,6 +49,23 @@ export interface ClassSpellGrants {
   readonly font?: FontGrant;
   /** Picks between named spells the class makes in the spells step (a Witch's first hex). */
   readonly spellChoices?: readonly SpellChoice[];
+  /** Extra prepared slots for a class choice's own list (a Wizard's school curriculum). */
+  readonly curriculum?: CurriculumGrant;
+}
+
+/**
+ * Extra slots that hold only spells from a class choice's list: a Wizard's school
+ * curriculum. They become their own prepared entry beside the class's
+ * (`deriveSpellcasting.ts`, `deriveCurriculum`); what goes in them is play, and
+ * nothing checks that it is on the list (ADR 0023).
+ */
+export interface CurriculumGrant {
+  /** What the sheet calls the entry. */
+  readonly name: string;
+  /** The class choice whose list it is (its `rollOptionPrefix`). */
+  readonly choice: string;
+  /** Values of the choice that have no curriculum (Unified Magical Theory). */
+  readonly without: readonly string[];
 }
 
 /**
@@ -150,6 +170,28 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
         when: { choice: 'patron', value: 'wilding-steward' },
       },
     ],
+  },
+  wizard: {
+    focusPoints: 1,
+    cantrips: [],
+    focusSpells: [],
+    byChoice: {},
+    focusByChoice: {
+      arcaneSchool: {
+        'school-of-ars-grammatica': ['protective-wards'],
+        'school-of-battle-magic': ['force-bolt'],
+        'school-of-civic-wizardry': ['earthworks'],
+        'school-of-mentalism': ['charming-push'],
+        'school-of-protean-form': ['scramble-body'],
+        'school-of-the-boundary': ['fortify-summoning'],
+        'school-of-unified-magical-theory': ['hand-of-the-apprentice'],
+      },
+    },
+    curriculum: {
+      name: 'Curriculum',
+      choice: 'arcaneSchool',
+      without: ['school-of-unified-magical-theory'],
+    },
   },
   cleric: {
     focusPoints: 0,
@@ -257,4 +299,23 @@ export function fontAt(
     spell: chosen === undefined ? undefined : font.spells[chosen],
     count,
   };
+}
+
+/**
+ * The name of the curriculum entry `classSlug` has, given the build's class choices:
+ * `undefined` for a class with none, while the choice is unmade, or for a value
+ * without one.
+ */
+export function curriculumFor(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): string | undefined {
+  const curriculum =
+    classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug]?.curriculum;
+  const chosen = curriculum === undefined ? undefined : classChoices[curriculum.choice];
+  return chosen === undefined ||
+    curriculum === undefined ||
+    curriculum.without.includes(chosen)
+    ? undefined
+    : curriculum.name;
 }

@@ -297,12 +297,17 @@ export function applyBuild(
                 before.focusPoints.current + derived.focusPoints - before.focusPoints.max,
             }
           : before.focusPoints,
-      spellcasting: withFont(
-        withPicks(
-          mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
-            crypto.randomUUID(),
+      // A curriculum (a Wizard's school) is its own entry too; what is prepared in it is play.
+      spellcasting: mergeSpellcasting(
+        withFont(
+          withPicks(
+            mergeSpellcasting(before.spellcasting, derived.spellcasting, () =>
+              crypto.randomUUID(),
+            ),
           ),
         ),
+        derived.curriculum,
+        () => crypto.randomUUID(),
       ),
       build: build.data,
       ...(ref(ancestry) === undefined ? {} : { ancestry: ref(ancestry) }),

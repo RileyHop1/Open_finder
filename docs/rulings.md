@@ -883,6 +883,26 @@ ruling from silently drifting.
 - **Override:** the entry's slots and prepared spells are editable on the sheet ("Edit
   spells").
 
+### A Wizard's school: curriculum slots and school spell
+- **Rules text:** the Wizard's Arcane School, Wizard Spellcasting and Archwizard's
+  Spellcraft class features, the arcane schools, and the Wizard page of the classes
+  journal, in Player Core. Checked against the pinned upstream text (2026-10-19), not
+  against Archives of Nethys: **(confirm)**.
+- **The ambiguity:** whether the extra curriculum slots are part of the Wizard's own
+  slots or a list of their own, and whether the 10th rank gets one.
+- **Our reading:** a school with a curriculum gives one extra cantrip and one extra
+  slot at each rank the Wizard can cast, held as their own prepared entry
+  ("Curriculum") so the sheet shows which slots are the curriculum's. The 10th rank
+  gets none: Archwizard's Spellcraft says its slot can't be used with abilities that
+  give more slots. Unified Magical Theory has no curriculum. Every school gives a
+  focus pool of 1 and its initial school spell (listed in `docs/spellcasting.md`).
+- **Alternative reading:** add one slot to each rank of the Wizard's own entry. Rejected
+  because the restriction to curriculum spells would then be invisible on the sheet.
+- **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` (the Wizard cases)
+  and `apps/server/src/applyBuild.test.ts`.
+- **Override:** the curriculum entry's slots and prepared spells are editable on the
+  sheet ("Edit spells"), and nothing checks what is prepared there.
+
 ### Reading predicates on class features
 - **Rules text:** none directly; this is how upstream's conditions on a class
   feature's skill training and grants are read (`classFeatureRules.ts`).

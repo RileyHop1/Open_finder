@@ -214,6 +214,32 @@ export function deriveFont(
   };
 }
 
+/** The highest rank a curriculum has spells for; the 10th rank's slot takes no extra slots. */
+const CURRICULUM_TOP_RANK = 9;
+
+/**
+ * A curriculum as its own prepared entry beside `main` (a Wizard's school): one extra
+ * cantrip and one slot at each rank `main` has, up to the 9th, all for the
+ * curriculum's spells. Same tradition, attribute and proficiency; its source is
+ * `main`'s plus `:curriculum`, so a re-apply finds it. What is prepared in it is play.
+ */
+export function deriveCurriculum(
+  main: DerivedSpellcasting,
+  name: string,
+): DerivedSpellcasting {
+  const ranks = Object.keys(main.slots)
+    .map(Number)
+    .filter((rank) => rank <= CURRICULUM_TOP_RANK);
+  return {
+    ...main,
+    source: `${main.source}:curriculum`,
+    name,
+    kind: 'prepared',
+    slots: Object.fromEntries(ranks.map((rank) => [rank, 1])),
+    cantrips: 1,
+  };
+}
+
 /**
  * The font entry from `source` with `itemId` prepared in every one of its `count`
  * slots at `rank`. Copies already cast at that rank stay cast (up to `count`), so

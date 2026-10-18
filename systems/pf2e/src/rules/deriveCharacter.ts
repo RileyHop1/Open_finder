@@ -22,6 +22,7 @@ import type { HeritageEntry } from '../content/heritage.js';
 import { applyBoosts, type BoostWarning } from './boosts.js';
 import {
   CLASS_SPELLS_PACK,
+  curriculumFor,
   fontAt,
   grantedSpells,
   spellChoicesFor,
@@ -29,6 +30,7 @@ import {
 import {
   type DerivedSpellcasting,
   type SpellcastingWarning,
+  deriveCurriculum,
   deriveFont,
   deriveSpellcasting,
   highestRank,
@@ -145,6 +147,8 @@ export interface DerivedCharacter {
         readonly count: number;
       }
     | undefined;
+  /** A curriculum's extra slots, as their own prepared entry (a Wizard's school). */
+  readonly curriculum: DerivedSpellcasting | undefined;
   readonly warnings: readonly DeriveWarning[];
 }
 
@@ -478,6 +482,12 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
           count: fontGrant.count,
         };
 
+  const curriculumName = curriculumFor(inputs.class?.slug, build.classChoices);
+  const curriculum =
+    curriculumName === undefined || casting.spellcasting === undefined
+      ? undefined
+      : deriveCurriculum(casting.spellcasting, curriculumName);
+
   const derivedSlots = casting.spellcasting?.slots;
   if (casting.spellcasting?.kind === 'spontaneous' && derivedSlots !== undefined) {
     const known = Object.values(derivedSlots).reduce((sum, n) => sum + n, 0);
@@ -512,6 +522,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     spellPicks,
     focusPoints: granted.focusPoints,
     font,
+    curriculum,
     warnings,
   };
 }

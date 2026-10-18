@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fontAt, grantedSpells, spellChoicesFor } from './classSpells.js';
+import { curriculumFor, fontAt, grantedSpells, spellChoicesFor } from './classSpells.js';
 
 describe('grantedSpells', () => {
   it('gives a Bard its composition spells and focus pool, and its muse’s spell once chosen', () => {
@@ -97,5 +97,24 @@ describe('grantedSpells -- spell choices', () => {
     expect(granted.focusSpells).toEqual(['patrons-puppet']);
     expect(granted.ranked).toEqual(['summon-animal']);
     expect(granted.cantrips).toEqual(['wilding-word']);
+  });
+});
+
+describe('curriculumFor', () => {
+  it('names a Wizard’s curriculum once a school with one is chosen', () => {
+    expect(curriculumFor('wizard', { arcaneSchool: 'school-of-battle-magic' })).toBe(
+      'Curriculum',
+    );
+  });
+
+  it('has none before the school is chosen, for Unified Magical Theory, or for another class', () => {
+    expect(curriculumFor('wizard', {})).toBeUndefined();
+    expect(
+      curriculumFor('wizard', { arcaneSchool: 'school-of-unified-magical-theory' }),
+    ).toBeUndefined();
+    expect(
+      curriculumFor('cleric', { arcaneSchool: 'school-of-mentalism' }),
+    ).toBeUndefined();
+    expect(curriculumFor(undefined, {})).toBeUndefined();
   });
 });

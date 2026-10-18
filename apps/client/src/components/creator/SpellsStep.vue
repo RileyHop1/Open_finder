@@ -163,6 +163,7 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
           gifts.focusPoints > 0 ||
           gifts.pending.length > 0 ||
           gifts.choices.length > 0 ||
+          gifts.curriculum !== undefined ||
           gifts.font !== undefined
         "
         class="gifts"
@@ -196,6 +197,10 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
               {{ gifts.font.options.map(titleCase).join(' or ') }}, once you choose your
               font (Class choices step)
             </template>
+          </li>
+          <li v-if="gifts.curriculum !== undefined">
+            {{ gifts.curriculum }}: 1 extra cantrip and 1 extra slot at each rank, for
+            your school's curriculum spells
           </li>
           <li v-if="gifts.focusPoints > 0">
             {{ gifts.focusPoints }} Focus Point{{ gifts.focusPoints === 1 ? '' : 's' }}
