@@ -291,6 +291,7 @@ function trapTab(event: KeyboardEvent): void {
             (which, ref) =>
               (draft.build.spells = togglePick(draft.build.spells, which, ref))
           "
+          @pick="(choice, value) => (draft.build.classChoices[choice] = value)"
         />
         <SkillsStep
           v-else-if="draft.step === 'skills'"

@@ -14,9 +14,11 @@ import {
   grantedSpells,
   isCasterClass,
   slotsAtLevel,
+  spellChoicesFor,
   traditionFor,
   type BuildRef,
   type MagicalTradition,
+  type OfferedSpellChoice,
   type SpellPicks,
 } from '@hearthtable/pf2e';
 
@@ -104,6 +106,8 @@ export interface ClassGifts {
   readonly focusPoints: number;
   /** Class choices that will add a spell once they are made (a Bard's muse). */
   readonly pending: readonly string[];
+  /** Picks between named spells the step itself offers (a Witch's first hex); a chosen one is not repeated in `spells`. */
+  readonly choices: readonly OfferedSpellChoice[];
   /**
    * A font's extra slots at level 1 (a Cleric's Divine Font): the spell they hold
    * once the font is chosen, else every spell it could be.
@@ -124,6 +128,8 @@ export function classGifts(
   classChoices: Readonly<Record<string, string>>,
 ): ClassGifts {
   const granted = grantedSpells(classSlug, classChoices);
+  const choices = spellChoicesFor(classSlug, classChoices);
+  const picked = new Set(choices.map((c) => c.chosen));
   const grants = classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug];
   const byChoice = grants?.byChoice ?? {};
   const fromChoices = Object.entries(byChoice).flatMap(([choice, byValue]) => {
@@ -135,7 +141,9 @@ export function classGifts(
   return {
     spells: [
       ...granted.cantrips.map((slug) => ({ slug, why: 'cantrip' as const })),
-      ...granted.focusSpells.map((slug) => ({ slug, why: 'focus' as const })),
+      ...granted.focusSpells
+        .filter((slug) => !picked.has(slug))
+        .map((slug) => ({ slug, why: 'focus' as const })),
       ...fromChoices,
     ],
     focusPoints: granted.focusPoints,
@@ -146,6 +154,7 @@ export function classGifts(
         ...Object.keys(grants?.focusByChoice ?? {}),
       ]),
     ].filter((choice) => classChoices[choice] === undefined),
+    choices,
     font: fontGift(classSlug, classChoices),
   };
 }

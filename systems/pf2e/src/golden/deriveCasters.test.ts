@@ -172,7 +172,10 @@ describe('what a class grants by itself', () => {
   ])(
     'a level 1 Witch of %s: %s spells, its hex cantrip and familiar’s spell, 1 focus point',
     (patron, tradition, hex, spell) => {
-      const derived = casting('witch', 'int', 1, { patron });
+      const derived = casting('witch', 'int', 1, {
+        patron,
+        'first-hex': 'phase-familiar',
+      });
       expect(derived.spellcasting).toMatchObject({
         kind: 'prepared',
         tradition,
@@ -181,6 +184,7 @@ describe('what a class grants by itself', () => {
       });
       expect(derived.warnings).toEqual([]);
       expect(derived.focusPoints).toBe(1);
+      expect(derived.items.map((i) => i.slug)).toContain('phase-familiar');
       expect(derived.spellPicks).toEqual({
         cantrips: [{ packId: 'spells', slug: hex }],
         ranked: [{ packId: 'spells', slug: spell }],
@@ -188,13 +192,45 @@ describe('what a class grants by itself', () => {
     },
   );
 
-  it('a Wilding Steward witch gets its hex cantrip; its familiar’s spell is a pick, not a grant', () => {
-    const derived = casting('witch', 'int', 1, { patron: 'wilding-steward' });
+  it('a Witch with no first hex chosen gets none, and a warning that Hex Spells asks for one', () => {
+    const derived = casting('witch', 'int', 1, { patron: 'the-resentment' });
+    expect(derived.items.map((i) => i.slug)).not.toContain('patrons-puppet');
+    expect(derived.items.map((i) => i.slug)).not.toContain('phase-familiar');
+    expect(derived.warnings).toEqual([
+      { kind: 'choice-not-made', choice: 'first-hex', feature: 'hex-spells' },
+    ]);
+  });
+
+  it('a Wilding Steward witch’s familiar learns the summon spell picked for it', () => {
+    const derived = casting('witch', 'int', 1, {
+      patron: 'wilding-steward',
+      'first-hex': 'patrons-puppet',
+      'familiar-spell': 'summon-plant-or-fungus',
+    });
     expect(derived.spellcasting?.tradition).toBe('primal');
     expect(derived.spellPicks).toEqual({
       cantrips: [{ packId: 'spells', slug: 'wilding-word' }],
-      ranked: [],
+      ranked: [{ packId: 'spells', slug: 'summon-plant-or-fungus' }],
     });
+    expect(derived.warnings).toEqual([]);
+  });
+
+  it('asks a Wilding Steward witch for the familiar’s spell, and no other patron', () => {
+    const steward = casting('witch', 'int', 1, {
+      patron: 'wilding-steward',
+      'first-hex': 'patrons-puppet',
+    });
+    expect(steward.warnings).toEqual([
+      { kind: 'choice-not-made', choice: 'familiar-spell', feature: 'wilding-steward' },
+    ]);
+    // A familiar spell left over from another patron is not applied.
+    const other = casting('witch', 'int', 1, {
+      patron: 'starless-shadow',
+      'first-hex': 'patrons-puppet',
+      'familiar-spell': 'summon-animal',
+    });
+    expect(other.spellPicks.ranked).toEqual([{ packId: 'spells', slug: 'fear' }]);
+    expect(other.warnings).toEqual([]);
   });
 
   it('the other casters grant nothing yet', () => {

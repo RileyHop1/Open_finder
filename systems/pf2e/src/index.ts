@@ -401,10 +401,13 @@ export {
   CLASS_SPELLS_PACK,
   fontAt,
   grantedSpells,
+  spellChoicesFor,
   type ClassSpellGrants,
   type FontAtLevel,
   type FontGrant,
   type GrantedSpells,
+  type OfferedSpellChoice,
+  type SpellChoice,
 } from './rules/classSpells.js';
 
 export {

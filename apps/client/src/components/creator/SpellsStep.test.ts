@@ -137,6 +137,31 @@ describe('SpellsStep', () => {
     expect(gifts).toContain('1 Focus Point');
   });
 
+  it('asks a Witch for a first hex, and emits the one picked', async () => {
+    const wrapper = mountStep(buildFor('witch'));
+    await flushPromises();
+    const choice = wrapper.get('fieldset.spell-choice');
+    expect(choice.get('legend').text()).toBe('Choose your first hex (a focus spell)');
+    expect(choice.text()).toContain('Patrons Puppet');
+    expect(choice.text()).toContain('Phase Familiar');
+    await choice.findAll('input[type="radio"]')[1]?.trigger('change');
+    expect(wrapper.emitted('pick')).toEqual([['first-hex', 'phase-familiar']]);
+  });
+
+  it('asks a Wilding Steward witch for the familiar’s spell too, and checks the one chosen', async () => {
+    const wrapper = mountStep(
+      characterBuildSchema.parse({
+        class: { packId: 'classes', slug: 'witch' },
+        classChoices: { patron: 'wilding-steward', 'familiar-spell': 'summon-animal' },
+      }),
+    );
+    await flushPromises();
+    const [, familiar] = wrapper.findAll('fieldset.spell-choice');
+    expect(familiar?.get('legend').text()).toBe('Choose your familiar spell');
+    const radios = familiar?.findAll<HTMLInputElement>('input[type="radio"]') ?? [];
+    expect(radios.map((r) => r.element.checked)).toEqual([true, false]);
+  });
+
   it('counts a Bard’s rank 1 picks against its repertoire, in words past it', async () => {
     const two = [
       { packId: 'spells', slug: 'a' },
