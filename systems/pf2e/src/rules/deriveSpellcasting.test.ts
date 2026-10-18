@@ -56,14 +56,11 @@ describe('deriveSpellcasting', () => {
     ]);
   });
 
-  it('uses a tradition a caller can resolve for a choice class', () => {
-    const result = deriveSpellcasting(
-      { slug: 'witch', name: 'Witch' },
-      1,
-      'int',
-      (choice) => (choice === 'patron' ? 'occult' : undefined),
-    );
-    expect(result.spellcasting?.tradition).toBe('occult');
+  it('takes a choice class’s tradition from the build’s class choices', () => {
+    const result = deriveSpellcasting({ slug: 'witch', name: 'Witch' }, 1, 'int', {
+      patron: 'the-inscribed-one',
+    });
+    expect(result.spellcasting?.tradition).toBe('arcane');
     expect(result.warnings).toEqual([]);
   });
 });

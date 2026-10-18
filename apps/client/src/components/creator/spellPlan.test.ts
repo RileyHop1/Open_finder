@@ -36,6 +36,13 @@ describe('castingPlan', () => {
     });
     expect(castingPlan('sorcerer')?.traditionChoice).toBe('bloodline');
   });
+
+  it('takes a Witch’s list from the patron chosen', () => {
+    expect(castingPlan('witch', { patron: 'faiths-flamekeeper' })).toMatchObject({
+      tradition: 'divine',
+      traditionChoice: 'patron',
+    });
+  });
 });
 
 describe('togglePick', () => {
@@ -99,6 +106,20 @@ describe('classGifts', () => {
     });
     const chosen = classGifts('druid', { druidicOrder: 'animal-order' });
     expect(chosen.spells).toEqual([{ slug: 'heal-animal', why: 'focus' }]);
+    expect(chosen.pending).toEqual([]);
+  });
+
+  it('waits for a Witch’s patron, then names its hex cantrip and familiar’s spell', () => {
+    expect(classGifts('witch', {})).toMatchObject({
+      spells: [],
+      focusPoints: 1,
+      pending: ['patron'],
+    });
+    const chosen = classGifts('witch', { patron: 'starless-shadow' });
+    expect(chosen.spells).toEqual([
+      { slug: 'shroud-of-night', why: 'cantrip' },
+      { slug: 'fear', why: 'choice', choice: 'patron' },
+    ]);
     expect(chosen.pending).toEqual([]);
   });
 

@@ -414,7 +414,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     inputs.class,
     level,
     keyAttribute,
-    undefined,
+    build.classChoices,
     spellRank,
   );
   warnings.push(...casting.warnings);

@@ -226,9 +226,10 @@ each name a tooltip, and counts the cantrips against the class's ("3 of 5
 chosen"). The rank 1 heading says what the picks are for: spells you know
 (spontaneous), your spellbook (Wizard) or spells to prepare from (other prepared
 casters). Another tradition's list can be chosen from a menu and picked from,
-with a note that it is not the class's own; a Witch or Sorcerer, whose list
-depends on a choice the app cannot map yet, is asked to choose the list that
-goes with it. Picks go in `build.spells` ([spellcasting.md](spellcasting.md)).
+with a note that it is not the class's own. A Witch's list follows the patron
+chosen ("Your patron gives you the Occult list"); before the patron is chosen,
+or for a Sorcerer, whose bloodline the app cannot map yet, the step asks for the
+list that goes with the choice. Picks go in `build.spells` ([spellcasting.md](spellcasting.md)).
 More cantrips than the class has is counted in words and warned about on
 review; nothing is refused (ADR 0023). A spontaneous caster's rank 1 picks are
 counted against its repertoire, which holds as many spells as it has slots ("1 of
@@ -238,7 +239,8 @@ counted against its repertoire, which holds as many spells as it has slots ("1 o
 Performance, 1 Focus Point, and its muse's spell once the muse is chosen (until
 then a note says the muse will add one); for a Cleric, its Divine Font, "4 extra
 slots at your highest rank, each holding Heal" (or "Heal or Harm, once you choose
-your font" before the choice). These are not counted against the
+your font" before the choice); for a Witch, 1 Focus Point and, once the
+patron is chosen, its hex cantrip and the familiar's spell. These are not counted against the
 picks. A class that does not cast says so.
 
 The **review** step shows the whole character in words (what is chosen and

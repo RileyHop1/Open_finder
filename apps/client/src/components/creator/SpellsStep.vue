@@ -40,7 +40,10 @@ const props = defineProps<{
 const emit = defineEmits<{ toggle: [which: 'cantrips' | 'ranked', ref: BuildRef] }>();
 
 const plan = computed(() =>
-  castingPlan(props.classEntry?.slug ?? props.build.class?.slug),
+  castingPlan(
+    props.classEntry?.slug ?? props.build.class?.slug,
+    props.build.classChoices,
+  ),
 );
 const tradition = ref<MagicalTradition>('arcane');
 watch(
@@ -120,8 +123,15 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
 
     <template v-else>
       <p v-if="plan.traditionChoice !== undefined" class="note">
-        Your {{ plan.traditionChoice }} decides which list you cast from. Choose the list
-        that goes with it below; the app cannot work it out for you yet.
+        <template v-if="plan.tradition !== undefined">
+          Your {{ choiceWords(plan.traditionChoice) }} gives you the
+          {{ titleCase(plan.tradition) }} list.
+        </template>
+        <template v-else>
+          Your {{ choiceWords(plan.traditionChoice) }} decides which list you cast from.
+          Until the app knows it (choose it in the Class choices step), pick the list that
+          goes with it below.
+        </template>
       </p>
 
       <label class="tradition">

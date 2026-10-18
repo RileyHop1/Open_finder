@@ -61,7 +61,7 @@ not in the table: it comes from the class features' `rankUps` (Expert Spellcaste
 | Druid | prepared | primal | standard |
 | Oracle | spontaneous | divine | standard |
 | Sorcerer | spontaneous | by bloodline | one more per rank |
-| Witch | prepared | by patron | standard |
+| Witch | prepared | by patron (`traditionFor`) | standard |
 | Wizard | prepared | arcane | standard (plus the curriculum's extra slots) |
 
 The casting attribute is not in the table: it is the class's key attribute,
@@ -109,7 +109,15 @@ Maestro: Soothe, Polymath: Phantasmal Minion, Warrior: Fear). A row's
 `focusByChoice` grants focus spells by a class choice the same way: the **Druid**
 has a pool of 1 and its order's spell (Animal: Heal Animal, Leaf: Cornucopia, Storm:
 Tempest Surge, Untamed: Untamed Shift), listed under Focus spells on the sheet. The
-order's skill and feat come from the imported order itself.
+order's skill and feat come from the imported order itself. `cantripsByChoice` does
+the same for cantrips: the **Witch** has a pool of 1 and, by patron, a hex cantrip (not
+counted against the five picked) and the spell its familiar learns, added to the ranked
+picks: Faith's Flamekeeper, Stoke the Heart and Command; Silence in Snow, Clinging Ice
+and Gust of Wind; Spinner of Threads, Nudge Fate and Sure Strike; Starless Shadow, Shroud
+of Night and Fear; The Inscribed One, Discern Secrets and Runic Weapon; The Resentment,
+Evil Eye and Enfeeble; Wilding Steward, Wilding Word (its familiar's spell is one of two,
+a pick rather than a grant, and its first hex is likewise a pick: both come in a later
+PR). The patron's skill comes from the imported patron.
 
 A row can also carry a **font**: extra slots at the class's highest rank that hold only
 one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5
@@ -123,10 +131,14 @@ the font is chosen the entry has its slots and nothing prepared. The other caste
 their rows in their own PRs.
 
 A class whose tradition depends on a choice (the Witch's patron, the Sorcerer's
-bloodline) gets **no entry yet** and a `spellcasting-tradition-undecided` warning,
-because how a patron or bloodline maps to a tradition is that class's own PR; the
-Draconic bloodline even varies by dragon. The creator's review tells the player to
-add the spellcasting by hand until then.
+bloodline) names the choice and the tradition for each value of it in its casting
+table; `traditionFor` resolves it from `build.classChoices`. The **Witch's** patrons
+are mapped: Faith's Flamekeeper divine; Silence in Snow and Wilding Steward primal;
+Spinner of Threads, Starless Shadow and The Resentment occult; The Inscribed One
+arcane. Until the choice is made, or for a value with no tradition (the Sorcerer's
+bloodlines come in its own PR; the Draconic one even varies by dragon), there is **no
+entry** and a `spellcasting-tradition-undecided` warning. The creator's review tells
+the player to choose it, or to add the spellcasting by hand.
 
 The casting attribute follows the key attribute `actor.applyBuild` settles on: the
 one sent, else the one already on the sheet if the class offers it, else the class's
