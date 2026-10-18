@@ -115,9 +115,19 @@ counted against the five picked) and the spell its familiar learns, added to the
 picks: Faith's Flamekeeper, Stoke the Heart and Command; Silence in Snow, Clinging Ice
 and Gust of Wind; Spinner of Threads, Nudge Fate and Sure Strike; Starless Shadow, Shroud
 of Night and Fear; The Inscribed One, Discern Secrets and Runic Weapon; The Resentment,
-Evil Eye and Enfeeble; Wilding Steward, Wilding Word (its familiar's spell is one of two,
-a pick rather than a grant, and its first hex is likewise a pick: both come in a later
-PR). The patron's skill comes from the imported patron.
+Evil Eye and Enfeeble; Wilding Steward, Wilding Word. The patron's skill comes from the
+imported patron.
+
+A row's `spellChoices` are **picks between named spells** that no class feature's choice
+set carries: each has a key in `build.classChoices`, the feature that asks for it, the
+options, whether the pick is a focus spell or a ranked one, and optionally a `when` (offered
+only while another class choice has a value). `spellChoicesFor` lists the ones offered
+with what is chosen; a chosen option is granted like the rest, and an unmade one is a
+`choice-not-made` warning naming the feature. The **Witch** has two: every Witch's first
+hex (`first-hex`, from Hex Spells: Patron's Puppet or Phase Familiar, a focus spell), and
+a Wilding Steward's familiar spell (`familiar-spell`: Summon Animal or Summon Plant or
+Fungus). A value that is not an option, or a familiar spell left from another patron, is
+not applied. The creator's spells step offers them as radio buttons.
 
 A row can also carry a **font**: extra slots at the class's highest rank that hold only
 one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5

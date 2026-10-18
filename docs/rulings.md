@@ -851,8 +851,9 @@ ruling from silently drifting.
   five picked) and the spell the familiar learns (patrons and spells listed in
   `docs/spellcasting.md`; same pinned text, 2026-10-18). Upstream carries the
   patron's tradition as a Foundry-specific alias override, which we do not import;
-  the mapping is ours. Wilding Steward's familiar learns one of two spells, and every
-  Witch picks one of two first hexes: those are picks, made in a later PR, not grants.
+  the mapping is ours. Every Witch picks a first hex (Patron's Puppet or Phase
+  Familiar), and a Wilding Steward's familiar learns the pick of Summon Animal or
+  Summon Plant or Fungus: both are picks in the spells step, never granted unmade.
 - **Found while checking, unresolved:** the upstream Oracle and Sorcerer spellcasting
   text both say three rank 1 spells a day at level 1, but the slot table gives the
   Oracle two (the standard style), which matched the published Oracle samples. Settled

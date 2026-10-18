@@ -73,6 +73,7 @@ describe('classGifts', () => {
       ],
       focusPoints: 1,
       pending: ['muse'],
+      choices: [],
       font: undefined,
     });
   });
@@ -88,6 +89,7 @@ describe('classGifts', () => {
       spells: [],
       focusPoints: 0,
       pending: [],
+      choices: [],
       font: {
         name: 'Divine Font',
         count: 4,
@@ -123,8 +125,27 @@ describe('classGifts', () => {
     expect(chosen.pending).toEqual([]);
   });
 
+  it('offers a Witch its first hex, and lists a chosen one only in the choice', () => {
+    expect(classGifts('witch', {}).choices.map((c) => c.key)).toEqual(['first-hex']);
+    const chosen = classGifts('witch', {
+      patron: 'wilding-steward',
+      'first-hex': 'patrons-puppet',
+    });
+    expect(chosen.choices.map((c) => [c.key, c.chosen])).toEqual([
+      ['first-hex', 'patrons-puppet'],
+      ['familiar-spell', undefined],
+    ]);
+    expect(chosen.spells).toEqual([{ slug: 'wilding-word', why: 'cantrip' }]);
+  });
+
   it('gives a class with no row nothing', () => {
-    const none = { spells: [], focusPoints: 0, pending: [], font: undefined };
+    const none = {
+      spells: [],
+      focusPoints: 0,
+      pending: [],
+      choices: [],
+      font: undefined,
+    };
     expect(classGifts('wizard', {})).toEqual(none);
     expect(classGifts(undefined, {})).toEqual(none);
   });

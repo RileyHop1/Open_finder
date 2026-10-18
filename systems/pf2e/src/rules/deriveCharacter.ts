@@ -20,7 +20,12 @@ import { rankAtLevel } from '../content/class.js';
 import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { HeritageEntry } from '../content/heritage.js';
 import { applyBoosts, type BoostWarning } from './boosts.js';
-import { CLASS_SPELLS_PACK, fontAt, grantedSpells } from './classSpells.js';
+import {
+  CLASS_SPELLS_PACK,
+  fontAt,
+  grantedSpells,
+  spellChoicesFor,
+} from './classSpells.js';
 import {
   type DerivedSpellcasting,
   type SpellcastingWarning,
@@ -72,7 +77,10 @@ export type DeriveWarning =
       readonly level: number;
     }
   | { readonly kind: 'missing-entry'; readonly packId: string; readonly slug: string }
-  /** A choice a granted feature asks for (instinct, racket, ...) that the build has not made yet. */
+  /**
+   * A choice a granted feature asks for (instinct, racket, ...), or a spell choice the
+   * class asks for (`classSpells.ts`: a Witch's first hex), that the build has not made yet.
+   */
   | {
       readonly kind: 'choice-not-made';
       readonly choice: string;
@@ -439,6 +447,15 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   const refs = (slugs: readonly string[]) =>
     slugs.map((slug) => ({ packId: CLASS_SPELLS_PACK, slug }));
   pickSpells(refs(granted.focusSpells));
+  for (const choice of spellChoicesFor(inputs.class?.slug, build.classChoices)) {
+    if (choice.chosen === undefined) {
+      warnings.push({
+        kind: 'choice-not-made',
+        choice: choice.key,
+        feature: choice.feature,
+      });
+    }
+  }
   const spellPicks = {
     cantrips: [
       ...pickSpells(build.spells.cantrips),

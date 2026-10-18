@@ -16,7 +16,7 @@ import type {
   ClassEntry,
   MagicalTradition,
 } from '@hearthtable/pf2e';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 
 import {
   type EntrySummary,
@@ -37,7 +37,12 @@ const props = defineProps<{
   build: CharacterBuild;
   classEntry: ClassEntry | undefined;
 }>();
-const emit = defineEmits<{ toggle: [which: 'cantrips' | 'ranked', ref: BuildRef] }>();
+const emit = defineEmits<{
+  toggle: [which: 'cantrips' | 'ranked', ref: BuildRef];
+  /** A spell choice the class asks for (a Witch's first hex), stored in `build.classChoices`. */
+  pick: [choice: string, value: string];
+}>();
+const id = useId();
 
 const plan = computed(() =>
   castingPlan(
@@ -157,6 +162,7 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
           gifts.spells.length > 0 ||
           gifts.focusPoints > 0 ||
           gifts.pending.length > 0 ||
+          gifts.choices.length > 0 ||
           gifts.font !== undefined
         "
         class="gifts"
@@ -199,6 +205,24 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
           Your {{ choiceWords(choice) }} adds a spell once you choose it (Class choices
           step).
         </p>
+        <fieldset v-for="choice in gifts.choices" :key="choice.key" class="spell-choice">
+          <legend>
+            Choose your {{ choiceWords(choice.key) }}
+            {{ choice.as === 'focus' ? '(a focus spell)' : '' }}
+          </legend>
+          <span v-for="slug in choice.options" :key="slug" class="option">
+            <label class="check">
+              <input
+                type="radio"
+                :name="`${id}-${choice.key}`"
+                :checked="choice.chosen === slug"
+                @change="emit('pick', choice.key, slug)"
+              />
+              <span class="visually-hidden">Choose {{ titleCase(slug) }}</span>
+            </label>
+            <RulesTerm term-kind="spell" :slug="slug" :label="titleCase(slug)" />
+          </span>
+        </fieldset>
         <p class="note">These are not counted against the spells you choose below.</p>
       </section>
 
@@ -303,6 +327,16 @@ p {
   list-style: none;
 }
 
+.spell-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+}
+
+.option,
 .picks li {
   display: flex;
   align-items: center;

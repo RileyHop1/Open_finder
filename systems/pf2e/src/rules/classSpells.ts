@@ -13,9 +13,10 @@
  * Druid's Druidic Order gives a focus pool of 1 and each core order names its
  * order spell (Animal: Heal Animal, Leaf: Cornucopia, Storm: Tempest Surge,
  * Untamed: Untamed Shift). The Witch's Hex Spells give a focus pool of 1, and each
- * patron's lesson names a hex cantrip and the spell the familiar learns (Wilding
- * Steward's familiar learns one of two, which is a pick, not a grant, so it is not
- * here; checked 2026-10-18).
+ * patron's lesson names a hex cantrip and the spell the familiar learns; the first
+ * hex (Patron's Puppet or Phase Familiar) and Wilding Steward's familiar spell
+ * (Summon Animal or Summon Plant or Fungus) are picks, in `spellChoices` (checked
+ * 2026-10-18).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -43,6 +44,26 @@ export interface ClassSpellGrants {
   >;
   /** Extra slots at the class's highest rank that hold only one spell (a Cleric's divine font). */
   readonly font?: FontGrant;
+  /** Picks between named spells the class makes in the spells step (a Witch's first hex). */
+  readonly spellChoices?: readonly SpellChoice[];
+}
+
+/**
+ * A pick between named spells that no class feature's choice set carries (the Witch's
+ * Hex Spells only says it in prose). The creator's spells step offers it, and the
+ * chosen slug is stored in `build.classChoices` under `key`.
+ */
+export interface SpellChoice {
+  /** The key the pick is stored under in `build.classChoices`. */
+  readonly key: string;
+  /** The class feature that asks for it, for the review's `choice-not-made` warning. */
+  readonly feature: string;
+  /** Where the chosen spell goes: a focus spell, or a ranked one (the familiar's). */
+  readonly as: 'focus' | 'ranked';
+  /** The spell slugs to choose from. */
+  readonly options: readonly string[];
+  /** Offered only while another class choice has this value (Wilding Steward's familiar spell). */
+  readonly when?: { readonly choice: string; readonly value: string };
 }
 
 /**
@@ -114,6 +135,21 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
         'wilding-steward': ['wilding-word'],
       },
     },
+    spellChoices: [
+      {
+        key: 'first-hex',
+        feature: 'hex-spells',
+        as: 'focus',
+        options: ['patrons-puppet', 'phase-familiar'],
+      },
+      {
+        key: 'familiar-spell',
+        feature: 'wilding-steward',
+        as: 'ranked',
+        options: ['summon-animal', 'summon-plant-or-fungus'],
+        when: { choice: 'patron', value: 'wilding-steward' },
+      },
+    ],
   },
   cleric: {
     focusPoints: 0,
@@ -144,6 +180,29 @@ export interface GrantedSpells {
   readonly ranked: readonly string[];
 }
 
+/** A spell choice as the build stands: what was chosen, if it is one of the options. */
+export interface OfferedSpellChoice extends SpellChoice {
+  readonly chosen: string | undefined;
+}
+
+/** The spell choices `classSlug` offers given the build's class choices (a `when` that holds, or none). */
+export function spellChoicesFor(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): OfferedSpellChoice[] {
+  const choices =
+    classSlug === undefined ? [] : (CLASS_SPELL_GRANTS[classSlug]?.spellChoices ?? []);
+  return choices
+    .filter((c) => c.when === undefined || classChoices[c.when.choice] === c.when.value)
+    .map((c) => {
+      const value = classChoices[c.key];
+      return {
+        ...c,
+        chosen: value !== undefined && c.options.includes(value) ? value : undefined,
+      };
+    });
+}
+
 /** What `classSlug` grants, given the build's class choices. Nothing for a class with no row. */
 export function grantedSpells(
   classSlug: string | undefined,
@@ -158,11 +217,19 @@ export function grantedSpells(
       const chosen = classChoices[choice];
       return chosen === undefined ? [] : (byValue[chosen] ?? []);
     });
+  const picked = (as: SpellChoice['as']) =>
+    spellChoicesFor(classSlug, classChoices).flatMap((c) =>
+      c.as === as && c.chosen !== undefined ? [c.chosen] : [],
+    );
   return {
     focusPoints: grants.focusPoints,
     cantrips: [...grants.cantrips, ...chosenFrom(grants.cantripsByChoice ?? {})],
-    focusSpells: [...grants.focusSpells, ...chosenFrom(grants.focusByChoice ?? {})],
-    ranked: chosenFrom(grants.byChoice),
+    focusSpells: [
+      ...grants.focusSpells,
+      ...chosenFrom(grants.focusByChoice ?? {}),
+      ...picked('focus'),
+    ],
+    ranked: [...chosenFrom(grants.byChoice), ...picked('ranked')],
   };
 }
 

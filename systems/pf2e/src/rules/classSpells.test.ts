@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fontAt, grantedSpells } from './classSpells.js';
+import { fontAt, grantedSpells, spellChoicesFor } from './classSpells.js';
 
 describe('grantedSpells', () => {
   it('gives a Bard its composition spells and focus pool, and its muse’s spell once chosen', () => {
@@ -56,5 +56,46 @@ describe('fontAt', () => {
   it('is absent for a class with no font', () => {
     expect(fontAt('bard', {}, 1)).toBeUndefined();
     expect(fontAt(undefined, {}, 1)).toBeUndefined();
+  });
+});
+
+describe('spellChoicesFor', () => {
+  it('offers every Witch a first hex, with the pick once made', () => {
+    expect(spellChoicesFor('witch', {}).map((c) => [c.key, c.chosen])).toEqual([
+      ['first-hex', undefined],
+    ]);
+    expect(spellChoicesFor('witch', { 'first-hex': 'phase-familiar' })[0]?.chosen).toBe(
+      'phase-familiar',
+    );
+  });
+
+  it('offers the familiar’s spell only while the patron is Wilding Steward', () => {
+    const steward = spellChoicesFor('witch', { patron: 'wilding-steward' });
+    expect(steward.map((c) => c.key)).toEqual(['first-hex', 'familiar-spell']);
+    expect(steward[1]?.options).toEqual(['summon-animal', 'summon-plant-or-fungus']);
+  });
+
+  it('reads a value that is not one of the options as not chosen', () => {
+    expect(
+      spellChoicesFor('witch', { 'first-hex': 'fireball' })[0]?.chosen,
+    ).toBeUndefined();
+  });
+
+  it('offers nothing to a class with none', () => {
+    expect(spellChoicesFor('bard', {})).toEqual([]);
+    expect(spellChoicesFor(undefined, {})).toEqual([]);
+  });
+});
+
+describe('grantedSpells -- spell choices', () => {
+  it('adds a Witch’s first hex to its focus spells and the familiar’s spell to the ranked ones', () => {
+    const granted = grantedSpells('witch', {
+      patron: 'wilding-steward',
+      'first-hex': 'patrons-puppet',
+      'familiar-spell': 'summon-animal',
+    });
+    expect(granted.focusSpells).toEqual(['patrons-puppet']);
+    expect(granted.ranked).toEqual(['summon-animal']);
+    expect(granted.cantrips).toEqual(['wilding-word']);
   });
 });
