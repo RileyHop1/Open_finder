@@ -75,6 +75,7 @@ const rankUp = (
     level,
     tags,
     rankUps,
+    skillRankUps: {},
   }) as unknown as ClassFeatureEntry;
 
 const casting = (

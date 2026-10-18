@@ -69,7 +69,8 @@ never refuses a choice.
   `choice-not-made` warning and grants nothing; one the feature does not offer
   is applied anyway with a `choice-not-offered` warning (ADR 0023).
 - **Warnings:** a key attribute the class does not offer, more trained skills
-  than the class plus Intelligence allow, a skill increase or feat taken at a
+  than the class plus Intelligence allow (plus one for each skill a class feature
+  trains that was already trained, `skill-trained-twice`), a skill increase or feat taken at a
   level or slot the class does not have, a missing entry, and the boost
   warnings below.
 
@@ -120,6 +121,13 @@ lowered. Checked on the pinned data (2026-10-17): a Fighter is expert in Will at
 (Bravery) and in its class DC at 11; a Warpriest is expert in Fortitude and trained
 in light and medium armor at 1 and casts as an expert at 11, a Cloistered Cleric at
 7; a Ruffian is trained in medium armor and a Thief is not.
+
+**Skills a class feature trains** (`skillRankUps`: the Thief racket's Thievery, a
+Scoundrel's Deception and Diplomacy, a Druid order's skill) are applied the same
+way, after the trained skills and before skill increases, so an increase lands on
+top of them. One the character is already trained in is still applied, with a
+`skill-trained-twice` warning: the rules have the character train another skill of
+their choice instead, so the allowance for picked skills grows by one for each.
 
 **Not raised, and flagged instead:** a rank-up upstream writes as a conditional
 effect rather than in the feature's rank-ups (Armor Mastery's heavy armor, which

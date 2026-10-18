@@ -555,4 +555,52 @@ describe('deriveCharacter', () => {
       expect(ranks(5).fortitude).toBe('trained');
     });
   });
+
+  describe('skills a class feature trains', () => {
+    const racket = (skillRankUps: ClassFeatureEntry['skillRankUps'], level = 1) => ({
+      ...feature('invented-racket', level),
+      skillRankUps,
+    });
+    const derive = (
+      features: ClassFeatureEntry[],
+      build: Partial<CharacterBuild> = {},
+      level = 1,
+    ) =>
+      deriveCharacter({
+        build: { ...emptyBuild, ...build },
+        level,
+        class: cls,
+        classFeatures: features,
+        resolve: noEntries,
+      });
+
+    it('trains the skill, from the feature’s level on', () => {
+      expect(derive([racket({ thievery: 'trained' })]).ranks.skills.thievery).toBe(
+        'trained',
+      );
+      expect(
+        derive([racket({ stealth: 'trained' }, 3)]).ranks.skills.stealth,
+      ).toBeUndefined();
+    });
+
+    it('applies a skill increase on top of it', () => {
+      const d = derive(
+        [racket({ thievery: 'trained' })],
+        { skillIncreases: [{ level: 3, skill: 'thievery' }] },
+        3,
+      );
+      expect(d.ranks.skills.thievery).toBe('expert');
+    });
+
+    it('warns when the skill is already trained, and allows one more pick for it (ADR 0023)', () => {
+      // The class trains athletics automatically; two picks are allowed.
+      const d = derive([racket({ athletics: 'trained' })], {
+        trainedSkills: ['arcana', 'crafting', 'diplomacy'],
+      });
+      expect(d.ranks.skills.athletics).toBe('trained');
+      expect(d.warnings).toEqual([
+        { kind: 'skill-trained-twice', skill: 'athletics', feature: 'invented-racket' },
+      ]);
+    });
+  });
 });
