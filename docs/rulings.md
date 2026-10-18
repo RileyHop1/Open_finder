@@ -830,7 +830,7 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/spellcastingTables.test.ts`.
 - **Override:** every count is editable on the sheet once the Spells tab lands.
 
-### What a class grants by itself (the Bard, the Druid)
+### What a class grants by itself (the Bard, the Druid, the Witch)
 - **Rules text:** the Bard's Composition Spells, muse and Spell Repertoire class
   features in Player Core. Checked against the pinned upstream text (2026-10-16), not
   against Archives of Nethys, which was not reachable: **(confirm)**.
@@ -846,7 +846,13 @@ ruling from silently drifting.
   a focus pool of 1 and its order's order spell: Animal, Heal Animal; Leaf,
   Cornucopia; Storm, Tempest Surge; Untamed, Untamed Shift (checked against the
   same pinned text, 2026-10-18). The Flame Order is from Rage of Elements, outside
-  the core books, so it is not imported.
+  the core books, so it is not imported. A Witch starts with a focus pool of 1 (Hex
+  Spells), and its patron decides its tradition, a hex cantrip (in addition to the
+  five picked) and the spell the familiar learns (patrons and spells listed in
+  `docs/spellcasting.md`; same pinned text, 2026-10-18). Upstream carries the
+  patron's tradition as a Foundry-specific alias override, which we do not import;
+  the mapping is ours. Wilding Steward's familiar learns one of two spells, and every
+  Witch picks one of two first hexes: those are picks, made in a later PR, not grants.
 - **Found while checking, unresolved:** the upstream Oracle and Sorcerer spellcasting
   text both say three rank 1 spells a day at level 1, but the slot table gives the
   Oracle two (the standard style), which matched the published Oracle samples. Settled

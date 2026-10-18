@@ -40,7 +40,7 @@ export function warningText(warning: DeriveWarning): string | undefined {
     case 'choice-not-offered':
       return `${titleCase(warning.value)} is not one of the options for ${titleCase(warning.choice)}.`;
     case 'spellcasting-tradition-undecided':
-      return `${titleCase(warning.classSlug)} casts from the tradition of your ${warning.choice}, which this app cannot set up yet. Add the spellcasting by hand on the sheet.`;
+      return `${titleCase(warning.classSlug)} casts from the tradition of your ${warning.choice}. Choose it (Class choices step); if the app cannot set it up from that yet, add the spellcasting by hand on the sheet.`;
     case 'too-many-cantrips':
       return `${warning.chosen} cantrips chosen but the class has ${warning.allowed}.`;
     case 'too-many-known-spells':

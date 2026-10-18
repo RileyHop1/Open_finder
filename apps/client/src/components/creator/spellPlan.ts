@@ -14,6 +14,7 @@ import {
   grantedSpells,
   isCasterClass,
   slotsAtLevel,
+  traditionFor,
   type BuildRef,
   type MagicalTradition,
   type SpellPicks,
@@ -28,9 +29,9 @@ export const TRADITIONS: readonly MagicalTradition[] = [
 
 export interface CastingPlan {
   readonly kind: 'prepared' | 'spontaneous';
-  /** The class's own list, or `undefined` when a class choice decides it (Witch, Sorcerer). */
+  /** The class's list, or `undefined` while the class choice that decides it is unmade (or decides nothing yet). */
   readonly tradition: MagicalTradition | undefined;
-  /** The class choice that decides the tradition, when one does. */
+  /** The class choice that decides the tradition, when one does (a Witch's patron). */
   readonly traditionChoice: string | undefined;
   readonly cantrips: number;
   /** How many rank 1 spells a spontaneous caster knows (its slots); `undefined` for a prepared caster, not counted yet. */
@@ -39,16 +40,21 @@ export interface CastingPlan {
   readonly rankedLabel: string;
 }
 
-/** The plan for `classSlug`, or `undefined` for a class that does not cast (or none yet). */
-export function castingPlan(classSlug: string | undefined): CastingPlan | undefined {
+/**
+ * The plan for `classSlug` with the build's `classChoices` (which decide a Witch's
+ * list), or `undefined` for a class that does not cast (or none yet).
+ */
+export function castingPlan(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>> = {},
+): CastingPlan | undefined {
   if (classSlug === undefined || !isCasterClass(classSlug)) {
     return undefined;
   }
   const table = CASTER_TABLES[classSlug];
-  const fixed = typeof table.tradition === 'string' ? table.tradition : undefined;
   return {
     kind: table.kind,
-    tradition: fixed,
+    tradition: traditionFor(classSlug, classChoices),
     traditionChoice:
       typeof table.tradition === 'string' ? undefined : table.tradition.choice,
     cantrips: table.cantrips,
@@ -118,8 +124,8 @@ export function classGifts(
   classChoices: Readonly<Record<string, string>>,
 ): ClassGifts {
   const granted = grantedSpells(classSlug, classChoices);
-  const byChoice =
-    classSlug === undefined ? {} : (CLASS_SPELL_GRANTS[classSlug]?.byChoice ?? {});
+  const grants = classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug];
+  const byChoice = grants?.byChoice ?? {};
   const fromChoices = Object.entries(byChoice).flatMap(([choice, byValue]) => {
     const chosen = classChoices[choice];
     return chosen === undefined
@@ -136,11 +142,8 @@ export function classGifts(
     pending: [
       ...new Set([
         ...Object.keys(byChoice),
-        ...Object.keys(
-          classSlug === undefined
-            ? {}
-            : (CLASS_SPELL_GRANTS[classSlug]?.focusByChoice ?? {}),
-        ),
+        ...Object.keys(grants?.cantripsByChoice ?? {}),
+        ...Object.keys(grants?.focusByChoice ?? {}),
       ]),
     ].filter((choice) => classChoices[choice] === undefined),
     font: fontGift(classSlug, classChoices),

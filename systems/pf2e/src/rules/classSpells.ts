@@ -12,7 +12,10 @@
  * from level 15) that hold only Heal or only Harm, by the font chosen. The
  * Druid's Druidic Order gives a focus pool of 1 and each core order names its
  * order spell (Animal: Heal Animal, Leaf: Cornucopia, Storm: Tempest Surge,
- * Untamed: Untamed Shift).
+ * Untamed: Untamed Shift). The Witch's Hex Spells give a focus pool of 1, and each
+ * patron's lesson names a hex cantrip and the spell the familiar learns (Wilding
+ * Steward's familiar learns one of two, which is a pick, not a grant, so it is not
+ * here; checked 2026-10-18).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -28,6 +31,10 @@ export interface ClassSpellGrants {
    * `rollOptionPrefix`, as `build.classChoices` keys it) and the chosen value.
    */
   readonly byChoice: Readonly<
+    Record<string, Readonly<Record<string, readonly string[]>>>
+  >;
+  /** Cantrips a class choice grants, keyed like `byChoice` (a Witch's patron's hex cantrip). */
+  readonly cantripsByChoice?: Readonly<
     Record<string, Readonly<Record<string, readonly string[]>>>
   >;
   /** Focus spells a class choice grants, keyed like `byChoice` (a Druid's order spell). */
@@ -82,6 +89,32 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
       },
     },
   },
+  witch: {
+    focusPoints: 1,
+    cantrips: [],
+    focusSpells: [],
+    byChoice: {
+      patron: {
+        'faiths-flamekeeper': ['command'],
+        'silence-in-snow': ['gust-of-wind'],
+        'spinner-of-threads': ['sure-strike'],
+        'starless-shadow': ['fear'],
+        'the-inscribed-one': ['runic-weapon'],
+        'the-resentment': ['enfeeble'],
+      },
+    },
+    cantripsByChoice: {
+      patron: {
+        'faiths-flamekeeper': ['stoke-the-heart'],
+        'silence-in-snow': ['clinging-ice'],
+        'spinner-of-threads': ['nudge-fate'],
+        'starless-shadow': ['shroud-of-night'],
+        'the-inscribed-one': ['discern-secrets'],
+        'the-resentment': ['evil-eye'],
+        'wilding-steward': ['wilding-word'],
+      },
+    },
+  },
   cleric: {
     focusPoints: 0,
     cantrips: [],
@@ -127,7 +160,7 @@ export function grantedSpells(
     });
   return {
     focusPoints: grants.focusPoints,
-    cantrips: grants.cantrips,
+    cantrips: [...grants.cantrips, ...chosenFrom(grants.cantripsByChoice ?? {})],
     focusSpells: [...grants.focusSpells, ...chosenFrom(grants.focusByChoice ?? {})],
     ranked: chosenFrom(grants.byChoice),
   };

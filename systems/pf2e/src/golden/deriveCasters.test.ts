@@ -14,7 +14,7 @@ type ItemEntry = CharacterItem['entry'];
  * `deriveCharacter` (CLAUDE.md: one character of each class). The expected values
  * are worked out by hand from the tables in `rules/spellcastingTables.ts`, which are
  * (confirm) -- see `docs/rulings.md` ("Spell slots per rank, by level"). A tradition
- * that depends on a choice (the Witch, the Sorcerer) gives no entry yet.
+ * that depends on a choice (the Witch, the Sorcerer) gives no entry until it is made.
  *
  * The class entries are stubs with only the fields the derivation reads: nothing
  * here is Paizo content.
@@ -162,6 +162,39 @@ describe('what a class grants by itself', () => {
     expect(derived.items.map((i) => i.slug)).toContain(spell);
     // An order spell is a focus spell: not a cantrip, not one to prepare.
     expect(derived.spellPicks).toEqual({ cantrips: [], ranked: [] });
+  });
+
+  it.each([
+    ['faiths-flamekeeper', 'divine', 'stoke-the-heart', 'command'],
+    ['spinner-of-threads', 'occult', 'nudge-fate', 'sure-strike'],
+    ['the-inscribed-one', 'arcane', 'discern-secrets', 'runic-weapon'],
+    ['silence-in-snow', 'primal', 'clinging-ice', 'gust-of-wind'],
+  ])(
+    'a level 1 Witch of %s: %s spells, its hex cantrip and familiar’s spell, 1 focus point',
+    (patron, tradition, hex, spell) => {
+      const derived = casting('witch', 'int', 1, { patron });
+      expect(derived.spellcasting).toMatchObject({
+        kind: 'prepared',
+        tradition,
+        slots: { 1: 2 },
+        cantrips: 5,
+      });
+      expect(derived.warnings).toEqual([]);
+      expect(derived.focusPoints).toBe(1);
+      expect(derived.spellPicks).toEqual({
+        cantrips: [{ packId: 'spells', slug: hex }],
+        ranked: [{ packId: 'spells', slug: spell }],
+      });
+    },
+  );
+
+  it('a Wilding Steward witch gets its hex cantrip; its familiar’s spell is a pick, not a grant', () => {
+    const derived = casting('witch', 'int', 1, { patron: 'wilding-steward' });
+    expect(derived.spellcasting?.tradition).toBe('primal');
+    expect(derived.spellPicks).toEqual({
+      cantrips: [{ packId: 'spells', slug: 'wilding-word' }],
+      ranked: [],
+    });
   });
 
   it('the other casters grant nothing yet', () => {

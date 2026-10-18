@@ -119,6 +119,24 @@ describe('SpellsStep', () => {
     expect(wrapper.text()).not.toContain('not your class');
   });
 
+  it('casts from the patron’s list once the patron is chosen, and lists its gifts', async () => {
+    const wrapper = mountStep(
+      characterBuildSchema.parse({
+        class: { packId: 'classes', slug: 'witch' },
+        classChoices: { patron: 'the-resentment' },
+      }),
+    );
+    await flushPromises();
+    expect(wrapper.text()).toContain('Your patron gives you the Occult list.');
+    expect(compendiumApi.searchCompendium).toHaveBeenCalledWith(
+      expect.objectContaining({ tradition: 'occult' }),
+    );
+    const gifts = wrapper.get('[aria-labelledby="spells-gifts-title"]').text();
+    expect(gifts).toContain('Evil Eye');
+    expect(gifts).toContain('Enfeeble');
+    expect(gifts).toContain('1 Focus Point');
+  });
+
   it('counts a Bard’s rank 1 picks against its repertoire, in words past it', async () => {
     const two = [
       { packId: 'spells', slug: 'a' },

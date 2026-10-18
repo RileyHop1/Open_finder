@@ -6,6 +6,7 @@ import {
   isCasterClass,
   rankOpensAt,
   slotsAtLevel,
+  traditionFor,
 } from './spellcastingTables.js';
 
 // Golden values: worked out by hand from the pattern in the module comment, and
@@ -88,8 +89,8 @@ describe('CASTER_TABLES', () => {
     expect(CASTER_TABLES.druid.tradition).toBe('primal');
     expect(CASTER_TABLES.bard.tradition).toBe('occult');
     expect(CASTER_TABLES.oracle.tradition).toBe('divine');
-    expect(CASTER_TABLES.witch.tradition).toEqual({ choice: 'patron' });
-    expect(CASTER_TABLES.sorcerer.tradition).toEqual({ choice: 'bloodline' });
+    expect(CASTER_TABLES.witch.tradition).toMatchObject({ choice: 'patron' });
+    expect(CASTER_TABLES.sorcerer.tradition).toMatchObject({ choice: 'bloodline' });
   });
 
   it('gives the Sorcerer the larger slot style and every other class the standard one', () => {
@@ -99,5 +100,31 @@ describe('CASTER_TABLES', () => {
         (c) => CASTER_TABLES[c].slots === 'standard',
       ),
     ).toBe(true);
+  });
+});
+
+describe('traditionFor', () => {
+  it('gives a fixed-tradition class its list whatever the choices', () => {
+    expect(traditionFor('cleric', {})).toBe('divine');
+    expect(traditionFor('wizard', { patron: 'the-resentment' })).toBe('arcane');
+  });
+
+  it.each([
+    ['faiths-flamekeeper', 'divine'],
+    ['silence-in-snow', 'primal'],
+    ['spinner-of-threads', 'occult'],
+    ['starless-shadow', 'occult'],
+    ['the-inscribed-one', 'arcane'],
+    ['the-resentment', 'occult'],
+    ['wilding-steward', 'primal'],
+  ])('a Witch whose patron is %s casts %s spells', (patron, tradition) => {
+    expect(traditionFor('witch', { patron })).toBe(tradition);
+  });
+
+  it('decides nothing while the choice is unmade or unknown, or for a non-caster', () => {
+    expect(traditionFor('witch', {})).toBeUndefined();
+    expect(traditionFor('witch', { patron: 'someone-else' })).toBeUndefined();
+    expect(traditionFor('sorcerer', { bloodline: 'imperial' })).toBeUndefined();
+    expect(traditionFor('fighter', {})).toBeUndefined();
   });
 });

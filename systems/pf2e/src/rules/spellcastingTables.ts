@@ -47,11 +47,17 @@ export type SlotStyle = 'standard' | 'sorcerer';
 export interface CasterTable {
   readonly kind: 'prepared' | 'spontaneous';
   /**
-   * A fixed tradition, or the name of the class choice that decides it (the
-   * Witch's patron, the Sorcerer's bloodline). Resolving the choice belongs to
-   * those classes' own PRs.
+   * A fixed tradition, or the class choice that decides it (the Witch's patron,
+   * the Sorcerer's bloodline) and the tradition for each value of it. A value
+   * missing from `byValue` decides nothing (the Sorcerer's bloodlines come in its
+   * own PR); `traditionFor` resolves it.
    */
-  readonly tradition: MagicalTradition | { readonly choice: string };
+  readonly tradition:
+    | MagicalTradition
+    | {
+        readonly choice: string;
+        readonly byValue: Readonly<Record<string, MagicalTradition>>;
+      };
   /** Cantrips known or prepared at level 1 (the Wizard's school adds one, in its own PR). */
   readonly cantrips: number;
   readonly slots: SlotStyle;
@@ -64,18 +70,50 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
   oracle: { kind: 'spontaneous', tradition: 'divine', cantrips: 5, slots: 'standard' },
   sorcerer: {
     kind: 'spontaneous',
-    tradition: { choice: 'bloodline' },
+    tradition: { choice: 'bloodline', byValue: {} },
     cantrips: 5,
     slots: 'sorcerer',
   },
   witch: {
     kind: 'prepared',
-    tradition: { choice: 'patron' },
+    // Each patron's Spell List, checked against the pinned upstream text (2026-10-18).
+    tradition: {
+      choice: 'patron',
+      byValue: {
+        'faiths-flamekeeper': 'divine',
+        'silence-in-snow': 'primal',
+        'spinner-of-threads': 'occult',
+        'starless-shadow': 'occult',
+        'the-inscribed-one': 'arcane',
+        'the-resentment': 'occult',
+        'wilding-steward': 'primal',
+      },
+    },
     cantrips: 5,
     slots: 'standard',
   },
   wizard: { kind: 'prepared', tradition: 'arcane', cantrips: 5, slots: 'standard' },
 };
+
+/**
+ * The tradition `slug` casts from, given the build's class choices: its fixed one,
+ * or the one its deciding choice maps to. `undefined` for a class that does not
+ * cast, or while the choice is unmade or maps to nothing.
+ */
+export function traditionFor(
+  slug: string,
+  classChoices: Readonly<Record<string, string>>,
+): MagicalTradition | undefined {
+  if (!isCasterClass(slug)) {
+    return undefined;
+  }
+  const { tradition } = CASTER_TABLES[slug];
+  if (typeof tradition === 'string') {
+    return tradition;
+  }
+  const chosen = classChoices[tradition.choice];
+  return chosen === undefined ? undefined : tradition.byValue[chosen];
+}
 
 /** The level a rank's slots first open: rank 1 at 1, rank r at 2r - 1, the tenth at 19. */
 export function rankOpensAt(rank: number): number {

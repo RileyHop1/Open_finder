@@ -11,8 +11,8 @@
  * the same way `actor.applyBuild` never removes an item.
  *
  * A class whose tradition depends on a choice (the Witch's patron, the
- * Sorcerer's bloodline) gets no entry until that class's own PR supplies how the
- * choice maps to a tradition; the derivation says so in a warning instead of
+ * Sorcerer's bloodline) gets no entry until the choice is made and maps to a
+ * tradition (`traditionFor`); the derivation says so in a warning instead of
  * guessing. Nothing here refuses anything (ADR 0023).
  */
 
@@ -20,7 +20,12 @@ import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { ClassEntry } from '../content/class.js';
 import type { MagicalTradition } from '../content/spell.js';
 import type { SpellcastingEntry } from '../content/spellcasting.js';
-import { CASTER_TABLES, isCasterClass, slotsAtLevel } from './spellcastingTables.js';
+import {
+  CASTER_TABLES,
+  isCasterClass,
+  slotsAtLevel,
+  traditionFor,
+} from './spellcastingTables.js';
 
 export interface DerivedSpellcasting {
   /** Which build source this entry belongs to (`class:wizard`), so a re-apply finds it. */
@@ -50,8 +55,8 @@ export interface DerivedSpellcastingResult {
 
 /**
  * The spellcasting `cls` gives at `level`, or none for a class that does not
- * cast. `traditionOf` maps a class choice (its key and chosen value) to a
- * tradition for the classes that need one; no class supplies it yet. `rank` is
+ * cast. `classChoices` (the build's) decide the tradition for the classes whose
+ * tradition is a choice (the Witch's patron). `rank` is
  * the spellcasting proficiency, which the class features raise (Expert
  * Spellcaster, a Cloistered Cleric's third doctrine; `deriveCharacter` works it
  * out from their `rankUps`).
@@ -60,17 +65,14 @@ export function deriveSpellcasting(
   cls: Pick<ClassEntry, 'slug' | 'name'> | undefined,
   level: number,
   attribute: Attribute,
-  traditionOf?: (choice: string) => MagicalTradition | undefined,
+  classChoices: Readonly<Record<string, string>> = {},
   rank: ProficiencyRank = 'trained',
 ): DerivedSpellcastingResult {
   if (cls === undefined || !isCasterClass(cls.slug)) {
     return { warnings: [] };
   }
   const table = CASTER_TABLES[cls.slug];
-  const tradition =
-    typeof table.tradition === 'string'
-      ? table.tradition
-      : traditionOf?.(table.tradition.choice);
+  const tradition = traditionFor(cls.slug, classChoices);
   if (tradition === undefined) {
     const choice = typeof table.tradition === 'string' ? '' : table.tradition.choice;
     return {
