@@ -105,7 +105,11 @@ never counting them against the picks, and returns the pool as `focusPoints`.
 `actor.applyBuild` only ever raises the sheet's focus pool, so a point spent in play stays
 spent. The **Bard** has a row: Courageous Anthem (a composition cantrip), Counter
 Performance (a focus spell), a pool of 1, and its muse's spell (Enigma: Sure Strike,
-Maestro: Soothe, Polymath: Phantasmal Minion, Warrior: Fear).
+Maestro: Soothe, Polymath: Phantasmal Minion, Warrior: Fear). A row's
+`focusByChoice` grants focus spells by a class choice the same way: the **Druid**
+has a pool of 1 and its order's spell (Animal: Heal Animal, Leaf: Cornucopia, Storm:
+Tempest Surge, Untamed: Untamed Shift), listed under Focus spells on the sheet. The
+order's skill and feat come from the imported order itself.
 
 A row can also carry a **font**: extra slots at the class's highest rank that hold only
 one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5

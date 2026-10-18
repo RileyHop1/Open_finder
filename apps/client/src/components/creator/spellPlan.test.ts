@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { castingPlan, classGifts, isPicked, togglePick } from './spellPlan.js';
+import {
+  castingPlan,
+  choiceWords,
+  classGifts,
+  isPicked,
+  togglePick,
+} from './spellPlan.js';
 
 describe('castingPlan', () => {
   it('has no plan for a class that does not cast, or no class', () => {
@@ -85,9 +91,30 @@ describe('classGifts', () => {
     expect(classGifts('cleric', { 'divine-font': 'harm' }).font?.spell).toBe('harm');
   });
 
+  it('gives a Druid 1 focus point and waits for the order, then names its order spell', () => {
+    expect(classGifts('druid', {})).toMatchObject({
+      spells: [],
+      focusPoints: 1,
+      pending: ['druidicOrder'],
+    });
+    const chosen = classGifts('druid', { druidicOrder: 'animal-order' });
+    expect(chosen.spells).toEqual([{ slug: 'heal-animal', why: 'focus' }]);
+    expect(chosen.pending).toEqual([]);
+  });
+
   it('gives a class with no row nothing', () => {
     const none = { spells: [], focusPoints: 0, pending: [], font: undefined };
-    expect(classGifts('druid', {})).toEqual(none);
+    expect(classGifts('wizard', {})).toEqual(none);
     expect(classGifts(undefined, {})).toEqual(none);
+  });
+});
+
+describe('choiceWords', () => {
+  it.each([
+    ['muse', 'muse'],
+    ['druidicOrder', 'druidic order'],
+    ['divine-font', 'divine font'],
+  ])('%s reads %s', (key, words) => {
+    expect(choiceWords(key)).toBe(words);
   });
 });

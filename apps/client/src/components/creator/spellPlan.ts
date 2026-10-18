@@ -133,7 +133,16 @@ export function classGifts(
       ...fromChoices,
     ],
     focusPoints: granted.focusPoints,
-    pending: Object.keys(byChoice).filter((choice) => classChoices[choice] === undefined),
+    pending: [
+      ...new Set([
+        ...Object.keys(byChoice),
+        ...Object.keys(
+          classSlug === undefined
+            ? {}
+            : (CLASS_SPELL_GRANTS[classSlug]?.focusByChoice ?? {}),
+        ),
+      ]),
+    ].filter((choice) => classChoices[choice] === undefined),
     font: fontGift(classSlug, classChoices),
   };
 }
@@ -152,4 +161,12 @@ function fontGift(
         spell: font.spell,
         options: Object.values(grant.spells),
       };
+}
+
+/** A class choice's key in words, for a sentence: `druidicOrder` -> `druidic order`, `divine-font` -> `divine font`. */
+export function choiceWords(choice: string): string {
+  return choice
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/-/g, ' ')
+    .toLowerCase();
 }

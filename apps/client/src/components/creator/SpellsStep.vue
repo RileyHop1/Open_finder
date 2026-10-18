@@ -25,7 +25,13 @@ import {
 } from '../../api/compendium.js';
 import RulesTerm from '../RulesTerm.vue';
 import { titleCase } from '../sheet/format.js';
-import { TRADITIONS, castingPlan, classGifts, isPicked } from './spellPlan.js';
+import {
+  TRADITIONS,
+  castingPlan,
+  choiceWords,
+  classGifts,
+  isPicked,
+} from './spellPlan.js';
 
 const props = defineProps<{
   build: CharacterBuild;
@@ -154,7 +160,11 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
               :slug="gift.slug"
               :label="titleCase(gift.slug)"
             />:
-            {{ gift.why === 'choice' ? `from your ${gift.choice}` : WHY[gift.why] }}
+            {{
+              gift.why === 'choice'
+                ? `from your ${choiceWords(gift.choice ?? '')}`
+                : WHY[gift.why]
+            }}
           </li>
           <li v-if="gifts.font !== undefined">
             {{ gifts.font.name }}: {{ gifts.font.count }} extra slots at your highest
@@ -176,7 +186,8 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
           </li>
         </ul>
         <p v-for="choice in gifts.pending" :key="choice" class="note">
-          Your {{ choice }} adds a spell once you choose it (Class choices step).
+          Your {{ choiceWords(choice) }} adds a spell once you choose it (Class choices
+          step).
         </p>
         <p class="note">These are not counted against the spells you choose below.</p>
       </section>
