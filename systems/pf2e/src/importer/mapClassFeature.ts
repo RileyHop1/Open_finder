@@ -30,6 +30,7 @@ import { deterministicId } from './deterministicId.js';
 import type { DraftEntry, MapContentResult } from './draftEntry.js';
 import { htmlToRichText } from './htmlToRichText.js';
 import { mapEntryRuleElements } from './mapRuleElements.js';
+import { readCurriculum } from './readCurriculum.js';
 import type { UpstreamEntry } from './reader.js';
 import {
   asRecord,
@@ -105,6 +106,7 @@ export function mapClassFeature(
   const text = htmlToRichText(description);
   const read = readClassFeatureRules(system.rules, classSlugs);
   const { elements } = mapEntryRuleElements(read.rules);
+  const curriculum = readCurriculum(description);
 
   return {
     ok: true,
@@ -127,6 +129,7 @@ export function mapClassFeature(
       tags,
       rankUps: mapRankUps(system, classSlugs),
       skillRankUps: read.skillRankUps,
+      ...(curriculum === undefined ? {} : { curriculum }),
     },
   };
 }

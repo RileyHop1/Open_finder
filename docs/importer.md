@@ -447,6 +447,17 @@ taken later, Crossblooded Evolution). Any other predicate leaves the element ine
 pinned data (2026-10-17) 42 kept class features train a skill, and the dependency
 drops are unchanged.
 
+**A Wizard's curriculum** (`readCurriculum.ts`) has no upstream field: an arcane
+school's text carries it as a "Curriculum" heading and a list straight after it, one
+item per rank (`cantrips:`, `1st:` to `9th:`), each naming its spells as
+`@UUID[Compendium.pf2e.spells-srd.Item.<Name>]` links. The mapper reads that list into
+the feature's `curriculum` (spell slugs by rank, `"0"` for the cantrips), slugifying
+each name the way a spell's own slug is made. Text of any other shape reads as no
+curriculum. Against the pinned data (2026-10-19) all six Player Core schools with one
+read whole (2 cantrips, 3 or 4 rank 1 spells, then 2 a rank and 1 at the 9th), Unified
+Magical Theory has none, and `import-smoke` fails unless six curricula read whole and
+every spell in them is one that was imported.
+
 ### The creature mapper (C.7g)
 
 **A creature's strikes live outside `system`.** Every other mapper reads

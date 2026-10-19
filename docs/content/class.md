@@ -55,6 +55,7 @@ is milestone 8's wizard, not this schema.
 | `level` | integer 1-20 | |
 | `rankUps` | partial record of `perception`, `fortitude`, `reflex`, `will`, `classDc`, `spellcasting`, `unarmed`, `simple`, `martial`, `advanced`, `unarmored`, `light`, `medium`, `heavy` to a proficiency rank, default `{}` | The ranks this feature raises to from its level on (Bravery: Will expert). A raise, never a lowering |
 | `skillRankUps` | record of skill slug to a proficiency rank, default `{}` | The skills this feature trains (or raises): the Thief racket, Thievery trained. A raise, never a lowering |
+| `curriculum` | optional partial record of `"0"` to `"9"` to spell slugs | A Wizard's arcane school's curriculum, by rank (`"0"` the cantrips), read from its text ([importer.md](../importer.md)). Absent on every other feature |
 
 The relationship is stored on the feature, not as a list on the class entry
 -- a class has dozens of features across 20 levels, and this keeps each side
