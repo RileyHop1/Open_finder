@@ -162,13 +162,26 @@ Light, Heal, Angelic Halo; Demonic: Caustic Blast, Fear, Glutton's Jaws; Diaboli
 Ignition, Charm, Diabolic Edict; Draconic: Shield, Fear, Flurry of Claws; Fey: Figment,
 Charm, Faerie Dust; Hag: Daze, Illusory Disguise, Jealous Hex; Imperial: Detect Magic,
 Force Barrage, Ancestral Memories; Undead: Void Warp, Harm, Undeath's Blessing; Elemental:
-Elemental Toss (its gifts depend on its element, a further choice). Unlike the Oracle's,
+Elemental Toss, with its cantrip and rank 1 gift by its element (Air: Gale Blast,
+Tailwind; Earth: Scatter Scree, Pummeling Rubble; Fire: Ignition, Breathe Fire; Metal:
+Electric Arc, Thunderstrike; Water: Frostbite, Hydraulic Push; Wood: Tangle Vine,
+Cleanse Cuisine).
+
+The dragon exemplar and the element are **sub-choices** (`subChoices`, `subChoicesFor`):
+further choices a chosen feature asks whose options carry data, not features, so their
+upstream choice sets import inert. A row authors them: the key in `build.classChoices`,
+the feature that asks, a prompt, a `when` (the bloodline that asks) and the options. The
+creator's class choices step asks them in place of the inert choice set, an unanswered
+one is a `choice-not-made` warning naming the feature, and the grant tables key on the
+answer like any choice, but only while `when` holds: an answer left over from another
+bloodline counts for nothing. The Draconic exemplar is one of the four traditions,
+which is its tradition and trains its bloodline skill (Arcana, Religion, Occultism or
+Nature; `subChoiceSkills`, applied with the feature skills). Unlike the Oracle's,
 a Sorcerer's gifts **take places in its repertoire** (`grantsFillRepertoire`,
 `repertoireFilled`): it knows 5 cantrips and as many ranked spells as it has slots, one
 of each rank from its bloodline, so at level 1 it picks 4 cantrips and 2 rank 1 spells
-(`too-many-cantrips`, `too-many-known-spells` past those). The gifts above rank 1, and
-the Draconic and Elemental gifts that hang on a further choice, come in later PRs; the
-bloodline's skills come from the imported bloodline.
+(`too-many-cantrips`, `too-many-known-spells` past those). The gifts above rank 1
+come in a later PR; the bloodline's skills come from the imported bloodline.
 
 A row can also carry a **font**: extra slots at the class's highest rank that hold only
 one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5
@@ -200,10 +213,10 @@ table; `traditionFor` resolves it from `build.classChoices`. The **Witch's** pat
 are mapped: Faith's Flamekeeper divine; Silence in Snow and Wilding Steward primal;
 Spinner of Threads, Starless Shadow and The Resentment occult; The Inscribed One
 arcane. So are the **Sorcerer's** bloodlines: Aberrant and Hag occult; Angelic, Demonic,
-Diabolic and Undead divine; Elemental and Fey primal; Imperial arcane. Until the choice
-is made, or for a value with no tradition (the Draconic bloodline, whose tradition is
-its dragon exemplar's, a further choice not read yet), there is **no entry** and a
-`spellcasting-tradition-undecided` warning. The creator's review tells
+Diabolic and Undead divine; Elemental and Fey primal; Imperial arcane; Draconic, its
+dragon exemplar's (a value can name a further choice whose answer is the tradition,
+`{ fromChoice }`). Until the choice is made, or for a value with no tradition, there is
+**no entry** and a `spellcasting-tradition-undecided` warning. The creator's review tells
 the player to choose it, or to add the spellcasting by hand.
 
 The casting attribute follows the key attribute `actor.applyBuild` settles on: the

@@ -84,3 +84,37 @@ describe('choicesDue', () => {
     expect(choicesDue([cause], {}).unautomated).toEqual(['cause']);
   });
 });
+
+describe('choicesDue -- authored sub-choices', () => {
+  // An invented bloodline under the slug the Sorcerer's grant table names, with the
+  // inert choice set its import leaves.
+  const bloodline = feature('bloodline', {
+    classSlugs: ['sorcerer'],
+    ruleElements: [choice('bloodline', ['bloodline-draconic', 'bloodline-fey'])],
+  });
+  const draconic = feature('bloodline-draconic', {
+    classSlugs: ['sorcerer'],
+    tags: ['sorcerer-bloodline'],
+    ruleElements: [{ kind: 'inert', upstreamKind: 'ChoiceSet', reason: 'unmapped' }],
+  });
+
+  it('asks a Draconic sorcerer for its dragon exemplar instead of flagging it', () => {
+    const due = choicesDue([bloodline, draconic], { bloodline: 'bloodline-draconic' });
+    expect(due.unautomated).toEqual([]);
+    const exemplar = due.choices.find(
+      (c) => c.element.rollOptionPrefix === 'draconic-exemplar',
+    );
+    expect(exemplar?.options.map((o) => o.label)).toEqual([
+      'Arcane (trains Arcana)',
+      'Divine (trains Religion)',
+      'Occult (trains Occultism)',
+      'Primal (trains Nature)',
+    ]);
+    expect(exemplar?.chosen).toBeUndefined();
+  });
+
+  it('asks nothing more until that bloodline is picked', () => {
+    const due = choicesDue([bloodline, draconic], { bloodline: 'bloodline-fey' });
+    expect(due.choices.map((c) => c.element.rollOptionPrefix)).toEqual(['bloodline']);
+  });
+});

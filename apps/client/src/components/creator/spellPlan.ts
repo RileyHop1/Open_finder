@@ -20,6 +20,7 @@ import {
   repertoireFilled,
   slotsAtLevel,
   spellChoicesFor,
+  subChoicesFor,
   traditionFor,
   type BuildRef,
   type ClassFeatureEntry,
@@ -221,7 +222,13 @@ export function classGifts(
         ...Object.keys(grants?.cantripsByChoice ?? {}),
         ...Object.keys(grants?.focusByChoice ?? {}),
       ]),
-    ].filter((choice) => classChoices[choice] === undefined),
+    ].filter(
+      (choice) =>
+        classChoices[choice] === undefined &&
+        // A sub-choice (an Elemental sorcerer's element) only once it is asked for.
+        (!(grants?.subChoices ?? []).some((c) => c.key === choice) ||
+          subChoicesFor(classSlug, classChoices).some((c) => c.key === choice)),
+    ),
     choices,
     curriculum: curriculumFor(classSlug, classChoices),
     font: fontGift(classSlug, classChoices),

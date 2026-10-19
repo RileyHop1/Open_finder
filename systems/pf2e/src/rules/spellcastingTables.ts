@@ -22,7 +22,7 @@
  * Pure data and arithmetic; none of it refuses anything (ADR 0023).
  */
 
-import type { MagicalTradition } from '../content/spell.js';
+import { MAGICAL_TRADITIONS, type MagicalTradition } from '../content/spell.js';
 
 export const CASTER_CLASS_SLUGS = [
   'bard',
@@ -56,14 +56,19 @@ export interface CasterTable {
   /**
    * A fixed tradition, or the class choice that decides it (the Witch's patron,
    * the Sorcerer's bloodline) and the tradition for each value of it. A value
-   * missing from `byValue` decides nothing (the Sorcerer's Draconic bloodline, whose
-   * tradition is its dragon exemplar's); `traditionFor` resolves it.
+   * missing from `byValue` decides nothing; `traditionFor` resolves it.
    */
   readonly tradition:
     | MagicalTradition
     | {
         readonly choice: string;
-        readonly byValue: Readonly<Record<string, MagicalTradition>>;
+        /**
+         * The tradition for each value, or the further choice whose answer is the
+         * tradition (a Draconic sorcerer's dragon exemplar).
+         */
+        readonly byValue: Readonly<
+          Record<string, MagicalTradition | { readonly fromChoice: string }>
+        >;
       };
   /** Cantrips known or prepared at level 1 (a Wizard's curriculum adds one, in its own entry: `classSpells.ts`). */
   readonly cantrips: number;
@@ -99,8 +104,7 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
   sorcerer: {
     kind: 'spontaneous',
     // Each bloodline's Tradition, checked against the pinned upstream text
-    // (2026-10-19). The Draconic one is the dragon exemplar's, chosen separately, so
-    // it is not here yet.
+    // (2026-10-19). The Draconic one is its dragon exemplar's, a further choice.
     tradition: {
       choice: 'bloodline',
       byValue: {
@@ -108,6 +112,7 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
         'bloodline-angelic': 'divine',
         'bloodline-demonic': 'divine',
         'bloodline-diabolic': 'divine',
+        'bloodline-draconic': { fromChoice: 'draconic-exemplar' },
         'bloodline-elemental': 'primal',
         'bloodline-fey': 'primal',
         'bloodline-hag': 'occult',
@@ -191,7 +196,14 @@ export function traditionFor(
     return tradition;
   }
   const chosen = classChoices[tradition.choice];
-  return chosen === undefined ? undefined : tradition.byValue[chosen];
+  const mapped = chosen === undefined ? undefined : tradition.byValue[chosen];
+  if (typeof mapped !== 'object') {
+    return mapped;
+  }
+  const answer = classChoices[mapped.fromChoice];
+  return (MAGICAL_TRADITIONS as readonly string[]).includes(answer ?? '')
+    ? (answer as MagicalTradition)
+    : undefined;
 }
 
 /** The level a rank's slots first open: rank 1 at 1, rank r at 2r - 1, the tenth at 19. */

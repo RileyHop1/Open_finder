@@ -27,6 +27,8 @@ import {
   fontAt,
   grantedSpells,
   spellChoicesFor,
+  subChoiceSkills,
+  subChoicesFor,
 } from './classSpells.js';
 import {
   type DerivedSpellcasting,
@@ -393,19 +395,31 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   // Skills a class feature trains (a Thief's Thievery, a Druid order's skill). One
   // already trained is still applied, with a warning: the rules have the character
   // train another skill of their choice instead, so one more pick is allowed.
+  // A sub-choice's skill (a dragon exemplar's) counts the same way, under the feature
+  // that asks for it.
   let trainedTwice = 0;
-  for (const item of items) {
-    if (item.kind !== 'classFeature') {
-      continue;
+  const featureSkills: { skill: string; rank: ProficiencyRank; feature: string }[] = [
+    ...items.flatMap((item) =>
+      item.kind === 'classFeature'
+        ? Object.entries(item.skillRankUps).map(([skill, rank]) => ({
+            skill,
+            rank,
+            feature: item.slug,
+          }))
+        : [],
+    ),
+    ...subChoiceSkills(inputs.class?.slug, build.classChoices).map((s) => ({
+      ...s,
+      rank: 'trained' as const,
+    })),
+  ];
+  for (const { skill, rank, feature } of featureSkills) {
+    const had = skills[skill] ?? 'untrained';
+    if (rank === 'trained' && had !== 'untrained') {
+      trainedTwice++;
+      warnings.push({ kind: 'skill-trained-twice', skill, feature });
     }
-    for (const [skill, rank] of Object.entries(item.skillRankUps)) {
-      const had = skills[skill] ?? 'untrained';
-      if (rank === 'trained' && had !== 'untrained') {
-        trainedTwice++;
-        warnings.push({ kind: 'skill-trained-twice', skill, feature: item.slug });
-      }
-      skills[skill] = better(had, rank);
-    }
+    skills[skill] = better(had, rank);
   }
 
   const allowed =
@@ -460,6 +474,15 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   const refs = (slugs: readonly string[]) =>
     slugs.map((slug) => ({ packId: CLASS_SPELLS_PACK, slug }));
   pickSpells(refs(granted.focusSpells));
+  for (const choice of subChoicesFor(inputs.class?.slug, build.classChoices)) {
+    if (choice.chosen === undefined) {
+      warnings.push({
+        kind: 'choice-not-made',
+        choice: choice.key,
+        feature: choice.feature,
+      });
+    }
+  }
   for (const choice of spellChoicesFor(inputs.class?.slug, build.classChoices)) {
     if (choice.chosen === undefined) {
       warnings.push({

@@ -335,24 +335,65 @@ describe('what a class grants by itself', () => {
     },
   );
 
-  it('a Draconic sorcerer gets its gifts but waits for its dragon exemplar’s tradition', () => {
-    const derived = casting('sorcerer', 'cha', 1, { bloodline: 'bloodline-draconic' });
-    expect(derived.spellcasting).toBeUndefined();
-    expect(derived.warnings).toContainEqual({
-      kind: 'spellcasting-tradition-undecided',
-      choice: 'bloodline',
-      classSlug: 'sorcerer',
-    });
-    expect(derived.items.map((i) => i.slug)).toEqual(
+  it('a Draconic sorcerer waits for its dragon exemplar, then casts and trains by it', () => {
+    const waiting = casting('sorcerer', 'cha', 1, { bloodline: 'bloodline-draconic' });
+    expect(waiting.spellcasting).toBeUndefined();
+    expect(waiting.warnings).toEqual(
+      expect.arrayContaining([
+        {
+          kind: 'spellcasting-tradition-undecided',
+          choice: 'bloodline',
+          classSlug: 'sorcerer',
+        },
+        {
+          kind: 'choice-not-made',
+          choice: 'draconic-exemplar',
+          feature: 'bloodline-draconic',
+        },
+      ]),
+    );
+    expect(waiting.items.map((i) => i.slug)).toEqual(
       expect.arrayContaining(['shield', 'fear', 'flurry-of-claws']),
     );
+
+    const divine = casting('sorcerer', 'cha', 1, {
+      bloodline: 'bloodline-draconic',
+      'draconic-exemplar': 'divine',
+    });
+    expect(divine.spellcasting?.tradition).toBe('divine');
+    expect(divine.ranks.skills.religion).toBe('trained');
+    expect(divine.warnings).toEqual([]);
   });
 
-  it('an Elemental sorcerer is primal and has its bloodline spell; its element’s gifts come later', () => {
-    const derived = casting('sorcerer', 'cha', 1, { bloodline: 'bloodline-elemental' });
-    expect(derived.spellcasting?.tradition).toBe('primal');
-    expect(derived.items.map((i) => i.slug)).toContain('elemental-toss');
-    expect(derived.spellPicks).toEqual({ cantrips: [], ranked: [] });
+  it.each([
+    ['fire', 'ignition', 'breathe-fire'],
+    ['wood', 'tangle-vine', 'cleanse-cuisine'],
+  ])(
+    'an Elemental sorcerer of %s: primal, its element’s cantrip and rank 1 gift',
+    (element, cantrip, spell) => {
+      const derived = casting('sorcerer', 'cha', 1, {
+        bloodline: 'bloodline-elemental',
+        'elemental-influence': element,
+      });
+      expect(derived.spellcasting?.tradition).toBe('primal');
+      expect(derived.items.map((i) => i.slug)).toContain('elemental-toss');
+      expect(derived.spellPicks).toEqual({
+        cantrips: [{ packId: 'spells', slug: cantrip }],
+        ranked: [{ packId: 'spells', slug: spell }],
+      });
+      expect(derived.warnings).toEqual([]);
+    },
+  );
+
+  it('ignores an answer left over from another bloodline', () => {
+    const derived = casting('sorcerer', 'cha', 1, {
+      bloodline: 'bloodline-imperial',
+      'elemental-influence': 'fire',
+      'draconic-exemplar': 'primal',
+    });
+    expect(derived.spellcasting?.tradition).toBe('arcane');
+    expect(derived.spellPicks.cantrips.map((r) => r.slug)).toEqual(['detect-magic']);
+    expect(derived.ranks.skills.nature).toBeUndefined();
   });
 
   it('a Cleric grants nothing beyond its font', () => {
@@ -464,7 +505,12 @@ describe('a book caster’s picks (a Wizard’s spellbook, a Witch’s familiar)
     ]);
     // The same 4 and 2 for a bloodline whose gifts hang on a further choice.
     expect(
-      withPicks('sorcerer', { bloodline: 'bloodline-elemental' }, 5, 3).warnings,
+      withPicks(
+        'sorcerer',
+        { bloodline: 'bloodline-elemental', 'elemental-influence': 'water' },
+        5,
+        3,
+      ).warnings,
     ).toHaveLength(2);
   });
 

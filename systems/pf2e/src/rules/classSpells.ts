@@ -26,8 +26,9 @@
  * higher one once the Oracle can cast spells of its rank (checked 2026-10-19). A
  * Sorcerer starts with a focus pool of 1, its bloodline's initial bloodline spell, and
  * its bloodline's sorcerous gifts: a cantrip and a rank 1 spell at level 1 (the higher
- * ranks, and the Draconic and Elemental gifts that hang on a further choice, come in
- * later PRs; checked 2026-10-19).
+ * ranks come in a later PR). A Draconic sorcerer chooses its dragon exemplar's
+ * tradition, which trains its bloodline skill; an Elemental one its element, which
+ * decides its cantrip and rank 1 gift (`subChoices`; checked 2026-10-19).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -68,6 +69,32 @@ export interface ClassSpellGrants {
   readonly spellChoices?: readonly SpellChoice[];
   /** Extra prepared slots for a class choice's own list (a Wizard's school curriculum). */
   readonly curriculum?: CurriculumGrant;
+  /** Further choices a chosen feature asks that the import cannot read (a dragon exemplar). */
+  readonly subChoices?: readonly SubChoice[];
+}
+
+/**
+ * A further choice a class choice's feature asks for, whose options carry data rather
+ * than features, so its choice set imports inert: a Draconic sorcerer's dragon
+ * exemplar, an Elemental sorcerer's element. The class choices step offers it, the
+ * answer is stored in `build.classChoices` under `key`, and the grant tables key on it
+ * like any choice, but only while `when` holds (a stale answer from another bloodline
+ * counts for nothing).
+ */
+export interface SubChoice {
+  readonly key: string;
+  /** The feature that asks. */
+  readonly feature: string;
+  readonly prompt: string;
+  readonly when: { readonly choice: string; readonly value: string };
+  readonly options: readonly SubChoiceOption[];
+}
+
+export interface SubChoiceOption {
+  readonly value: string;
+  readonly label: string;
+  /** A skill the option trains (a dragon exemplar's bloodline skill). */
+  readonly skill?: string;
 }
 
 /**
@@ -267,7 +294,43 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
     cantrips: [],
     focusSpells: [],
     byChoice: {},
+    subChoices: [
+      {
+        key: 'draconic-exemplar',
+        feature: 'bloodline-draconic',
+        prompt: 'Choose your dragon exemplar’s tradition',
+        when: { choice: 'bloodline', value: 'bloodline-draconic' },
+        options: [
+          { value: 'arcane', label: 'Arcane', skill: 'arcana' },
+          { value: 'divine', label: 'Divine', skill: 'religion' },
+          { value: 'occult', label: 'Occult', skill: 'occultism' },
+          { value: 'primal', label: 'Primal', skill: 'nature' },
+        ],
+      },
+      {
+        key: 'elemental-influence',
+        feature: 'bloodline-elemental',
+        prompt: 'Choose your elemental influence',
+        when: { choice: 'bloodline', value: 'bloodline-elemental' },
+        options: [
+          { value: 'air', label: 'Air' },
+          { value: 'earth', label: 'Earth' },
+          { value: 'fire', label: 'Fire' },
+          { value: 'metal', label: 'Metal' },
+          { value: 'water', label: 'Water' },
+          { value: 'wood', label: 'Wood' },
+        ],
+      },
+    ],
     byChoiceAtRank: {
+      'elemental-influence': {
+        air: { 1: ['tailwind'] },
+        earth: { 1: ['pummeling-rubble'] },
+        fire: { 1: ['breathe-fire'] },
+        metal: { 1: ['thunderstrike'] },
+        water: { 1: ['hydraulic-push'] },
+        wood: { 1: ['cleanse-cuisine'] },
+      },
       bloodline: {
         'bloodline-aberrant': { 1: ['phantom-pain'] },
         'bloodline-angelic': { 1: ['heal'] },
@@ -281,6 +344,14 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
       },
     },
     cantripsByChoice: {
+      'elemental-influence': {
+        air: ['gale-blast'],
+        earth: ['scatter-scree'],
+        fire: ['ignition'],
+        metal: ['electric-arc'],
+        water: ['frostbite'],
+        wood: ['tangle-vine'],
+      },
       bloodline: {
         'bloodline-aberrant': ['daze'],
         'bloodline-angelic': ['light'],
@@ -360,15 +431,51 @@ export function spellChoicesFor(
     });
 }
 
+/** `classChoices` without the answers to sub-choices whose `when` does not hold. */
+function activeChoices(
+  grants: ClassSpellGrants | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> {
+  const stale = (grants?.subChoices ?? []).filter(
+    (c) => classChoices[c.when.choice] !== c.when.value,
+  );
+  return stale.length === 0
+    ? classChoices
+    : Object.fromEntries(
+        Object.entries(classChoices).filter(([key]) => !stale.some((c) => c.key === key)),
+      );
+}
+
+/** A sub-choice as the build stands: the option chosen, if it is one of them. */
+export interface OfferedSubChoice extends SubChoice {
+  readonly chosen: SubChoiceOption | undefined;
+}
+
+/** The sub-choices `classSlug` asks for given the build's class choices (their `when` holds). */
+export function subChoicesFor(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): OfferedSubChoice[] {
+  const choices =
+    classSlug === undefined ? [] : (CLASS_SPELL_GRANTS[classSlug]?.subChoices ?? []);
+  return choices
+    .filter((c) => classChoices[c.when.choice] === c.when.value)
+    .map((c) => ({
+      ...c,
+      chosen: c.options.find((o) => o.value === classChoices[c.key]),
+    }));
+}
+
 /**
  * The spells `byChoiceAtRank` adds at `level`, with the choice each came from: those of
  * every rank open by then (rank 1 at level 1, rank r at 2r - 1).
  */
 export function rankedByChoice(
   grants: ClassSpellGrants | undefined,
-  classChoices: Readonly<Record<string, string>>,
+  allChoices: Readonly<Record<string, string>>,
   level: number,
 ): { readonly slug: string; readonly choice: string }[] {
+  const classChoices = activeChoices(grants, allChoices);
   return Object.entries(grants?.byChoiceAtRank ?? {}).flatMap(([choice, byValue]) => {
     const chosen = classChoices[choice];
     const byRank = chosen === undefined ? undefined : byValue[chosen];
@@ -384,13 +491,14 @@ export function rankedByChoice(
  */
 export function grantedSpells(
   classSlug: string | undefined,
-  classChoices: Readonly<Record<string, string>>,
+  allChoices: Readonly<Record<string, string>>,
   level = 1,
 ): GrantedSpells {
   const grants = classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug];
   if (grants === undefined) {
     return { focusPoints: 0, cantrips: [], focusSpells: [], ranked: [] };
   }
+  const classChoices = activeChoices(grants, allChoices);
   const chosenFrom = (table: ClassSpellGrants['byChoice']) =>
     Object.entries(table).flatMap(([choice, byValue]) => {
       const chosen = classChoices[choice];
@@ -479,4 +587,14 @@ export function curriculumBookSpells(
   return curriculum.without.includes(chosen)
     ? curriculum.bookSpellsWithout
     : curriculum.bookSpells;
+}
+
+/** The skills `classSlug`'s answered sub-choices train, with the feature that asks for each. */
+export function subChoiceSkills(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): { readonly skill: string; readonly feature: string }[] {
+  return subChoicesFor(classSlug, classChoices).flatMap((c) =>
+    c.chosen?.skill === undefined ? [] : [{ skill: c.chosen.skill, feature: c.feature }],
+  );
 }

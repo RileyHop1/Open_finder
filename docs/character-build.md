@@ -180,7 +180,10 @@ group; every option shows what it grants, and the answer is written to
 `build.classChoices`, from which `deriveCharacter` grants the picked feature.
 A question left open is marked "(not chosen yet)", never blocked. A feature
 whose choice the importer could not map (Champion's cause, for one) is listed
-with a note to settle it with the GM. The class's level 1 features load with
+with a note to settle it with the GM, unless the PF2e system authors that
+question (`subChoices`: a Draconic sorcerer's dragon exemplar, shown with the
+skill each trains, and an Elemental sorcerer's element), in which case it is
+asked like any other. The class's level 1 features load with
 the class (`useCreatorEntries`).
 
 The **attributes** step places the level 1 boosts: the ancestry's (its fixed
@@ -228,9 +231,8 @@ chosen"). The rank 1 heading says what the picks are for: spells you know
 casters). Another tradition's list can be chosen from a menu and picked from,
 with a note that it is not the class's own. A Witch's list follows the patron
 chosen ("Your patron gives you the Occult list"), and a Sorcerer's its
-bloodline's; before the choice is made, or for a Draconic sorcerer (whose list is
-its dragon's, not read yet), the step asks for the list that goes with the
-choice. A Sorcerer picks 4 cantrips and 2 rank 1 spells, its bloodline giving
+bloodline's (a Draconic one's, its dragon exemplar's); before the choice is
+made, the step asks for the list that goes with it. A Sorcerer picks 4 cantrips and 2 rank 1 spells, its bloodline giving
 the fifth and third. Picks go in `build.spells` ([spellcasting.md](spellcasting.md)).
 More cantrips than the class has is counted in words and warned about on
 review; nothing is refused (ADR 0023). A spontaneous caster's rank 1 picks are
