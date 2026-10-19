@@ -30,6 +30,14 @@ describe('warningText', () => {
     expect(warningText({ kind: 'too-many-known-spells', chosen: 3, allowed: 2 })).toBe(
       '3 spells chosen to know but your repertoire holds 2.',
     );
+    expect(
+      warningText({
+        kind: 'too-many-book-spells',
+        chosen: 6,
+        allowed: 5,
+        book: 'spellbook',
+      }),
+    ).toBe('6 rank 1 spells chosen but your spellbook starts with 5.');
     expect(warningText({ kind: 'too-many-cantrips', chosen: 6, allowed: 5 })).toBe(
       '6 cantrips chosen but the class has 5.',
     );

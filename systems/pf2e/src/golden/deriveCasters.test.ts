@@ -283,6 +283,95 @@ describe('what a class grants by itself', () => {
   });
 });
 
+describe('a book caster’s picks (a Wizard’s spellbook, a Witch’s familiar)', () => {
+  const refsOf = (prefix: string, n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      packId: 'spells',
+      slug: `${prefix}-${i + 1}`,
+    }));
+  const withPicks = (
+    slug: string,
+    classChoices: Record<string, string>,
+    cantrips: number,
+    ranked: number,
+  ) =>
+    deriveCharacter({
+      build: {
+        ...emptyBuild,
+        classChoices,
+        spells: {
+          cantrips: refsOf('cantrip', cantrips),
+          ranked: refsOf('spell', ranked),
+        },
+      },
+      level: 1,
+      class: classStub(slug, 'int'),
+      classFeatures: [],
+      resolve: spellStub,
+    });
+
+  it('a Wizard’s spellbook takes 10 cantrips and 5 rank 1 spells; the first 5 cantrips start prepared', () => {
+    const derived = withPicks('wizard', { arcaneSchool: 'school-of-mentalism' }, 10, 5);
+    expect(derived.warnings).toEqual([]);
+    expect(derived.spellPicks.cantrips.map((r) => r.slug)).toEqual([
+      'cantrip-1',
+      'cantrip-2',
+      'cantrip-3',
+      'cantrip-4',
+      'cantrip-5',
+    ]);
+    // Every pick is still an item on the character.
+    const slugs = derived.items.map((i) => i.slug);
+    expect(slugs).toContain('cantrip-10');
+    expect(slugs).toContain('spell-5');
+  });
+
+  it('warns past the spellbook’s size, and still grants everything', () => {
+    const derived = withPicks('wizard', { arcaneSchool: 'school-of-mentalism' }, 11, 6);
+    expect(derived.warnings).toEqual([
+      { kind: 'too-many-book-spells', chosen: 6, allowed: 5, book: 'spellbook' },
+      { kind: 'too-many-cantrips', chosen: 11, allowed: 10 },
+    ]);
+    expect(derived.items.map((i) => i.slug)).toContain('cantrip-11');
+  });
+
+  it('a Witch’s familiar is the same size, and the hex cantrip is prepared on top', () => {
+    const derived = withPicks(
+      'witch',
+      { patron: 'the-resentment', 'first-hex': 'phase-familiar' },
+      10,
+      5,
+    );
+    expect(derived.warnings).toEqual([]);
+    expect(derived.spellPicks.cantrips.map((r) => r.slug)).toEqual([
+      'cantrip-1',
+      'cantrip-2',
+      'cantrip-3',
+      'cantrip-4',
+      'cantrip-5',
+      'evil-eye',
+    ]);
+    expect(
+      withPicks(
+        'witch',
+        { patron: 'the-resentment', 'first-hex': 'phase-familiar' },
+        5,
+        6,
+      ).warnings,
+    ).toEqual([
+      { kind: 'too-many-book-spells', chosen: 6, allowed: 5, book: 'familiar' },
+    ]);
+  });
+
+  it('a Cleric, with no book, prepares every cantrip picked and is warned past 5', () => {
+    const derived = withPicks('cleric', {}, 6, 9);
+    expect(derived.spellPicks.cantrips).toHaveLength(6);
+    expect(derived.warnings).toEqual([
+      { kind: 'too-many-cantrips', chosen: 6, allowed: 5 },
+    ]);
+  });
+});
+
 describe('a Cleric’s Divine Font', () => {
   it.each([
     [1, 'heal', 1, 4],

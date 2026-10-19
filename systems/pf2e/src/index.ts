@@ -420,9 +420,11 @@ export {
   rankOpensAt,
   slotsAtLevel,
   traditionFor,
+  bookFor,
   type CasterClassSlug,
   type CasterTable,
   type SlotStyle,
+  type SpellBook,
 } from './rules/spellcastingTables.js';
 
 export {

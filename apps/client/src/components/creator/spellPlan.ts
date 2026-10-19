@@ -8,6 +8,7 @@
  */
 
 import {
+  bookFor,
   CASTER_TABLES,
   CLASS_SPELL_GRANTS,
   curriculumFor,
@@ -20,6 +21,7 @@ import {
   type BuildRef,
   type MagicalTradition,
   type OfferedSpellChoice,
+  type SpellBook,
   type SpellPicks,
 } from '@hearthtable/pf2e';
 
@@ -36,9 +38,17 @@ export interface CastingPlan {
   readonly tradition: MagicalTradition | undefined;
   /** The class choice that decides the tradition, when one does (a Witch's patron). */
   readonly traditionChoice: string | undefined;
+  /** How many cantrips to choose: the class's, or its book's (a Wizard's spellbook holds 10). */
   readonly cantrips: number;
-  /** How many rank 1 spells a spontaneous caster knows (its slots); `undefined` for a prepared caster, not counted yet. */
+  /** How many of those start prepared, for a book caster (the first 5 picked); else `undefined`. */
+  readonly preparedCantrips: number | undefined;
+  /**
+   * How many rank 1 spells to choose: a spontaneous caster's repertoire (its slots), or
+   * a book caster's book; `undefined` for another prepared caster, which is not counted.
+   */
   readonly known: number | undefined;
+  /** The book a prepared caster prepares from, for the step's words. */
+  readonly book: SpellBook | undefined;
   /** What the rank 1 picks are, in words, for the step's heading. */
   readonly rankedLabel: string;
 }
@@ -55,22 +65,27 @@ export function castingPlan(
     return undefined;
   }
   const table = CASTER_TABLES[classSlug];
+  const book = bookFor(classSlug);
   return {
     kind: table.kind,
     tradition: traditionFor(classSlug, classChoices),
     traditionChoice:
       typeof table.tradition === 'string' ? undefined : table.tradition.choice,
-    cantrips: table.cantrips,
+    cantrips: book?.cantrips ?? table.cantrips,
+    preparedCantrips: book === undefined ? undefined : table.cantrips,
     known:
       table.kind === 'spontaneous'
         ? Object.values(slotsAtLevel(table.slots, 1)).reduce((sum, n) => sum + n, 0)
-        : undefined,
+        : book?.ranked,
+    book,
     rankedLabel:
-      classSlug === 'wizard'
+      book?.name === 'spellbook'
         ? 'Rank 1 spells in your spellbook'
-        : table.kind === 'spontaneous'
-          ? 'Rank 1 spells you know'
-          : 'Rank 1 spells to prepare from',
+        : book?.name === 'familiar'
+          ? 'Rank 1 spells your familiar knows'
+          : table.kind === 'spontaneous'
+            ? 'Rank 1 spells you know'
+            : 'Rank 1 spells to prepare from',
   };
 }
 

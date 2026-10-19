@@ -112,6 +112,18 @@ const WHY: Readonly<Record<string, string>> = {
   focus: 'a focus spell, cast with a Focus Point',
 };
 const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug });
+/** What a book caster's picks are counted against, for "N more than ...". */
+const bookHolder = computed(() =>
+  plan.value?.book === undefined ? undefined : `your ${plan.value.book.name} starts with`,
+);
+const cantripLabel = computed(() => {
+  const book = plan.value?.book;
+  return book === undefined
+    ? 'Cantrips'
+    : book.name === 'familiar'
+      ? 'Cantrips your familiar knows'
+      : 'Cantrips in your spellbook';
+});
 </script>
 
 <template>
@@ -232,13 +244,17 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
       </section>
 
       <fieldset class="picks">
-        <legend>Cantrips</legend>
+        <legend>{{ cantripLabel }}</legend>
         <p class="count" :class="{ over: cantripCount > plan.cantrips }">
           {{ cantripCount }} of {{ plan.cantrips }} chosen{{
             cantripCount > plan.cantrips
-              ? ` (${cantripCount - plan.cantrips} more than your class has)`
+              ? ` (${cantripCount - plan.cantrips} more than ${bookHolder ?? 'your class has'})`
               : ''
           }}
+        </p>
+        <p v-if="plan.preparedCantrips !== undefined" class="note">
+          The first {{ plan.preparedCantrips }} you choose start prepared; change which on
+          the sheet.
         </p>
         <ul>
           <li v-for="s in cantrips" :key="s.slug">
@@ -264,7 +280,7 @@ const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug }
         >
           {{ rankedCount }} of {{ plan.known }} chosen{{
             rankedCount > plan.known
-              ? ` (${rankedCount - plan.known} more than your repertoire holds)`
+              ? ` (${rankedCount - plan.known} more than ${bookHolder ?? 'your repertoire holds'})`
               : ''
           }}
         </p>

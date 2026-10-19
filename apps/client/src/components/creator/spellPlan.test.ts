@@ -20,7 +20,9 @@ describe('castingPlan', () => {
       tradition: 'occult',
       traditionChoice: undefined,
       cantrips: 5,
+      preparedCantrips: undefined,
       known: 2,
+      book: undefined,
       rankedLabel: 'Rank 1 spells you know',
     });
     expect(castingPlan('sorcerer')?.known).toBe(3);
@@ -35,6 +37,25 @@ describe('castingPlan', () => {
       traditionChoice: 'patron',
     });
     expect(castingPlan('sorcerer')?.traditionChoice).toBe('bloodline');
+  });
+
+  it('counts a book caster’s picks against its book, with 5 cantrips prepared to start', () => {
+    expect(castingPlan('wizard')).toMatchObject({
+      cantrips: 10,
+      preparedCantrips: 5,
+      known: 5,
+      book: { name: 'spellbook' },
+    });
+    expect(castingPlan('witch')).toMatchObject({
+      cantrips: 10,
+      preparedCantrips: 5,
+      known: 5,
+      rankedLabel: 'Rank 1 spells your familiar knows',
+    });
+    expect(castingPlan('cleric')).toMatchObject({
+      cantrips: 5,
+      preparedCantrips: undefined,
+    });
   });
 
   it('takes a Witch’s list from the patron chosen', () => {
