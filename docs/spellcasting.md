@@ -180,8 +180,13 @@ Nature; `subChoiceSkills`, applied with the feature skills). Unlike the Oracle's
 a Sorcerer's gifts **take places in its repertoire** (`grantsFillRepertoire`,
 `repertoireFilled`): it knows 5 cantrips and as many ranked spells as it has slots, one
 of each rank from its bloodline, so at level 1 it picks 4 cantrips and 2 rank 1 spells
-(`too-many-cantrips`, `too-many-known-spells` past those). The gifts above rank 1
-come in a later PR; the bloodline's skills come from the imported bloodline.
+(`too-many-cantrips`, `too-many-known-spells` past those). Each bloodline gives one
+gift of every rank 1 to 9, added once the Sorcerer can cast that rank (`byChoiceAtRank`):
+the Draconic exemplar decides the rank 2, 5 and 8 ones and the Elemental element the rank
+1, 3 and 6 ones, the bloodline the rest. A test checks that every bloodline, with every
+answer to its sub-choice, has exactly one gift at each rank, which is what
+`repertoireFilled` counts on. The gifts themselves are listed in the bloodline text and
+in `rules/classSpells.ts`. The bloodline's skills come from the imported bloodline.
 
 A row can also carry a **font**: extra slots at the class's highest rank that hold only
 one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5

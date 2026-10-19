@@ -25,10 +25,11 @@
  * and its mystery's granted spells: a cantrip and a rank 1 spell at level 1, and each
  * higher one once the Oracle can cast spells of its rank (checked 2026-10-19). A
  * Sorcerer starts with a focus pool of 1, its bloodline's initial bloodline spell, and
- * its bloodline's sorcerous gifts: a cantrip and a rank 1 spell at level 1 (the higher
- * ranks come in a later PR). A Draconic sorcerer chooses its dragon exemplar's
- * tradition, which trains its bloodline skill; an Elemental one its element, which
- * decides its cantrip and rank 1 gift (`subChoices`; checked 2026-10-19).
+ * its bloodline's sorcerous gifts: a cantrip and a rank 1 spell at level 1, then one
+ * spell of each rank once the Sorcerer can cast it. A Draconic sorcerer chooses its
+ * dragon exemplar's tradition, which trains its bloodline skill and decides its rank
+ * 2, 5 and 8 gifts; an Elemental one its element, which decides its cantrip and its
+ * rank 1, 3 and 6 gifts (`subChoices`; checked 2026-10-19).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -323,24 +324,129 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
       },
     ],
     byChoiceAtRank: {
+      'draconic-exemplar': {
+        arcane: { 2: ['blazing-bolt'], 5: ['subconscious-suggestion'], 8: ['quandary'] },
+        divine: { 2: ['augury'], 5: ['divine-immolation'], 8: ['divine-inspiration'] },
+        occult: { 2: ['blood-vendetta'], 5: ['slither'], 8: ['unrelenting-observation'] },
+        primal: { 2: ['shatter'], 5: ['howling-blizzard'], 8: ['earthquake'] },
+      },
       'elemental-influence': {
-        air: { 1: ['tailwind'] },
-        earth: { 1: ['pummeling-rubble'] },
-        fire: { 1: ['breathe-fire'] },
-        metal: { 1: ['thunderstrike'] },
-        water: { 1: ['hydraulic-push'] },
-        wood: { 1: ['cleanse-cuisine'] },
+        air: { 1: ['tailwind'], 3: ['wall-of-wind'], 6: ['chain-lightning'] },
+        earth: { 1: ['pummeling-rubble'], 3: ['earthbind'], 6: ['petrify'] },
+        fire: { 1: ['breathe-fire'], 3: ['fireball'], 6: ['tree-of-seasons'] },
+        metal: { 1: ['thunderstrike'], 3: ['lightning-bolt'], 6: ['chain-lightning'] },
+        water: {
+          1: ['hydraulic-push'],
+          3: ['aqueous-orb'],
+          6: ['scintillating-safeguard'],
+        },
+        wood: { 1: ['cleanse-cuisine'], 3: ['wall-of-thorns'], 6: ['tangling-creepers'] },
       },
       bloodline: {
-        'bloodline-aberrant': { 1: ['phantom-pain'] },
-        'bloodline-angelic': { 1: ['heal'] },
-        'bloodline-demonic': { 1: ['fear'] },
-        'bloodline-diabolic': { 1: ['charm'] },
-        'bloodline-draconic': { 1: ['fear'] },
-        'bloodline-fey': { 1: ['charm'] },
-        'bloodline-hag': { 1: ['illusory-disguise'] },
-        'bloodline-imperial': { 1: ['force-barrage'] },
-        'bloodline-undead': { 1: ['harm'] },
+        'bloodline-aberrant': {
+          1: ['phantom-pain'],
+          2: ['stupefy'],
+          3: ['vampiric-feast'],
+          4: ['confusion'],
+          5: ['slither'],
+          6: ['never-mind'],
+          7: ['warp-mind'],
+          8: ['uncontrollable-dance'],
+          9: ['unfathomable-song'],
+        },
+        'bloodline-angelic': {
+          1: ['heal'],
+          2: ['spiritual-armament'],
+          3: ['holy-light'],
+          4: ['divine-wrath'],
+          5: ['divine-immolation'],
+          6: ['blessed-boundary'],
+          7: ['divine-decree'],
+          8: ['moment-of-renewal'],
+          9: ['foresight'],
+        },
+        'bloodline-demonic': {
+          1: ['fear'],
+          2: ['enlarge'],
+          3: ['slow'],
+          4: ['divine-wrath'],
+          5: ['blister'],
+          6: ['disintegrate'],
+          7: ['divine-decree'],
+          8: ['canticle-of-everlasting-grief'],
+          9: ['implosion'],
+        },
+        'bloodline-diabolic': {
+          1: ['charm'],
+          2: ['floating-flame'],
+          3: ['enthrall'],
+          4: ['suggestion'],
+          5: ['wave-of-despair'],
+          6: ['truesight'],
+          7: ['divine-decree'],
+          8: ['divine-inspiration'],
+          9: ['falling-stars'],
+        },
+        'bloodline-draconic': {
+          1: ['fear'],
+          3: ['haste'],
+          4: ['fly'],
+          6: ['dragon-form'],
+          7: ['mask-of-terror'],
+          9: ['overwhelming-presence'],
+        },
+        'bloodline-elemental': {
+          2: ['resist-energy'],
+          4: ['unfettered-movement'],
+          5: ['elemental-form'],
+          7: ['energy-aegis'],
+          8: ['earthquake'],
+          9: ['wrathful-storm'],
+        },
+        'bloodline-fey': {
+          1: ['charm'],
+          2: ['laughing-fit'],
+          3: ['enthrall'],
+          4: ['suggestion'],
+          5: ['hallucination'],
+          6: ['mislead'],
+          7: ['visions-of-danger'],
+          8: ['uncontrollable-dance'],
+          9: ['metamorphosis'],
+        },
+        'bloodline-hag': {
+          1: ['illusory-disguise'],
+          2: ['stupefy'],
+          3: ['blindness'],
+          4: ['outcasts-curse'],
+          5: ['mariners-curse'],
+          6: ['cursed-metamorphosis'],
+          7: ['warp-mind'],
+          8: ['quandary'],
+          9: ['phantasmagoria'],
+        },
+        'bloodline-imperial': {
+          1: ['force-barrage'],
+          2: ['dispel-magic'],
+          3: ['haste'],
+          4: ['translocate'],
+          5: ['scouting-eye'],
+          6: ['disintegrate'],
+          7: ['retrocognition'],
+          8: ['quandary'],
+          9: ['implosion'],
+        },
+        'bloodline-undead': {
+          1: ['harm'],
+          2: ['see-the-unseen'],
+          3: ['bind-undead'],
+          4: ['talking-corpse'],
+          5: ['invoke-spirits'],
+          6: ['vampiric-exsanguination'],
+          7: ['execute'],
+          8: ['canticle-of-everlasting-grief'],
+          9: ['wails-of-the-damned'],
+        },
       },
     },
     cantripsByChoice: {

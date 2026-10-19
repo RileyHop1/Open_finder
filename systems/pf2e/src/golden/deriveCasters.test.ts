@@ -385,6 +385,48 @@ describe('what a class grants by itself', () => {
     },
   );
 
+  it('a level 20 Imperial sorcerer knows a gift of every rank to the 9th, and picks the rest', () => {
+    const derived = casting('sorcerer', 'cha', 20, { bloodline: 'bloodline-imperial' });
+    expect(derived.spellPicks.ranked.map((r) => r.slug)).toEqual([
+      'force-barrage',
+      'dispel-magic',
+      'haste',
+      'translocate',
+      'scouting-eye',
+      'disintegrate',
+      'retrocognition',
+      'quandary',
+      'implosion',
+    ]);
+  });
+
+  it('a level 5 Draconic sorcerer of the arcane exemplar: its exemplar’s rank 2 gift', () => {
+    const derived = casting('sorcerer', 'cha', 5, {
+      bloodline: 'bloodline-draconic',
+      'draconic-exemplar': 'arcane',
+    });
+    expect(derived.spellPicks.ranked.map((r) => r.slug).sort()).toEqual(
+      ['blazing-bolt', 'fear', 'haste'].sort(),
+    );
+  });
+
+  it('a level 11 Elemental sorcerer of water: its element’s gifts at ranks 1, 3 and 6', () => {
+    const derived = casting('sorcerer', 'cha', 11, {
+      bloodline: 'bloodline-elemental',
+      'elemental-influence': 'water',
+    });
+    expect(derived.spellPicks.ranked.map((r) => r.slug).sort()).toEqual(
+      [
+        'hydraulic-push',
+        'resist-energy',
+        'aqueous-orb',
+        'unfettered-movement',
+        'elemental-form',
+        'scintillating-safeguard',
+      ].sort(),
+    );
+  });
+
   it('ignores an answer left over from another bloodline', () => {
     const derived = casting('sorcerer', 'cha', 1, {
       bloodline: 'bloodline-imperial',
