@@ -212,6 +212,22 @@ describe('classGifts', () => {
     ]);
   });
 
+  it('waits for an Elemental sorcerer’s element only once that bloodline is chosen', () => {
+    expect(classGifts('sorcerer', { bloodline: 'bloodline-elemental' }).pending).toEqual([
+      'elemental-influence',
+    ]);
+    expect(
+      classGifts('sorcerer', {
+        bloodline: 'bloodline-elemental',
+        'elemental-influence': 'metal',
+      }).spells,
+    ).toEqual([
+      { slug: 'electric-arc', why: 'cantrip' },
+      { slug: 'elemental-toss', why: 'focus' },
+      { slug: 'thunderstrike', why: 'choice', choice: 'elemental-influence' },
+    ]);
+  });
+
   it('gives a class with no row nothing', () => {
     const none = {
       spells: [],

@@ -2,13 +2,32 @@
  * Which choices a class asks for at level 1, worked out from its features.
  * A feature due at level 1 with a `choiceSet` is a question (Instinct, Racket,
  * Hunter's Edge...); a pick that grants a feature can itself ask a question
- * (Animal Instinct asks which animal), so the walk follows the picks made.
+ * (Animal Instinct asks which animal), so the walk follows the picks made. A
+ * question whose options the import could not read, but which is authored (a dragon
+ * exemplar, an elemental influence), is asked from the authored options instead.
  * Pure: the step renders this and the creator writes the answers into
  * `build.classChoices`; `deriveCharacter` is what grants the picked features.
  */
 
 import type { ChoiceSetElement } from '@hearthtable/core';
-import type { CharacterBuild, ClassFeatureEntry } from '@hearthtable/pf2e';
+import {
+  CLASS_SPELL_GRANTS,
+  type CharacterBuild,
+  type ClassFeatureEntry,
+  type SubChoice,
+} from '@hearthtable/pf2e';
+
+import { titleCase } from '../sheet/format.js';
+
+/**
+ * The further choices `feature` asks for that its import could not read, authored in
+ * the PF2e system's `classSpells.ts` (a Draconic sorcerer's dragon exemplar).
+ */
+function authoredFor(feature: ClassFeatureEntry): readonly SubChoice[] {
+  return feature.classSlugs
+    .flatMap((c) => CLASS_SPELL_GRANTS[c]?.subChoices ?? [])
+    .filter((sub) => sub.feature === feature.slug);
+}
 
 export interface DueChoice {
   /** The feature that asks. */
@@ -46,9 +65,30 @@ export function choicesDue(
       return;
     }
     seen.add(feature.slug);
+    const authored = authoredFor(feature);
+    for (const sub of authored) {
+      const options = sub.options.map((o) => ({
+        value: o.value,
+        label:
+          o.skill === undefined ? o.label : `${o.label} (trains ${titleCase(o.skill)})`,
+      }));
+      choices.push({
+        feature,
+        element: {
+          kind: 'choiceSet',
+          prompt: sub.prompt,
+          choices: options,
+          rollOptionPrefix: sub.key,
+        },
+        chosen: classChoices[sub.key],
+        options,
+      });
+    }
     for (const element of feature.ruleElements) {
       if (element.kind === 'inert' && element.upstreamKind === 'ChoiceSet') {
-        unautomated.push(feature.name);
+        if (authored.length === 0) {
+          unautomated.push(feature.name);
+        }
         continue;
       }
       if (element.kind !== 'choiceSet') {

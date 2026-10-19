@@ -128,8 +128,20 @@ describe('traditionFor', () => {
     expect(traditionFor('witch', {})).toBeUndefined();
     expect(traditionFor('witch', { patron: 'someone-else' })).toBeUndefined();
     expect(traditionFor('sorcerer', { bloodline: 'imperial' })).toBeUndefined();
-    // The Draconic bloodline's tradition is its dragon exemplar's, not mapped yet.
+    // The Draconic bloodline's tradition is its dragon exemplar's, a further choice.
     expect(traditionFor('sorcerer', { bloodline: 'bloodline-draconic' })).toBeUndefined();
+    expect(
+      traditionFor('sorcerer', {
+        bloodline: 'bloodline-draconic',
+        'draconic-exemplar': 'occult',
+      }),
+    ).toBe('occult');
+    expect(
+      traditionFor('sorcerer', {
+        bloodline: 'bloodline-draconic',
+        'draconic-exemplar': 'red',
+      }),
+    ).toBeUndefined();
     expect(traditionFor('fighter', {})).toBeUndefined();
   });
 });

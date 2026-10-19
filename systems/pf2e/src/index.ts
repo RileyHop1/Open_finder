@@ -406,12 +406,17 @@ export {
   grantedSpells,
   rankedByChoice,
   spellChoicesFor,
+  subChoiceSkills,
+  subChoicesFor,
   type ClassSpellGrants,
   type CurriculumGrant,
   type FontAtLevel,
   type FontGrant,
   type GrantedSpells,
   type OfferedSpellChoice,
+  type OfferedSubChoice,
+  type SubChoice,
+  type SubChoiceOption,
   type SpellChoice,
 } from './rules/classSpells.js';
 

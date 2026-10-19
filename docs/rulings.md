@@ -903,6 +903,10 @@ ruling from silently drifting.
   ones hang on a further choice). An Oracle's granted spells and a Bard's are on top
   of its picks instead. Each bloodline's tradition, cantrip, rank 1 spell and initial
   bloodline spell are in `docs/spellcasting.md`; a focus pool of 1.
+  A Draconic sorcerer's dragon exemplar is offered as the four traditions the
+  Remaster bloodline text names; upstream also lists individual dragons (Monster
+  Core's and legacy ones) that each map to one of the four, which the table can
+  name in play. Its tradition is the exemplar's and it trains the exemplar's skill.
 - **Alternative reading:** count the bloodline's spells on top, like the Oracle's.
   Rejected: the Sorcerer's repertoire text names two picked spells plus one from the
   bloodline at level 1, matching three slots.
