@@ -400,6 +400,7 @@ export {
 export {
   CLASS_SPELL_GRANTS,
   CLASS_SPELLS_PACK,
+  curriculumBookSpells,
   curriculumFor,
   fontAt,
   grantedSpells,

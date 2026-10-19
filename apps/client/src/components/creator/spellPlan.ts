@@ -11,6 +11,7 @@ import {
   bookFor,
   CASTER_TABLES,
   CLASS_SPELL_GRANTS,
+  curriculumBookSpells,
   curriculumFor,
   fontAt,
   grantedSpells,
@@ -19,6 +20,7 @@ import {
   spellChoicesFor,
   traditionFor,
   type BuildRef,
+  type ClassFeatureEntry,
   type MagicalTradition,
   type OfferedSpellChoice,
   type SpellBook,
@@ -44,7 +46,8 @@ export interface CastingPlan {
   readonly preparedCantrips: number | undefined;
   /**
    * How many rank 1 spells to choose: a spontaneous caster's repertoire (its slots), or
-   * a book caster's book; `undefined` for another prepared caster, which is not counted.
+   * a book caster's book (a school Wizard's curriculum spells included); `undefined` for
+   * another prepared caster, which is not counted.
    */
   readonly known: number | undefined;
   /** The book a prepared caster prepares from, for the step's words. */
@@ -76,7 +79,9 @@ export function castingPlan(
     known:
       table.kind === 'spontaneous'
         ? Object.values(slotsAtLevel(table.slots, 1)).reduce((sum, n) => sum + n, 0)
-        : book?.ranked,
+        : book === undefined
+          ? undefined
+          : book.ranked + curriculumBookSpells(classSlug, classChoices),
     book,
     rankedLabel:
       book?.name === 'spellbook'
@@ -87,6 +92,40 @@ export function castingPlan(
             ? 'Rank 1 spells you know'
             : 'Rank 1 spells to prepare from',
   };
+}
+
+/** A chosen school's curriculum, for the step: its spells and how many go in the book. */
+export interface CurriculumSpells {
+  readonly cantrips: readonly string[];
+  /** Its rank 1 spells, by slug in the `spells` pack. */
+  readonly ranked: readonly string[];
+  /** How many of them the book starts with (a Wizard's 2). */
+  readonly bookSpells: number;
+}
+
+/**
+ * The curriculum of the class choice `classSlug` has made (a Wizard's school), read from
+ * that choice's class feature among `features`; `undefined` while there is none.
+ */
+export function curriculumSpells(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+  features: readonly ClassFeatureEntry[] | undefined,
+): CurriculumSpells | undefined {
+  const grant =
+    classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug]?.curriculum;
+  const chosen = grant === undefined ? undefined : classChoices[grant.choice];
+  if (curriculumFor(classSlug, classChoices) === undefined || chosen === undefined) {
+    return undefined;
+  }
+  const curriculum = features?.find((f) => f.slug === chosen)?.curriculum;
+  return curriculum === undefined
+    ? undefined
+    : {
+        cantrips: curriculum['0'] ?? [],
+        ranked: curriculum['1'] ?? [],
+        bookSpells: curriculumBookSpells(classSlug, classChoices),
+      };
 }
 
 const same = (a: BuildRef, b: BuildRef) => a.packId === b.packId && a.slug === b.slug;

@@ -22,6 +22,7 @@ import type { HeritageEntry } from '../content/heritage.js';
 import { applyBoosts, type BoostWarning } from './boosts.js';
 import {
   CLASS_SPELLS_PACK,
+  curriculumBookSpells,
   curriculumFor,
   fontAt,
   grantedSpells,
@@ -103,7 +104,7 @@ export type DeriveWarning =
       readonly chosen: number;
       readonly allowed: number;
     }
-  /** More rank 1 spells picked than a book caster's book starts with (a Wizard's spellbook). All are granted. */
+  /** More rank 1 spells picked than a book caster's book starts with (a Wizard's spellbook, its curriculum's included). All are granted. */
   | {
       readonly kind: 'too-many-book-spells';
       readonly chosen: number;
@@ -513,15 +514,20 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
       });
     }
   }
+  const bookRanked =
+    book === undefined
+      ? undefined
+      : book.ranked + curriculumBookSpells(inputs.class?.slug, build.classChoices);
   if (
     book !== undefined &&
+    bookRanked !== undefined &&
     casting.spellcasting !== undefined &&
-    build.spells.ranked.length > book.ranked
+    build.spells.ranked.length > bookRanked
   ) {
     warnings.push({
       kind: 'too-many-book-spells',
       chosen: build.spells.ranked.length,
-      allowed: book.ranked,
+      allowed: bookRanked,
       book: book.name,
     });
   }

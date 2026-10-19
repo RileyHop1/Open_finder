@@ -1,9 +1,11 @@
+import type { ClassFeatureEntry } from '@hearthtable/pf2e';
 import { describe, expect, it } from 'vitest';
 
 import {
   castingPlan,
   choiceWords,
   classGifts,
+  curriculumSpells,
   isPicked,
   togglePick,
 } from './spellPlan.js';
@@ -56,6 +58,13 @@ describe('castingPlan', () => {
       cantrips: 5,
       preparedCantrips: undefined,
     });
+  });
+
+  it('counts a school Wizard’s 2 curriculum spells in its spellbook, and Unified Magical Theory’s 1', () => {
+    expect(castingPlan('wizard', { arcaneSchool: 'school-of-mentalism' })?.known).toBe(7);
+    expect(
+      castingPlan('wizard', { arcaneSchool: 'school-of-unified-magical-theory' })?.known,
+    ).toBe(6);
   });
 
   it('takes a Witch’s list from the patron chosen', () => {
@@ -198,5 +207,35 @@ describe('choiceWords', () => {
     ['arcaneSchool', 'arcane school'],
   ])('%s reads %s', (key, words) => {
     expect(choiceWords(key)).toBe(words);
+  });
+});
+
+describe('curriculumSpells', () => {
+  // An invented school feature: only the fields the helper reads.
+  const school = {
+    slug: 'school-of-mentalism',
+    curriculum: { '0': ['glow-spark', 'dust-mote'], '1': ['ember-gate', 'long-echo'] },
+  } as unknown as ClassFeatureEntry;
+
+  it('reads the chosen school’s cantrips and rank 1 spells, and how many go in the spellbook', () => {
+    expect(
+      curriculumSpells('wizard', { arcaneSchool: 'school-of-mentalism' }, [school]),
+    ).toEqual({
+      cantrips: ['glow-spark', 'dust-mote'],
+      ranked: ['ember-gate', 'long-echo'],
+      bookSpells: 2,
+    });
+  });
+
+  it('has none before the school is chosen, without its feature, or for a school without one', () => {
+    expect(curriculumSpells('wizard', {}, [school])).toBeUndefined();
+    expect(
+      curriculumSpells('wizard', { arcaneSchool: 'school-of-mentalism' }, undefined),
+    ).toBeUndefined();
+    expect(
+      curriculumSpells('wizard', { arcaneSchool: 'school-of-unified-magical-theory' }, [
+        school,
+      ]),
+    ).toBeUndefined();
   });
 });

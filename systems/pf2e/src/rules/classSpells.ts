@@ -19,7 +19,8 @@
  * 2026-10-18). A Wizard starts with a focus pool of 1 and its school's initial school
  * spell, and every school but Unified Magical Theory adds a curriculum: an extra
  * cantrip and an extra slot at each rank up to 9 (the 10th rank's slot takes no extra
- * slots), for curriculum spells only (checked 2026-10-19).
+ * slots), for curriculum spells only, and two rank 1 curriculum spells in the
+ * spellbook (Unified Magical Theory: one rank 1 spell of any kind) (checked 2026-10-19).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -66,6 +67,10 @@ export interface CurriculumGrant {
   readonly choice: string;
   /** Values of the choice that have no curriculum (Unified Magical Theory). */
   readonly without: readonly string[];
+  /** Rank 1 spells from the curriculum the book starts with, beyond its own (a Wizard's 2). */
+  readonly bookSpells: number;
+  /** Rank 1 spells of any kind a value `without` one adds instead (Unified Magical Theory's 1). */
+  readonly bookSpellsWithout: number;
 }
 
 /**
@@ -191,6 +196,8 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
       name: 'Curriculum',
       choice: 'arcaneSchool',
       without: ['school-of-unified-magical-theory'],
+      bookSpells: 2,
+      bookSpellsWithout: 1,
     },
   },
   cleric: {
@@ -318,4 +325,24 @@ export function curriculumFor(
     curriculum.without.includes(chosen)
     ? undefined
     : curriculum.name;
+}
+
+/**
+ * How many rank 1 spells `classSlug`'s curriculum (or a choice without one) adds to its
+ * book, given the build's class choices: 0 for a class with none or while the choice is
+ * unmade.
+ */
+export function curriculumBookSpells(
+  classSlug: string | undefined,
+  classChoices: Readonly<Record<string, string>>,
+): number {
+  const curriculum =
+    classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug]?.curriculum;
+  const chosen = curriculum === undefined ? undefined : classChoices[curriculum.choice];
+  if (curriculum === undefined || chosen === undefined) {
+    return 0;
+  }
+  return curriculum.without.includes(chosen)
+    ? curriculum.bookSpellsWithout
+    : curriculum.bookSpells;
 }
