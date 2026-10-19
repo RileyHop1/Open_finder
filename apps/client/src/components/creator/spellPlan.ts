@@ -16,6 +16,7 @@ import {
   fontAt,
   grantedSpells,
   isCasterClass,
+  rankedByChoice,
   slotsAtLevel,
   spellChoicesFor,
   traditionFor,
@@ -195,6 +196,10 @@ export function classGifts(
       ? []
       : (byValue[chosen] ?? []).map((slug) => ({ slug, why: 'choice' as const, choice }));
   });
+  const fromRanks = rankedByChoice(grants, classChoices, 1).map((r) => ({
+    ...r,
+    why: 'choice' as const,
+  }));
   return {
     spells: [
       ...granted.cantrips.map((slug) => ({ slug, why: 'cantrip' as const })),
@@ -202,11 +207,13 @@ export function classGifts(
         .filter((slug) => !picked.has(slug))
         .map((slug) => ({ slug, why: 'focus' as const })),
       ...fromChoices,
+      ...fromRanks,
     ],
     focusPoints: granted.focusPoints,
     pending: [
       ...new Set([
         ...Object.keys(byChoice),
+        ...Object.keys(grants?.byChoiceAtRank ?? {}),
         ...Object.keys(grants?.cantripsByChoice ?? {}),
         ...Object.keys(grants?.focusByChoice ?? {}),
       ]),

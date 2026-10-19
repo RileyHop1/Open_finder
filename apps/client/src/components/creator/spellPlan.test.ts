@@ -28,6 +28,7 @@ describe('castingPlan', () => {
       rankedLabel: 'Rank 1 spells you know',
     });
     expect(castingPlan('sorcerer')?.known).toBe(3);
+    expect(castingPlan('oracle')?.known).toBe(3);
     expect(castingPlan('cleric')?.known).toBeUndefined();
     expect(castingPlan('cleric')?.rankedLabel).toBe('Rank 1 spells to prepare from');
     expect(castingPlan('wizard')?.rankedLabel).toBe('Rank 1 spells in your spellbook');
@@ -185,6 +186,19 @@ describe('classGifts', () => {
     ).toBeUndefined();
   });
 
+  it('waits for an Oracle’s mystery, then names its granted cantrip and spell and its revelation spell', () => {
+    expect(classGifts('oracle', {})).toMatchObject({
+      spells: [],
+      focusPoints: 1,
+      pending: ['mystery'],
+    });
+    expect(classGifts('oracle', { mystery: 'tempest' }).spells).toEqual([
+      { slug: 'electric-arc', why: 'cantrip' },
+      { slug: 'tempest-touch', why: 'focus' },
+      { slug: 'thunderstrike', why: 'choice', choice: 'mystery' },
+    ]);
+  });
+
   it('gives a class with no row nothing', () => {
     const none = {
       spells: [],
@@ -194,7 +208,7 @@ describe('classGifts', () => {
       curriculum: undefined,
       font: undefined,
     };
-    expect(classGifts('oracle', {})).toEqual(none);
+    expect(classGifts('sorcerer', {})).toEqual(none);
     expect(classGifts(undefined, {})).toEqual(none);
   });
 });

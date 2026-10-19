@@ -404,6 +404,7 @@ export {
   curriculumFor,
   fontAt,
   grantedSpells,
+  rankedByChoice,
   spellChoicesFor,
   type ClassSpellGrants,
   type CurriculumGrant,

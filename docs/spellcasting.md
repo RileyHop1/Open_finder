@@ -59,7 +59,7 @@ not in the table: it comes from the class features' `rankUps` (Expert Spellcaste
 | Bard | spontaneous | occult | standard |
 | Cleric | prepared | divine | standard |
 | Druid | prepared | primal | standard |
-| Oracle | spontaneous | divine | standard |
+| Oracle | spontaneous | divine | one more per rank (like the Sorcerer) |
 | Sorcerer | spontaneous | by bloodline | one more per rank |
 | Witch | prepared | by patron (`traditionFor`) | standard |
 | Wizard | prepared | arcane | standard (the curriculum's extra slots are their own entry) |
@@ -139,6 +139,21 @@ hex (`first-hex`, from Hex Spells: Patron's Puppet or Phase Familiar, a focus sp
 a Wilding Steward's familiar spell (`familiar-spell`: Summon Animal or Summon Plant or
 Fungus). A value that is not an option, or a familiar spell left from another patron, is
 not applied. The creator's spells step offers them as radio buttons.
+
+`byChoiceAtRank` adds ranked spells by a class choice and spell rank, each once the
+class can cast that rank (`rankedByChoice`; `grantedSpells` takes the level). The
+**Oracle** has a pool of 1 and, by mystery, a granted cantrip (`cantripsByChoice`),
+its initial revelation spell (`focusByChoice`) and its granted spells: Ancestors,
+Guidance, Ancestral Touch, then Ill Omen (rank 1), Ghostly Carrier (2), Dreaming
+Potential (5); Battle, Shield, Weapon Trance, then Sure Strike, Telekinetic Maneuver
+(2), Weapon Storm (4); Bones, Void Warp, Soul Siphon, then Grim Tendrils, False Vitality
+(2), Ghostly Weapon (3); Cosmos, Light, Spray of Stars, then Dizzying Colors, Darkness
+(2), Moon Frenzy (5); Flames, Ignition, Incendiary Aura, then Breathe Fire, Blazing Bolt
+(2), Fireball (3); Life, Vitality Lash, Life Link, then Soothe, False Vitality (2),
+Grisly Growths (5); Lore, Read Aura, Brain Drain, then Mindlink, Hypercognition (3),
+Never Mind (6); Tempest, Electric Arc, Tempest Touch, then Thunderstrike, Hydraulic
+Torrent (4), Chain Lightning (6). The mystery's skill, feat and curse come from the
+imported mystery.
 
 A row can also carry a **font**: extra slots at the class's highest rank that hold only
 one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5

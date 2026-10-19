@@ -14,7 +14,7 @@ import {
 // (for levels 1 to 10) matched against the sample characters in the pinned
 // upstream pack when this was written. Levels 11 to 20 are the pattern's
 // extension and are (confirm).
-describe('slotsAtLevel -- standard casters (Cleric, Druid, Witch, Wizard base, Bard, Oracle)', () => {
+describe('slotsAtLevel -- standard casters (Cleric, Druid, Witch, Wizard base, Bard)', () => {
   it.each([
     [1, { 1: 2 }],
     [2, { 1: 3 }],
@@ -94,10 +94,11 @@ describe('CASTER_TABLES', () => {
     expect(CASTER_TABLES.sorcerer.tradition).toMatchObject({ choice: 'bloodline' });
   });
 
-  it('gives the Sorcerer the larger slot style and every other class the standard one', () => {
+  it('gives the Sorcerer and the Oracle the larger slot style and every other class the standard one', () => {
     expect(CASTER_TABLES.sorcerer.slots).toBe('sorcerer');
+    expect(CASTER_TABLES.oracle.slots).toBe('sorcerer');
     expect(
-      CASTER_CLASS_SLUGS.filter((c) => c !== 'sorcerer').every(
+      CASTER_CLASS_SLUGS.filter((c) => c !== 'sorcerer' && c !== 'oracle').every(
         (c) => CASTER_TABLES[c].slots === 'standard',
       ),
     ).toBe(true);

@@ -98,7 +98,7 @@ describe('level 1 casters', () => {
     ['bard', 'cha', 'spontaneous', 'occult', { 1: 2 }],
     ['cleric', 'wis', 'prepared', 'divine', { 1: 2 }],
     ['druid', 'wis', 'prepared', 'primal', { 1: 2 }],
-    ['oracle', 'cha', 'spontaneous', 'divine', { 1: 2 }],
+    ['oracle', 'cha', 'spontaneous', 'divine', { 1: 3 }],
     ['wizard', 'int', 'prepared', 'arcane', { 1: 2 }],
   ] as const)('%s', (slug, key, kind, tradition, slots) => {
     const derived = casting(slug, key, 1);
@@ -271,15 +271,49 @@ describe('what a class grants by itself', () => {
     expect(casting('wizard', 'int', 1).curriculum).toBeUndefined();
   });
 
-  it('the other casters grant nothing yet', () => {
-    for (const [slug, key] of [
-      ['cleric', 'wis'],
-      ['oracle', 'cha'],
-    ] as const) {
-      const derived = casting(slug, key, 1);
-      expect(derived.focusPoints).toBe(0);
-      expect(derived.spellPicks).toEqual({ cantrips: [], ranked: [] });
-    }
+  it.each([
+    ['battle', 'shield', 'sure-strike', 'weapon-trance'],
+    ['flames', 'ignition', 'breathe-fire', 'incendiary-aura'],
+    ['lore', 'read-aura', 'mindlink', 'brain-drain'],
+  ])(
+    'a level 1 Oracle of %s: its granted cantrip and spell, its revelation spell, 1 focus point',
+    (mystery, cantrip, spell, revelation) => {
+      const derived = casting('oracle', 'cha', 1, { mystery });
+      expect(derived.focusPoints).toBe(1);
+      expect(derived.spellPicks).toEqual({
+        cantrips: [{ packId: 'spells', slug: cantrip }],
+        ranked: [{ packId: 'spells', slug: spell }],
+      });
+      expect(derived.items.map((i) => i.slug)).toContain(revelation);
+    },
+  );
+
+  it.each([
+    [1, ['sure-strike']],
+    [3, ['sure-strike', 'telekinetic-maneuver']],
+    [6, ['sure-strike', 'telekinetic-maneuver']],
+    [7, ['sure-strike', 'telekinetic-maneuver', 'weapon-storm']],
+  ])(
+    'a level %i Battle oracle knows the granted spells of the ranks it can cast',
+    (level, spells) => {
+      const derived = casting('oracle', 'cha', level, { mystery: 'battle' });
+      expect(derived.spellPicks.ranked.map((r) => r.slug)).toEqual(spells);
+    },
+  );
+
+  it('a Lore oracle’s granted spells skip the ranks its mystery lists none for', () => {
+    const at11 = casting('oracle', 'cha', 11, { mystery: 'lore' });
+    expect(at11.spellPicks.ranked.map((r) => r.slug)).toEqual([
+      'mindlink',
+      'hypercognition',
+      'never-mind',
+    ]);
+  });
+
+  it('a Cleric grants nothing beyond its font', () => {
+    const derived = casting('cleric', 'wis', 1);
+    expect(derived.focusPoints).toBe(0);
+    expect(derived.spellPicks).toEqual({ cantrips: [], ranked: [] });
   });
 });
 

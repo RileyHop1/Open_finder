@@ -9,9 +9,12 @@
  * sandbox this was written in could not reach. What was checked instead:
  * the slot counts for levels 1 to 10 match the sample characters Paizo
  * publishes in the pinned upstream pack (read, never copied), for the Bard,
- * Cleric, Druid, Oracle, Sorcerer and Witch, and the Wizard's base counts (the
- * curriculum's extra slots are not here; they come with the Wizard). Levels 11
- * to 20 follow the same pattern but were not checked against anything.
+ * Cleric, Druid, Sorcerer and Witch, and the Wizard's base counts (the
+ * curriculum's extra slots are their own entry). The Oracle uses the Sorcerer's
+ * style: its Remaster text gives three rank 1 spells at level 1, and the pinned
+ * Remaster Oracle samples have 3 rank 1 slots at level 1 and 4 at levels 3 and 5
+ * (checked 2026-10-19; an older Oracle sample, on the standard style, is legacy).
+ * Levels 11 to 20 follow the same pattern but were not checked against anything.
  *
  * The Witch's familiar and the Wizard's spellbook start with 10 cantrips and five
  * rank 1 spells (the pinned upstream text, checked 2026-10-19).
@@ -42,7 +45,8 @@ export function isCasterClass(slug: string): slug is CasterClassSlug {
  * How many slots a class gets per rank, as a style:
  * - `standard`: 2 slots when a rank first opens, 3 from the next level (the
  *   first rank opens at level 1 with 2, then 3 from level 2).
- * - `sorcerer`: one more of each, so 3 when a rank opens and 4 after.
+ * - `sorcerer`: one more of each, so 3 when a rank opens and 4 after (the
+ *   Sorcerer and the Oracle).
  * The tenth rank is a single slot at level 19 in both.
  */
 export type SlotStyle = 'standard' | 'sorcerer';
@@ -84,7 +88,7 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
   bard: { kind: 'spontaneous', tradition: 'occult', cantrips: 5, slots: 'standard' },
   cleric: { kind: 'prepared', tradition: 'divine', cantrips: 5, slots: 'standard' },
   druid: { kind: 'prepared', tradition: 'primal', cantrips: 5, slots: 'standard' },
-  oracle: { kind: 'spontaneous', tradition: 'divine', cantrips: 5, slots: 'standard' },
+  oracle: { kind: 'spontaneous', tradition: 'divine', cantrips: 5, slots: 'sorcerer' },
   sorcerer: {
     kind: 'spontaneous',
     tradition: { choice: 'bloodline', byValue: {} },
