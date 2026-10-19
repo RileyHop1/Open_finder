@@ -93,8 +93,17 @@ cantrips, and for a spontaneous caster the ranked picks in its repertoire. A pre
 caster's ranked picks are only items (a Wizard's spellbook, a Cleric's first choices);
 preparing them is play. Like the merge, it only adds, so a pick removed from the build
 stays on the sheet until removed there. A spontaneous caster's repertoire holds as many
-ranked spells as it has slots (`too-many-known-spells` past that, still granted); a
-prepared caster's ranked picks are not counted yet.
+ranked spells as it has slots (`too-many-known-spells` past that, still granted).
+
+A **book caster** prepares from a store of its own (`book` in its casting table,
+`bookFor`): a Wizard's spellbook and a Witch's familiar each start with 10 cantrips and
+5 rank 1 spells, beyond the spells the class adds by itself (the patron's lesson). The
+picks are counted against the book (`too-many-cantrips` past 10, `too-many-book-spells`
+past 5, all still granted), every pick is an item, and only the first 5 cantrips picked
+go in the entry's cantrips, prepared to start; the player changes which on the sheet. A
+Wizard's two curriculum spells (one spell of any kind for Unified Magical Theory) come
+with the curriculum lists. Other prepared casters (Cleric, Druid) prepare from their
+whole list, so their ranked picks are not counted.
 
 **What a class grants by itself** is `rules/classSpells.ts`, our own data because the
 imported class features say it only in prose. A row names the focus pool the class

@@ -43,6 +43,8 @@ export function warningText(warning: DeriveWarning): string | undefined {
       return `${titleCase(warning.classSlug)} casts from the tradition of your ${warning.choice}. Choose it (Class choices step); if the app cannot set it up from that yet, add the spellcasting by hand on the sheet.`;
     case 'too-many-cantrips':
       return `${warning.chosen} cantrips chosen but the class has ${warning.allowed}.`;
+    case 'too-many-book-spells':
+      return `${warning.chosen} rank 1 spells chosen but your ${warning.book} starts with ${warning.allowed}.`;
     case 'too-many-known-spells':
       return `${warning.chosen} spells chosen to know but your repertoire holds ${warning.allowed}.`;
     case 'not-a-spell':

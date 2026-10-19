@@ -217,9 +217,30 @@ describe('SpellsStep', () => {
     const oracle = mountStep(buildFor('oracle'));
     await flushPromises();
     expect(oracle.find('[aria-labelledby="spells-gifts-title"]').exists()).toBe(false);
-    const wizard = mountStep(buildFor('wizard'));
+    const cleric = mountStep(buildFor('cleric'));
     await flushPromises();
-    expect(wizard.findAll('fieldset.picks')[1]?.text()).toContain('0 chosen');
+    expect(cleric.findAll('fieldset.picks')[1]?.text()).toContain('0 chosen');
+  });
+
+  it('counts a Wizard’s picks against the spellbook, in words past it', async () => {
+    const refs = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ packId: 'spells', slug: `s${i}` }));
+    const wrapper = mountStep(
+      characterBuildSchema.parse({
+        class: { packId: 'classes', slug: 'wizard' },
+        spells: { cantrips: refs(11), ranked: refs(6) },
+      }),
+    );
+    await flushPromises();
+    const [cantrips, ranked] = wrapper.findAll('fieldset.picks');
+    expect(cantrips?.get('legend').text()).toBe('Cantrips in your spellbook');
+    expect(cantrips?.text()).toContain(
+      '11 of 10 chosen (1 more than your spellbook starts with)',
+    );
+    expect(cantrips?.text()).toContain('The first 5 you choose start prepared');
+    expect(ranked?.text()).toContain(
+      '6 of 5 chosen (1 more than your spellbook starts with)',
+    );
   });
 
   it('names a Wizard’s school spell and curriculum once the school is chosen', async () => {

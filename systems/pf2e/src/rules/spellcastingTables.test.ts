@@ -7,6 +7,7 @@ import {
   rankOpensAt,
   slotsAtLevel,
   traditionFor,
+  bookFor,
 } from './spellcastingTables.js';
 
 // Golden values: worked out by hand from the pattern in the module comment, and
@@ -126,5 +127,19 @@ describe('traditionFor', () => {
     expect(traditionFor('witch', { patron: 'someone-else' })).toBeUndefined();
     expect(traditionFor('sorcerer', { bloodline: 'imperial' })).toBeUndefined();
     expect(traditionFor('fighter', {})).toBeUndefined();
+  });
+});
+
+describe('bookFor', () => {
+  it('gives the Wizard a spellbook and the Witch a familiar, each 10 cantrips and 5 rank 1 spells', () => {
+    expect(bookFor('wizard')).toEqual({ name: 'spellbook', cantrips: 10, ranked: 5 });
+    expect(bookFor('witch')).toEqual({ name: 'familiar', cantrips: 10, ranked: 5 });
+  });
+
+  it('gives every other class none', () => {
+    expect(bookFor('cleric')).toBeUndefined();
+    expect(bookFor('bard')).toBeUndefined();
+    expect(bookFor('fighter')).toBeUndefined();
+    expect(bookFor(undefined)).toBeUndefined();
   });
 });

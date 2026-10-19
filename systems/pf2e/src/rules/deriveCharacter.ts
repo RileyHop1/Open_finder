@@ -36,6 +36,7 @@ import {
   highestRank,
 } from './deriveSpellcasting.js';
 import { featSlotsUpTo, skillIncreasesUpTo } from './progression.js';
+import { bookFor, type SpellBook } from './spellcastingTables.js';
 
 type ItemEntry = CharacterItem['entry'];
 
@@ -101,6 +102,13 @@ export type DeriveWarning =
       readonly kind: 'too-many-known-spells';
       readonly chosen: number;
       readonly allowed: number;
+    }
+  /** More rank 1 spells picked than a book caster's book starts with (a Wizard's spellbook). All are granted. */
+  | {
+      readonly kind: 'too-many-book-spells';
+      readonly chosen: number;
+      readonly allowed: number;
+      readonly book: SpellBook['name'];
     }
   /** A choice the build made that is not among the options the feature offers. Still applied. */
   | {
@@ -460,9 +468,15 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
       });
     }
   }
+  // A book caster (a Wizard's spellbook, a Witch's familiar) holds more cantrips than it
+  // prepares: every pick is an item, and only the first ones start prepared in the entry.
+  const book = bookFor(inputs.class?.slug);
+  const pickedCantrips = pickSpells(build.spells.cantrips);
   const spellPicks = {
     cantrips: [
-      ...pickSpells(build.spells.cantrips),
+      ...(book === undefined || casting.spellcasting === undefined
+        ? pickedCantrips
+        : pickedCantrips.slice(0, casting.spellcasting.cantrips)),
       ...pickSpells(refs(granted.cantrips)),
     ],
     ranked: [...pickSpells(build.spells.ranked), ...pickSpells(refs(granted.ranked))],
@@ -499,7 +513,22 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
       });
     }
   }
-  const allowedCantrips = casting.spellcasting?.cantrips;
+  if (
+    book !== undefined &&
+    casting.spellcasting !== undefined &&
+    build.spells.ranked.length > book.ranked
+  ) {
+    warnings.push({
+      kind: 'too-many-book-spells',
+      chosen: build.spells.ranked.length,
+      allowed: book.ranked,
+      book: book.name,
+    });
+  }
+  const allowedCantrips =
+    casting.spellcasting === undefined
+      ? undefined
+      : (book?.cantrips ?? casting.spellcasting.cantrips);
   if (allowedCantrips !== undefined && build.spells.cantrips.length > allowedCantrips) {
     warnings.push({
       kind: 'too-many-cantrips',

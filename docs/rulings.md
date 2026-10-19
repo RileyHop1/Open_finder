@@ -903,6 +903,22 @@ ruling from silently drifting.
 - **Override:** the curriculum entry's slots and prepared spells are editable on the
   sheet ("Edit spells"), and nothing checks what is prepared there.
 
+### A spellbook's or familiar's cantrips: which start prepared
+- **Rules text:** Wizard Spellcasting and the Witch's Familiar class features in Player
+  Core: the spellbook and the familiar start with 10 cantrips and five rank 1 spells,
+  and the caster prepares five cantrips a day from them. Checked against the pinned
+  upstream text (2026-10-19): **(confirm)**.
+- **The ambiguity:** none in the rules; the question is what a newly built character
+  has prepared before their first daily preparation.
+- **Our reading:** the first five cantrips picked in the creator start prepared, and the
+  other five are on the character as items to prepare instead. The Witch's hex cantrip is
+  prepared on top, since it is not counted toward the five.
+- **Alternative reading:** prepare none until the player does it on the sheet. Rejected
+  because a new character would open with no cantrips to cast.
+- **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` ("a book caster's
+  picks").
+- **Override:** the prepared cantrips are editable on the sheet ("Edit spells").
+
 ### Reading predicates on class features
 - **Rules text:** none directly; this is how upstream's conditions on a class
   feature's skill training and grants are read (`classFeatureRules.ts`).

@@ -13,6 +13,9 @@
  * curriculum's extra slots are not here; they come with the Wizard). Levels 11
  * to 20 follow the same pattern but were not checked against anything.
  *
+ * The Witch's familiar and the Wizard's spellbook start with 10 cantrips and five
+ * rank 1 spells (the pinned upstream text, checked 2026-10-19).
+ *
  * Pure data and arithmetic; none of it refuses anything (ADR 0023).
  */
 
@@ -61,6 +64,20 @@ export interface CasterTable {
   /** Cantrips known or prepared at level 1 (a Wizard's curriculum adds one, in its own entry: `classSpells.ts`). */
   readonly cantrips: number;
   readonly slots: SlotStyle;
+  /** What a prepared caster prepares from when it is its own (a Wizard's spellbook, a Witch's familiar). */
+  readonly book?: SpellBook;
+}
+
+/**
+ * A prepared caster's own store of spells, and what it starts with at level 1. The
+ * build's picks fill it; only the first `cantrips` of the table's are prepared to start.
+ */
+export interface SpellBook {
+  /** What the rules call it, for a sentence ("your spellbook", "your familiar"). */
+  readonly name: 'spellbook' | 'familiar';
+  readonly cantrips: number;
+  /** Rank 1 spells, beyond the ones the class adds by itself (a patron's lesson). */
+  readonly ranked: number;
 }
 
 export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
@@ -77,6 +94,7 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
   witch: {
     kind: 'prepared',
     // Each patron's Spell List, checked against the pinned upstream text (2026-10-18).
+    book: { name: 'familiar', cantrips: 10, ranked: 5 },
     tradition: {
       choice: 'patron',
       byValue: {
@@ -92,8 +110,19 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
     cantrips: 5,
     slots: 'standard',
   },
-  wizard: { kind: 'prepared', tradition: 'arcane', cantrips: 5, slots: 'standard' },
+  wizard: {
+    kind: 'prepared',
+    tradition: 'arcane',
+    cantrips: 5,
+    slots: 'standard',
+    book: { name: 'spellbook', cantrips: 10, ranked: 5 },
+  },
 };
+
+/** The book `slug` prepares from, or `undefined` for a class with none. */
+export function bookFor(slug: string | undefined): SpellBook | undefined {
+  return slug !== undefined && isCasterClass(slug) ? CASTER_TABLES[slug].book : undefined;
+}
 
 /**
  * The tradition `slug` casts from, given the build's class choices: its fixed one,
