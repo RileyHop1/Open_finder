@@ -50,6 +50,21 @@ const EXPECTED_CLASS_COUNT = 16;
 /** Sixteen classes with a dozen or more features each; a floor, not a count. */
 const EXPECTED_MIN_CLASS_FEATURES = 100;
 
+/** Player Core's arcane schools with a curriculum (every one but Unified Magical Theory). */
+const EXPECTED_CURRICULUM_SCHOOLS = 6;
+
+/** A curriculum's ranks: the cantrips (`"0"`) and 1 to 9. */
+const CURRICULUM_RANKS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+/** The JSON entries in an output pack directory (its `pack.json` left out). */
+function readPack(dir: string): unknown[] {
+  return existsSync(dir)
+    ? readdirSync(dir)
+        .filter((f) => f.endsWith('.json') && f !== 'pack.json')
+        .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as unknown)
+    : [];
+}
+
 const upstreamDir =
   process.env.HEARTHTABLE_PF2E_UPSTREAM_DIR ?? join(process.cwd(), '.data', 'upstream');
 const outputDir =
@@ -119,6 +134,32 @@ try {
   const emptyTraditions = [...perTradition].filter(([, n]) => n === 0).map(([t]) => t);
   if (emptyTraditions.length > 0) {
     failures.push(`no spells on the ${emptyTraditions.join(', ')} list(s)`);
+  }
+
+  // Every arcane school's curriculum is read whole from its text, and names only
+  // spells that were imported (`readCurriculum.ts`); counts only, never a slug.
+  const spellSlugs = new Set(
+    readPack(spellsDir).map((e) => (e as { slug?: unknown }).slug),
+  );
+  const curricula = readPack(join(outputDir, 'classFeatures')).flatMap((e) => {
+    const curriculum = (e as { curriculum?: Record<string, unknown> }).curriculum;
+    return curriculum === undefined ? [] : [curriculum];
+  });
+  const partial = curricula.filter((c) => CURRICULUM_RANKS.some((r) => !(r in c)));
+  const unknownSpells = curricula
+    .flatMap((c) =>
+      Object.values(c).flatMap((v): unknown[] =>
+        Array.isArray(v) ? (v as unknown[]) : [],
+      ),
+    )
+    .filter((slug) => !spellSlugs.has(slug)).length;
+  if (curricula.length < EXPECTED_CURRICULUM_SCHOOLS || partial.length > 0) {
+    failures.push(
+      `expected ${EXPECTED_CURRICULUM_SCHOOLS} whole curricula, read ${curricula.length} (${partial.length} missing a rank)`,
+    );
+  }
+  if (unknownSpells > 0) {
+    failures.push(`${unknownSpells} curriculum spell(s) name no imported spell`);
   }
 
   // Every rule-element label key resolves from the pinned lang files; a guess means

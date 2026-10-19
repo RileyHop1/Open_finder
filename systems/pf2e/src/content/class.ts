@@ -193,6 +193,17 @@ export const classFeatureEntrySchema = compendiumEntrySchema.extend({
    * feature's level on, never a lowering.
    */
   skillRankUps: z.record(z.string().min(1), proficiencyRankSchema).default({}),
+  /**
+   * A Wizard's arcane school's curriculum: spell slugs (the `spells` pack) by rank,
+   * `"0"` for the cantrips. Read from the school's text by the importer
+   * (`readCurriculum.ts`); absent on every other feature.
+   */
+  curriculum: z
+    .partialRecord(
+      z.enum(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']),
+      z.array(z.string().min(1)).readonly(),
+    )
+    .optional(),
 });
 
 export type ClassFeatureEntry = z.infer<typeof classFeatureEntrySchema>;

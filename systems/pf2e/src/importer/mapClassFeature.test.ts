@@ -67,6 +67,22 @@ describe('mapClassFeature -- success', () => {
     });
   });
 
+  it('reads a school’s curriculum from its text, and gives other features none', () => {
+    const link = (name: string) => `@UUID[Compendium.pf2e.spells-srd.Item.${name}]`;
+    const description = `<p><strong>Curriculum</strong></p><ul><li><strong>cantrips:</strong> ${link('Glow Spark')}</li><li><strong>1st:</strong> ${link('Ember Gate')}</li></ul>`;
+    const result = mapClassFeature(
+      makeEntry({ ...baseSystem(), description: { value: description } }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+    expect(result.ok && result.entry.curriculum).toEqual({
+      '0': ['glow-spark'],
+      '1': ['ember-gate'],
+    });
+    const plain = mapClassFeature(makeEntry(baseSystem()), PROVENANCE, IMPORTED_AT);
+    expect(plain.ok && 'curriculum' in plain.entry).toBe(false);
+  });
+
   it('keeps the choice tags apart from the traits', () => {
     const result = mapClassFeature(
       makeEntry(
