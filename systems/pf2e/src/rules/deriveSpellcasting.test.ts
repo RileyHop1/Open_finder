@@ -4,6 +4,7 @@ import type { SpellcastingEntry } from '../content/spellcasting.js';
 import {
   type DerivedSpellcasting,
   addSpellPicks,
+  deriveCurriculum,
   deriveFont,
   deriveSpellcasting,
   highestRank,
@@ -270,5 +271,32 @@ describe('the font entry', () => {
     );
     const [none] = prepareFont([cast], 'class:cleric:font', undefined, 1, 4);
     expect(none?.kind === 'prepared' ? none.prepared : undefined).toEqual([]);
+  });
+});
+
+describe('deriveCurriculum', () => {
+  const main = (level: number) =>
+    deriveSpellcasting(wizard, level, 'int').spellcasting as DerivedSpellcasting;
+
+  it('is a prepared entry beside the class’s: one cantrip and one slot at its rank', () => {
+    expect(deriveCurriculum(main(1), 'Curriculum')).toEqual({
+      ...main(1),
+      source: 'class:wizard:curriculum',
+      name: 'Curriculum',
+      kind: 'prepared',
+      slots: { 1: 1 },
+      cantrips: 1,
+    });
+  });
+
+  it('has one slot at each rank the class has, stopping at the 9th', () => {
+    expect(deriveCurriculum(main(7), 'Curriculum').slots).toEqual({
+      1: 1,
+      2: 1,
+      3: 1,
+      4: 1,
+    });
+    const at19 = deriveCurriculum(main(19), 'Curriculum').slots;
+    expect(Object.keys(at19).map(Number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 });

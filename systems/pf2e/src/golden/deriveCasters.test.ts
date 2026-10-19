@@ -233,11 +233,48 @@ describe('what a class grants by itself', () => {
     expect(other.warnings).toEqual([]);
   });
 
+  it.each([
+    ['school-of-battle-magic', 'force-bolt'],
+    ['school-of-mentalism', 'charming-push'],
+  ])(
+    'a level 1 Wizard of the %s: %s, 1 focus point, and a curriculum entry',
+    (school, spell) => {
+      const derived = casting('wizard', 'int', 1, { arcaneSchool: school });
+      expect(derived.focusPoints).toBe(1);
+      expect(derived.items.map((i) => i.slug)).toContain(spell);
+      expect(derived.spellcasting).toMatchObject({ slots: { 1: 2 }, cantrips: 5 });
+      expect(derived.curriculum).toMatchObject({
+        source: 'class:wizard:curriculum',
+        name: 'Curriculum',
+        kind: 'prepared',
+        tradition: 'arcane',
+        attribute: 'int',
+        slots: { 1: 1 },
+        cantrips: 1,
+      });
+    },
+  );
+
+  it('a level 5 Wizard’s curriculum has a slot at each of its three ranks', () => {
+    const derived = casting('wizard', 'int', 5, {
+      arcaneSchool: 'school-of-the-boundary',
+    });
+    expect(derived.curriculum?.slots).toEqual({ 1: 1, 2: 1, 3: 1 });
+  });
+
+  it('a Wizard of Unified Magical Theory has Hand of the Apprentice and no curriculum', () => {
+    const derived = casting('wizard', 'int', 1, {
+      arcaneSchool: 'school-of-unified-magical-theory',
+    });
+    expect(derived.items.map((i) => i.slug)).toContain('hand-of-the-apprentice');
+    expect(derived.curriculum).toBeUndefined();
+    expect(casting('wizard', 'int', 1).curriculum).toBeUndefined();
+  });
+
   it('the other casters grant nothing yet', () => {
     for (const [slug, key] of [
       ['cleric', 'wis'],
       ['oracle', 'cha'],
-      ['wizard', 'int'],
     ] as const) {
       const derived = casting(slug, key, 1);
       expect(derived.focusPoints).toBe(0);

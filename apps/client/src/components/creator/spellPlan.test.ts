@@ -74,6 +74,7 @@ describe('classGifts', () => {
       focusPoints: 1,
       pending: ['muse'],
       choices: [],
+      curriculum: undefined,
       font: undefined,
     });
   });
@@ -90,6 +91,7 @@ describe('classGifts', () => {
       focusPoints: 0,
       pending: [],
       choices: [],
+      curriculum: undefined,
       font: {
         name: 'Divine Font',
         count: 4,
@@ -138,15 +140,31 @@ describe('classGifts', () => {
     expect(chosen.spells).toEqual([{ slug: 'wilding-word', why: 'cantrip' }]);
   });
 
+  it('waits for a Wizard’s school, then names its school spell and curriculum', () => {
+    expect(classGifts('wizard', {})).toMatchObject({
+      focusPoints: 1,
+      pending: ['arcaneSchool'],
+      curriculum: undefined,
+    });
+    const battle = classGifts('wizard', { arcaneSchool: 'school-of-battle-magic' });
+    expect(battle.spells).toEqual([{ slug: 'force-bolt', why: 'focus' }]);
+    expect(battle.curriculum).toBe('Curriculum');
+    expect(
+      classGifts('wizard', { arcaneSchool: 'school-of-unified-magical-theory' })
+        .curriculum,
+    ).toBeUndefined();
+  });
+
   it('gives a class with no row nothing', () => {
     const none = {
       spells: [],
       focusPoints: 0,
       pending: [],
       choices: [],
+      curriculum: undefined,
       font: undefined,
     };
-    expect(classGifts('wizard', {})).toEqual(none);
+    expect(classGifts('oracle', {})).toEqual(none);
     expect(classGifts(undefined, {})).toEqual(none);
   });
 });
@@ -156,6 +174,7 @@ describe('choiceWords', () => {
     ['muse', 'muse'],
     ['druidicOrder', 'druidic order'],
     ['divine-font', 'divine font'],
+    ['arcaneSchool', 'arcane school'],
   ])('%s reads %s', (key, words) => {
     expect(choiceWords(key)).toBe(words);
   });

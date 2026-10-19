@@ -240,7 +240,9 @@ Performance, 1 Focus Point, and its muse's spell once the muse is chosen (until
 then a note says the muse will add one); for a Cleric, its Divine Font, "4 extra
 slots at your highest rank, each holding Heal" (or "Heal or Harm, once you choose
 your font" before the choice); for a Witch, 1 Focus Point and, once the
-patron is chosen, its hex cantrip and the familiar's spell. Picks the class asks for
+patron is chosen, its hex cantrip and the familiar's spell; for a Wizard, 1 Focus
+Point and, once the school is chosen, its school spell and "Curriculum: 1 extra
+cantrip and 1 extra slot at each rank". Picks the class asks for
 between named spells (a Witch's first hex, a Wilding Steward's familiar spell) are radio
 buttons there, stored in `build.classChoices`; one left unmade is on the review's list. These are not counted against the
 picks. A class that does not cast says so.

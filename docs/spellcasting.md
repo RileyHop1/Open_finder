@@ -62,7 +62,7 @@ not in the table: it comes from the class features' `rankUps` (Expert Spellcaste
 | Oracle | spontaneous | divine | standard |
 | Sorcerer | spontaneous | by bloodline | one more per rank |
 | Witch | prepared | by patron (`traditionFor`) | standard |
-| Wizard | prepared | arcane | standard (plus the curriculum's extra slots) |
+| Wizard | prepared | arcane | standard (the curriculum's extra slots are their own entry) |
 
 The casting attribute is not in the table: it is the class's key attribute,
 already in the imported class. **Every number is (confirm)**, and what was and was
@@ -137,8 +137,21 @@ choice. `deriveFont` makes it its own prepared entry beside the class's (source
 proficiency), and `prepareFont` puts the chosen spell in every slot, so the Spells tab
 lists "Heal" four times, each cast with one button. Re-applying the build keeps copies
 already cast cast; levelling up moves the slots to the new highest rank, fresh. Before
-the font is chosen the entry has its slots and nothing prepared. The other casters get
-their rows in their own PRs.
+the font is chosen the entry has its slots and nothing prepared.
+
+A row can carry a **curriculum** too: extra slots for a class choice's own list. The
+**Wizard's** school is one. `curriculumFor` names it once a school is chosen (none for
+Unified Magical Theory, which has no curriculum), and `deriveCurriculum` makes it its
+own prepared entry beside the class's (source `class:wizard:curriculum`, named
+"Curriculum"): one extra cantrip and one slot at each rank the Wizard has, up to the
+9th (the 10th rank's slot takes no extra slots). What is prepared there is play, and
+nothing checks it is a curriculum spell (ADR 0023); levelling up adds the new ranks'
+slots. The Wizard's row also gives a focus pool of 1 and its school's initial school
+spell (`focusByChoice` on `arcaneSchool`): Ars Grammatica, Protective Wards; Battle
+Magic, Force Bolt; Civic Wizardry, Earthworks; Mentalism, Charming Push; Protean Form,
+Scramble Body; the Boundary, Fortify Summoning; Unified Magical Theory, Hand of the
+Apprentice. The spellbook's size and its curriculum spells come later. The other
+casters get their rows in their own PRs.
 
 A class whose tradition depends on a choice (the Witch's patron, the Sorcerer's
 bloodline) names the choice and the tradition for each value of it in its casting

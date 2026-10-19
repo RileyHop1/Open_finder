@@ -58,7 +58,7 @@ export interface CasterTable {
         readonly choice: string;
         readonly byValue: Readonly<Record<string, MagicalTradition>>;
       };
-  /** Cantrips known or prepared at level 1 (the Wizard's school adds one, in its own PR). */
+  /** Cantrips known or prepared at level 1 (a Wizard's curriculum adds one, in its own entry: `classSpells.ts`). */
   readonly cantrips: number;
   readonly slots: SlotStyle;
 }

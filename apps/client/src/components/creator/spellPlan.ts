@@ -10,6 +10,7 @@
 import {
   CASTER_TABLES,
   CLASS_SPELL_GRANTS,
+  curriculumFor,
   fontAt,
   grantedSpells,
   isCasterClass,
@@ -108,6 +109,8 @@ export interface ClassGifts {
   readonly pending: readonly string[];
   /** Picks between named spells the step itself offers (a Witch's first hex); a chosen one is not repeated in `spells`. */
   readonly choices: readonly OfferedSpellChoice[];
+  /** The curriculum entry's name, once a choice that has one is made (a Wizard's school). */
+  readonly curriculum: string | undefined;
   /**
    * A font's extra slots at level 1 (a Cleric's Divine Font): the spell they hold
    * once the font is chosen, else every spell it could be.
@@ -155,6 +158,7 @@ export function classGifts(
       ]),
     ].filter((choice) => classChoices[choice] === undefined),
     choices,
+    curriculum: curriculumFor(classSlug, classChoices),
     font: fontGift(classSlug, classChoices),
   };
 }
