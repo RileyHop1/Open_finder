@@ -423,6 +423,7 @@ export {
   slotsAtLevel,
   traditionFor,
   bookFor,
+  repertoireFilled,
   type CasterClassSlug,
   type CasterTable,
   type SlotStyle,

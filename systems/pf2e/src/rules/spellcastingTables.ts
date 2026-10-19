@@ -56,8 +56,8 @@ export interface CasterTable {
   /**
    * A fixed tradition, or the class choice that decides it (the Witch's patron,
    * the Sorcerer's bloodline) and the tradition for each value of it. A value
-   * missing from `byValue` decides nothing (the Sorcerer's bloodlines come in its
-   * own PR); `traditionFor` resolves it.
+   * missing from `byValue` decides nothing (the Sorcerer's Draconic bloodline, whose
+   * tradition is its dragon exemplar's); `traditionFor` resolves it.
    */
   readonly tradition:
     | MagicalTradition
@@ -70,6 +70,13 @@ export interface CasterTable {
   readonly slots: SlotStyle;
   /** What a prepared caster prepares from when it is its own (a Wizard's spellbook, a Witch's familiar). */
   readonly book?: SpellBook;
+  /**
+   * Whether the class's own choice fills one cantrip and one spell of each rank it can
+   * cast (to the 9th) in its repertoire, rather than adding them: a Sorcerer knows 5
+   * cantrips and 3 rank 1 spells at level 1, one of each from its bloodline, so it
+   * picks 4 and 2 (`repertoireFilled`).
+   */
+  readonly grantsFillRepertoire?: boolean;
 }
 
 /**
@@ -91,9 +98,26 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
   oracle: { kind: 'spontaneous', tradition: 'divine', cantrips: 5, slots: 'sorcerer' },
   sorcerer: {
     kind: 'spontaneous',
-    tradition: { choice: 'bloodline', byValue: {} },
+    // Each bloodline's Tradition, checked against the pinned upstream text
+    // (2026-10-19). The Draconic one is the dragon exemplar's, chosen separately, so
+    // it is not here yet.
+    tradition: {
+      choice: 'bloodline',
+      byValue: {
+        'bloodline-aberrant': 'occult',
+        'bloodline-angelic': 'divine',
+        'bloodline-demonic': 'divine',
+        'bloodline-diabolic': 'divine',
+        'bloodline-elemental': 'primal',
+        'bloodline-fey': 'primal',
+        'bloodline-hag': 'occult',
+        'bloodline-imperial': 'arcane',
+        'bloodline-undead': 'divine',
+      },
+    },
     cantrips: 5,
     slots: 'sorcerer',
+    grantsFillRepertoire: true,
   },
   witch: {
     kind: 'prepared',
@@ -122,6 +146,28 @@ export const CASTER_TABLES: Readonly<Record<CasterClassSlug, CasterTable>> = {
     book: { name: 'spellbook', cantrips: 10, ranked: 5 },
   },
 };
+
+/**
+ * The places in `slug`'s repertoire at `level` its granted spells fill, so the player
+ * does not pick them: one cantrip and one spell per rank open, to the 9th, for a class
+ * whose grants fill its repertoire (the Sorcerer); none for any other.
+ */
+export function repertoireFilled(
+  slug: string | undefined,
+  level: number,
+): { readonly cantrips: number; readonly ranked: number } {
+  if (slug === undefined || !isCasterClass(slug)) {
+    return { cantrips: 0, ranked: 0 };
+  }
+  const table = CASTER_TABLES[slug];
+  if (table.grantsFillRepertoire !== true) {
+    return { cantrips: 0, ranked: 0 };
+  }
+  const ranks = Object.keys(slotsAtLevel(table.slots, level)).filter(
+    (rank) => Number(rank) <= 9,
+  ).length;
+  return { cantrips: 1, ranked: ranks };
+}
 
 /** The book `slug` prepares from, or `undefined` for a class with none. */
 export function bookFor(slug: string | undefined): SpellBook | undefined {

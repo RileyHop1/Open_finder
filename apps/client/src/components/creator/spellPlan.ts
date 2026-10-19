@@ -17,6 +17,7 @@ import {
   grantedSpells,
   isCasterClass,
   rankedByChoice,
+  repertoireFilled,
   slotsAtLevel,
   spellChoicesFor,
   traditionFor,
@@ -70,16 +71,19 @@ export function castingPlan(
   }
   const table = CASTER_TABLES[classSlug];
   const book = bookFor(classSlug);
+  // A Sorcerer's bloodline fills a cantrip and a rank 1 spell of its repertoire.
+  const filled = repertoireFilled(classSlug, 1);
   return {
     kind: table.kind,
     tradition: traditionFor(classSlug, classChoices),
     traditionChoice:
       typeof table.tradition === 'string' ? undefined : table.tradition.choice,
-    cantrips: book?.cantrips ?? table.cantrips,
+    cantrips: (book?.cantrips ?? table.cantrips) - filled.cantrips,
     preparedCantrips: book === undefined ? undefined : table.cantrips,
     known:
       table.kind === 'spontaneous'
-        ? Object.values(slotsAtLevel(table.slots, 1)).reduce((sum, n) => sum + n, 0)
+        ? Object.values(slotsAtLevel(table.slots, 1)).reduce((sum, n) => sum + n, 0) -
+          filled.ranked
         : book === undefined
           ? undefined
           : book.ranked + curriculumBookSpells(classSlug, classChoices),

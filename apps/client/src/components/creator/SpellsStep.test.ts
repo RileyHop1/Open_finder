@@ -217,10 +217,7 @@ describe('SpellsStep', () => {
     expect(chosen).toMatch(/each holding\s+Heal/);
   });
 
-  it('shows no class gifts for a caster with none, and counts a prepared caster’s picks plainly', async () => {
-    const sorcerer = mountStep(buildFor('sorcerer'));
-    await flushPromises();
-    expect(sorcerer.find('[aria-labelledby="spells-gifts-title"]').exists()).toBe(false);
+  it('counts a prepared caster’s picks plainly', async () => {
     const cleric = mountStep(buildFor('cleric'));
     await flushPromises();
     expect(cleric.findAll('fieldset.picks')[1]?.text()).toContain('0 chosen');

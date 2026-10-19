@@ -23,7 +23,11 @@
  * spellbook (Unified Magical Theory: one rank 1 spell of any kind) (checked 2026-10-19).
  * An Oracle starts with a focus pool of 1 and its mystery's initial revelation spell,
  * and its mystery's granted spells: a cantrip and a rank 1 spell at level 1, and each
- * higher one once the Oracle can cast spells of its rank (checked 2026-10-19).
+ * higher one once the Oracle can cast spells of its rank (checked 2026-10-19). A
+ * Sorcerer starts with a focus pool of 1, its bloodline's initial bloodline spell, and
+ * its bloodline's sorcerous gifts: a cantrip and a rank 1 spell at level 1 (the higher
+ * ranks, and the Draconic and Elemental gifts that hang on a further choice, come in
+ * later PRs; checked 2026-10-19).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
@@ -255,6 +259,52 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
         life: ['life-link'],
         lore: ['brain-drain'],
         tempest: ['tempest-touch'],
+      },
+    },
+  },
+  sorcerer: {
+    focusPoints: 1,
+    cantrips: [],
+    focusSpells: [],
+    byChoice: {},
+    byChoiceAtRank: {
+      bloodline: {
+        'bloodline-aberrant': { 1: ['phantom-pain'] },
+        'bloodline-angelic': { 1: ['heal'] },
+        'bloodline-demonic': { 1: ['fear'] },
+        'bloodline-diabolic': { 1: ['charm'] },
+        'bloodline-draconic': { 1: ['fear'] },
+        'bloodline-fey': { 1: ['charm'] },
+        'bloodline-hag': { 1: ['illusory-disguise'] },
+        'bloodline-imperial': { 1: ['force-barrage'] },
+        'bloodline-undead': { 1: ['harm'] },
+      },
+    },
+    cantripsByChoice: {
+      bloodline: {
+        'bloodline-aberrant': ['daze'],
+        'bloodline-angelic': ['light'],
+        'bloodline-demonic': ['caustic-blast'],
+        'bloodline-diabolic': ['ignition'],
+        'bloodline-draconic': ['shield'],
+        'bloodline-fey': ['figment'],
+        'bloodline-hag': ['daze'],
+        'bloodline-imperial': ['detect-magic'],
+        'bloodline-undead': ['void-warp'],
+      },
+    },
+    focusByChoice: {
+      bloodline: {
+        'bloodline-aberrant': ['tentacular-limbs'],
+        'bloodline-angelic': ['angelic-halo'],
+        'bloodline-demonic': ['gluttons-jaws'],
+        'bloodline-diabolic': ['diabolic-edict'],
+        'bloodline-draconic': ['flurry-of-claws'],
+        'bloodline-elemental': ['elemental-toss'],
+        'bloodline-fey': ['faerie-dust'],
+        'bloodline-hag': ['jealous-hex'],
+        'bloodline-imperial': ['ancestral-memories'],
+        'bloodline-undead': ['undeaths-blessing'],
       },
     },
   },

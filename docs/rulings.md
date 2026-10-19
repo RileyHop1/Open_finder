@@ -889,6 +889,28 @@ ruling from silently drifting.
 - **Override:** the entry's slots and prepared spells are editable on the sheet ("Edit
   spells").
 
+### A Sorcerer's bloodline spells fill its repertoire
+- **Rules text:** the Sorcerer's Spell Repertoire, Bloodline and Bloodline Spells class
+  features and the bloodlines in Player Core 2. Checked against the pinned upstream
+  text (2026-10-19), not against Archives of Nethys: **(confirm)**.
+- **The ambiguity:** none in the rules; recorded because the Sorcerer counts its
+  granted spells differently from the Oracle and the Bard.
+- **Our reading:** at level 1 a Sorcerer learns two rank 1 spells and four cantrips
+  of its choice, plus a spell and a cantrip from its bloodline, so its repertoire
+  holds 5 cantrips and 3 rank 1 spells (as many as its slots). At each level the
+  player picks the slot count less one per rank open (to the 9th), and 4 cantrips,
+  whether or not the bloodline's gifts are modeled yet (the Draconic and Elemental
+  ones hang on a further choice). An Oracle's granted spells and a Bard's are on top
+  of its picks instead. Each bloodline's tradition, cantrip, rank 1 spell and initial
+  bloodline spell are in `docs/spellcasting.md`; a focus pool of 1.
+- **Alternative reading:** count the bloodline's spells on top, like the Oracle's.
+  Rejected: the Sorcerer's repertoire text names two picked spells plus one from the
+  bloodline at level 1, matching three slots.
+- **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` (the Sorcerer
+  cases) and `systems/pf2e/src/rules/spellcastingTables.test.ts`.
+- **Override:** the repertoire and cantrips are editable on the sheet ("Edit spells"),
+  and more picks only warn.
+
 ### A Wizard's school: curriculum slots and school spell
 - **Rules text:** the Wizard's Arcane School, Wizard Spellcasting and Archwizard's
   Spellcraft class features, the arcane schools, and the Wizard page of the classes

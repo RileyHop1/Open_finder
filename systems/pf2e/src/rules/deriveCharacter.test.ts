@@ -465,8 +465,8 @@ describe('deriveCharacter', () => {
       });
 
       it('gives a class with no row no focus pool and nothing extra', () => {
-        const sorcerer = { ...cls, slug: 'sorcerer', name: 'Sorcerer' };
-        const d = derive(['c1'], [], sorcerer);
+        const fighter = { ...cls, slug: 'fighter', name: 'Fighter' };
+        const d = derive(['c1'], [], fighter);
         expect(d.focusPoints).toBe(0);
         expect(d.spellPicks.cantrips).toEqual([ref('c1')]);
       });
