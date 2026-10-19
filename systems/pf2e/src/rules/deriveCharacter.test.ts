@@ -382,13 +382,14 @@ describe('deriveCharacter', () => {
       ['spells/r1', spell('r1', false)],
       ['spells/r2', spell('r2', false)],
       ['spells/r3', spell('r3', false)],
+      ['spells/r4', spell('r4', false)],
       // Invented entries under the slugs the Bard's grant table names (`classSpells.ts`).
       ['spells/courageous-anthem', spell('courageous-anthem', true)],
       ['spells/counter-performance', spell('counter-performance', false)],
       ['spells/sure-strike', spell('sure-strike', false)],
       ['feats/not-magic', feat('not-magic')],
     ]);
-    // A spontaneous caster the class-grant table has no row for, so only the picks count.
+    // A spontaneous caster with no mystery chosen, so only the picks count.
     const oracle = { ...cls, slug: 'oracle', name: 'Oracle' };
     const ref = (slug: string, packId = 'spells') => ({ packId, slug });
     const derive = (
@@ -435,10 +436,10 @@ describe('deriveCharacter', () => {
     });
 
     it('warns past a spontaneous caster’s repertoire (its slots), granting them all', () => {
-      const d = derive([], [ref('r1'), ref('r2'), ref('r3')]);
-      expect(d.spellPicks.ranked).toHaveLength(3);
+      const d = derive([], [ref('r1'), ref('r2'), ref('r3'), ref('r4')]);
+      expect(d.spellPicks.ranked).toHaveLength(4);
       expect(d.warnings).toEqual([
-        { kind: 'too-many-known-spells', chosen: 3, allowed: 2 },
+        { kind: 'too-many-known-spells', chosen: 4, allowed: 3 },
       ]);
     });
 
@@ -464,7 +465,8 @@ describe('deriveCharacter', () => {
       });
 
       it('gives a class with no row no focus pool and nothing extra', () => {
-        const d = derive(['c1'], [], oracle);
+        const sorcerer = { ...cls, slug: 'sorcerer', name: 'Sorcerer' };
+        const d = derive(['c1'], [], sorcerer);
         expect(d.focusPoints).toBe(0);
         expect(d.spellPicks.cantrips).toEqual([ref('c1')]);
       });

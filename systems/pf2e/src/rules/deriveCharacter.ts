@@ -456,7 +456,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
       return [{ packId: entry.packId, slug: entry.slug }];
     });
   // What the class grants by itself (not counted against the picks below).
-  const granted = grantedSpells(inputs.class?.slug, build.classChoices);
+  const granted = grantedSpells(inputs.class?.slug, build.classChoices, level);
   const refs = (slugs: readonly string[]) =>
     slugs.map((slug) => ({ packId: CLASS_SPELLS_PACK, slug }));
   pickSpells(refs(granted.focusSpells));

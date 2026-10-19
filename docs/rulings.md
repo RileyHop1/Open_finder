@@ -807,8 +807,8 @@ ruling from silently drifting.
   fix, and so what was and was not checked is written down.
 - **Our reading:** a rank opens at level 1 for the first rank, `2r - 1` for rank
   `r`, and at 19 for the tenth (one slot). Standard casters (Bard, Cleric, Druid,
-  Oracle, Witch, Wizard) get 2 slots when a rank opens and 3 from the next level;
-  the Sorcerer gets one more of each (3, then 4). Every caster has 5 cantrips at
+  Witch, Wizard) get 2 slots when a rank opens and 3 from the next level; the
+  Sorcerer and the Oracle get one more of each (3, then 4). Every caster has 5 cantrips at
   level 1. Spellcasting proficiency is no longer in this table: it is each class
   feature's rank-up from the imported data (Expert Spellcaster and the rest; a
   Cleric by doctrine), which replaced a flat "expert at 7, master at 15, legendary
@@ -816,7 +816,11 @@ ruling from silently drifting.
 - **What was checked, and against what:** the functions were run against every
   caster among the sample characters Paizo publishes in the pinned upstream pack
   (read only, nothing copied). 21 of 26 match exactly, covering the Bard,
-  Cleric, Druid, Oracle, Sorcerer and Witch at levels 1 to 10. The five that
+  Cleric, Druid, Sorcerer and Witch at levels 1 to 10. The Oracle was first read as
+  standard; re-checked (2026-10-19), the Remaster iconic Oracle (levels 1, 3 and 5:
+  3, then 4 and 3, then 4, 4 and 3) matches the Sorcerer's style, as does the
+  Remaster text ("three 1st-rank spells" at level 1), and the one Oracle sample on
+  the standard style is from an older adventure, read as legacy. The five that
   differ: three Wizards and their curriculum's extra slot per rank (not in the
   base table; it arrives with the Wizard), a Cleric entry that was a different
   casting source, and one Level 1 Bard with one slot more than the other Level 1
@@ -830,7 +834,7 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/spellcastingTables.test.ts`.
 - **Override:** every count is editable on the sheet once the Spells tab lands.
 
-### What a class grants by itself (the Bard, the Druid, the Witch)
+### What a class grants by itself (the Bard, the Druid, the Witch, the Oracle)
 - **Rules text:** the Bard's Composition Spells, muse and Spell Repertoire class
   features in Player Core. Checked against the pinned upstream text (2026-10-16), not
   against Archives of Nethys, which was not reachable: **(confirm)**.
@@ -854,10 +858,12 @@ ruling from silently drifting.
   the mapping is ours. Every Witch picks a first hex (Patron's Puppet or Phase
   Familiar), and a Wilding Steward's familiar learns the pick of Summon Animal or
   Summon Plant or Fungus: both are picks in the spells step, never granted unmade.
-- **Found while checking, unresolved:** the upstream Oracle and Sorcerer spellcasting
-  text both say three rank 1 spells a day at level 1, but the slot table gives the
-  Oracle two (the standard style), which matched the published Oracle samples. Settled
-  in the Oracle's own PR.
+- **The Oracle:** a focus pool of 1, its mystery's initial revelation spell, and its
+  mystery's granted spells: a cantrip (beyond the five picked) and a rank 1 spell at
+  level 1, then each higher-rank one once the Oracle can cast that rank (the Mystery
+  feature's text; checked 2026-10-19). The granted spells are added to the repertoire
+  and do not count against it. Its slot table was settled the same day (see "Spell
+  slots per rank, by level").
 - **Alternative reading:** none known.
 - **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` ("what a class
   grants by itself") and `apps/server/src/applyBuild.test.ts`.

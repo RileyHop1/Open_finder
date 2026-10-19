@@ -248,7 +248,9 @@ slots at your highest rank, each holding Heal" (or "Heal or Harm, once you choos
 your font" before the choice); for a Witch, 1 Focus Point and, once the
 patron is chosen, its hex cantrip and the familiar's spell; for a Wizard, 1 Focus
 Point and, once the school is chosen, its school spell and "Curriculum: 1 extra
-cantrip and 1 extra slot at each rank". Picks the class asks for
+cantrip and 1 extra slot at each rank"; for an Oracle, 1 Focus Point and, once
+the mystery is chosen, its granted cantrip and rank 1 spell and its revelation
+spell. Picks the class asks for
 between named spells (a Witch's first hex, a Wilding Steward's familiar spell) are radio
 buttons there, stored in `build.classChoices`; one left unmade is on the review's list. These are not counted against the
 picks. A class that does not cast says so.

@@ -21,8 +21,13 @@
  * cantrip and an extra slot at each rank up to 9 (the 10th rank's slot takes no extra
  * slots), for curriculum spells only, and two rank 1 curriculum spells in the
  * spellbook (Unified Magical Theory: one rank 1 spell of any kind) (checked 2026-10-19).
+ * An Oracle starts with a focus pool of 1 and its mystery's initial revelation spell,
+ * and its mystery's granted spells: a cantrip and a rank 1 spell at level 1, and each
+ * higher one once the Oracle can cast spells of its rank (checked 2026-10-19).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
+
+import { rankOpensAt } from './spellcastingTables.js';
 
 export interface ClassSpellGrants {
   /** The focus pool the class starts with. */
@@ -37,6 +42,13 @@ export interface ClassSpellGrants {
    */
   readonly byChoice: Readonly<
     Record<string, Readonly<Record<string, readonly string[]>>>
+  >;
+  /**
+   * Ranked spells a class choice adds by spell rank, each once the class can cast that
+   * rank (an Oracle's mystery's granted spells), keyed like `byChoice` and then by rank.
+   */
+  readonly byChoiceAtRank?: Readonly<
+    Record<string, Readonly<Record<string, Readonly<Record<number, readonly string[]>>>>>
   >;
   /** Cantrips a class choice grants, keyed like `byChoice` (a Witch's patron's hex cantrip). */
   readonly cantripsByChoice?: Readonly<
@@ -200,6 +212,52 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
       bookSpellsWithout: 1,
     },
   },
+  oracle: {
+    focusPoints: 1,
+    cantrips: [],
+    focusSpells: [],
+    byChoice: {},
+    byChoiceAtRank: {
+      mystery: {
+        ancestors: { 1: ['ill-omen'], 2: ['ghostly-carrier'], 5: ['dreaming-potential'] },
+        battle: { 1: ['sure-strike'], 2: ['telekinetic-maneuver'], 4: ['weapon-storm'] },
+        bones: { 1: ['grim-tendrils'], 2: ['false-vitality'], 3: ['ghostly-weapon'] },
+        cosmos: { 1: ['dizzying-colors'], 2: ['darkness'], 5: ['moon-frenzy'] },
+        flames: { 1: ['breathe-fire'], 2: ['blazing-bolt'], 3: ['fireball'] },
+        life: { 1: ['soothe'], 2: ['false-vitality'], 5: ['grisly-growths'] },
+        lore: { 1: ['mindlink'], 3: ['hypercognition'], 6: ['never-mind'] },
+        tempest: {
+          1: ['thunderstrike'],
+          4: ['hydraulic-torrent'],
+          6: ['chain-lightning'],
+        },
+      },
+    },
+    cantripsByChoice: {
+      mystery: {
+        ancestors: ['guidance'],
+        battle: ['shield'],
+        bones: ['void-warp'],
+        cosmos: ['light'],
+        flames: ['ignition'],
+        life: ['vitality-lash'],
+        lore: ['read-aura'],
+        tempest: ['electric-arc'],
+      },
+    },
+    focusByChoice: {
+      mystery: {
+        ancestors: ['ancestral-touch'],
+        battle: ['weapon-trance'],
+        bones: ['soul-siphon'],
+        cosmos: ['spray-of-stars'],
+        flames: ['incendiary-aura'],
+        life: ['life-link'],
+        lore: ['brain-drain'],
+        tempest: ['tempest-touch'],
+      },
+    },
+  },
   cleric: {
     focusPoints: 0,
     cantrips: [],
@@ -252,10 +310,32 @@ export function spellChoicesFor(
     });
 }
 
-/** What `classSlug` grants, given the build's class choices. Nothing for a class with no row. */
+/**
+ * The spells `byChoiceAtRank` adds at `level`, with the choice each came from: those of
+ * every rank open by then (rank 1 at level 1, rank r at 2r - 1).
+ */
+export function rankedByChoice(
+  grants: ClassSpellGrants | undefined,
+  classChoices: Readonly<Record<string, string>>,
+  level: number,
+): { readonly slug: string; readonly choice: string }[] {
+  return Object.entries(grants?.byChoiceAtRank ?? {}).flatMap(([choice, byValue]) => {
+    const chosen = classChoices[choice];
+    const byRank = chosen === undefined ? undefined : byValue[chosen];
+    return Object.entries(byRank ?? {})
+      .filter(([rank]) => rankOpensAt(Number(rank)) <= level)
+      .flatMap(([, slugs]) => slugs.map((slug) => ({ slug, choice })));
+  });
+}
+
+/**
+ * What `classSlug` grants at `level`, given the build's class choices. Nothing for a
+ * class with no row.
+ */
 export function grantedSpells(
   classSlug: string | undefined,
   classChoices: Readonly<Record<string, string>>,
+  level = 1,
 ): GrantedSpells {
   const grants = classSlug === undefined ? undefined : CLASS_SPELL_GRANTS[classSlug];
   if (grants === undefined) {
@@ -278,7 +358,11 @@ export function grantedSpells(
       ...chosenFrom(grants.focusByChoice ?? {}),
       ...picked('focus'),
     ],
-    ranked: [...chosenFrom(grants.byChoice), ...picked('ranked')],
+    ranked: [
+      ...chosenFrom(grants.byChoice),
+      ...rankedByChoice(grants, classChoices, level).map((r) => r.slug),
+      ...picked('ranked'),
+    ],
   };
 }
 
