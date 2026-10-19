@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CLASS_SPELL_GRANTS,
   curriculumBookSpells,
   curriculumFor,
   fontAt,
@@ -142,4 +143,36 @@ describe('curriculumBookSpells', () => {
     expect(curriculumBookSpells('witch', { patron: 'the-resentment' })).toBe(0);
     expect(curriculumBookSpells(undefined, {})).toBe(0);
   });
+});
+
+describe('a Sorcerer’s sorcerous gifts', () => {
+  const sorcerer = CLASS_SPELL_GRANTS.sorcerer;
+  const byRank = sorcerer?.byChoiceAtRank ?? {};
+  const optionsOf = (key: string) =>
+    sorcerer?.subChoices?.find((c) => c.key === key)?.options.map((o) => o.value) ?? [];
+  // Every bloodline, with each answer to the sub-choice it asks for.
+  const builds = Object.keys(byRank.bloodline ?? {}).flatMap((bloodline) => {
+    const sub = sorcerer?.subChoices?.find((c) => c.when.value === bloodline);
+    return sub === undefined
+      ? [{ bloodline }]
+      : optionsOf(sub.key).map((value) => ({ bloodline, [sub.key]: value }));
+  });
+
+  it.each(builds.map((b) => [Object.values(b).join(' / '), b] as const))(
+    '%s: exactly one gift at each rank 1 to 9',
+    (_name, choices) => {
+      const perRank = new Map<number, number>();
+      for (const [key, byValue] of Object.entries(byRank)) {
+        const value = (choices as Record<string, string>)[key];
+        for (const [rank, slugs] of Object.entries(
+          value === undefined ? {} : (byValue[value] ?? {}),
+        )) {
+          perRank.set(Number(rank), (perRank.get(Number(rank)) ?? 0) + slugs.length);
+        }
+      }
+      expect([...perRank.entries()].sort(([a], [b]) => a - b)).toEqual(
+        [1, 2, 3, 4, 5, 6, 7, 8, 9].map((rank) => [rank, 1]),
+      );
+    },
+  );
 });
