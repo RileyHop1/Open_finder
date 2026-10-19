@@ -310,6 +310,51 @@ describe('what a class grants by itself', () => {
     ]);
   });
 
+  it.each([
+    [
+      'bloodline-imperial',
+      'arcane',
+      'detect-magic',
+      'force-barrage',
+      'ancestral-memories',
+    ],
+    ['bloodline-angelic', 'divine', 'light', 'heal', 'angelic-halo'],
+    ['bloodline-hag', 'occult', 'daze', 'illusory-disguise', 'jealous-hex'],
+  ])(
+    'a level 1 Sorcerer of the %s: %s spells, its gifts and bloodline spell, 1 focus point',
+    (bloodline, tradition, cantrip, spell, focus) => {
+      const derived = casting('sorcerer', 'cha', 1, { bloodline });
+      expect(derived.spellcasting).toMatchObject({ tradition, slots: { 1: 3 } });
+      expect(derived.warnings).toEqual([]);
+      expect(derived.focusPoints).toBe(1);
+      expect(derived.spellPicks).toEqual({
+        cantrips: [{ packId: 'spells', slug: cantrip }],
+        ranked: [{ packId: 'spells', slug: spell }],
+      });
+      expect(derived.items.map((i) => i.slug)).toContain(focus);
+    },
+  );
+
+  it('a Draconic sorcerer gets its gifts but waits for its dragon exemplar’s tradition', () => {
+    const derived = casting('sorcerer', 'cha', 1, { bloodline: 'bloodline-draconic' });
+    expect(derived.spellcasting).toBeUndefined();
+    expect(derived.warnings).toContainEqual({
+      kind: 'spellcasting-tradition-undecided',
+      choice: 'bloodline',
+      classSlug: 'sorcerer',
+    });
+    expect(derived.items.map((i) => i.slug)).toEqual(
+      expect.arrayContaining(['shield', 'fear', 'flurry-of-claws']),
+    );
+  });
+
+  it('an Elemental sorcerer is primal and has its bloodline spell; its element’s gifts come later', () => {
+    const derived = casting('sorcerer', 'cha', 1, { bloodline: 'bloodline-elemental' });
+    expect(derived.spellcasting?.tradition).toBe('primal');
+    expect(derived.items.map((i) => i.slug)).toContain('elemental-toss');
+    expect(derived.spellPicks).toEqual({ cantrips: [], ranked: [] });
+  });
+
   it('a Cleric grants nothing beyond its font', () => {
     const derived = casting('cleric', 'wis', 1);
     expect(derived.focusPoints).toBe(0);
@@ -408,6 +453,19 @@ describe('a book caster’s picks (a Wizard’s spellbook, a Witch’s familiar)
     ).toEqual([
       { kind: 'too-many-book-spells', chosen: 6, allowed: 5, book: 'familiar' },
     ]);
+  });
+
+  it('a Sorcerer’s bloodline gifts take places in its repertoire: 4 cantrips and 2 spells to pick', () => {
+    const bloodline = { bloodline: 'bloodline-imperial' };
+    expect(withPicks('sorcerer', bloodline, 4, 2).warnings).toEqual([]);
+    expect(withPicks('sorcerer', bloodline, 5, 3).warnings).toEqual([
+      { kind: 'too-many-known-spells', chosen: 3, allowed: 2 },
+      { kind: 'too-many-cantrips', chosen: 5, allowed: 4 },
+    ]);
+    // The same 4 and 2 for a bloodline whose gifts hang on a further choice.
+    expect(
+      withPicks('sorcerer', { bloodline: 'bloodline-elemental' }, 5, 3).warnings,
+    ).toHaveLength(2);
   });
 
   it('a Cleric, with no book, prepares every cantrip picked and is warned past 5', () => {

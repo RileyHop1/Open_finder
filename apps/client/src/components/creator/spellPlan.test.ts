@@ -27,7 +27,8 @@ describe('castingPlan', () => {
       book: undefined,
       rankedLabel: 'Rank 1 spells you know',
     });
-    expect(castingPlan('sorcerer')?.known).toBe(3);
+    // A Sorcerer's bloodline fills one cantrip and one rank 1 spell of its 5 and 3.
+    expect(castingPlan('sorcerer')).toMatchObject({ cantrips: 4, known: 2 });
     expect(castingPlan('oracle')?.known).toBe(3);
     expect(castingPlan('cleric')?.known).toBeUndefined();
     expect(castingPlan('cleric')?.rankedLabel).toBe('Rank 1 spells to prepare from');
@@ -199,6 +200,18 @@ describe('classGifts', () => {
     ]);
   });
 
+  it('waits for a Sorcerer’s bloodline, then names its gifts and bloodline spell', () => {
+    expect(classGifts('sorcerer', {})).toMatchObject({
+      focusPoints: 1,
+      pending: ['bloodline'],
+    });
+    expect(classGifts('sorcerer', { bloodline: 'bloodline-undead' }).spells).toEqual([
+      { slug: 'void-warp', why: 'cantrip' },
+      { slug: 'undeaths-blessing', why: 'focus' },
+      { slug: 'harm', why: 'choice', choice: 'bloodline' },
+    ]);
+  });
+
   it('gives a class with no row nothing', () => {
     const none = {
       spells: [],
@@ -208,7 +221,7 @@ describe('classGifts', () => {
       curriculum: undefined,
       font: undefined,
     };
-    expect(classGifts('sorcerer', {})).toEqual(none);
+    expect(classGifts('fighter', {})).toEqual(none);
     expect(classGifts(undefined, {})).toEqual(none);
   });
 });

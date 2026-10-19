@@ -37,7 +37,7 @@ import {
   highestRank,
 } from './deriveSpellcasting.js';
 import { featSlotsUpTo, skillIncreasesUpTo } from './progression.js';
-import { bookFor, type SpellBook } from './spellcastingTables.js';
+import { bookFor, repertoireFilled, type SpellBook } from './spellcastingTables.js';
 
 type ItemEntry = CharacterItem['entry'];
 
@@ -503,9 +503,12 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
       ? undefined
       : deriveCurriculum(casting.spellcasting, curriculumName);
 
+  const filled = repertoireFilled(inputs.class?.slug, level);
   const derivedSlots = casting.spellcasting?.slots;
   if (casting.spellcasting?.kind === 'spontaneous' && derivedSlots !== undefined) {
-    const known = Object.values(derivedSlots).reduce((sum, n) => sum + n, 0);
+    // A Sorcerer's bloodline spells take places in the repertoire (`repertoireFilled`).
+    const known =
+      Object.values(derivedSlots).reduce((sum, n) => sum + n, 0) - filled.ranked;
     if (build.spells.ranked.length > known) {
       warnings.push({
         kind: 'too-many-known-spells',
@@ -534,7 +537,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   const allowedCantrips =
     casting.spellcasting === undefined
       ? undefined
-      : (book?.cantrips ?? casting.spellcasting.cantrips);
+      : (book?.cantrips ?? casting.spellcasting.cantrips) - filled.cantrips;
   if (allowedCantrips !== undefined && build.spells.cantrips.length > allowedCantrips) {
     warnings.push({
       kind: 'too-many-cantrips',

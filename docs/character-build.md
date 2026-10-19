@@ -227,9 +227,11 @@ chosen"). The rank 1 heading says what the picks are for: spells you know
 (spontaneous), your spellbook (Wizard) or spells to prepare from (other prepared
 casters). Another tradition's list can be chosen from a menu and picked from,
 with a note that it is not the class's own. A Witch's list follows the patron
-chosen ("Your patron gives you the Occult list"); before the patron is chosen,
-or for a Sorcerer, whose bloodline the app cannot map yet, the step asks for the
-list that goes with the choice. Picks go in `build.spells` ([spellcasting.md](spellcasting.md)).
+chosen ("Your patron gives you the Occult list"), and a Sorcerer's its
+bloodline's; before the choice is made, or for a Draconic sorcerer (whose list is
+its dragon's, not read yet), the step asks for the list that goes with the
+choice. A Sorcerer picks 4 cantrips and 2 rank 1 spells, its bloodline giving
+the fifth and third. Picks go in `build.spells` ([spellcasting.md](spellcasting.md)).
 More cantrips than the class has is counted in words and warned about on
 review; nothing is refused (ADR 0023). A spontaneous caster's rank 1 picks are
 counted against its repertoire, which holds as many spells as it has slots ("1 of
@@ -250,7 +252,8 @@ patron is chosen, its hex cantrip and the familiar's spell; for a Wizard, 1 Focu
 Point and, once the school is chosen, its school spell and "Curriculum: 1 extra
 cantrip and 1 extra slot at each rank"; for an Oracle, 1 Focus Point and, once
 the mystery is chosen, its granted cantrip and rank 1 spell and its revelation
-spell. Picks the class asks for
+spell; for a Sorcerer, 1 Focus Point and, once the bloodline is chosen, its
+cantrip, rank 1 spell and bloodline spell. Picks the class asks for
 between named spells (a Witch's first hex, a Wilding Steward's familiar spell) are radio
 buttons there, stored in `build.classChoices`; one left unmade is on the review's list. These are not counted against the
 picks. A class that does not cast says so.

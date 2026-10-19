@@ -8,6 +8,7 @@ import {
   slotsAtLevel,
   traditionFor,
   bookFor,
+  repertoireFilled,
 } from './spellcastingTables.js';
 
 // Golden values: worked out by hand from the pattern in the module comment, and
@@ -127,6 +128,8 @@ describe('traditionFor', () => {
     expect(traditionFor('witch', {})).toBeUndefined();
     expect(traditionFor('witch', { patron: 'someone-else' })).toBeUndefined();
     expect(traditionFor('sorcerer', { bloodline: 'imperial' })).toBeUndefined();
+    // The Draconic bloodline's tradition is its dragon exemplar's, not mapped yet.
+    expect(traditionFor('sorcerer', { bloodline: 'bloodline-draconic' })).toBeUndefined();
     expect(traditionFor('fighter', {})).toBeUndefined();
   });
 });
@@ -142,5 +145,34 @@ describe('bookFor', () => {
     expect(bookFor('bard')).toBeUndefined();
     expect(bookFor('fighter')).toBeUndefined();
     expect(bookFor(undefined)).toBeUndefined();
+  });
+});
+
+describe('the Sorcerer', () => {
+  it.each([
+    ['bloodline-aberrant', 'occult'],
+    ['bloodline-angelic', 'divine'],
+    ['bloodline-demonic', 'divine'],
+    ['bloodline-diabolic', 'divine'],
+    ['bloodline-elemental', 'primal'],
+    ['bloodline-fey', 'primal'],
+    ['bloodline-hag', 'occult'],
+    ['bloodline-imperial', 'arcane'],
+    ['bloodline-undead', 'divine'],
+  ])('a %s sorcerer casts %s spells', (bloodline, tradition) => {
+    expect(traditionFor('sorcerer', { bloodline })).toBe(tradition);
+  });
+
+  it('fills one cantrip and one spell per rank open (to the 9th) with its bloodline’s gifts', () => {
+    expect(repertoireFilled('sorcerer', 1)).toEqual({ cantrips: 1, ranked: 1 });
+    expect(repertoireFilled('sorcerer', 5)).toEqual({ cantrips: 1, ranked: 3 });
+    expect(repertoireFilled('sorcerer', 20)).toEqual({ cantrips: 1, ranked: 9 });
+  });
+
+  it('is the only class whose grants fill its repertoire', () => {
+    expect(CASTER_CLASS_SLUGS.filter((c) => repertoireFilled(c, 1).cantrips > 0)).toEqual(
+      ['sorcerer'],
+    );
+    expect(repertoireFilled('fighter', 1)).toEqual({ cantrips: 0, ranked: 0 });
   });
 });

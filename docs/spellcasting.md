@@ -155,6 +155,21 @@ Never Mind (6); Tempest, Electric Arc, Tempest Touch, then Thunderstrike, Hydrau
 Torrent (4), Chain Lightning (6). The mystery's skill, feat and curse come from the
 imported mystery.
 
+The **Sorcerer** has a pool of 1 and, by bloodline, its initial bloodline spell
+(`focusByChoice`) and its sorcerous gifts: a cantrip (`cantripsByChoice`) and a rank 1
+spell (`byChoiceAtRank`). Aberrant: Daze, Phantom Pain, Tentacular Limbs; Angelic:
+Light, Heal, Angelic Halo; Demonic: Caustic Blast, Fear, Glutton's Jaws; Diabolic:
+Ignition, Charm, Diabolic Edict; Draconic: Shield, Fear, Flurry of Claws; Fey: Figment,
+Charm, Faerie Dust; Hag: Daze, Illusory Disguise, Jealous Hex; Imperial: Detect Magic,
+Force Barrage, Ancestral Memories; Undead: Void Warp, Harm, Undeath's Blessing; Elemental:
+Elemental Toss (its gifts depend on its element, a further choice). Unlike the Oracle's,
+a Sorcerer's gifts **take places in its repertoire** (`grantsFillRepertoire`,
+`repertoireFilled`): it knows 5 cantrips and as many ranked spells as it has slots, one
+of each rank from its bloodline, so at level 1 it picks 4 cantrips and 2 rank 1 spells
+(`too-many-cantrips`, `too-many-known-spells` past those). The gifts above rank 1, and
+the Draconic and Elemental gifts that hang on a further choice, come in later PRs; the
+bloodline's skills come from the imported bloodline.
+
 A row can also carry a **font**: extra slots at the class's highest rank that hold only
 one spell, picked by a class choice. The **Cleric's Divine Font** is one: 4 slots (5
 from level 5, 6 from level 15) holding only Heal or only Harm, by the `divine-font`
@@ -184,9 +199,11 @@ bloodline) names the choice and the tradition for each value of it in its castin
 table; `traditionFor` resolves it from `build.classChoices`. The **Witch's** patrons
 are mapped: Faith's Flamekeeper divine; Silence in Snow and Wilding Steward primal;
 Spinner of Threads, Starless Shadow and The Resentment occult; The Inscribed One
-arcane. Until the choice is made, or for a value with no tradition (the Sorcerer's
-bloodlines come in its own PR; the Draconic one even varies by dragon), there is **no
-entry** and a `spellcasting-tradition-undecided` warning. The creator's review tells
+arcane. So are the **Sorcerer's** bloodlines: Aberrant and Hag occult; Angelic, Demonic,
+Diabolic and Undead divine; Elemental and Fey primal; Imperial arcane. Until the choice
+is made, or for a value with no tradition (the Draconic bloodline, whose tradition is
+its dragon exemplar's, a further choice not read yet), there is **no entry** and a
+`spellcasting-tradition-undecided` warning. The creator's review tells
 the player to choose it, or to add the spellcasting by hand.
 
 The casting attribute follows the key attribute `actor.applyBuild` settles on: the
