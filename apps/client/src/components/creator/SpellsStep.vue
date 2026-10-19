@@ -14,6 +14,7 @@ import type {
   BuildRef,
   CharacterBuild,
   ClassEntry,
+  ClassFeatureEntry,
   MagicalTradition,
 } from '@hearthtable/pf2e';
 import { computed, ref, useId, watch } from 'vue';
@@ -30,12 +31,15 @@ import {
   castingPlan,
   choiceWords,
   classGifts,
+  curriculumSpells,
   isPicked,
 } from './spellPlan.js';
 
 const props = defineProps<{
   build: CharacterBuild;
   classEntry: ClassEntry | undefined;
+  /** The class's level 1 features, for a chosen school's curriculum; `undefined` while loading. */
+  features?: readonly ClassFeatureEntry[] | undefined;
 }>();
 const emit = defineEmits<{
   toggle: [which: 'cantrips' | 'ranked', ref: BuildRef];
@@ -112,6 +116,21 @@ const WHY: Readonly<Record<string, string>> = {
   focus: 'a focus spell, cast with a Focus Point',
 };
 const refOf = (s: EntrySummary): BuildRef => ({ packId: s.packId, slug: s.slug });
+const curriculum = computed(() =>
+  curriculumSpells(
+    props.classEntry?.slug ?? props.build.class?.slug,
+    props.build.classChoices,
+    props.features,
+  ),
+);
+/** Ranked picks on the curriculum's rank 1 list. */
+const curriculumCount = computed(
+  () =>
+    props.build.spells.ranked.filter((r) => curriculum.value?.ranked.includes(r.slug))
+      .length,
+);
+const spellRef = (slug: string): BuildRef => ({ packId: 'spells', slug });
+
 /** What a book caster's picks are counted against, for "N more than ...". */
 const bookHolder = computed(() =>
   plan.value?.book === undefined ? undefined : `your ${plan.value.book.name} starts with`,
@@ -269,6 +288,32 @@ const cantripLabel = computed(() => {
             <RulesTerm term-kind="spell" :slug="s.slug" :label="s.name" />
           </li>
         </ul>
+      </fieldset>
+
+      <fieldset v-if="curriculum !== undefined" class="picks curriculum">
+        <legend>Rank 1 spells from your curriculum</legend>
+        <p class="count">
+          {{ curriculumCount }} of {{ curriculum.bookSpells }} chosen; they count toward
+          your spellbook below.
+        </p>
+        <ul>
+          <li v-for="slug in curriculum.ranked" :key="slug">
+            <label class="check">
+              <input
+                type="checkbox"
+                :checked="isPicked(build.spells.ranked, spellRef(slug))"
+                @change="emit('toggle', 'ranked', spellRef(slug))"
+              />
+              <span class="visually-hidden">Choose {{ titleCase(slug) }}</span>
+            </label>
+            <RulesTerm term-kind="spell" :slug="slug" :label="titleCase(slug)" />
+          </li>
+        </ul>
+        <p v-if="curriculum.cantrips.length > 0" class="note">
+          Your curriculum's cantrips are
+          {{ curriculum.cantrips.map(titleCase).join(' and ') }}; your Curriculum entry
+          prepares one of them each day.
+        </p>
       </fieldset>
 
       <fieldset class="picks">

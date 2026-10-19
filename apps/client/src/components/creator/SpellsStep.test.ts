@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
-import { characterBuildSchema, type CharacterBuild } from '@hearthtable/pf2e';
+import {
+  characterBuildSchema,
+  type CharacterBuild,
+  type ClassFeatureEntry,
+} from '@hearthtable/pf2e';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -220,6 +224,41 @@ describe('SpellsStep', () => {
     const cleric = mountStep(buildFor('cleric'));
     await flushPromises();
     expect(cleric.findAll('fieldset.picks')[1]?.text()).toContain('0 chosen');
+  });
+
+  it('offers a school Wizard its curriculum’s rank 1 spells, counting those picked', async () => {
+    // An invented school feature: only the fields the step reads.
+    const school = {
+      slug: 'school-of-mentalism',
+      curriculum: { '0': ['glow-spark', 'dust-mote'], '1': ['ember-gate', 'long-echo'] },
+    } as unknown as ClassFeatureEntry;
+    const wrapper = mount(SpellsStep, {
+      props: {
+        build: characterBuildSchema.parse({
+          class: { packId: 'classes', slug: 'wizard' },
+          classChoices: { arcaneSchool: 'school-of-mentalism' },
+          spells: { ranked: [{ packId: 'spells', slug: 'long-echo' }] },
+        }),
+        classEntry: undefined,
+        features: [school],
+      },
+    });
+    await flushPromises();
+    const section = wrapper.get('fieldset.curriculum');
+    expect(section.get('legend').text()).toBe('Rank 1 spells from your curriculum');
+    expect(section.text()).toContain('1 of 2 chosen');
+    expect(section.text()).toContain('Ember Gate');
+    expect(section.text()).toContain(
+      "Your curriculum's cantrips are Glow Spark and Dust Mote",
+    );
+    const boxes = section.findAll<HTMLInputElement>('input[type="checkbox"]');
+    expect(boxes.map((b) => b.element.checked)).toEqual([false, true]);
+    await boxes[0]?.trigger('change');
+    expect(wrapper.emitted('toggle')).toEqual([
+      ['ranked', { packId: 'spells', slug: 'ember-gate' }],
+    ]);
+    // The spellbook count takes the 2 curriculum spells in.
+    expect(wrapper.findAll('fieldset.picks')[2]?.text()).toContain('1 of 7 chosen');
   });
 
   it('counts a Wizard’s picks against the spellbook, in words past it', async () => {

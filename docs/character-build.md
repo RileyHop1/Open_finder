@@ -235,8 +235,11 @@ review; nothing is refused (ADR 0023). A spontaneous caster's rank 1 picks are
 counted against its repertoire, which holds as many spells as it has slots ("1 of
 2 chosen" for a Bard). A Wizard's or Witch's picks fill its spellbook or familiar:
 "Cantrips in your spellbook" are counted against 10 and the rank 1 spells against
-5, with a note that the first 5 cantrips start prepared. Another prepared caster's
-rank 1 picks are not counted. Above the lists,
+5, with a note that the first 5 cantrips start prepared. Once a Wizard's school is
+chosen, "Rank 1 spells from your curriculum" lists its curriculum's rank 1 spells
+(read from the school's feature) to pick 2 of, counted toward the spellbook's 7,
+and names the curriculum's cantrips; Unified Magical Theory's spellbook counts 6.
+Another prepared caster's rank 1 picks are not counted. Above the lists,
 "Your class also gives you" names what the class grants by itself
 (`classSpells.ts` in the PF2e system): for a Bard, Courageous Anthem, Counter
 Performance, 1 Focus Point, and its muse's spell once the muse is chosen (until

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { curriculumFor, fontAt, grantedSpells, spellChoicesFor } from './classSpells.js';
+import {
+  curriculumBookSpells,
+  curriculumFor,
+  fontAt,
+  grantedSpells,
+  spellChoicesFor,
+} from './classSpells.js';
 
 describe('grantedSpells', () => {
   it('gives a Bard its composition spells and focus pool, and its muse’s spell once chosen', () => {
@@ -116,5 +122,24 @@ describe('curriculumFor', () => {
       curriculumFor('cleric', { arcaneSchool: 'school-of-mentalism' }),
     ).toBeUndefined();
     expect(curriculumFor(undefined, {})).toBeUndefined();
+  });
+});
+
+describe('curriculumBookSpells', () => {
+  it('adds 2 curriculum spells to a school Wizard’s spellbook, and 1 of any kind for Unified Magical Theory', () => {
+    expect(
+      curriculumBookSpells('wizard', { arcaneSchool: 'school-of-the-boundary' }),
+    ).toBe(2);
+    expect(
+      curriculumBookSpells('wizard', {
+        arcaneSchool: 'school-of-unified-magical-theory',
+      }),
+    ).toBe(1);
+  });
+
+  it('adds none before the school is chosen, or for another class', () => {
+    expect(curriculumBookSpells('wizard', {})).toBe(0);
+    expect(curriculumBookSpells('witch', { patron: 'the-resentment' })).toBe(0);
+    expect(curriculumBookSpells(undefined, {})).toBe(0);
   });
 });

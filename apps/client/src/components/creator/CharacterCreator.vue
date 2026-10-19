@@ -287,6 +287,7 @@ function trapTab(event: KeyboardEvent): void {
           v-else-if="draft.step === 'spells'"
           :build="draft.build"
           :class-entry="entries.class"
+          :features="entries.classFeatures"
           @toggle="
             (which, ref) =>
               (draft.build.spells = togglePick(draft.build.spells, which, ref))

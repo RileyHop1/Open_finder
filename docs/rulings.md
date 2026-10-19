@@ -896,6 +896,9 @@ ruling from silently drifting.
   gets none: Archwizard's Spellcraft says its slot can't be used with abilities that
   give more slots. Unified Magical Theory has no curriculum. Every school gives a
   focus pool of 1 and its initial school spell (listed in `docs/spellcasting.md`).
+  The spellbook's two rank 1 curriculum spells (Unified Magical Theory: one of any
+  kind) are counted with its five other rank 1 spells, as 7 (or 6) picks; the creator
+  shows how many are from the curriculum but does not require it.
 - **Alternative reading:** add one slot to each rank of the Wizard's own entry. Rejected
   because the restriction to curriculum spells would then be invisible on the sheet.
 - **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` (the Wizard cases)

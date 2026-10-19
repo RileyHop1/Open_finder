@@ -326,10 +326,23 @@ describe('a book caster’s picks (a Wizard’s spellbook, a Witch’s familiar)
     expect(slugs).toContain('spell-5');
   });
 
+  it('a school Wizard’s spellbook also takes its 2 curriculum spells, and Unified Magical Theory 1 more', () => {
+    const school = { arcaneSchool: 'school-of-the-boundary' };
+    expect(withPicks('wizard', school, 5, 7).warnings).toEqual([]);
+    expect(withPicks('wizard', school, 5, 8).warnings).toEqual([
+      { kind: 'too-many-book-spells', chosen: 8, allowed: 7, book: 'spellbook' },
+    ]);
+    const unified = { arcaneSchool: 'school-of-unified-magical-theory' };
+    expect(withPicks('wizard', unified, 5, 6).warnings).toEqual([]);
+    expect(withPicks('wizard', unified, 5, 7).warnings).toEqual([
+      { kind: 'too-many-book-spells', chosen: 7, allowed: 6, book: 'spellbook' },
+    ]);
+  });
+
   it('warns past the spellbook’s size, and still grants everything', () => {
-    const derived = withPicks('wizard', { arcaneSchool: 'school-of-mentalism' }, 11, 6);
+    const derived = withPicks('wizard', { arcaneSchool: 'school-of-mentalism' }, 11, 8);
     expect(derived.warnings).toEqual([
-      { kind: 'too-many-book-spells', chosen: 6, allowed: 5, book: 'spellbook' },
+      { kind: 'too-many-book-spells', chosen: 8, allowed: 7, book: 'spellbook' },
       { kind: 'too-many-cantrips', chosen: 11, allowed: 10 },
     ]);
     expect(derived.items.map((i) => i.slug)).toContain('cantrip-11');

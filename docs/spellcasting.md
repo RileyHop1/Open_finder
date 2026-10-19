@@ -101,9 +101,11 @@ A **book caster** prepares from a store of its own (`book` in its casting table,
 picks are counted against the book (`too-many-cantrips` past 10, `too-many-book-spells`
 past 5, all still granted), every pick is an item, and only the first 5 cantrips picked
 go in the entry's cantrips, prepared to start; the player changes which on the sheet. A
-Wizard's two curriculum spells (one spell of any kind for Unified Magical Theory) come
-with the curriculum lists. Other prepared casters (Cleric, Druid) prepare from their
-whole list, so their ranked picks are not counted.
+Wizard's spellbook also starts with two rank 1 spells from its school's curriculum
+(one rank 1 spell of any kind for Unified Magical Theory: `curriculumBookSpells`), so
+its rank 1 picks are counted against 7 (6). They are ordinary ranked picks; which of
+them are the curriculum's is shown in the creator, not checked. Other prepared casters
+(Cleric, Druid) prepare from their whole list, so their ranked picks are not counted.
 
 **What a class grants by itself** is `rules/classSpells.ts`, our own data because the
 imported class features say it only in prose. A row names the focus pool the class
