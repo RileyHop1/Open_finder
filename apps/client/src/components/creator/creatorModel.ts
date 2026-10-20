@@ -13,6 +13,7 @@
 
 import type { Actor } from '@hearthtable/core';
 import {
+  CASTER_CLASS_SLUGS,
   attributeSchema,
   characterBuildSchema,
   characterDataSchema,
@@ -76,10 +77,8 @@ export function previousStep(step: CreatorStepId): CreatorStepId {
 }
 
 /**
- * The classes the creator can build completely today: the seven martial
- * classes, which need feat picks and proficiencies but no spellcasting or
- * resource subsystem. Every other class can still be picked, with a visible
- * warning that its setup arrives later (milestone 8, stages b and c).
+ * The seven martial classes of milestone 8(a): feat picks and proficiencies, no
+ * spellcasting or resource subsystem.
  */
 export const MARTIAL_CLASS_SLUGS: readonly string[] = [
   'fighter',
@@ -89,6 +88,16 @@ export const MARTIAL_CLASS_SLUGS: readonly string[] = [
   'investigator',
   'monk',
   'swashbuckler',
+];
+
+/**
+ * The classes the creator can build completely today: the martial seven and the
+ * seven casters of milestone 8(b). The Alchemist and the Champion can still be
+ * picked, with a visible warning that their own subsystems arrive later (8(c)).
+ */
+export const BUILT_CLASS_SLUGS: readonly string[] = [
+  ...MARTIAL_CLASS_SLUGS,
+  ...CASTER_CLASS_SLUGS,
 ];
 
 const STORAGE_KEY = 'hearthtable.creatorDraft';

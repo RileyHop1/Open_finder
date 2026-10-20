@@ -3,9 +3,9 @@
  * The class step: pick a class and see what it gives before committing --
  * Hit Points per level, the key attribute (a choice when the class offers
  * more than one), the starting proficiencies, and the skills it trains. The
- * seven martial classes come first because the creator builds them
- * completely; every other class can be picked too, with a visible warning
- * that its setup (spells, resources) arrives later. Nothing is refused
+ * classes the creator builds completely (the martial seven and the seven
+ * casters) come first; the Alchemist and the Champion can be picked too, with a
+ * visible warning that their own subsystems arrive later. Nothing is refused
  * (ADR 0023).
  */
 import type {
@@ -25,7 +25,7 @@ import {
 } from '../../api/compendium.js';
 import RulesText from '../RulesText.vue';
 import { titleCase } from '../sheet/format.js';
-import { MARTIAL_CLASS_SLUGS } from './creatorModel.js';
+import { BUILT_CLASS_SLUGS } from './creatorModel.js';
 
 const props = defineProps<{
   build: CharacterBuild;
@@ -64,11 +64,11 @@ onMounted(async () => {
   }
 });
 
-const martial = computed(() =>
-  classes.value.filter((c) => MARTIAL_CLASS_SLUGS.includes(c.slug)),
+const built = computed(() =>
+  classes.value.filter((c) => BUILT_CLASS_SLUGS.includes(c.slug)),
 );
 const others = computed(() =>
-  classes.value.filter((c) => !MARTIAL_CLASS_SLUGS.includes(c.slug)),
+  classes.value.filter((c) => !BUILT_CLASS_SLUGS.includes(c.slug)),
 );
 
 const chosen = (c: EntrySummary): boolean =>
@@ -76,8 +76,7 @@ const chosen = (c: EntrySummary): boolean =>
 
 const isLater = computed(
   () =>
-    props.classEntry !== undefined &&
-    !MARTIAL_CLASS_SLUGS.includes(props.classEntry.slug),
+    props.classEntry !== undefined && !BUILT_CLASS_SLUGS.includes(props.classEntry.slug),
 );
 
 /** The key attribute in effect: the player's choice if the class offers it, else its first option. */
@@ -124,9 +123,9 @@ const proficiencies = computed(() => {
       can import it from the table, or you can skip this step.
     </p>
 
-    <fieldset v-if="martial.length > 0" class="cards">
+    <fieldset v-if="built.length > 0" class="cards">
       <legend>Choose a class</legend>
-      <label v-for="c in martial" :key="c.slug" class="card">
+      <label v-for="c in built" :key="c.slug" class="card">
         <input
           type="radio"
           name="class"
@@ -139,10 +138,11 @@ const proficiencies = computed(() => {
     </fieldset>
 
     <details v-if="others.length > 0" class="later" :open="isLater">
-      <summary>Spellcasters and other classes</summary>
+      <summary>Other classes</summary>
       <p class="note">
-        You can pick these, but their spells and special features are set up in a later
-        update, so you will fill those in by hand for now.
+        You can pick these, but their special features (an Alchemist's reagents, a
+        Champion's cause) are set up in a later update, so you will fill those in by hand
+        for now.
       </p>
       <label v-for="c in others" :key="c.slug" class="row">
         <input
@@ -156,8 +156,8 @@ const proficiencies = computed(() => {
     </details>
 
     <p v-if="isLater" class="warning" role="note">
-      {{ classEntry?.name }} is not fully set up yet: its spells and special features are
-      added by hand for now.
+      {{ classEntry?.name }} is not fully set up yet: its special features are added by
+      hand for now.
     </p>
 
     <section v-if="classEntry" class="details" aria-label="What this class gives">

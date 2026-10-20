@@ -1,0 +1,25 @@
+{
+  "id": "00000000-0000-4000-8000-000000000105",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "spells",
+  "slug": "invented-glow",
+  "name": "Invented Glow",
+  "kind": "spell",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": ["cantrip"],
+  "ruleElements": [],
+  "description": "An invented spell: Invented Glow.",
+  "rank": 1,
+  "traditions": ["divine"],
+  "castTime": "2",
+  "range": {
+    "kind": "touch"
+  },
+  "sustained": false
+}
