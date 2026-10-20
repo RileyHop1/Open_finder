@@ -35,6 +35,73 @@ function baseSystem(overrides: Record<string, unknown> = {}) {
   };
 }
 
+describe('mapWeapon -- alchemical bombs', () => {
+  // Invented bombs in upstream's shape (ADR 0013).
+  const bomb = (damage: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    mapWeapon(
+      makeEntry({
+        category: 'martial',
+        group: 'bomb',
+        range: 20,
+        damage,
+        ...extra,
+      }),
+      PROVENANCE,
+      IMPORTED_AT,
+    );
+  const entryOf = (result: ReturnType<typeof mapWeapon>) =>
+    result.ok ? result.entry : undefined;
+
+  it('reads energy damage, splash, and flat persistent damage', () => {
+    const entry = entryOf(
+      bomb(
+        {
+          dice: 1,
+          die: 'd8',
+          damageType: 'fire',
+          persistent: { faces: null, number: 1, type: 'fire' },
+        },
+        { splashDamage: { value: 1 } },
+      ),
+    );
+    expect(entry).toMatchObject({
+      damage: { diceNumber: 1, dieFaces: 8, damageType: 'fire' },
+      splash: 1,
+      persistent: { diceNumber: 1, damageType: 'fire' },
+    });
+    expect(entry?.persistent?.dieFaces).toBeUndefined();
+  });
+
+  it('reads flat damage (no die) with persistent dice', () => {
+    expect(
+      entryOf(
+        bomb({
+          dice: 1,
+          die: '',
+          damageType: 'acid',
+          persistent: { faces: 6, number: 1, type: 'acid' },
+        }),
+      ),
+    ).toMatchObject({
+      damage: { diceNumber: 1, damageType: 'acid' },
+      persistent: { diceNumber: 1, dieFaces: 6, damageType: 'acid' },
+    });
+  });
+
+  it('reads a bomb that deals no damage, and still refuses 0 dice of a size', () => {
+    expect(
+      entryOf(bomb({ dice: 0, die: '', damageType: 'bludgeoning' }))?.damage,
+    ).toEqual({
+      diceNumber: 0,
+      damageType: 'bludgeoning',
+    });
+    expect(bomb({ dice: 0, die: 'd6', damageType: 'fire' })).toEqual({
+      ok: false,
+      reason: 'missing-or-invalid-damage-dice',
+    });
+  });
+});
+
 describe('mapWeapon -- success', () => {
   it('maps a well-formed one-handed melee weapon', () => {
     const result = mapWeapon(
@@ -192,14 +259,33 @@ describe('mapWeapon -- fails closed', () => {
     ).toEqual({ ok: false, reason: 'unsupported-die-size' });
   });
 
-  it('rejects an energy damage type -- a weapon base type is always physical', () => {
+  it('rejects a damage type that is not one', () => {
     expect(
       mapWeapon(
-        makeEntry(baseSystem({ damage: { dice: 1, die: 'd6', damageType: 'fire' } })),
+        makeEntry(baseSystem({ damage: { dice: 1, die: 'd6', damageType: 'glitter' } })),
         PROVENANCE,
         IMPORTED_AT,
       ),
     ).toEqual({ ok: false, reason: 'unrecognized-damage-type' });
+  });
+
+  it('rejects persistent damage it cannot read, rather than dropping it', () => {
+    expect(
+      mapWeapon(
+        makeEntry(
+          baseSystem({
+            damage: {
+              dice: 1,
+              die: 'd6',
+              damageType: 'fire',
+              persistent: { number: 1, faces: 7, type: 'fire' },
+            },
+          }),
+        ),
+        PROVENANCE,
+        IMPORTED_AT,
+      ),
+    ).toEqual({ ok: false, reason: 'unrecognized-persistent-damage' });
   });
 
   it('rejects a missing damage block', () => {

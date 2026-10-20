@@ -21,6 +21,7 @@ import {
   npcDataSchema,
   prepareCharacter,
   prepareNpc,
+  type WeaponEntry,
 } from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
@@ -51,13 +52,33 @@ const strikes = computed(() => {
     ? prepareCharacter(parsed.data).strikes.map((strike) => ({
         ...strike,
         id: strike.itemId,
+        persistent: persistentText(strike.damageInputs.weapon.persistent),
       }))
     : [];
 });
 
+/** "1d6 persistent acid": what a hit leaves (an alchemical bomb), applied to the target by hand. */
+function persistentText(persistent: WeaponEntry['persistent']): string | undefined {
+  if (persistent === undefined) {
+    return undefined;
+  }
+  const amount =
+    persistent.dieFaces === undefined
+      ? String(persistent.diceNumber)
+      : `${persistent.diceNumber}d${persistent.dieFaces}`;
+  return `${amount} persistent ${persistent.damageType}`;
+}
+
 /** "1d8+4 slashing": what a damage roll will roll, so the player sees it before pressing. */
-function dice(components: readonly { expression: string; damageType: string }[]): string {
-  return components.map((c) => `${c.expression} ${c.damageType}`).join(' + ');
+function dice(
+  components: readonly { expression: string; damageType: string; doubling?: string }[],
+): string {
+  return components
+    .map(
+      (c) =>
+        `${c.expression} ${c.damageType}${c.doubling === 'neverDoubled' ? ' splash' : ''}`,
+    )
+    .join(' + ');
 }
 </script>
 
@@ -99,6 +120,9 @@ function dice(components: readonly { expression: string; damageType: string }[])
         <p class="damage-line">
           Damage {{ dice(strike.damage.normal) }}
           <span class="crit">· critical {{ dice(strike.damage.critical) }}</span>
+          <span v-if="'persistent' in strike && strike.persistent !== undefined">
+            · on a hit, {{ strike.persistent }}
+          </span>
         </p>
         <p v-if="rollable" class="damage-buttons">
           <button

@@ -51,11 +51,29 @@ describe('weaponEntrySchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects an energy damage type as a weapon base type -- that is an elemental rune, not the base', () => {
-    const result = weaponEntrySchema.safeParse(
-      makeWeapon({ damage: { diceNumber: 1, dieFaces: 6, damageType: 'fire' } }),
-    );
-    expect(result.success).toBe(false);
+  it('accepts an alchemical bomb: any damage type, flat or no damage, splash and persistent', () => {
+    expect(
+      weaponEntrySchema.safeParse(
+        makeWeapon({
+          damage: { diceNumber: 1, damageType: 'acid' },
+          splash: 1,
+          persistent: { diceNumber: 1, dieFaces: 6, damageType: 'acid' },
+        }),
+      ).success,
+    ).toBe(true);
+    expect(
+      weaponEntrySchema.safeParse(
+        makeWeapon({ damage: { diceNumber: 0, damageType: 'bludgeoning' } }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it('rejects a damage type that is not one', () => {
+    expect(
+      weaponEntrySchema.safeParse(
+        makeWeapon({ damage: { diceNumber: 1, dieFaces: 6, damageType: 'glitter' } }),
+      ).success,
+    ).toBe(false);
   });
 
   it('accepts a two-handed weapon', () => {
