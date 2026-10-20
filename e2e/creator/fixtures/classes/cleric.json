@@ -1,0 +1,68 @@
+{
+  "id": "00000000-0000-4000-8000-000000000101",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "classes",
+  "slug": "cleric",
+  "name": "Invented Cleric",
+  "kind": "class",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [],
+  "description": "An invented cleric.",
+  "keyAttributeOptions": ["wis"],
+  "hpPerLevel": 8,
+  "proficiencies": {
+    "perception": {
+      "trained": 1
+    },
+    "savingThrows": {
+      "fortitude": {
+        "trained": 1
+      },
+      "reflex": {
+        "trained": 1
+      },
+      "will": {
+        "expert": 1
+      }
+    },
+    "classDc": {
+      "trained": 1
+    },
+    "weapons": {
+      "unarmed": {
+        "trained": 1
+      },
+      "simple": {
+        "trained": 1
+      },
+      "martial": {},
+      "advanced": {}
+    },
+    "armor": {
+      "unarmored": {
+        "trained": 1
+      },
+      "light": {},
+      "medium": {},
+      "heavy": {}
+    }
+  },
+  "skills": {
+    "trainedSkillCount": 2,
+    "automaticallyTrained": ["religion"]
+  },
+  "advancement": {
+    "ancestryFeatLevels": [1],
+    "classFeatLevels": [2],
+    "generalFeatLevels": [3],
+    "skillFeatLevels": [2],
+    "skillIncreaseLevels": [3]
+  }
+}

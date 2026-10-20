@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   CREATOR_STEPS,
+  BUILT_CLASS_SLUGS,
   MARTIAL_CLASS_SLUGS,
   clearDraft,
   emptyDraft,
@@ -134,5 +135,15 @@ describe('MARTIAL_CLASS_SLUGS', () => {
       'rogue',
       'swashbuckler',
     ]);
+  });
+});
+
+describe('BUILT_CLASS_SLUGS', () => {
+  it('is every class but the Alchemist and the Champion (milestone 8(c))', () => {
+    expect(BUILT_CLASS_SLUGS).toHaveLength(14);
+    expect(BUILT_CLASS_SLUGS).toContain('wizard');
+    expect(BUILT_CLASS_SLUGS).toContain('fighter');
+    expect(BUILT_CLASS_SLUGS).not.toContain('alchemist');
+    expect(BUILT_CLASS_SLUGS).not.toContain('champion');
   });
 });

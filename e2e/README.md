@@ -35,6 +35,14 @@ in the purse) are checked against values worked out by hand in the spec's header
 then opens the same character on their own screen. The spec was checked to fail when an
 expected number is wrong.
 
+Milestone 8(b)'s flow is `creator/m8b-cleric.spec.ts`, in the same run and fixture: a
+player builds an invented Cleric (its Divine Font, two cantrips and a rank 1 spell),
+the new sheet's spell attack and DC match values worked out by hand, casting from the
+font spends one of its four slots, the cast's card (with its DC) shows in both chats,
+and the GM's copy of the sheet shows the slot spent. The font's two spells sit under
+the `heal` and `harm` slugs the PF2e grant table names, with invented names and text.
+It was checked to fail with a wrong DC.
+
 `tests/helpers.ts` holds the shared steps. The server's active world is
 process-wide and nothing deactivates it, so only the first spec of a run finds
 the campaign list; `createAndActivateCampaign` drives the UI when it can and

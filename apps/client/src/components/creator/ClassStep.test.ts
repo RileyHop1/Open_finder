@@ -61,6 +61,7 @@ beforeEach(() => {
   vi.mocked(compendiumApi.searchCompendium).mockResolvedValue([
     summary('wizard', 'Wizard'),
     summary('fighter', 'Fighter'),
+    summary('alchemist', 'Alchemist'),
     summary('rogue', 'Rogue'),
   ]);
 });
@@ -78,25 +79,26 @@ async function mountStep(
 }
 
 describe('ClassStep', () => {
-  it('lists the martial classes first as cards, and the rest under a note that their setup comes later', async () => {
+  it('lists the classes it builds (martial and casters) as cards, and the rest under a note that their setup comes later', async () => {
     const wrapper = await mountStep();
     expect(wrapper.findAll('.cards .name').map((n) => n.text())).toEqual([
+      'Wizard',
       'Fighter',
       'Rogue',
     ]);
     const later = wrapper.get('.later');
-    expect(later.text()).toContain('Wizard');
+    expect(later.text()).toContain('Alchemist');
     expect(later.text()).toContain('set up in a later update');
-    expect(later.text()).not.toContain('Fighter');
+    expect(later.text()).not.toContain('Wizard');
   });
 
   it('reports a pick from either list', async () => {
     const wrapper = await mountStep();
-    await wrapper.findAll('input[name="class"]')[0]?.setValue(true);
-    await wrapper.findAll('input[name="class"]')[2]?.setValue(true);
+    await wrapper.findAll('input[name="class"]')[1]?.setValue(true);
+    await wrapper.findAll('input[name="class"]')[3]?.setValue(true);
     expect(wrapper.emitted('pickClass')).toEqual([
       [{ packId: 'classes', slug: 'fighter' }],
-      [{ packId: 'classes', slug: 'wizard' }],
+      [{ packId: 'classes', slug: 'alchemist' }],
     ]);
   });
 
@@ -155,13 +157,19 @@ describe('ClassStep', () => {
     expect(fixed.get('.details').text()).toContain('Dexterity');
   });
 
-  it('warns visibly when the chosen class is not fully set up yet, and not for a martial one', async () => {
+  it('warns visibly when the chosen class is not fully set up yet, and not for a built one', async () => {
+    const alchemist = await mountStep(
+      { class: { packId: 'classes', slug: 'alchemist' } },
+      classOf('alchemist', ['int']),
+    );
+    expect(alchemist.get('.warning').text()).toContain('not fully set up yet');
+    expect(alchemist.get('.later').attributes('open')).toBeDefined();
+
     const wizard = await mountStep(
       { class: { packId: 'classes', slug: 'wizard' } },
       classOf('wizard', ['int']),
     );
-    expect(wizard.get('.warning').text()).toContain('not fully set up yet');
-    expect(wizard.get('.later').attributes('open')).toBeDefined();
+    expect(wizard.find('.warning').exists()).toBe(false);
 
     const fighter = await mountStep(
       { class: { packId: 'classes', slug: 'fighter' } },

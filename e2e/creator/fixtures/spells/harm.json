@@ -1,0 +1,29 @@
+{
+  "id": "00000000-0000-4000-8000-000000000104",
+  "schemaVersion": 1,
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "packId": "spells",
+  "slug": "harm",
+  "name": "Invented Rend",
+  "kind": "spell",
+  "provenance": {
+    "publication": "Pathfinder Player Core",
+    "license": "ORC",
+    "remaster": true
+  },
+  "traits": [],
+  "ruleElements": [],
+  "description": "An invented spell: Invented Rend.",
+  "rank": 1,
+  "traditions": ["divine"],
+  "castTime": "2",
+  "range": {
+    "kind": "touch"
+  },
+  "sustained": false,
+  "defense": {
+    "save": "fortitude",
+    "basic": true
+  }
+}
