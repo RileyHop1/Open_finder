@@ -421,6 +421,12 @@ export {
 } from './rules/classSpells.js';
 
 export {
+  classResources,
+  dailyCrafting,
+  type ClassResource,
+} from './rules/classResources.js';
+
+export {
   CASTER_CLASS_SLUGS,
   CASTER_TABLES,
   isCasterClass,
