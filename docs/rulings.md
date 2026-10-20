@@ -954,6 +954,21 @@ ruling from silently drifting.
   picks").
 - **Override:** the prepared cantrips are editable on the sheet ("Edit spells").
 
+### An Alchemist's versatile vials and Advanced Alchemy
+- **Rules text:** the Alchemist's Versatile Vials and Advanced Alchemy class features in
+  Player Core 2. Checked against the pinned upstream text (2026-10-20), not against
+  Archives of Nethys: **(confirm)**.
+- **The ambiguity:** none in the numbers; recorded because they are our own data
+  (`rules/classResources.ts`) rather than the upstream rule elements.
+- **Our reading:** up to 2 + Intelligence modifier versatile vials, refilled at daily
+  preparations, 2 back for every 10 minutes of exploration; Advanced Alchemy makes up to
+  4 + Intelligence modifier infused items at daily preparations. Neither goes below 0.
+  The sheet counts and offers; it never stops a vial being used, and the maximum can be
+  set by hand.
+- **Alternative reading:** none known.
+- **Golden test:** `systems/pf2e/src/rules/classResources.test.ts`.
+- **Override:** the Maximum field and the Use, Regain and Refill buttons on the sheet.
+
 ### Reading predicates on class features
 - **Rules text:** none directly; this is how upstream's conditions on a class
   feature's skill training and grants are read (`classFeatureRules.ts`).

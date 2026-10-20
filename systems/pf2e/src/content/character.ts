@@ -164,6 +164,21 @@ export const characterDataSchema = z
     spellcasting: z.array(spellcastingEntrySchema).default([]),
     /** The shared pool of focus points; zero for a character with no focus spells. */
     focusPoints: focusPointsSchema.default({ max: 0, current: 0 }),
+    /**
+     * How much of each class resource pool is spent (an Alchemist's versatile vials),
+     * by the pool's key (`rules/classResources.ts`). A pool's size is worked out from
+     * the character, never stored, unless `max` overrides it by hand. Absent in an
+     * older actor, which parses as nothing spent.
+     */
+    resources: z
+      .record(
+        z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        z.object({
+          used: z.number().int().nonnegative().default(0),
+          max: z.number().int().nonnegative().optional(),
+        }),
+      )
+      .default({}),
     /** Already-made `choiceSet` selections, keyed by the element's `rollOptionPrefix` (see `applyRuleElements`). */
     choices: z.record(z.string().min(1), z.string().min(1)).default({}),
     /** The choices this character was built from (ADR 0024). Absent for a hand-built character. */

@@ -150,6 +150,26 @@ describe('updateActor', () => {
     expect(updated.permissions).toEqual(actor.permissions);
   });
 
+  it('saves what is spent of a class resource, and a hand-set maximum, and refuses a negative count', () => {
+    const { owner, actor } = ownedCharacter();
+    updateActor(store, owner, {
+      actorId: actor.id,
+      changes: {
+        'system.resources.versatile-vials.used': 2,
+        'system.resources.versatile-vials.max': 6,
+      },
+    });
+    expect(characterDataSchema.parse(stored(actor.id).system).resources).toEqual({
+      'versatile-vials': { used: 2, max: 6 },
+    });
+    expect(() =>
+      updateActor(store, owner, {
+        actorId: actor.id,
+        changes: { 'system.resources.versatile-vials.used': -1 },
+      }),
+    ).toThrow(OperationRejected);
+  });
+
   it('sets a skill rank including a Lore, and null removes it again', () => {
     const { owner, actor } = ownedCharacter();
     updateActor(store, owner, {

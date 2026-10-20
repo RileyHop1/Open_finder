@@ -116,6 +116,7 @@ import DyingPanel from './sheet/DyingPanel.vue';
 import PortraitPicker from './sheet/PortraitPicker.vue';
 import HitPointsPanel from './sheet/HitPointsPanel.vue';
 import { featGroups, spellGroups } from './sheet/featsModel.js';
+import ClassResourcesPanel from './sheet/ClassResourcesPanel.vue';
 import InventoryPanel from './sheet/InventoryPanel.vue';
 import ItemGroupsPanel from './sheet/ItemGroupsPanel.vue';
 import SpellsPanel from './sheet/SpellsPanel.vue';
@@ -1416,6 +1417,12 @@ async function createCharacter(name: string): Promise<boolean> {
                     />
                   </template>
                   <template #inventory>
+                    <ClassResourcesPanel
+                      v-if="selected.kind === 'character'"
+                      :actor="selected"
+                      :editable="canEdit"
+                      @change="saveChanges"
+                    />
                     <InventoryPanel
                       v-if="selected.kind === 'character'"
                       :key="`inventory-${contentVersion}`"

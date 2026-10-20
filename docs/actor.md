@@ -83,6 +83,7 @@ total is derived by `prepareCharacter` and never stored.
 | `persistentDamage` | `{ id, formula, damageType, source? }[]`, default empty. Persistent damage still burning, one entry per damage type (`systems/pf2e/src/content/persistentDamage.ts`). Absent in an actor stored before it existed, which parses as none |
 | `spellcasting` | `SpellcastingEntry[]`, default empty. One entry per way of casting: its tradition, casting attribute, proficiency rank, cantrips, and its slots and spells ([ADR 0025](adr/0025-spellcasting-model.md), [spellcasting.md](spellcasting.md)). Absent in an actor stored before it existed, which parses as a non-caster |
 | `focusPoints` | `{ max, current }`, non-negative integers defaulting to 0. The shared pool of focus points. Absent in an older actor, which parses as none |
+| `resources` | Record by pool key of `{ used, max? }`, non-negative integers, default empty. How much of each class resource pool is spent (an Alchemist's `versatile-vials`); the size is derived, and `max` overrides it by hand ([class-resources.md](class-resources.md)). Absent in an older actor, which parses as nothing spent |
 | `choices` | Made `choiceSet` selections, keyed by `rollOptionPrefix` |
 | `build` | Optional. The choices the character was built from (`docs/character-build.md`, ADR 0024); absent on a hand-built character. Never read by rolls |
 

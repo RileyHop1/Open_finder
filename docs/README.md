@@ -23,6 +23,7 @@ If a page and CLAUDE.md disagree, CLAUDE.md wins and the page is a bug.
 | [rulings.md](rulings.md) | Every rules judgment call we have made, and why | ongoing |
 | [rules-reference.md](rules-reference.md) | `RichText`, tooltips, the reference book's own-words pages and term syntax, the Rules drawer | 6 |
 | [inventory.md](inventory.md) | Coins, item price and Bulk, encumbrance, consumables, and the transfer operation | 7 |
+| [class-resources.md](class-resources.md) | Class resource pools (an Alchemist's versatile vials) and daily crafting | 8 |
 | [character-build.md](character-build.md) | The `build` record, derivation, boost math, progression tables, applying a build, level-up | 8 |
 | [spellcasting.md](spellcasting.md) | Spellcasting entries, slots, prepared and spontaneous state, focus points | 8 |
 
