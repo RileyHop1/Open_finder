@@ -1,9 +1,9 @@
 # Class resources
 
-Pools a class spends during the day and refills at its daily preparations, and what it
-makes then. In the core books' level 1 builds only the **Alchemist** has any; the rest of
-its alchemy (the formula book and one-click Quick and Advanced Alchemy) comes in the next
-PR of milestone 8(c).
+Pools a class spends during the day and refills at its daily preparations, what it
+makes then, and the formula book it makes things from. In the core books' level 1
+builds only the **Alchemist** has any; one-click Quick and Advanced Alchemy come in the
+next PR of milestone 8(c).
 
 The design line is CLAUDE.md's: calculate and offer, never enforce (ADR 0023). The sheet
 keeps the count and works out the size, so nobody has to add 2 and an Intelligence
@@ -43,3 +43,24 @@ means derived). Using one past the last is never disabled: the count reads "-1 (
 the maximum)". Below the pools it says how many infused items Advanced Alchemy makes each
 day; adding them to the inventory is by hand until the next PR. Read-only for someone who
 cannot edit the character. A class with no resources shows nothing.
+
+## The formula book
+
+`CharacterData.formulas`: the alchemical items a character knows how to make, each
+`{ source: { packId, slug }, name, level? }`, default empty. A reference, not a copy:
+the name and level are kept so the book reads without a lookup, and making an item
+copies it from the compendium then. The sheet saves the whole list with `actor.update`
+(`system.formulas`).
+
+`formulaBookSize(data)` is how many formulas the class starts its book with at its
+level: an Alchemist's 8 at level 1 (4 from Alchemical Crafting, 2 from its research
+field, 2 of its own) and 2 more each level after. It is a guide, never a limit.
+
+`FormulaBookPanel.vue`, below the pools on the Inventory tab, lists the formulas by
+level with **Remove**, counts them against `formulaBookSize` for an Alchemist ("6 of 8
+formulas", and how many past the start), and searches the compendium for alchemical items
+(`trait=alchemical`; item summaries carry their level) to **Add**. An item above the
+character's level can be added, with a note to check with the GM; one already in the book
+says so. Any character with formulas sees the book; a class with no book and no formulas
+does not.
+

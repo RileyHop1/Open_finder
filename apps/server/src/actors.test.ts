@@ -170,6 +170,26 @@ describe('updateActor', () => {
     ).toThrow(OperationRejected);
   });
 
+  it('saves a formula book whole, and refuses a formula with no name', () => {
+    const { owner, actor } = ownedCharacter();
+    const flask = {
+      source: { packId: 'equipment', slug: 'invented-flask' },
+      name: 'Invented Flask',
+      level: 1,
+    };
+    updateActor(store, owner, {
+      actorId: actor.id,
+      changes: { 'system.formulas': [flask] },
+    });
+    expect(characterDataSchema.parse(stored(actor.id).system).formulas).toEqual([flask]);
+    expect(() =>
+      updateActor(store, owner, {
+        actorId: actor.id,
+        changes: { 'system.formulas': [{ ...flask, name: '' }] },
+      }),
+    ).toThrow(OperationRejected);
+  });
+
   it('sets a skill rank including a Lore, and null removes it again', () => {
     const { owner, actor } = ownedCharacter();
     updateActor(store, owner, {

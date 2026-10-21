@@ -966,6 +966,12 @@ ruling from silently drifting.
   The sheet counts and offers; it never stops a vial being used, and the maximum can be
   set by hand.
 - **Alternative reading:** none known.
+- **The formula book:** an Alchemist starts with 8 formulas at level 1 (4 common 1st-level
+  alchemical items from Alchemical Crafting, 2 from its research field, 2 of its own) and
+  adds 2 each level (the Formula Book feature and Alchemical Crafting; same check). The
+  sheet counts the book against that as a guide; which items qualify (common, of the
+  field's kind, at or below the character's level) is left to the table, with a note on
+  an item above the character's level.
 - **Golden test:** `systems/pf2e/src/rules/classResources.test.ts`.
 - **Override:** the Maximum field and the Use, Regain and Refill buttons on the sheet.
 

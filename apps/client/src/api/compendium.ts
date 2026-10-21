@@ -40,9 +40,9 @@ export interface SearchParams {
   q?: string;
   kind?: string;
   limit?: number;
-  /** Exactly this level (feats and class features). */
+  /** Exactly this level (feats, class features and items). */
   level?: number;
-  /** At or below this level (feats and class features). */
+  /** At or below this level (feats, class features and items). */
   maxLevel?: number;
   /** Feats of this category. */
   category?: string;

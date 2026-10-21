@@ -31,7 +31,7 @@ export interface EntrySummary {
   readonly name: string;
   readonly kind: string;
   readonly traits: readonly string[];
-  /** Feats and class features: the level they are taken at or granted. */
+  /** Feats and class features: the level they are taken at or granted; weapons, armor and gear: their item level. */
   readonly level?: number;
   /** Feats only: ancestry, class, general, skill or archetype. */
   readonly category?: string;
@@ -52,9 +52,9 @@ export interface EntrySummary {
 export interface SearchOptions {
   /** Only entries of this `kind` (`weapon`, `feat`, ...). */
   readonly kind?: string | undefined;
-  /** Only entries at exactly this level (feats and class features). */
+  /** Only entries at exactly this level (feats, class features and items). */
   readonly level?: number | undefined;
-  /** Only entries at or below this level (feats and class features). */
+  /** Only entries at or below this level (feats, class features and items). */
   readonly maxLevel?: number | undefined;
   /** Only feats of this category. */
   readonly category?: string | undefined;
@@ -126,6 +126,11 @@ function summarize(entry: Pf2eEntry): EntrySummary {
     kind: entry.kind,
     traits: entry.traits,
     ...(entry.kind === 'feat' || entry.kind === 'classFeature'
+      ? { level: entry.level }
+      : {}),
+    // An item's level, where it has one: what a formula or a purchase is limited by.
+    ...((entry.kind === 'weapon' || entry.kind === 'armor' || entry.kind === 'gear') &&
+    entry.level !== undefined
       ? { level: entry.level }
       : {}),
     ...(entry.kind === 'feat'

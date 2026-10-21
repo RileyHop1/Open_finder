@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { newCharacterData } from '../content/character.js';
 import type { CharacterData } from '../content/character.js';
-import { classResources, dailyCrafting } from './classResources.js';
+import { classResources, dailyCrafting, formulaBookSize } from './classResources.js';
 
 // Invented characters: only the class and Intelligence matter here.
 function character(
@@ -81,5 +81,16 @@ describe('dailyCrafting', () => {
 
   it('is nothing for another class', () => {
     expect(dailyCrafting(character('wizard', 4))).toBeUndefined();
+  });
+});
+
+describe('formulaBookSize', () => {
+  it('starts an Alchemist with 8 formulas, and 2 more each level', () => {
+    expect(formulaBookSize(character('alchemist', 0))).toBe(8);
+    expect(formulaBookSize({ ...character('alchemist', 0), level: 5 })).toBe(16);
+  });
+
+  it('is nothing for a class with no formula book', () => {
+    expect(formulaBookSize(character('fighter', 0))).toBeUndefined();
   });
 });
