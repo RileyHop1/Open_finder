@@ -47,6 +47,35 @@ function sequenceRandomSource(values: readonly number[]): RandomSource {
   };
 }
 
+describe('buildStrikeDamage -- alchemical bombs', () => {
+  const bomb = (overrides: Partial<WeaponEntry>) =>
+    buildStrikeDamage({
+      weapon: makeWeapon({ group: 'bomb', range: 20, ...overrides }),
+      strikingDice: 0,
+      abilityModifier: 0,
+      critical: false,
+    });
+
+  it('rolls energy damage and adds splash of the same type, never doubled', () => {
+    expect(
+      bomb({ damage: { diceNumber: 1, dieFaces: 8, damageType: 'fire' }, splash: 1 }),
+    ).toEqual([
+      { expression: '1d8', damageType: 'fire' },
+      { expression: '1', damageType: 'fire', doubling: 'neverDoubled' },
+    ]);
+  });
+
+  it('rolls a flat amount when the bomb has no die', () => {
+    expect(bomb({ damage: { diceNumber: 1, damageType: 'acid' } })).toEqual([
+      { expression: '1', damageType: 'acid' },
+    ]);
+  });
+
+  it('rolls nothing of its own for a bomb with no damage', () => {
+    expect(bomb({ damage: { diceNumber: 0, damageType: 'bludgeoning' } })).toEqual([]);
+  });
+});
+
 describe('buildStrikeDamage', () => {
   it('builds the weapon dice plus ability modifier as a single component', () => {
     const components = buildStrikeDamage({

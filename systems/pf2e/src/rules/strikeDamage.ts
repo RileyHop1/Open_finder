@@ -46,12 +46,18 @@ export function traitDieFaces(
   return undefined;
 }
 
-/** `"NdF+M"` / `"NdF-M"` / `"NdF"` -- never a `+0` or `-0` term nobody asked for. */
+/**
+ * `"NdF+M"` / `"NdF-M"` / `"NdF"` -- never a `+0` or `-0` term nobody asked for.
+ * With no `dieFaces`, `diceNumber` is a flat amount (`"1"`, `"1+2"`: an Acid Flask).
+ */
 export function diceExpression(
   diceNumber: number,
-  dieFaces: number,
+  dieFaces: number | undefined,
   modifier: number,
 ): string {
+  if (dieFaces === undefined) {
+    return String(diceNumber + modifier);
+  }
   const dice = `${diceNumber}d${dieFaces}`;
   if (modifier === 0) {
     return dice;
@@ -129,9 +135,24 @@ export function buildStrikeDamage(
           doubling: 'criticalOnly',
         };
 
+  // An alchemical bomb's splash: its base type, never doubled (`packages/dice`).
+  const splash = options.weapon.splash;
+  const splashComponent: DamageComponent | undefined =
+    splash === undefined
+      ? undefined
+      : {
+          expression: String(splash),
+          damageType: options.weapon.damage.damageType,
+          doubling: 'neverDoubled',
+        };
+
   return [
-    weaponComponent,
+    // A bomb with no damage of its own (a Glue Bomb) rolls nothing for it.
+    ...(options.weapon.damage.diceNumber === 0 && options.abilityModifier === 0
+      ? []
+      : [weaponComponent]),
     ...(deadlyComponent === undefined ? [] : [deadlyComponent]),
+    ...(splashComponent === undefined ? [] : [splashComponent]),
     ...(options.extraComponents ?? []),
   ];
 }

@@ -288,6 +288,14 @@ to 2; anything else defaults to 1) and `system.reload.value` (a string --
 `parseDieSize` (the `"d8"` -> `8` parser) moved from `elementMapper.ts` into
 `upstreamHelpers.ts` once this mapper became its second real caller.
 
+**Alchemical bombs** are weapons too, and stretch the damage block: any damage type,
+`die: ""` for a flat amount (an Acid Flask's 1, a Blowgun's 1), `dice: 0` for none (a
+Glue Bomb), `system.splashDamage.value` for splash, and `damage.persistent` (`{ number,
+faces, type }`, `faces: null` for flat) for persistent damage. Persistent damage this
+cannot read fails the weapon closed (`unrecognized-persistent-damage`) rather than
+dropping it. Against the pinned data (2026-10-20) all 40 core-book bombs import; before
+this, 37 failed on their damage type, die or dice.
+
 ### The armor and gear mappers (C.7c)
 
 `mapArmor.ts`: same pattern, with one deliberate asymmetry worth calling

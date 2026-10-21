@@ -2,7 +2,8 @@
  * Maps an upstream `weapon`-type entry onto a draft `WeaponEntry`. Upstream
  * field paths below (`system.category`, `system.group`, `system.damage.dice`
  * / `.die` / `.damageType`, `system.usage.value`, `system.range`,
- * `system.reload.value`) are this project's best-informed reading of
+ * `system.reload.value`, and an alchemical bomb's `system.splashDamage.value` and
+ * `system.damage.persistent`) are this project's best-informed reading of
  * Foundry's PF2e system, not yet verified against a real fetch --
  * **(confirm)** during the real-data importer run. A wrong path fails
  * closed rather than importing a weapon with garbage fields.
@@ -10,13 +11,11 @@
 
 import type { Provenance } from '@hearthtable/core';
 
-import { traitSlugSchema } from '../content/common.js';
+import { DAMAGE_TYPES, traitSlugSchema, type DamageType } from '../content/common.js';
 import {
   WEAPON_CATEGORIES,
-  WEAPON_DAMAGE_TYPES,
   WEAPON_GROUPS,
   type WeaponCategory,
-  type WeaponDamageType,
   type WeaponEntry,
   type WeaponGroup,
 } from '../content/weapon.js';
@@ -45,8 +44,37 @@ function isWeaponGroup(value: string): value is WeaponGroup {
   return (WEAPON_GROUPS as readonly string[]).includes(value);
 }
 
-function isWeaponDamageType(value: string): value is WeaponDamageType {
-  return (WEAPON_DAMAGE_TYPES as readonly string[]).includes(value);
+function isDamageType(value: unknown): value is DamageType {
+  return typeof value === 'string' && (DAMAGE_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * An alchemical bomb's persistent damage, from upstream's `damage.persistent`
+ * (`{ number, faces, type }`, `faces: null` for a flat amount). `undefined` when
+ * there is none; `null` when there is one this cannot read, which fails the weapon
+ * closed rather than dropping a part of what it does.
+ */
+function mapPersistent(raw: unknown): WeaponEntry['persistent'] | null {
+  const persistent = asRecord(raw);
+  if (persistent === undefined) {
+    return undefined;
+  }
+  const { number, faces, type } = persistent;
+  const dieFaces = typeof faces === 'number' ? parseDieSize(`d${faces}`) : undefined;
+  if (
+    typeof number !== 'number' ||
+    !Number.isInteger(number) ||
+    number <= 0 ||
+    !isDamageType(type) ||
+    (faces !== null && dieFaces === undefined)
+  ) {
+    return null;
+  }
+  return {
+    diceNumber: number,
+    ...(dieFaces === undefined ? {} : { dieFaces }),
+    damageType: type,
+  };
 }
 
 /** Upstream's `usage.value` names how the weapon is held; only the two-handed case changes `hands` away from the default of 1. */
@@ -83,23 +111,33 @@ export function mapWeapon(
     return { ok: false, reason: 'unrecognized-group' };
   }
 
+  // An ordinary weapon has dice of a physical type. An alchemical bomb can deal any
+  // type, a flat amount (no die: an Acid Flask's 1) or nothing (a Glue Bomb's 0 dice).
   const damage = asRecord(system.damage);
   const diceNumber = damage?.dice;
-  const dieFaces = parseDieSize(damage?.die);
+  const die = damage?.die;
+  const flat = die === undefined || die === null || die === '';
+  const dieFaces = flat ? undefined : parseDieSize(die);
   const damageType = damage?.damageType;
   if (
     typeof diceNumber !== 'number' ||
     !Number.isInteger(diceNumber) ||
-    diceNumber <= 0
+    diceNumber < 0 ||
+    (diceNumber === 0 && !flat)
   ) {
     return { ok: false, reason: 'missing-or-invalid-damage-dice' };
   }
-  if (dieFaces === undefined) {
+  if (!flat && dieFaces === undefined) {
     return { ok: false, reason: 'unsupported-die-size' };
   }
-  if (typeof damageType !== 'string' || !isWeaponDamageType(damageType)) {
+  if (!isDamageType(damageType)) {
     return { ok: false, reason: 'unrecognized-damage-type' };
   }
+  const persistent = mapPersistent(damage?.persistent);
+  if (persistent === null) {
+    return { ok: false, reason: 'unrecognized-persistent-damage' };
+  }
+  const splash = asRecord(system.splashDamage)?.value;
 
   const range = system.range;
   const reload = mapReload(asRecord(system.reload)?.value);
@@ -136,7 +174,11 @@ export function mapWeapon(
       text,
       category,
       group,
-      damage: { diceNumber, dieFaces, damageType },
+      damage: { diceNumber, ...(dieFaces === undefined ? {} : { dieFaces }), damageType },
+      ...(typeof splash === 'number' && Number.isInteger(splash) && splash > 0
+        ? { splash }
+        : {}),
+      ...(persistent === undefined ? {} : { persistent }),
       hands: mapHands(asRecord(system.usage)?.value),
       ...(typeof range === 'number' && range > 0 ? { range } : {}),
       ...(reload !== undefined ? { reload } : {}),
