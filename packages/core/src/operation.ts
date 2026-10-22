@@ -1001,6 +1001,35 @@ export const actorRestSpellsOperationSchema = clientOperationSchema.extend({
 });
 
 /**
+ * Make an alchemical item (`docs/class-resources.md`): the server copies the entry from
+ * its own compendium onto the character as an infused item, gone at the next daily
+ * preparations. Advanced Alchemy by default; with `quick`, Quick Alchemy, which also
+ * spends one versatile vial. Nothing is checked against the formula book or the day's
+ * count (ADR 0023). Owner or GM only.
+ */
+export const actorMakeAlchemyOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.makeAlchemy'),
+  payload: z.object({
+    actorId: idSchema,
+    packId: z.string().min(1).max(100),
+    slug: z.string().min(1).max(200),
+    /** How many to make as one stack; absent means one. */
+    quantity: z.number().int().min(1).max(MAX_ITEM_QUANTITY).optional(),
+    quick: z.boolean().optional(),
+  }),
+});
+
+/**
+ * A character's daily preparations, all at once: every spell slot available again (as
+ * `actor.restSpells`), every class resource pool refilled (an Alchemist's vials), and
+ * every infused item from the day before gone. Owner or GM only.
+ */
+export const actorDailyPreparationsOperationSchema = clientOperationSchema.extend({
+  type: z.literal('actor.dailyPreparations'),
+  payload: z.object({ actorId: idSchema }),
+});
+
+/**
  * Replace one of a character's spellcasting entries whole (ADR 0025,
  * `docs/spellcasting.md`), or add it when no entry has that id. This is how the
  * lists change -- what is prepared or known, the cantrips, the slot counts --
@@ -1086,6 +1115,8 @@ export const clientOperationUnionSchema = z.discriminatedUnion('type', [
   actorRefocusOperationSchema,
   actorRestSpellsOperationSchema,
   actorSetSpellcastingOperationSchema,
+  actorMakeAlchemyOperationSchema,
+  actorDailyPreparationsOperationSchema,
 ]);
 
 export type AnyClientOperation = z.infer<typeof clientOperationUnionSchema>;
