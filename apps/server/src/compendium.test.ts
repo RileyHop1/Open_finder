@@ -250,6 +250,24 @@ describe('search', () => {
       expect(index.search({ q: 'rope' })[0]).not.toHaveProperty('level');
     });
 
+    it('carries an item’s level, and filters items by it', () => {
+      writePack('equipment', [
+        entry('equipment', 'invented-flask', 'Invented Flask', 'gear', {
+          level: 1,
+          traits: ['alchemical', 'consumable'],
+        }),
+        entry('equipment', 'invented-flask-greater', 'Invented Flask (Greater)', 'gear', {
+          level: 11,
+          traits: ['alchemical', 'consumable'],
+        }),
+      ]);
+      const index = loadCompendium(root);
+      expect(index.search({ q: 'Invented Flask' })[0]).toMatchObject({ level: 1 });
+      expect(
+        index.search({ trait: 'alchemical', maxLevel: 5 }).map((e) => e.slug),
+      ).toEqual(['invented-flask']);
+    });
+
     it('filters by exact level and by maximum level', () => {
       expect(slugs({ kind: 'feat', level: 1 })).toEqual([
         'rune-lore',

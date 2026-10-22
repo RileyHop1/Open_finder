@@ -319,11 +319,13 @@ export {
   characterRanksSchema,
   newCharacterData,
   contentRefSchema,
+  formulaSchema,
   itemSourceSchema,
   type AppliedCondition,
   type CharacterData,
   type CharacterItem,
   type CharacterRanks,
+  type Formula,
 } from './content/character.js';
 
 export {
@@ -423,6 +425,7 @@ export {
 export {
   classResources,
   dailyCrafting,
+  formulaBookSize,
   type ClassResource,
 } from './rules/classResources.js';
 

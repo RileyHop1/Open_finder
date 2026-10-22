@@ -127,6 +127,19 @@ export const contentRefSchema = z.object({
   source: itemSourceSchema.optional(),
 });
 
+/**
+ * One formula in a character's formula book (`docs/class-resources.md`): the
+ * compendium item it makes, with its name and level kept so the book reads without a
+ * lookup. A reference, not a copy: making the item copies it then.
+ */
+export const formulaSchema = z.object({
+  source: itemSourceSchema,
+  name: z.string().min(1),
+  level: z.number().int().nonnegative().optional(),
+});
+
+export type Formula = z.infer<typeof formulaSchema>;
+
 export const characterDataSchema = z
   .object({
     level: z.number().int().min(1).max(20),
@@ -179,6 +192,8 @@ export const characterDataSchema = z
         }),
       )
       .default({}),
+    /** The formulas the character knows (an Alchemist's formula book); empty for most. Absent in an older actor, which parses as none. */
+    formulas: z.array(formulaSchema).default([]),
     /** Already-made `choiceSet` selections, keyed by the element's `rollOptionPrefix` (see `applyRuleElements`). */
     choices: z.record(z.string().min(1), z.string().min(1)).default({}),
     /** The choices this character was built from (ADR 0024). Absent for a hand-built character. */

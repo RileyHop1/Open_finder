@@ -6,6 +6,8 @@
  * infused items each day). Checked against the pinned upstream text (2026-10-20),
  * not against Archives of Nethys: (confirm).
  *
+ * The formula book's starting size is here too (`formulaBookSize`).
+ *
  * Sizes are worked out from the character on every read, so a change to
  * Intelligence shows at once; only how much is spent is stored
  * (`CharacterData.resources`), with an optional hand-set maximum as the GM's
@@ -83,4 +85,14 @@ export function dailyCrafting(
 /** The class's slug: its compendium source's, else its name (a hand-built "Alchemist"). */
 function classSlugOf(data: CharacterData): string {
   return (data.class?.source?.slug ?? data.class?.name ?? '').toLowerCase();
+}
+
+/**
+ * How many formulas `data`'s class starts its formula book with at its level: an
+ * Alchemist's 8 at level 1 (4 from Alchemical Crafting, 2 from its research field, 2
+ * of its own) and 2 more each level after. A guide for the sheet, never a limit; none
+ * for a class without a formula book.
+ */
+export function formulaBookSize(data: CharacterData): number | undefined {
+  return classSlugOf(data) === 'alchemist' ? 8 + 2 * (data.level - 1) : undefined;
 }
