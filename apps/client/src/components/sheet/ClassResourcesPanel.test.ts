@@ -40,8 +40,9 @@ describe('ClassResourcesPanel', () => {
     const vials = wrapper.get('[aria-label="Versatile vials"]');
     expect(vials.text()).toContain('4 of 4 left');
     expect(vials.find('.pips').attributes('aria-hidden')).toBe('true');
-    expect(wrapper.text()).toContain('Advanced alchemy');
-    expect(wrapper.get('.crafting strong').text()).toBe('6');
+    expect(wrapper.get('.crafting').text()).toContain(
+      'Advanced alchemy: 0 of 6 infused items made today',
+    );
   });
 
   it('uses, regains and refills vials with one click each', async () => {
@@ -53,7 +54,7 @@ describe('ClassResourcesPanel', () => {
       .trigger('click');
     await wrapper.get('button[aria-label="Regain 2 versatile vials"]').trigger('click');
     await wrapper
-      .get('button[aria-label="Refill your versatile vials (daily preparations)"]')
+      .get('button[aria-label="Refill your versatile vials"]')
       .trigger('click');
     expect(wrapper.emitted('change')).toEqual([
       [{ 'system.resources.versatile-vials.used': 2 }],
@@ -86,5 +87,51 @@ describe('ClassResourcesPanel', () => {
   it('is read-only for someone who cannot edit, and empty for a class with no resources', () => {
     expect(mountPanel(alchemist(), false).find('button').exists()).toBe(false);
     expect(mountPanel(alchemist({}, 'fighter')).find('section').exists()).toBe(false);
+  });
+
+  it('counts the infused items Advanced Alchemy made today, in words past the count', () => {
+    const base = newCharacterData();
+    const made = (quantity: number, infused: 'daily' | 'quick') => ({
+      id: crypto.randomUUID(),
+      equipped: false,
+      quantity,
+      infused,
+      entry: {
+        id: crypto.randomUUID(),
+        schemaVersion: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+        packId: 'equipment',
+        slug: 'invented-tonic',
+        name: 'Invented Tonic',
+        kind: 'gear',
+        provenance: {
+          publication: 'Pathfinder Player Core 2',
+          license: 'ORC',
+          remaster: true,
+        },
+        traits: ['alchemical', 'consumable'],
+        ruleElements: [],
+        description: '',
+      },
+    });
+    const wrapper = mountPanel(
+      alchemist({
+        items: [...base.items, made(5, 'daily'), made(2, 'daily'), made(1, 'quick')],
+      } as Partial<CharacterData>),
+    );
+    expect(wrapper.get('.crafting').text()).toContain(
+      '7 of 6 infused items made today (1 more than you make each day)',
+    );
+  });
+
+  it('sends daily preparations from one button', async () => {
+    const wrapper = mountPanel(alchemist());
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Daily preparations')
+      ?.trigger('click');
+    expect(wrapper.emitted('prepare')).toHaveLength(1);
+    expect(mountPanel(alchemist(), false).text()).not.toContain('Daily preparations');
   });
 });

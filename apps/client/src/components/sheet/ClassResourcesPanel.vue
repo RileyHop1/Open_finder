@@ -2,7 +2,9 @@
 /**
  * A class's resource pools and daily crafting (`docs/class-resources.md`): an
  * Alchemist's versatile vials, counted in words and pips, with one-click Use,
- * Regain and Refill, and how many infused items Advanced Alchemy makes each day.
+ * Regain and Refill, how many infused items Advanced Alchemy has made today out of
+ * its daily count, and a Daily preparations button (`actor.dailyPreparations`:
+ * vials and slots refilled, yesterday's infused items cleared).
  * Sizes come from the PF2e system's `classResources` (2 + Intelligence vials), so
  * they follow the character; only what is spent is saved. Nothing is refused (ADR
  * 0023): using a vial past the last reads as over the maximum, and the maximum can be
@@ -18,7 +20,11 @@ import {
 import { computed, useId } from 'vue';
 
 const props = defineProps<{ actor: Actor; editable: boolean }>();
-const emit = defineEmits<{ change: [changes: Record<string, unknown>] }>();
+const emit = defineEmits<{
+  change: [changes: Record<string, unknown>];
+  /** Daily preparations: `actor.dailyPreparations`. */
+  prepare: [];
+}>();
 
 const id = useId();
 const data = computed(() => {
@@ -30,6 +36,12 @@ const pools = computed(() =>
 );
 const crafting = computed(() =>
   data.value === undefined ? undefined : dailyCrafting(data.value),
+);
+/** Infused items Advanced Alchemy has made since the last daily preparations. */
+const madeToday = computed(() =>
+  (data.value?.items ?? [])
+    .filter((item) => item.infused === 'daily')
+    .reduce((sum, item) => sum + item.quantity, 0),
 );
 
 /** "3 of 5 left", or past the maximum "-1 (1 over the maximum)". */
@@ -90,7 +102,7 @@ function onMax(pool: ClassResource, event: Event): void {
         </button>
         <button
           type="button"
-          :aria-label="`Refill your ${pool.name.toLowerCase()} (daily preparations)`"
+          :aria-label="`Refill your ${pool.name.toLowerCase()}`"
           @click="setUsed(pool, 0)"
         >
           Refill
@@ -114,9 +126,19 @@ function onMax(pool: ClassResource, event: Event): void {
     </div>
 
     <p v-if="crafting !== undefined" class="crafting">
-      {{ crafting.name }}: at your daily preparations, make up to
-      <strong>{{ crafting.count }}</strong> infused alchemical items from your formula
-      book, then add them to your inventory.
+      {{ crafting.name }}: <strong>{{ madeToday }}</strong> of
+      {{ crafting.count }} infused items made today<template
+        v-if="madeToday > crafting.count"
+      >
+        ({{ madeToday - crafting.count }} more than you make each day)</template
+      >. Make them from your formula book below.
+    </p>
+    <p v-if="editable" class="prepare">
+      <button type="button" @click="emit('prepare')">Daily preparations</button>
+      <span class="note">
+        Refills your vials, focus points and spell slots, and clears yesterday's infused
+        items.
+      </span>
     </p>
   </section>
 </template>

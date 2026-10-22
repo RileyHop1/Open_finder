@@ -2,8 +2,7 @@
 
 Pools a class spends during the day and refills at its daily preparations, what it
 makes then, and the formula book it makes things from. In the core books' level 1
-builds only the **Alchemist** has any. The buttons that make items from the formula book
-come in the next PR of milestone 8(c); the operations they send are below.
+builds only the **Alchemist** has any.
 
 The design line is CLAUDE.md's: calculate and offer, never enforce (ADR 0023). The sheet
 keeps the count and works out the size, so nobody has to add 2 and an Intelligence
@@ -40,9 +39,10 @@ override), like the focus pool.
 in words ("3 of 4 left"), with **Use one**, **Regain 2** and **Refill** (daily
 preparations) buttons, and a Maximum field whose placeholder is the derived size (empty
 means derived). Using one past the last is never disabled: the count reads "-1 (1 over
-the maximum)". Below the pools it says how many infused items Advanced Alchemy makes each
-day; adding them to the inventory is by hand until the next PR. Read-only for someone who
-cannot edit the character. A class with no resources shows nothing.
+the maximum)". Below the pools it counts the infused items Advanced Alchemy has made today
+against its daily count ("4 of 6 infused items made today", and how many past it), and a
+**Daily preparations** button sends `actor.dailyPreparations` (below). Read-only for
+someone who cannot edit the character. A class with no resources shows nothing.
 
 ## The formula book
 
@@ -61,8 +61,10 @@ level with **Remove**, counts them against `formulaBookSize` for an Alchemist ("
 formulas", and how many past the start), and searches the compendium for alchemical items
 (`trait=alchemical`; item summaries carry their level) to **Add**. An item above the
 character's level can be added, with a note to check with the GM; one already in the book
-says so. Any character with formulas sees the book; a class with no book and no formulas
-does not.
+says so. For an Alchemist each formula has **Make** (Advanced Alchemy) and **Quick**
+(Quick Alchemy, spending a vial) buttons, both `actor.makeAlchemy`; the item lands in the
+inventory marked "infused". Any character with formulas sees the book; a class with no
+book and no formulas does not.
 
 ## Making items and daily preparations
 

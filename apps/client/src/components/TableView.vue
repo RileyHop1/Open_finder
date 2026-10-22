@@ -1423,12 +1423,21 @@ async function createCharacter(name: string): Promise<boolean> {
                       :actor="selected"
                       :editable="canEdit"
                       @change="saveChanges"
+                      @prepare="sendItem('actor.dailyPreparations', {})"
                     />
                     <FormulaBookPanel
                       v-if="selected.kind === 'character'"
                       :actor="selected"
                       :editable="canEdit"
                       @change="saveChanges"
+                      @make="
+                        (formula, quick) =>
+                          sendItem('actor.makeAlchemy', {
+                            packId: formula.source.packId,
+                            slug: formula.source.slug,
+                            ...(quick ? { quick: true } : {}),
+                          })
+                      "
                     />
                     <InventoryPanel
                       v-if="selected.kind === 'character'"
