@@ -5,16 +5,28 @@
  * counts the book against the PF2e system's `formulaBookSize` (8 at level 1, 2 more each
  * level), as a guide, never a limit (ADR 0023): a formula above the character's level
  * can still be added, with a note. The whole list is saved with `actor.update`
- * (`system.formulas`); the search finds alchemical items in the compendium.
+ * (`system.formulas`); the search finds alchemical items in the compendium. An
+ * Alchemist makes an item from a formula in one click: **Make** (Advanced Alchemy) or
+ * **Quick** (Quick Alchemy, spending a vial), both `actor.makeAlchemy`, never refused.
  */
 import type { Actor } from '@hearthtable/core';
-import { characterDataSchema, formulaBookSize, type Formula } from '@hearthtable/pf2e';
+import {
+  characterDataSchema,
+  classResources,
+  dailyCrafting,
+  formulaBookSize,
+  type Formula,
+} from '@hearthtable/pf2e';
 import { computed, ref, useId } from 'vue';
 
 import { type EntrySummary, searchCompendium } from '../../api/compendium.js';
 
 const props = defineProps<{ actor: Actor; editable: boolean }>();
-const emit = defineEmits<{ change: [changes: Record<string, unknown>] }>();
+const emit = defineEmits<{
+  change: [changes: Record<string, unknown>];
+  /** Make the formula's item: Advanced Alchemy, or Quick Alchemy with `quick`. */
+  make: [formula: Formula, quick: boolean];
+}>();
 
 const id = useId();
 const data = computed(() => {
@@ -31,6 +43,17 @@ const size = computed(() =>
 );
 const level = computed(() => data.value?.level ?? 1);
 const visible = computed(() => size.value !== undefined || formulas.value.length > 0);
+/** Whether the class makes items from its book (Advanced Alchemy), and with vials (Quick Alchemy). */
+const makes = computed(
+  () =>
+    props.editable && data.value !== undefined && dailyCrafting(data.value) !== undefined,
+);
+const quick = computed(
+  () =>
+    makes.value &&
+    data.value !== undefined &&
+    classResources(data.value).some((pool) => pool.key === 'versatile-vials'),
+);
 
 const key = (f: { source: { packId: string; slug: string } }) =>
   `${f.source.packId}/${f.source.slug}`;
@@ -96,6 +119,22 @@ async function search(): Promise<void> {
         <span v-if="formula.level !== undefined" class="level">
           level {{ formula.level }}
         </span>
+        <button
+          v-if="makes"
+          type="button"
+          :aria-label="`Make ${formula.name} with Advanced Alchemy`"
+          @click="emit('make', formula, false)"
+        >
+          Make
+        </button>
+        <button
+          v-if="quick"
+          type="button"
+          :aria-label="`Make ${formula.name} with Quick Alchemy (spends a vial)`"
+          @click="emit('make', formula, true)"
+        >
+          Quick
+        </button>
         <button
           v-if="editable"
           type="button"

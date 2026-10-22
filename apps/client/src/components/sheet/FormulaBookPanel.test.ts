@@ -147,4 +147,23 @@ describe('FormulaBookPanel', () => {
     expect(readOnly.find('form').exists()).toBe(false);
     expect(mountPanel(character({}, 'fighter')).find('section').exists()).toBe(false);
   });
+
+  it('makes an item from a formula with Advanced or Quick Alchemy, for an Alchemist only', async () => {
+    const wrapper = mountPanel(character({ formulas: [flask] }));
+    await wrapper
+      .get('button[aria-label="Make Invented Flask with Advanced Alchemy"]')
+      .trigger('click');
+    await wrapper
+      .get('button[aria-label="Make Invented Flask with Quick Alchemy (spends a vial)"]')
+      .trigger('click');
+    expect(wrapper.emitted('make')).toEqual([
+      [flask, false],
+      [flask, true],
+    ]);
+    const fighter = mountPanel(character({ formulas: [flask] }, 'fighter'));
+    expect(fighter.text()).not.toContain('Make');
+    expect(mountPanel(character({ formulas: [flask] }), false).text()).not.toContain(
+      'Quick',
+    );
+  });
 });

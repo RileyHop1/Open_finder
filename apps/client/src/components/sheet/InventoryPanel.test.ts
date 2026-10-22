@@ -71,7 +71,7 @@ type Item = CharacterData['items'][number];
 const item = (
   kind: 'gear' | 'weapon',
   name: string,
-  extra: Partial<Pick<Item, 'equipped' | 'quantity'>> = {},
+  extra: Partial<Pick<Item, 'equipped' | 'quantity' | 'infused'>> = {},
   inert = false,
   economy: { priceInCopper?: number; bulk?: number } = {},
 ): Item => ({
@@ -111,6 +111,20 @@ describe('items list', () => {
     expect(rope?.text()).toContain('×3');
     expect(rope?.text()).toContain('Not equipped');
     expect(wrapper.find('button, input').exists()).toBe(false);
+  });
+
+  it('marks an infused item, made by alchemy and gone at the next daily preparations', () => {
+    const wrapper = mount(InventoryPanel, {
+      props: {
+        actor: actorWith([
+          item('gear', 'Invented Tonic', { infused: 'daily' }),
+          item('gear', 'Invented Rope'),
+        ]),
+      },
+    });
+    const [tonic, rope] = wrapper.findAll('.item');
+    expect(tonic?.get('.infused').text()).toBe('infused');
+    expect(rope?.find('.infused').exists()).toBe(false);
   });
 
   it('flags an item whose automation was not applied, with how many effects to apply by hand', () => {

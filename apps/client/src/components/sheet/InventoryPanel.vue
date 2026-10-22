@@ -213,6 +213,12 @@ async function search(): Promise<void> {
     <ul v-else class="items">
       <li v-for="item in carried" :key="item.id" class="item">
         <span class="item-name">{{ item.entry.name }}</span>
+        <span
+          v-if="item.infused !== undefined"
+          class="infused"
+          title="Made by alchemy; gone at your next daily preparations"
+          >infused</span
+        >
         <span class="item-kind">{{
           consumableOf(item.entry) === undefined
             ? kindLabel(item.entry.kind)
@@ -376,6 +382,11 @@ h4 {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: 4px;
+}
+
+.infused {
+  font-size: 0.85em;
+  font-style: italic;
 }
 
 .item-name {
