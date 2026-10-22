@@ -972,6 +972,11 @@ ruling from silently drifting.
   sheet counts the book against that as a guide; which items qualify (common, of the
   field's kind, at or below the character's level) is left to the table, with a note on
   an item above the character's level.
+- **Infused items:** everything Advanced Alchemy and Quick Alchemy make is marked infused
+  and removed at the next daily preparations. That is the rule for Advanced Alchemy's
+  items (potent for 24 hours or until the next preparations) and versatile vials; a
+  Quick Alchemy item lasts only until the end of the alchemist's next turn, which the app
+  does not track, so the table discards it when it is used or lapses.
 - **Golden test:** `systems/pf2e/src/rules/classResources.test.ts`.
 - **Override:** the Maximum field and the Use, Regain and Refill buttons on the sheet.
 

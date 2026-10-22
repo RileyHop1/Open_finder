@@ -68,6 +68,7 @@ import { adjustActorCoins } from './coins.js';
 import { setSpellcasting } from './spellcasting.js';
 import { transferInventory } from './transfer.js';
 import { useItem } from './useItem.js';
+import { dailyPreparations, makeAlchemy } from './alchemy.js';
 import { castSpell, refocus, restSpells } from './castSpell.js';
 import { applyDamageToActor, healActor, rollRecovery } from './hitPoints.js';
 import { settlePersistentDamage } from './persistentDamage.js';
@@ -806,6 +807,16 @@ function dispatch(
     case 'actor.restSpells': {
       const seat = requireSeat(store, socket);
       const actor = restSpells(store, seat, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.makeAlchemy': {
+      const seat = requireSeat(store, socket);
+      const actor = makeAlchemy(store, seat, compendium, operation.payload);
+      return { seatId: seat.id, seats: [], documents: [actor] };
+    }
+    case 'actor.dailyPreparations': {
+      const seat = requireSeat(store, socket);
+      const actor = dailyPreparations(store, seat, operation.payload);
       return { seatId: seat.id, seats: [], documents: [actor] };
     }
     case 'actor.setSpellcasting': {

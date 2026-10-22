@@ -104,6 +104,11 @@ export const characterItemSchema = z.object({
   entry: characterItemEntrySchema,
   equipped: z.boolean().default(false),
   quantity: z.number().int().positive().default(1),
+  /**
+   * Made by alchemy and gone at the next daily preparations (`docs/class-resources.md`):
+   * `daily` by Advanced Alchemy, `quick` by Quick Alchemy. Absent for an ordinary item.
+   */
+  infused: z.enum(['daily', 'quick']).optional(),
 });
 
 export type CharacterItem = z.infer<typeof characterItemSchema>;

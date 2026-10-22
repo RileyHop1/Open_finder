@@ -176,6 +176,8 @@ export {
   actorCastSpellOperationSchema,
   actorRefocusOperationSchema,
   actorRestSpellsOperationSchema,
+  actorMakeAlchemyOperationSchema,
+  actorDailyPreparationsOperationSchema,
   actorSetSpellcastingOperationSchema,
   actorUseItemOperationSchema,
   type CoinsDelta,

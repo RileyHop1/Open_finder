@@ -2,8 +2,8 @@
 
 Pools a class spends during the day and refills at its daily preparations, what it
 makes then, and the formula book it makes things from. In the core books' level 1
-builds only the **Alchemist** has any; one-click Quick and Advanced Alchemy come in the
-next PR of milestone 8(c).
+builds only the **Alchemist** has any. The buttons that make items from the formula book
+come in the next PR of milestone 8(c); the operations they send are below.
 
 The design line is CLAUDE.md's: calculate and offer, never enforce (ADR 0023). The sheet
 keeps the count and works out the size, so nobody has to add 2 and an Intelligence
@@ -63,4 +63,20 @@ formulas", and how many past the start), and searches the compendium for alchemi
 character's level can be added, with a note to check with the GM; one already in the book
 says so. Any character with formulas sees the book; a class with no book and no formulas
 does not.
+
+## Making items and daily preparations
+
+Two operations do the bookkeeping, and check nothing against the rules (ADR 0023):
+
+- **`actor.makeAlchemy`** copies an item from the server's compendium onto the character
+  as an **infused** item: `infused: 'daily'` for Advanced Alchemy, or with `quick`,
+  `infused: 'quick'` for Quick Alchemy, which also spends one versatile vial (past the
+  last one too: the pool reads as over its maximum). Neither checks the formula book,
+  the item's level, or how many were made today.
+- **`actor.dailyPreparations`** does a character's daily preparations at once: every
+  spell slot available again (as `actor.restSpells`), the focus pool full, every class
+  resource pool refilled (a hand-set maximum kept), and every infused item from the day
+  before gone. Ordinary items are untouched.
+
+Both live in `apps/server/src/alchemy.ts`.
 
