@@ -38,6 +38,12 @@ describe('warningText', () => {
         book: 'spellbook',
       }),
     ).toBe('6 rank 1 spells chosen but your spellbook starts with 5.');
+    expect(warningText({ kind: 'deity-not-set', classSlug: 'champion' })).toBe(
+      'Champion serves a deity: enter its divine font and skill (Class choices step).',
+    );
+    expect(warningText({ kind: 'font-not-granted', font: 'harm', granted: 'heal' })).toBe(
+      'Your deity grants a heal font, not harm.',
+    );
     expect(warningText({ kind: 'too-many-cantrips', chosen: 6, allowed: 5 })).toBe(
       '6 cantrips chosen but the class has 5.',
     );

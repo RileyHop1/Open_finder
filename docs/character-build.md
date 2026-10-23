@@ -281,6 +281,22 @@ a duplicate), the sheet opens, and the player finishes there; if the create
 itself is refused nothing was made and the choices are kept. On success the
 draft is forgotten, the creator closes and the new character's sheet opens.
 
+## Deity
+
+A Cleric and a Champion serve a deity ([ADR 0026](adr/0026-deity-facts-not-deities.md)).
+No deity is imported, so the build carries the facts the rules use, entered from the
+deity's entry: `build.deity` is `{ name?, font?, skill?, sanctification?, weapon? }`, with
+`font` one of `heal`, `harm`, `either` and `sanctification` one of `holy`, `unholy`,
+`none`. The class choices step asks for them (`DeityFields.vue`) when the class serves a
+deity (`DEITY_CLASS_SLUGS`).
+
+The derivation (`rules/deity.ts`) trains the divine skill as a class feature's skill is
+trained (one already trained is a `skill-trained-twice` warning and one more pick),
+warns `font-not-granted` when a Cleric's divine font is not the one its deity grants, and
+warns `deity-not-set` when none of the facts is entered. Nothing is checked against a
+list of deities, and nothing is refused. The sanctification and the favored weapon are
+kept for the Champion's cause and deific weapon (milestone 8(c)).
+
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies
 every entry from its own compendium, derives, and writes the build, derived

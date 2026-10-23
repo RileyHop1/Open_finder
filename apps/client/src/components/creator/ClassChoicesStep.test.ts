@@ -105,4 +105,17 @@ describe('ClassChoicesStep', () => {
     });
     expect(off.get('.warning').text()).toContain('dragon is not one of the options');
   });
+
+  it('asks a class that serves a deity for its facts, and passes them on', async () => {
+    const cleric = characterBuildSchema.parse({
+      class: { packId: 'classes', slug: 'cleric' },
+    });
+    const wrapper = mountStep({ build: cleric, features: [] });
+    expect(wrapper.text()).toContain('Your deity');
+    await wrapper.get('.deity select').setValue('religion');
+    expect(wrapper.emitted('deity')).toEqual([[{ skill: 'religion' }]]);
+    expect(mountStep({ build: build(), features: [] }).text()).not.toContain(
+      'Your deity',
+    );
+  });
 });

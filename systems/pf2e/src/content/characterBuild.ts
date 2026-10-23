@@ -79,6 +79,26 @@ export const spellPicksSchema = z.object({
 
 export type SpellPicks = z.infer<typeof spellPicksSchema>;
 
+/**
+ * The facts about the character's deity the rules use (`docs/character-build.md`,
+ * "Deity"). No deity is imported -- upstream credits every one to a book outside the
+ * core four (ADR 0006) -- so a Cleric or Champion enters them from their deity's entry.
+ * Each is optional, and none is checked against a deity list.
+ */
+export const deityFactsSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  /** The divine font the deity grants: heal, harm, or either. */
+  font: z.enum(['heal', 'harm', 'either']).optional(),
+  /** The deity's divine skill, by skill slug. */
+  skill: z.string().min(1).optional(),
+  /** The sanctification the character takes from the deity. */
+  sanctification: z.enum(['holy', 'unholy', 'none']).optional(),
+  /** The deity's favored weapon, in words. */
+  weapon: z.string().trim().min(1).max(80).optional(),
+});
+
+export type DeityFacts = z.infer<typeof deityFactsSchema>;
+
 export const characterBuildSchema = z.object({
   ancestry: buildRefSchema.optional(),
   heritage: buildRefSchema.optional(),
@@ -98,6 +118,8 @@ export const characterBuildSchema = z.object({
   /** Class- and feature-specific picks (racket, instinct, methodology, ...), keyed by the choice that offered them. */
   classChoices: z.record(z.string().min(1), z.string().min(1)).default({}),
   spells: spellPicksSchema.default({ cantrips: [], ranked: [] }),
+  /** The deity's facts, for a class that has one (a Cleric, a Champion). */
+  deity: deityFactsSchema.optional(),
 });
 
 export type CharacterBuild = z.infer<typeof characterBuildSchema>;

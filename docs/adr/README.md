@@ -55,3 +55,4 @@ than a tidy file.
 | [0023](0023-calculate-dont-enforce.md) | Calculate, don't enforce: automate the math, leave rulings to the table | Accepted |
 | [0024](0024-character-build-record.md) | Character build: store the choices beside the numbers, derive by a pure function | Accepted |
 | [0025](0025-spellcasting-model.md) | Spellcasting: entries on the character, class tables of our own, slots tracked and never enforced | Accepted |
+| [0026](0026-deity-facts-not-deities.md) | Enter a deity's facts on the build instead of importing deities | Accepted |

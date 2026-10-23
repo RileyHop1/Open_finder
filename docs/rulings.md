@@ -980,6 +980,20 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/classResources.test.ts`.
 - **Override:** the Maximum field and the Use, Regain and Refill buttons on the sheet.
 
+### A deity's divine skill and font
+- **Rules text:** the Cleric's and the Champion's Deity class features in Player Core and
+  Player Core 2. Checked against the pinned upstream text (2026-10-23): **(confirm)**.
+- **The ambiguity:** none in the rules; recorded because the facts come from the player
+  ([ADR 0026](adr/0026-deity-facts-not-deities.md)), not from an imported deity.
+- **Our reading:** a Cleric or Champion is trained in its deity's divine skill (another
+  skill of the player's choice when that one is already trained), and a Cleric's divine
+  font is one its deity grants. A font the deity does not grant is still granted, with a
+  warning.
+- **Alternative reading:** none known.
+- **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` ("a Cleric's deity") and
+  `systems/pf2e/src/rules/deity.test.ts`.
+- **Override:** the facts are editable in the creator, and every derived rank on the sheet.
+
 ### Reading predicates on class features
 - **Rules text:** none directly; this is how upstream's conditions on a class
   feature's skill training and grants are read (`classFeatureRules.ts`).
