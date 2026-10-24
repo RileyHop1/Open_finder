@@ -284,8 +284,31 @@ describe('mapRuleElement -- tag choices', () => {
     expect(result).toMatchObject({ rollOptionPrefix: 'invented-pick' });
   });
 
+  it('drops a clause that restricts only by sanctification, offering every option', () => {
+    const sanctified = {
+      filter: [
+        'item:tag:invented-choice',
+        {
+          or: [
+            { and: ['item:tag:holy', 'sanctification:holy'] },
+            { and: ['item:tag:unholy', 'sanctification:unholy'] },
+            { nor: ['item:tag:holy', 'item:tag:unholy'] },
+          ],
+        },
+      ],
+    };
+    expect(mapRuleElement({ ...tagChoice, choices: sanctified })).toMatchObject({
+      kind: 'unresolvedTagChoice',
+      tag: 'invented-choice',
+    });
+  });
+
   it.each([
     ['extra clauses', { filter: ['item:tag:a', 'item:level:1'] }],
+    [
+      'a clause mixing sanctification with something else',
+      { filter: ['item:tag:a', { or: ['sanctification:holy', 'item:level:1'] }] },
+    ],
     ['a different filter', { filter: ['item:trait:a'] }],
     ['an item type', { filter: ['item:tag:a'], itemType: 'weapon' }],
   ])('goes inert on %s -- the option list would be wrong', (_name, choices) => {

@@ -428,6 +428,7 @@ export {
   DEITY_CLASS_SLUGS,
   deitySkill,
   deityWarnings,
+  sanctificationWarnings,
   servesDeity,
   type DeityWarning,
 } from './rules/deity.js';

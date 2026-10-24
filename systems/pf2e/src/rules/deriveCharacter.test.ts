@@ -352,6 +352,28 @@ describe('deriveCharacter', () => {
       ]);
     });
 
+    it('warns when a holy or unholy pick does not match the deity’s sanctification', () => {
+      const holy = feature('beta', 1, ['instinct', 'holy']);
+      const d = deriveCharacter({
+        build: {
+          ...emptyBuild,
+          classChoices: { instinct: 'beta' },
+          deity: { sanctification: 'none' },
+        },
+        level: 1,
+        classFeatures: [instinct, alpha, holy],
+        resolve: (p, s) => (s === 'beta' ? holy : all.get(`${p}/${s}`)),
+      });
+      expect(d.warnings).toEqual([
+        {
+          kind: 'sanctification-mismatch',
+          feature: 'beta',
+          needs: 'holy',
+          sanctification: 'none',
+        },
+      ]);
+    });
+
     it('ignores a choice for a feature the character does not have yet', () => {
       const d = deriveCharacter({
         build: { ...emptyBuild, classChoices: { instinct: 'alpha' } },

@@ -994,6 +994,27 @@ ruling from silently drifting.
   `systems/pf2e/src/rules/deity.test.ts`.
 - **Override:** the facts are editable in the creator, and every derived rank on the sheet.
 
+### A Champion's cause and its sanctification
+- **Rules text:** the Champion's Cause class feature in Player Core 2: some causes are
+  "limited to sanctification" (Grandeur and Redemption holy, Desecration and Iniquity
+  unholy). Checked against the pinned upstream text (2026-10-24): **(confirm)**.
+- **The ambiguity:** none in the rules; recorded because upstream hides the causes a
+  champion's sanctification rules out, and we show them.
+- **Our reading:** every cause is offered, the holy and unholy ones marked so; a pick
+  that the sanctification entered for the deity does not match (or with none entered)
+  is granted with a `sanctification-mismatch` warning. The chosen cause grants its
+  champion's reaction.
+- **Alternative reading:** offer only the causes the entered sanctification allows, as
+  upstream does. Rejected: the facts are typed by the player
+  ([ADR 0026](adr/0026-deity-facts-not-deities.md)), a list that changes as they type
+  would hide the choice behind a field, and refusing a pick is a ruling (ADR 0023).
+- **Known gap:** a Champion Dedication's cause also grants the reaction, which the rules
+  give only with the Champion's Reaction feat (the grant's condition names the Champion
+  class, read as in "Reading predicates on class features" below). The GM removes it.
+- **Golden test:** `systems/pf2e/src/rules/deity.test.ts` and
+  `systems/pf2e/src/importer/elementMapper.test.ts`.
+- **Override:** the cause can be changed in the creator, and any granted item removed.
+
 ### Reading predicates on class features
 - **Rules text:** none directly; this is how upstream's conditions on a class
   feature's skill training and grants are read (`classFeatureRules.ts`).

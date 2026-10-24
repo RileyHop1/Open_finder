@@ -44,6 +44,23 @@ describe('warningText', () => {
     expect(warningText({ kind: 'font-not-granted', font: 'harm', granted: 'heal' })).toBe(
       'Your deity grants a heal font, not harm.',
     );
+    expect(
+      warningText({
+        kind: 'sanctification-mismatch',
+        feature: 'invented-glory',
+        needs: 'holy',
+        sanctification: 'none',
+      }),
+    ).toBe('Invented Glory is holy, but your sanctification is none.');
+    expect(
+      warningText({
+        kind: 'sanctification-mismatch',
+        feature: 'invented-glory',
+        needs: 'holy',
+      }),
+    ).toBe(
+      'Invented Glory is holy: enter a holy sanctification for your deity (Class choices step).',
+    );
     expect(warningText({ kind: 'too-many-cantrips', chosen: 6, allowed: 5 })).toBe(
       '6 cantrips chosen but the class has 5.',
     );

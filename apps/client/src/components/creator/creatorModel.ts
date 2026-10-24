@@ -164,12 +164,15 @@ export function buildOf(
 /** The character the draft would make at level 1, as an actor the real sheet can show. */
 export function previewOf(draft: CreatorDraft, entries: PreviewEntries = {}): Preview {
   const build = buildOf(draft, entries);
+  // The class features are the only entries the preview has to look grants up in: a
+  // pick's feature (a cause, a racket) then counts, with its tags and rank-ups.
   const derived = deriveCharacter({
     build,
     level: 1,
     keyAttribute: draft.keyAttribute,
     ...entries,
-    resolve: () => undefined,
+    resolve: (packId, slug) =>
+      entries.classFeatures?.find((f) => f.packId === packId && f.slug === slug),
   });
   const base = newCharacterData();
   const system: CharacterData = characterDataSchema.parse({

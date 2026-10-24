@@ -181,9 +181,13 @@ picked). The mapper emits an `UnresolvedTagChoice` and an
 `UnresolvedChosenGrant` for the pair; dependency resolution turns them into one
 `choiceSet` whose options are the kept features with that tag and whose
 `grantsFromPackId` is `classFeatures`. Only the single-tag filter maps: a
-filter that adds level, type or conditional clauses (Champion's Cause, which
-depends on sanctification) changes which options are legal, so it goes `inert`
-as `unsupported-choice-filter` rather than showing the wrong list. A tag with
+filter that adds level, type or conditional clauses changes which options are
+legal, so it goes `inert` as `unsupported-choice-filter` rather than showing the
+wrong list. The exception is a clause made only of holy and unholy tags and
+sanctifications (a Champion's Cause, and the Champion Dedication's): it is
+dropped and every tagged feature is offered, because each holy or unholy option
+keeps its tag and the derivation warns when the deity's sanctification does not
+match ([character build](character-build.md), "Deity"). A tag with
 no kept feature goes `inert` as `no-features-for-tag`. The upstream prompt is a
 translation key, so the resolved prompt is `Choose <feature name>`.
 

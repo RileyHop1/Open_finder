@@ -36,7 +36,7 @@ import type {
 import { MODIFIER_TYPES } from '@hearthtable/core';
 
 import { mapPredicateArray } from './mapPredicate.js';
-import { parseDieSize } from './upstreamHelpers.js';
+import { asRecord, parseDieSize } from './upstreamHelpers.js';
 
 export interface UnresolvedGrantItem {
   readonly kind: 'unresolvedGrantItem';
@@ -218,11 +218,40 @@ function mapGrantItem(record: Record<string, unknown>): MappedElement {
   return { kind: 'unresolvedGrantItem', uuid };
 }
 
+const SANCTIFICATION_TERM =
+  /^(item:tag:(holy|unholy)|sanctification:(holy|unholy|none))$/;
+const PREDICATE_JOINS = ['and', 'or', 'nor', 'not'];
+
+/**
+ * Whether a filter clause restricts the options only by sanctification: a
+ * Champion's Cause offers its holy causes to a holy champion, its unholy ones to an
+ * unholy one, and the rest to anyone. Every term is a holy or unholy tag or a
+ * sanctification, joined by `and`, `or`, `nor` or `not`.
+ */
+function onlySanctification(clause: unknown): boolean {
+  if (typeof clause === 'string') {
+    return SANCTIFICATION_TERM.test(clause);
+  }
+  const entries = Object.entries(asRecord(clause) ?? {});
+  if (entries.length !== 1) {
+    return false;
+  }
+  const [join, terms] = entries[0] as [string, unknown];
+  return (
+    PREDICATE_JOINS.includes(join) &&
+    (Array.isArray(terms) ? terms.every(onlySanctification) : onlySanctification(terms))
+  );
+}
+
 /**
  * `choices: { filter: ["item:tag:<tag>"] }` -- the "pick one of these
  * features" shape. Only the single-tag filter is supported: filters that add
  * level, type or conditional clauses change which options are legal, and
- * guessing at them would show the wrong list.
+ * guessing at them would show the wrong list. The one exception is a clause
+ * that restricts only by sanctification (`onlySanctification`): it is dropped
+ * and every option is offered, because the options carry their `holy` or
+ * `unholy` tag and the derivation warns when a pick does not match the
+ * sanctification entered for the deity (ADR 0023, ADR 0026).
  */
 function mapTagChoiceSet(record: Record<string, unknown>): MappedElement {
   const { prompt, flag, rollOption, choices } = record;
@@ -237,7 +266,9 @@ function mapTagChoiceSet(record: Record<string, unknown>): MappedElement {
   }
   const { filter, itemType } = choices as Record<string, unknown>;
   const match =
-    Array.isArray(filter) && filter.length === 1 && typeof filter[0] === 'string'
+    Array.isArray(filter) &&
+    typeof filter[0] === 'string' &&
+    filter.slice(1).every(onlySanctification)
       ? TAG_FILTER.exec(filter[0])
       : null;
   if (match === null || itemType !== undefined) {
