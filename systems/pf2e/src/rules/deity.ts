@@ -8,10 +8,13 @@
  * Checked against the pinned upstream text (2026-10-23), not Archives of Nethys: the
  * Cleric's and the Champion's Deity class features train the deity's divine skill (or
  * another of the player's choice when it is already trained), and a Cleric's divine font
- * is one its deity grants. **(confirm)**
+ * is one its deity grants. **(confirm)** A Champion's holy causes are for a holy
+ * champion and its unholy ones for an unholy champion (the Cause feature's "limited to
+ * sanctification"; checked 2026-10-24 against the same text). **(confirm)**
  */
 
 import type { CharacterBuild } from '../content/characterBuild.js';
+import type { ClassFeatureEntry } from '../content/class.js';
 
 /** The classes whose build names a deity. */
 export const DEITY_CLASS_SLUGS: readonly string[] = ['cleric', 'champion'];
@@ -37,7 +40,40 @@ export type DeityWarning =
       readonly kind: 'font-not-granted';
       readonly font: string;
       readonly granted: 'heal' | 'harm';
+    }
+  /** A holy or unholy feature (a Champion's cause) with a sanctification that does not match. */
+  | {
+      readonly kind: 'sanctification-mismatch';
+      readonly feature: string;
+      readonly needs: Sanctity;
+      /** The sanctification entered for the deity, if any. */
+      readonly sanctification?: 'holy' | 'unholy' | 'none';
     };
+
+type Sanctity = 'holy' | 'unholy';
+const SANCTITIES: readonly Sanctity[] = ['holy', 'unholy'];
+
+/**
+ * The features in `features` tagged holy or unholy (a Champion's Grandeur, its
+ * Desecration) whose tag the sanctification in `build.deity` does not match, entered
+ * or not. Shown for the GM to rule on, never refused (ADR 0023).
+ */
+export function sanctificationWarnings(
+  features: readonly Pick<ClassFeatureEntry, 'slug' | 'tags'>[],
+  build: Pick<CharacterBuild, 'deity'>,
+): DeityWarning[] {
+  const sanctification = build.deity?.sanctification;
+  return features.flatMap((feature) =>
+    SANCTITIES.filter((s) => feature.tags.includes(s) && s !== sanctification).map(
+      (needs) => ({
+        kind: 'sanctification-mismatch' as const,
+        feature: feature.slug,
+        needs,
+        ...(sanctification === undefined ? {} : { sanctification }),
+      }),
+    ),
+  );
+}
 
 /** What does not match the deity's facts in `build`. None for a class without a deity. */
 export function deityWarnings(

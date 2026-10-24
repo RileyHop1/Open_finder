@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { classFeatureEntrySchema } from '@hearthtable/pf2e';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -13,6 +14,8 @@ import {
   previousStep,
   saveDraft,
 } from './creatorModel.js';
+
+const NOW = '2026-10-01T00:00:00.000Z';
 
 beforeEach(() => {
   localStorage.clear();
@@ -121,6 +124,56 @@ describe('previewOf', () => {
     });
     // 8 + (10 + 1) * 1 = 19
     expect(actor.system).toMatchObject({ hp: { current: 19 }, speed: 30 });
+  });
+
+  it('grants a picked class feature from the class’s own features, tags and all', () => {
+    // Invented (ADR 0013): a cause whose holy pick trains Religion.
+    const feature = (slug: string, extra: Record<string, unknown>) =>
+      classFeatureEntrySchema.parse({
+        id: crypto.randomUUID(),
+        schemaVersion: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+        packId: 'classFeatures',
+        slug,
+        name: slug,
+        kind: 'classFeature',
+        provenance: {
+          publication: 'Pathfinder Player Core',
+          license: 'ORC',
+          remaster: true,
+        },
+        traits: [],
+        ruleElements: [],
+        description: '',
+        classSlugs: ['invented'],
+        level: 1,
+        ...extra,
+      });
+    const oath = feature('oath', {
+      ruleElements: [
+        {
+          kind: 'choiceSet',
+          prompt: 'Choose Oath',
+          choices: [{ label: 'Glory', value: 'glory' }],
+          rollOptionPrefix: 'oath',
+          grantsFromPackId: 'classFeatures',
+        },
+      ],
+    });
+    const glory = feature('glory', {
+      tags: ['oath', 'holy'],
+      skillRankUps: { religion: 'trained' },
+    });
+    const draft = emptyDraft();
+    draft.build.classChoices = { oath: 'glory' };
+    const { actor, warnings } = previewOf(draft, { classFeatures: [oath, glory] });
+    expect(actor.system).toMatchObject({
+      ranks: { skills: { religion: 'trained' } },
+    });
+    expect(warnings).toEqual([
+      { kind: 'sanctification-mismatch', feature: 'glory', needs: 'holy' },
+    ]);
   });
 });
 

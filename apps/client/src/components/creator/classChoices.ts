@@ -29,6 +29,12 @@ function authoredFor(feature: ClassFeatureEntry): readonly SubChoice[] {
     .filter((sub) => sub.feature === feature.slug);
 }
 
+/** `label` with "(holy)" or "(unholy)" when the feature is for that sanctification only (a Champion's cause). */
+function withSanctity(label: string, feature: ClassFeatureEntry | undefined): string {
+  const sanctity = (['holy', 'unholy'] as const).find((s) => feature?.tags.includes(s));
+  return sanctity === undefined ? label : `${label} (${sanctity})`;
+}
+
 export interface DueChoice {
   /** The feature that asks. */
   readonly feature: ClassFeatureEntry;
@@ -99,11 +105,15 @@ export function choicesDue(
         feature,
         element,
         chosen,
-        options: element.choices.map((choice) => ({
-          ...choice,
-          feature:
-            element.grantsFromPackId === undefined ? undefined : bySlug.get(choice.value),
-        })),
+        options: element.choices.map((choice) => {
+          const granted =
+            element.grantsFromPackId === undefined ? undefined : bySlug.get(choice.value);
+          return {
+            ...choice,
+            label: withSanctity(choice.label, granted),
+            feature: granted,
+          };
+        }),
       });
       const picked = chosen === undefined ? undefined : bySlug.get(chosen);
       if (picked !== undefined && element.grantsFromPackId !== undefined) {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { deitySkill, deityWarnings, servesDeity } from './deity.js';
+import {
+  deitySkill,
+  deityWarnings,
+  sanctificationWarnings,
+  servesDeity,
+} from './deity.js';
 
 // An invented deity's facts (ADR 0013): nothing here is a real deity's entry.
 const deity = { name: 'The Lantern', font: 'heal' as const, skill: 'medicine' };
@@ -53,5 +58,37 @@ describe('deityWarnings', () => {
 
   it('says nothing for a class without a deity', () => {
     expect(deityWarnings('fighter', { classChoices: {} })).toEqual([]);
+  });
+});
+
+describe('sanctificationWarnings', () => {
+  const holy = { slug: 'invented-glory', tags: ['invented-cause', 'holy'] };
+  const unholy = { slug: 'invented-ruin', tags: ['invented-cause', 'unholy'] };
+  const either = { slug: 'invented-oath', tags: ['invented-cause'] };
+
+  it('says nothing when the sanctification matches, or the feature has none', () => {
+    expect(
+      sanctificationWarnings([holy, either], { deity: { sanctification: 'holy' } }),
+    ).toEqual([]);
+    expect(sanctificationWarnings([either], {})).toEqual([]);
+  });
+
+  it('warns about a holy or unholy feature the sanctification does not match', () => {
+    expect(
+      sanctificationWarnings([unholy], { deity: { sanctification: 'holy' } }),
+    ).toEqual([
+      {
+        kind: 'sanctification-mismatch',
+        feature: 'invented-ruin',
+        needs: 'unholy',
+        sanctification: 'holy',
+      },
+    ]);
+  });
+
+  it('warns, with no sanctification named, when none was entered', () => {
+    expect(sanctificationWarnings([holy], { deity: { name: 'The Lantern' } })).toEqual([
+      { kind: 'sanctification-mismatch', feature: 'invented-glory', needs: 'holy' },
+    ]);
   });
 });
