@@ -91,13 +91,14 @@ export const MARTIAL_CLASS_SLUGS: readonly string[] = [
 ];
 
 /**
- * The classes the creator can build completely today: the martial seven and the
- * seven casters of milestone 8(b). The Alchemist and the Champion can still be
- * picked, with a visible warning that their own subsystems arrive later (8(c)).
+ * The classes the creator can build completely today: the martial seven, the
+ * seven casters of milestone 8(b), and the Champion. The Alchemist can still be
+ * picked, with a visible warning that its own subsystem arrives later (8(c)).
  */
 export const BUILT_CLASS_SLUGS: readonly string[] = [
   ...MARTIAL_CLASS_SLUGS,
   ...CASTER_CLASS_SLUGS,
+  'champion',
 ];
 
 const STORAGE_KEY = 'hearthtable.creatorDraft';

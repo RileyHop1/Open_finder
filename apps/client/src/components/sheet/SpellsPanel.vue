@@ -178,7 +178,10 @@ function pips(slots: RankSlots): { filled: boolean }[] {
       <h5>
         {{ entry.entry.name }}
         <span class="meta"
-          >· {{ entry.entry.tradition }} · {{ KIND_LABEL[entry.entry.kind] }}</span
+          >· {{ entry.entry.tradition
+          }}<template v-if="entry.ranks.length > 0 || entry.cantrips.length > 0">
+            · {{ KIND_LABEL[entry.entry.kind] }}</template
+          ></span
         >
       </h5>
 

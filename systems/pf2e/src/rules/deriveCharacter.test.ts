@@ -409,6 +409,7 @@ describe('deriveCharacter', () => {
       ['spells/courageous-anthem', spell('courageous-anthem', true)],
       ['spells/counter-performance', spell('counter-performance', false)],
       ['spells/sure-strike', spell('sure-strike', false)],
+      ['spells/lay-on-hands', spell('lay-on-hands', false)],
       ['feats/not-magic', feat('not-magic')],
     ]);
     // A spontaneous caster with no mystery chosen, so only the picks count.
@@ -484,6 +485,30 @@ describe('deriveCharacter', () => {
         const d = derive([], [], bard);
         expect(d.spellPicks.ranked).toEqual([]);
         expect(d.spellPicks.cantrips).toEqual([ref('courageous-anthem')]);
+      });
+
+      it('gives a Champion its devotion spell, a focus pool and an entry with no slots', () => {
+        const d = deriveCharacter({
+          build: {
+            ...emptyBuild,
+            classChoices: { 'devotion-spell': 'lay-on-hands' },
+            deity: { font: 'heal', skill: 'religion' },
+          },
+          level: 1,
+          keyAttribute: 'str',
+          class: { ...cls, slug: 'champion', name: 'Champion' },
+          resolve: (p, s) => all.get(`${p}/${s}`),
+        });
+        expect(d.focusPoints).toBe(1);
+        expect(d.items.map((i) => i.slug)).toContain('lay-on-hands');
+        expect(d.spellcasting).toMatchObject({
+          name: 'Devotion spells',
+          tradition: 'divine',
+          attribute: 'cha',
+          slots: {},
+          cantrips: 0,
+        });
+        expect(d.warnings).toEqual([]);
       });
 
       it('gives a class with no row no focus pool and nothing extra', () => {

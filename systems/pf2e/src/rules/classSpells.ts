@@ -29,10 +29,15 @@
  * spell of each rank once the Sorcerer can cast it. A Draconic sorcerer chooses its
  * dragon exemplar's tradition, which trains its bloodline skill and decides its rank
  * 2, 5 and 8 gifts; an Elemental one its element, which decides its cantrip and its
- * rank 1, 3 and 6 gifts (`subChoices`; checked 2026-10-19).
+ * rank 1, 3 and 6 gifts (`subChoices`; checked 2026-10-19). A Champion casts only
+ * devotion spells: divine, with Charisma, from a focus pool of 1, and its first is
+ * Shields of the Spirit or the one its deity's font allows (Lay on Hands for heal,
+ * Touch of the Void for harm; checked 2026-10-24).
  * Classes are added here in their own PRs; one with no row grants nothing.
  */
 
+import type { Attribute } from '../content/common.js';
+import type { MagicalTradition } from '../content/spell.js';
 import { rankOpensAt } from './spellcastingTables.js';
 
 export interface ClassSpellGrants {
@@ -72,6 +77,21 @@ export interface ClassSpellGrants {
   readonly curriculum?: CurriculumGrant;
   /** Further choices a chosen feature asks that the import cannot read (a dragon exemplar). */
   readonly subChoices?: readonly SubChoice[];
+  /** The entry a class that casts only focus spells casts them from (a Champion's devotion spells). */
+  readonly focusCasting?: FocusCasting;
+}
+
+/**
+ * A spellcasting entry with no slots and no cantrips, for a class whose only spells are
+ * focus spells (a Champion's devotion spells): it gives them a spell attack and DC.
+ * `deriveSpellcasting` makes it in place of a caster table's entry.
+ */
+export interface FocusCasting {
+  /** What the sheet calls the entry. */
+  readonly name: string;
+  readonly tradition: MagicalTradition;
+  /** The spellcasting attribute, which is not the class's key attribute. */
+  readonly attribute: Attribute;
 }
 
 /**
@@ -133,6 +153,8 @@ export interface SpellChoice {
   readonly options: readonly string[];
   /** Offered only while another class choice has this value (Wilding Steward's familiar spell). */
   readonly when?: { readonly choice: string; readonly value: string };
+  /** Options for a deity whose font allows heal or harm (a Champion's Lay on Hands), by slug. */
+  readonly needsFont?: Readonly<Record<string, 'heal' | 'harm'>>;
 }
 
 /**
@@ -500,6 +522,22 @@ export const CLASS_SPELL_GRANTS: Readonly<Record<string, ClassSpellGrants>> = {
         [15, 6],
       ],
     },
+  },
+  champion: {
+    focusPoints: 1,
+    cantrips: [],
+    focusSpells: [],
+    byChoice: {},
+    spellChoices: [
+      {
+        key: 'devotion-spell',
+        feature: 'devotion-spells',
+        as: 'focus',
+        options: ['shields-of-the-spirit', 'lay-on-hands', 'touch-of-the-void'],
+        needsFont: { 'lay-on-hands': 'heal', 'touch-of-the-void': 'harm' },
+      },
+    ],
+    focusCasting: { name: 'Devotion spells', tradition: 'divine', attribute: 'cha' },
   },
 };
 

@@ -56,6 +56,25 @@ describe('deityWarnings', () => {
     ).toEqual([]);
   });
 
+  it('warns about a Champion’s devotion spell for a font the deity does not allow', () => {
+    const pick = (spell: string, font: 'heal' | 'harm' | 'either') =>
+      deityWarnings('champion', {
+        deity: { ...deity, font },
+        classChoices: { 'devotion-spell': spell },
+      });
+    expect(pick('touch-of-the-void', 'heal')).toEqual([
+      {
+        kind: 'font-not-granted',
+        font: 'harm',
+        granted: 'heal',
+        spell: 'touch-of-the-void',
+      },
+    ]);
+    expect(pick('lay-on-hands', 'heal')).toEqual([]);
+    expect(pick('touch-of-the-void', 'either')).toEqual([]);
+    expect(pick('shields-of-the-spirit', 'harm')).toEqual([]);
+  });
+
   it('says nothing for a class without a deity', () => {
     expect(deityWarnings('fighter', { classChoices: {} })).toEqual([]);
   });

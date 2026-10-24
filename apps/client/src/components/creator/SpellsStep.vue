@@ -8,7 +8,8 @@
  * Nothing is refused (ADR 0023). Another tradition's list can be browsed and
  * picked from, with a note saying it is not the class's own; more cantrips than
  * the class has is counted in words here and warned about on review. A class
- * that does not cast says so, and the step can be skipped.
+ * that does not cast says so, and the step can be skipped; one that casts only
+ * focus spells (a Champion) is shown what it is given and the pick it makes.
  */
 import type {
   BuildRef,
@@ -111,6 +112,16 @@ const rankedCount = computed(() => props.build.spells.ranked.length);
 const gifts = computed(() =>
   classGifts(props.classEntry?.slug ?? props.build.class?.slug, props.build.classChoices),
 );
+/** Whether the class gives anything by itself, so the gifts are shown even with nothing to pick. */
+const hasGifts = computed(
+  () =>
+    gifts.value.spells.length > 0 ||
+    gifts.value.focusPoints > 0 ||
+    gifts.value.pending.length > 0 ||
+    gifts.value.choices.length > 0 ||
+    gifts.value.curriculum !== undefined ||
+    gifts.value.font !== undefined,
+);
 const WHY: Readonly<Record<string, string>> = {
   cantrip: 'a cantrip, in addition to the ones you choose',
   focus: 'a focus spell, cast with a Focus Point',
@@ -149,15 +160,19 @@ const cantripLabel = computed(() => {
   <section class="spells-step" aria-labelledby="spells-step-title">
     <h3 id="spells-step-title">Spells</h3>
 
-    <p v-if="plan === undefined" class="note">
+    <p v-if="plan === undefined && !hasGifts" class="note">
       {{
         classEntry === undefined && build.class === undefined
           ? 'Pick a class first. If it casts spells, you choose them here.'
           : 'This class does not cast spells, so there is nothing to choose here.'
       }}
     </p>
+    <p v-else-if="plan === undefined" class="note">
+      This class casts only the focus spells it gives you, below; there are no other
+      spells to choose.
+    </p>
 
-    <template v-else>
+    <template v-if="plan !== undefined">
       <p v-if="plan.traditionChoice !== undefined" class="note">
         <template v-if="plan.tradition !== undefined">
           Your {{ choiceWords(plan.traditionChoice) }} gives you the
@@ -187,81 +202,73 @@ const cantripLabel = computed(() => {
       </p>
       <p v-if="error" role="alert">{{ error }}</p>
       <p v-if="loading" role="status">Loading spells…</p>
+    </template>
 
-      <section
-        v-if="
-          gifts.spells.length > 0 ||
-          gifts.focusPoints > 0 ||
-          gifts.pending.length > 0 ||
-          gifts.choices.length > 0 ||
-          gifts.curriculum !== undefined ||
-          gifts.font !== undefined
-        "
-        class="gifts"
-        aria-labelledby="spells-gifts-title"
-      >
-        <h4 id="spells-gifts-title">Your class also gives you</h4>
-        <ul>
-          <li v-for="gift in gifts.spells" :key="gift.slug">
+    <section v-if="hasGifts" class="gifts" aria-labelledby="spells-gifts-title">
+      <h4 id="spells-gifts-title">Your class also gives you</h4>
+      <ul>
+        <li v-for="gift in gifts.spells" :key="gift.slug">
+          <RulesTerm term-kind="spell" :slug="gift.slug" :label="titleCase(gift.slug)" />:
+          {{
+            gift.why === 'choice'
+              ? `from your ${choiceWords(gift.choice ?? '')}`
+              : WHY[gift.why]
+          }}
+        </li>
+        <li v-if="gifts.font !== undefined">
+          {{ gifts.font.name }}: {{ gifts.font.count }} extra slots at your highest rank,
+          each holding
+          <template v-if="gifts.font.spell !== undefined">
             <RulesTerm
               term-kind="spell"
-              :slug="gift.slug"
-              :label="titleCase(gift.slug)"
-            />:
-            {{
-              gift.why === 'choice'
-                ? `from your ${choiceWords(gift.choice ?? '')}`
-                : WHY[gift.why]
-            }}
-          </li>
-          <li v-if="gifts.font !== undefined">
-            {{ gifts.font.name }}: {{ gifts.font.count }} extra slots at your highest
-            rank, each holding
-            <template v-if="gifts.font.spell !== undefined">
-              <RulesTerm
-                term-kind="spell"
-                :slug="gifts.font.spell"
-                :label="titleCase(gifts.font.spell)"
-              />
-            </template>
-            <template v-else>
-              {{ gifts.font.options.map(titleCase).join(' or ') }}, once you choose your
-              font (Class choices step)
-            </template>
-          </li>
-          <li v-if="gifts.curriculum !== undefined">
-            {{ gifts.curriculum }}: 1 extra cantrip and 1 extra slot at each rank, for
-            your school's curriculum spells
-          </li>
-          <li v-if="gifts.focusPoints > 0">
-            {{ gifts.focusPoints }} Focus Point{{ gifts.focusPoints === 1 ? '' : 's' }}
-          </li>
-        </ul>
-        <p v-for="choice in gifts.pending" :key="choice" class="note">
-          Your {{ choiceWords(choice) }} adds a spell once you choose it (Class choices
-          step).
-        </p>
-        <fieldset v-for="choice in gifts.choices" :key="choice.key" class="spell-choice">
-          <legend>
-            Choose your {{ choiceWords(choice.key) }}
-            {{ choice.as === 'focus' ? '(a focus spell)' : '' }}
-          </legend>
-          <span v-for="slug in choice.options" :key="slug" class="option">
-            <label class="check">
-              <input
-                type="radio"
-                :name="`${id}-${choice.key}`"
-                :checked="choice.chosen === slug"
-                @change="emit('pick', choice.key, slug)"
-              />
-              <span class="visually-hidden">Choose {{ titleCase(slug) }}</span>
-            </label>
-            <RulesTerm term-kind="spell" :slug="slug" :label="titleCase(slug)" />
+              :slug="gifts.font.spell"
+              :label="titleCase(gifts.font.spell)"
+            />
+          </template>
+          <template v-else>
+            {{ gifts.font.options.map(titleCase).join(' or ') }}, once you choose your
+            font (Class choices step)
+          </template>
+        </li>
+        <li v-if="gifts.curriculum !== undefined">
+          {{ gifts.curriculum }}: 1 extra cantrip and 1 extra slot at each rank, for your
+          school's curriculum spells
+        </li>
+        <li v-if="gifts.focusPoints > 0">
+          {{ gifts.focusPoints }} Focus Point{{ gifts.focusPoints === 1 ? '' : 's' }}
+        </li>
+      </ul>
+      <p v-for="choice in gifts.pending" :key="choice" class="note">
+        Your {{ choiceWords(choice) }} adds a spell once you choose it (Class choices
+        step).
+      </p>
+      <fieldset v-for="choice in gifts.choices" :key="choice.key" class="spell-choice">
+        <legend>
+          Choose your {{ choiceWords(choice.key) }}
+          {{ choice.as === 'focus' ? '(a focus spell)' : '' }}
+        </legend>
+        <span v-for="slug in choice.options" :key="slug" class="option">
+          <label class="check">
+            <input
+              type="radio"
+              :name="`${id}-${choice.key}`"
+              :checked="choice.chosen === slug"
+              @change="emit('pick', choice.key, slug)"
+            />
+            <span class="visually-hidden">Choose {{ titleCase(slug) }}</span>
+          </label>
+          <RulesTerm term-kind="spell" :slug="slug" :label="titleCase(slug)" />
+          <span v-if="choice.needsFont?.[slug] !== undefined" class="needs">
+            (for a deity that allows {{ choice.needsFont[slug] }})
           </span>
-        </fieldset>
-        <p class="note">These are not counted against the spells you choose below.</p>
-      </section>
+        </span>
+      </fieldset>
+      <p v-if="plan !== undefined" class="note">
+        These are not counted against the spells you choose below.
+      </p>
+    </section>
 
+    <template v-if="plan !== undefined">
       <fieldset class="picks">
         <legend>{{ cantripLabel }}</legend>
         <p class="count" :class="{ over: cantripCount > plan.cantrips }">
@@ -400,6 +407,10 @@ p {
   margin: 0 0 var(--space-1);
   border: var(--overlay-border);
   border-radius: var(--overlay-radius);
+}
+
+.needs {
+  color: var(--color-text-muted);
 }
 
 .option,

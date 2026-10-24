@@ -46,6 +46,14 @@ describe('warningText', () => {
     );
     expect(
       warningText({
+        kind: 'font-not-granted',
+        font: 'harm',
+        granted: 'heal',
+        spell: 'touch-of-the-void',
+      }),
+    ).toBe('Touch Of The Void is for a deity that allows harm; yours grants heal.');
+    expect(
+      warningText({
         kind: 'sanctification-mismatch',
         feature: 'invented-glory',
         needs: 'holy',

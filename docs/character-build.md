@@ -164,10 +164,9 @@ skill feat it grants (its `grantItem` elements). Its trained skills show on
 the preview at once; its boost is applied in the Attributes step.
 
 The **class** step lists the classes the creator builds completely first (the
-seven martial classes and the seven casters, `BUILT_CLASS_SLUGS`), then the
-Alchemist and the Champion under a note that their special features are set up
-in a later update; picking one of those shows a visible warning and is never
-refused. A chosen class shows its Hit Points per
+seven martial classes, the seven casters and the Champion, `BUILT_CLASS_SLUGS`),
+then the Alchemist under a note that its special features are set up in a later
+update; picking it shows a visible warning and is never refused. A chosen class shows its Hit Points per
 level, its trained skills, and its starting proficiencies in words, and offers
 the key attribute as a choice when the class has more than one. Picking a
 class forgets the key attribute, the class choices, the class feat and the spell
@@ -259,7 +258,10 @@ spell; for a Sorcerer, 1 Focus Point and, once the bloodline is chosen, its
 cantrip, rank 1 spell and bloodline spell. Picks the class asks for
 between named spells (a Witch's first hex, a Wilding Steward's familiar spell) are radio
 buttons there, stored in `build.classChoices`; one left unmade is on the review's list. These are not counted against the
-picks. A class that does not cast says so.
+picks. A class that does not cast says so. A Champion, which casts only focus spells,
+is shown its Focus Point and the pick of its first devotion spell (Lay on Hands and
+Touch of the Void marked as for a deity that allows heal or harm) and no lists to pick
+from.
 
 The **review** step shows the whole character in words (what is chosen and
 what is not, the attribute modifiers, class choices, extra skills, feats,

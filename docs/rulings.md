@@ -1015,6 +1015,23 @@ ruling from silently drifting.
   `systems/pf2e/src/importer/elementMapper.test.ts`.
 - **Override:** the cause can be changed in the creator, and any granted item removed.
 
+### A Champion's devotion spells
+- **Rules text:** the Champion's Devotion Spells class feature in Player Core 2. Checked
+  against the pinned upstream text (2026-10-24): **(confirm)**.
+- **The ambiguity:** none in the rules; recorded because the deity whose font decides the
+  pick is entered by the player ([ADR 0026](adr/0026-deity-facts-not-deities.md)).
+- **Our reading:** a Champion has a focus pool of 1 and picks Shields of the Spirit, Lay
+  on Hands (for a deity that allows heal) or Touch of the Void (harm). Its devotion
+  spells are divine, cast with Charisma, at its spellcasting rank (trained at level 1),
+  from an entry with no slots. All three are offered; a pick the deity's font does not
+  allow is granted with a `font-not-granted` warning.
+- **Alternative reading:** offer only the spells the entered font allows. Rejected for
+  the reasons in "A Champion's cause and its sanctification" above.
+- **Golden test:** `systems/pf2e/src/golden/deriveCasters.test.ts` ("a Champion casts
+  only devotion spells") and `systems/pf2e/src/rules/deity.test.ts`.
+- **Override:** the pick can be changed in the creator; the entry, the focus pool and
+  the spell items are editable on the sheet.
+
 ### Reading predicates on class features
 - **Rules text:** none directly; this is how upstream's conditions on a class
   feature's skill training and grants are read (`classFeatureRules.ts`).

@@ -192,11 +192,11 @@ describe('MARTIAL_CLASS_SLUGS', () => {
 });
 
 describe('BUILT_CLASS_SLUGS', () => {
-  it('is every class but the Alchemist and the Champion (milestone 8(c))', () => {
-    expect(BUILT_CLASS_SLUGS).toHaveLength(14);
+  it('is every class but the Alchemist (milestone 8(c))', () => {
+    expect(BUILT_CLASS_SLUGS).toHaveLength(15);
     expect(BUILT_CLASS_SLUGS).toContain('wizard');
     expect(BUILT_CLASS_SLUGS).toContain('fighter');
+    expect(BUILT_CLASS_SLUGS).toContain('champion');
     expect(BUILT_CLASS_SLUGS).not.toContain('alchemist');
-    expect(BUILT_CLASS_SLUGS).not.toContain('champion');
   });
 });
