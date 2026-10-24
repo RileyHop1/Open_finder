@@ -111,7 +111,10 @@ describe('level 1 casters', () => {
       slots,
       cantrips: 5,
     });
-    expect(derived.warnings).toEqual([]);
+    // A Cleric with no deity facts entered is asked for them; that is all.
+    expect(derived.warnings).toEqual(
+      slug === 'cleric' ? [{ kind: 'deity-not-set', classSlug: 'cleric' }] : [],
+    );
   });
 
   it.each([
@@ -559,9 +562,45 @@ describe('a book caster’s picks (a Wizard’s spellbook, a Witch’s familiar)
   it('a Cleric, with no book, prepares every cantrip picked and is warned past 5', () => {
     const derived = withPicks('cleric', {}, 6, 9);
     expect(derived.spellPicks.cantrips).toHaveLength(6);
+    expect(derived.warnings).toContainEqual({
+      kind: 'too-many-cantrips',
+      chosen: 6,
+      allowed: 5,
+    });
+  });
+});
+
+describe('a Cleric’s deity', () => {
+  // An invented deity's facts (ADR 0013).
+  const withDeity = (deity: CharacterBuild['deity'], classChoices = {}) =>
+    deriveCharacter({
+      build: { ...emptyBuild, classChoices, ...(deity === undefined ? {} : { deity }) },
+      level: 1,
+      class: classStub('cleric', 'wis'),
+      classFeatures: [],
+      resolve: spellStub,
+    });
+
+  it('trains the divine skill the player entered for the deity', () => {
+    const derived = withDeity(
+      { name: 'The Lantern', font: 'heal', skill: 'medicine' },
+      {
+        'divine-font': 'heal',
+      },
+    );
+    expect(derived.ranks.skills.medicine).toBe('trained');
+    expect(derived.warnings).toEqual([]);
+  });
+
+  it('warns when the font chosen is not one the deity grants, and still grants it', () => {
+    const derived = withDeity(
+      { font: 'heal', skill: 'medicine' },
+      { 'divine-font': 'harm' },
+    );
     expect(derived.warnings).toEqual([
-      { kind: 'too-many-cantrips', chosen: 6, allowed: 5 },
+      { kind: 'font-not-granted', font: 'harm', granted: 'heal' },
     ]);
+    expect(derived.font?.spell?.slug).toBe('harm');
   });
 });
 

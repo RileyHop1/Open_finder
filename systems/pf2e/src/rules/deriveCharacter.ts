@@ -38,6 +38,7 @@ import {
   deriveSpellcasting,
   highestRank,
 } from './deriveSpellcasting.js';
+import { deitySkill, deityWarnings, type DeityWarning } from './deity.js';
 import { featSlotsUpTo, skillIncreasesUpTo } from './progression.js';
 import { bookFor, repertoireFilled, type SpellBook } from './spellcastingTables.js';
 
@@ -64,6 +65,7 @@ export interface DeriveInputs {
 export type DeriveWarning =
   | BoostWarning
   | SpellcastingWarning
+  | DeityWarning
   | { readonly kind: 'key-attribute-not-offered'; readonly attribute: Attribute }
   | {
       readonly kind: 'too-many-trained-skills';
@@ -398,6 +400,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
   // A sub-choice's skill (a dragon exemplar's) counts the same way, under the feature
   // that asks for it.
   let trainedTwice = 0;
+  const divineSkill = deitySkill(inputs.class?.slug, build);
   const featureSkills: { skill: string; rank: ProficiencyRank; feature: string }[] = [
     ...items.flatMap((item) =>
       item.kind === 'classFeature'
@@ -412,6 +415,10 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
       ...s,
       rank: 'trained' as const,
     })),
+    // A Cleric's or Champion's deity's divine skill, from the facts the player entered.
+    ...(divineSkill === undefined
+      ? []
+      : [{ skill: divineSkill, rank: 'trained' as const, feature: 'deity' }]),
   ];
   for (const { skill, rank, feature } of featureSkills) {
     const had = skills[skill] ?? 'untrained';
@@ -452,7 +459,7 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     build.classChoices,
     spellRank,
   );
-  warnings.push(...casting.warnings);
+  warnings.push(...casting.warnings, ...deityWarnings(inputs.class?.slug, build));
 
   // Spell picks: granted as items, and handed back for the class entry's lists.
   const pickSpells = (picks: readonly { packId: string; slug: string }[]) =>

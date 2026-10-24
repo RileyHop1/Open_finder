@@ -5,13 +5,21 @@
  * methodology...). Each is a group of options with what it gives shown before
  * committing. Nothing is refused (ADR 0023): a choice left open is only
  * flagged, and a choice this app cannot offer yet is listed so the table can
- * settle it by hand.
+ * settle it by hand. A class that serves a deity also gets the deity's facts
+ * (`DeityFields.vue`).
  */
-import type { CharacterBuild, ClassEntry, ClassFeatureEntry } from '@hearthtable/pf2e';
+import {
+  type CharacterBuild,
+  type ClassEntry,
+  type ClassFeatureEntry,
+  type DeityFacts,
+  servesDeity,
+} from '@hearthtable/pf2e';
 import { computed } from 'vue';
 
 import RulesText from '../RulesText.vue';
 import { choicesDue } from './classChoices.js';
+import DeityFields from './DeityFields.vue';
 
 const props = defineProps<{
   build: CharacterBuild;
@@ -19,9 +27,16 @@ const props = defineProps<{
   /** The class's level 1 features, once loaded; `undefined` while loading. */
   features: readonly ClassFeatureEntry[] | undefined;
 }>();
-const emit = defineEmits<{ pick: [choice: string, value: string] }>();
+const emit = defineEmits<{
+  pick: [choice: string, value: string];
+  /** The deity's facts, for a class that serves one (a Cleric, a Champion). */
+  deity: [deity: DeityFacts];
+}>();
 
 const due = computed(() => choicesDue(props.features ?? [], props.build.classChoices));
+const deityClass = computed(() =>
+  servesDeity(props.classEntry?.slug ?? props.build.class?.slug),
+);
 const loading = computed(
   () => props.build.class !== undefined && props.features === undefined,
 );
@@ -70,6 +85,12 @@ const loading = computed(
         can rule on it.
       </p>
     </fieldset>
+
+    <DeityFields
+      v-if="deityClass"
+      :deity="build.deity"
+      @change="(deity) => emit('deity', deity)"
+    />
 
     <p v-if="due.unautomated.length > 0" class="warning" role="note">
       {{ due.unautomated.join(', ') }}

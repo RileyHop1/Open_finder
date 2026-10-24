@@ -308,6 +308,7 @@ function trapTab(event: KeyboardEvent): void {
           :class-entry="entries.class"
           :features="entries.classFeatures"
           @pick="(choice, value) => (draft.build.classChoices[choice] = value)"
+          @deity="(deity) => (draft.build.deity = deity)"
         />
         <ReviewStep
           v-else-if="draft.step === 'review'"

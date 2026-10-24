@@ -47,6 +47,10 @@ export function warningText(warning: DeriveWarning): string | undefined {
       return `${warning.chosen} rank 1 spells chosen but your ${warning.book} starts with ${warning.allowed}.`;
     case 'too-many-known-spells':
       return `${warning.chosen} spells chosen to know but your repertoire holds ${warning.allowed}.`;
+    case 'deity-not-set':
+      return `${titleCase(warning.classSlug)} serves a deity: enter its divine font and skill (Class choices step).`;
+    case 'font-not-granted':
+      return `Your deity grants a ${warning.granted} font, not ${warning.font}.`;
     case 'not-a-spell':
       return `${titleCase(warning.slug)} was picked as a spell but is not one, so it is left out.`;
     // The preview has no compendium to look entries up in, so every grant would read as

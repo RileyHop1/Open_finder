@@ -339,6 +339,7 @@ export {
   featPickSchema,
   featSlotSchema,
   spellPicksSchema,
+  deityFactsSchema,
   type AttributeBoost,
   type BoostLevel,
   type BoostSource,
@@ -347,6 +348,7 @@ export {
   type FeatPick,
   type FeatSlot,
   type SpellPicks,
+  type DeityFacts,
 } from './content/characterBuild.js';
 
 export {
@@ -421,6 +423,14 @@ export {
   type SubChoiceOption,
   type SpellChoice,
 } from './rules/classSpells.js';
+
+export {
+  DEITY_CLASS_SLUGS,
+  deitySkill,
+  deityWarnings,
+  servesDeity,
+  type DeityWarning,
+} from './rules/deity.js';
 
 export {
   classResources,
