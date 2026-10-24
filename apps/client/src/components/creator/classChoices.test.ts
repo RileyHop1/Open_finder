@@ -76,12 +76,25 @@ describe('choicesDue', () => {
   });
 
   it('lists a feature whose choice the importer could not map', () => {
-    const cause = feature('cause', {
+    const oath = feature('oath', {
       ruleElements: [
         { kind: 'inert', upstreamKind: 'ChoiceSet', reason: 'unsupported-choice-filter' },
       ],
     });
-    expect(choicesDue([cause], {}).unautomated).toEqual(['cause']);
+    expect(choicesDue([oath], {}).unautomated).toEqual(['oath']);
+  });
+
+  it('marks an option that is for one sanctification only', () => {
+    const glory = feature('glory', { tags: ['instinct', 'holy'] });
+    const { choices } = choicesDue(
+      [
+        feature('instinct', { ruleElements: [choice('instinct', ['glory', 'wolf'])] }),
+        glory,
+        wolf,
+      ],
+      {},
+    );
+    expect(choices[0]?.options.map((o) => o.label)).toEqual(['glory (holy)', 'wolf']);
   });
 });
 

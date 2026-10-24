@@ -180,7 +180,7 @@ and the question a pick itself asks, such as which animal). Each is a radio
 group; every option shows what it grants, and the answer is written to
 `build.classChoices`, from which `deriveCharacter` grants the picked feature.
 A question left open is marked "(not chosen yet)", never blocked. A feature
-whose choice the importer could not map (Champion's cause, for one) is listed
+whose choice the importer could not map (a deity's, which `DeityFields.vue` asks for) is listed
 with a note to settle it with the GM, unless the PF2e system authors that
 question (`subChoices`: a Draconic sorcerer's dragon exemplar, shown with the
 skill each trains, and an Elemental sorcerer's element), in which case it is
@@ -266,7 +266,8 @@ what is not, the attribute modifiers, class choices, extra skills, feats,
 equipment and what it cost) and a "Things to check" list: every warning the
 derivation raised, as a sentence (`reviewModel.ts`). Nothing there blocks
 **Create character**. A missing-entry warning is not shown, because the preview
-has no compendium to look entries up in; the server looks them up for real.
+looks entries up only in the class's own features (so a picked cause or racket counts,
+with its tags and the skills it trains); the server looks everything up for real.
 
 ### Creating the character
 `createCharacterFromDraft` (`createCharacter.ts`) runs the operations in order:
@@ -293,9 +294,12 @@ deity (`DEITY_CLASS_SLUGS`).
 The derivation (`rules/deity.ts`) trains the divine skill as a class feature's skill is
 trained (one already trained is a `skill-trained-twice` warning and one more pick),
 warns `font-not-granted` when a Cleric's divine font is not the one its deity grants, and
-warns `deity-not-set` when none of the facts is entered. Nothing is checked against a
-list of deities, and nothing is refused. The sanctification and the favored weapon are
-kept for the Champion's cause and deific weapon (milestone 8(c)).
+warns `deity-not-set` when none of the facts is entered. A feature tagged `holy` or
+`unholy` (a Champion's Grandeur or Desecration cause) with a sanctification that does not
+match, or none entered, is a `sanctification-mismatch` warning; the class choices step
+marks those options "(holy)" or "(unholy)". Nothing is checked against a list of deities,
+and nothing is refused. The favored weapon is kept for the Champion's deific weapon, which
+is not applied (milestone 8(c)).
 
 ## Applying a build
 `actor.applyBuild { actorId, build, keep? }` (owner or GM): the server copies

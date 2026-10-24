@@ -38,7 +38,12 @@ import {
   deriveSpellcasting,
   highestRank,
 } from './deriveSpellcasting.js';
-import { deitySkill, deityWarnings, type DeityWarning } from './deity.js';
+import {
+  deitySkill,
+  deityWarnings,
+  sanctificationWarnings,
+  type DeityWarning,
+} from './deity.js';
 import { featSlotsUpTo, skillIncreasesUpTo } from './progression.js';
 import { bookFor, repertoireFilled, type SpellBook } from './spellcastingTables.js';
 
@@ -459,7 +464,14 @@ export function deriveCharacter(inputs: DeriveInputs): DerivedCharacter {
     build.classChoices,
     spellRank,
   );
-  warnings.push(...casting.warnings, ...deityWarnings(inputs.class?.slug, build));
+  warnings.push(
+    ...casting.warnings,
+    ...deityWarnings(inputs.class?.slug, build),
+    ...sanctificationWarnings(
+      items.flatMap((item) => (item.kind === 'classFeature' ? [item] : [])),
+      build,
+    ),
+  );
 
   // Spell picks: granted as items, and handed back for the class entry's lists.
   const pickSpells = (picks: readonly { packId: string; slug: string }[]) =>
