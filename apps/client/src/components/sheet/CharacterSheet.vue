@@ -27,8 +27,13 @@
  * exception for the one kind with nothing (yet) to add up.
  */
 import type { Actor, Statistic } from '@hearthtable/core';
-import type { Attribute, ProficiencyRank } from '@hearthtable/pf2e';
-import { ATTRIBUTES, characterDataSchema, prepareCharacter } from '@hearthtable/pf2e';
+import type { Attribute, ProficiencyRank, WeaponGroup } from '@hearthtable/pf2e';
+import {
+  ATTRIBUTES,
+  WEAPON_GROUPS,
+  characterDataSchema,
+  prepareCharacter,
+} from '@hearthtable/pf2e';
 import { computed, ref, useSlots } from 'vue';
 
 import RulesTerm from '../RulesTerm.vue';
@@ -77,6 +82,17 @@ const data = computed(() => {
   const parsed = characterDataSchema.safeParse(props.actor.system);
   return parsed.success ? parsed.data : undefined;
 });
+/** Ranks in a weapon group beyond its category (an Alchemist's bombs), and the groups without one. */
+const groupRanks = computed(
+  () =>
+    Object.entries(data.value?.ranks.weaponGroups ?? {}) as [
+      WeaponGroup,
+      ProficiencyRank,
+    ][],
+);
+const otherGroups = computed(() =>
+  WEAPON_GROUPS.filter((g) => data.value?.ranks.weaponGroups[g] === undefined),
+);
 
 const prepared = computed(() =>
   data.value === undefined ? undefined : prepareCharacter(data.value),
@@ -487,6 +503,20 @@ const lineage = computed(() =>
                   }}</template>
                 </td>
               </tr>
+              <tr v-for="[group, rank] in groupRanks" :key="`group-${group}`">
+                <th scope="row">{{ titleCase(group) }} group</th>
+                <td class="rank">
+                  <RankSelect
+                    v-if="isEditing"
+                    :label="`${titleCase(group)} group rank`"
+                    :value="rank"
+                    @commit="
+                      (r: ProficiencyRank) => set(`system.ranks.weaponGroups.${group}`, r)
+                    "
+                  />
+                  <template v-else>{{ titleCase(rank) }}</template>
+                </td>
+              </tr>
               <tr v-for="category in ARMOR_CATEGORIES" :key="`armor-${category}`">
                 <th scope="row">
                   {{
@@ -509,6 +539,24 @@ const lineage = computed(() =>
               </tr>
             </tbody>
           </table>
+          <label v-if="isEditing" class="add-group">
+            Add a weapon group rank
+            <select
+              :value="''"
+              @change="
+                (e) =>
+                  set(
+                    `system.ranks.weaponGroups.${(e.target as HTMLSelectElement).value}`,
+                    'trained',
+                  )
+              "
+            >
+              <option value="" disabled>Choose a group…</option>
+              <option v-for="g in otherGroups" :key="g" :value="g">
+                {{ titleCase(g) }}
+              </option>
+            </select>
+          </label>
         </section>
       </div>
 
@@ -734,6 +782,17 @@ h4 {
 
 .add-lore input,
 .add-lore button {
+  min-height: var(--touch-target-min);
+}
+
+.add-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.add-group select {
   min-height: var(--touch-target-min);
 }
 

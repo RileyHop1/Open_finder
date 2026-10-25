@@ -38,6 +38,7 @@ import {
   deriveSpellcasting,
   highestRank,
 } from './deriveSpellcasting.js';
+import { classWeaponGroupRanks } from './weaponGroupRanks.js';
 import {
   deitySkill,
   deityWarnings,
@@ -209,6 +210,7 @@ function classRanks(cls: ClassEntry | undefined, level: number): CharacterRanks 
       medium: at(p?.armor.medium),
       heavy: at(p?.armor.heavy),
     },
+    weaponGroups: classWeaponGroupRanks(cls?.slug, level),
     skills: {},
   };
 }

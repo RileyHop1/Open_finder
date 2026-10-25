@@ -567,6 +567,28 @@ describe('deriveCharacter', () => {
     });
   });
 
+  describe('weapon-group ranks', () => {
+    it('trains an Alchemist in bombs, expert from level 7', () => {
+      const alchemist = { ...cls, slug: 'alchemist', name: 'Alchemist' };
+      const at = (level: number) =>
+        deriveCharacter({
+          build: emptyBuild,
+          level,
+          class: alchemist,
+          resolve: noEntries,
+        }).ranks.weaponGroups;
+      expect(at(1)).toEqual({ bomb: 'trained' });
+      expect(at(7)).toEqual({ bomb: 'expert' });
+    });
+
+    it('gives another class none', () => {
+      expect(
+        deriveCharacter({ build: emptyBuild, level: 1, class: cls, resolve: noEntries })
+          .ranks.weaponGroups,
+      ).toEqual({});
+    });
+  });
+
   describe('rank-ups', () => {
     const raising = (
       slug: string,

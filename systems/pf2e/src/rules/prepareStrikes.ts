@@ -21,7 +21,11 @@ import { resolveStatistic } from '@hearthtable/core';
 import type { DamageComponent } from '@hearthtable/dice/pure';
 
 import type { CharacterData } from '../content/character.js';
-import type { Attribute } from '../content/common.js';
+import {
+  PROFICIENCY_RANKS,
+  type Attribute,
+  type ProficiencyRank,
+} from '../content/common.js';
 import type { WeaponEntry } from '../content/weapon.js';
 import type { AppliedRuleElements } from './applyRuleElements.js';
 import { ATTRIBUTE_LABELS } from './attributes.js';
@@ -85,6 +89,21 @@ function damageAbilityLine(weapon: WeaponEntry, str: number): Modifier | undefin
 }
 
 /** Selectors a strike's attack rolls listen to, and the ones its damage listens to. */
+/**
+ * The rank a Strike with `weapon` uses: the better of its category's and its group's
+ * (an Alchemist is trained in bombs, which are martial weapons).
+ */
+export function strikeRank(
+  ranks: CharacterData['ranks'],
+  weapon: Pick<WeaponEntry, 'category' | 'group'>,
+): ProficiencyRank {
+  const byCategory = ranks.weapons[weapon.category];
+  const byGroup = ranks.weaponGroups[weapon.group] ?? 'untrained';
+  return PROFICIENCY_RANKS.indexOf(byGroup) > PROFICIENCY_RANKS.indexOf(byCategory)
+    ? byGroup
+    : byCategory;
+}
+
 const ATTACK_SELECTORS = ['attack', 'all'] as const;
 const DAMAGE_SELECTORS = ['strike-damage', 'damage'] as const;
 
@@ -111,7 +130,7 @@ export function prepareStrikes(
       weapon,
       attackAttribute,
       attributeModifiers: attributes,
-      proficiencyRank: data.ranks.weapons[weapon.category],
+      proficiencyRank: strikeRank(data.ranks, weapon),
       level,
       rollOptions: applied.rollOptions,
       extraModifiers: [
