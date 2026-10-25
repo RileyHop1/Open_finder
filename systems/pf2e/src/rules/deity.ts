@@ -8,13 +8,15 @@
  * Checked against the pinned upstream text (2026-10-23), not Archives of Nethys: the
  * Cleric's and the Champion's Deity class features train the deity's divine skill (or
  * another of the player's choice when it is already trained), and a Cleric's divine font
- * is one its deity grants. **(confirm)** A Champion's holy causes are for a holy
- * champion and its unholy ones for an unholy champion (the Cause feature's "limited to
- * sanctification"; checked 2026-10-24 against the same text). **(confirm)**
+ * is one its deity grants. **(confirm)** A Champion's holy causes are for a holy champion
+ * and its unholy ones for an unholy champion (the Cause feature's "limited to
+ * sanctification"), and its Lay on Hands or Touch of the Void devotion spell is for a
+ * deity that allows heal or harm (checked 2026-10-24 against the same text). **(confirm)**
  */
 
 import type { CharacterBuild } from '../content/characterBuild.js';
 import type { ClassFeatureEntry } from '../content/class.js';
+import { spellChoicesFor } from './classSpells.js';
 
 /** The classes whose build names a deity. */
 export const DEITY_CLASS_SLUGS: readonly string[] = ['cleric', 'champion'];
@@ -35,11 +37,16 @@ export function deitySkill(
 export type DeityWarning =
   /** A class that serves a deity, with none of its facts entered yet. */
   | { readonly kind: 'deity-not-set'; readonly classSlug: string }
-  /** A Cleric's divine font that its deity, as entered, does not grant. */
+  /**
+   * A Cleric's divine font that its deity, as entered, does not grant, or a spell picked
+   * for a font it does not allow (a Champion's Lay on Hands, for heal).
+   */
   | {
       readonly kind: 'font-not-granted';
       readonly font: string;
       readonly granted: 'heal' | 'harm';
+      /** The spell picked, when the font is a spell's (the Champion's devotion spell). */
+      readonly spell?: string;
     }
   /** A holy or unholy feature (a Champion's cause) with a sanctification that does not match. */
   | {
@@ -87,10 +94,26 @@ export function deityWarnings(
   if (deity === undefined || Object.keys(deity).length === 0) {
     return [{ kind: 'deity-not-set', classSlug }];
   }
+  const granted = deity.font;
+  if (granted !== 'heal' && granted !== 'harm') {
+    return [];
+  }
   const font = build.classChoices['divine-font'];
-  return font !== undefined &&
-    (deity.font === 'heal' || deity.font === 'harm') &&
-    font !== deity.font
-    ? [{ kind: 'font-not-granted', font, granted: deity.font }]
-    : [];
+  const warnings: DeityWarning[] =
+    font !== undefined && font !== granted
+      ? [{ kind: 'font-not-granted', font, granted }]
+      : [];
+  for (const choice of spellChoicesFor(classSlug, build.classChoices)) {
+    const needs =
+      choice.chosen === undefined ? undefined : choice.needsFont?.[choice.chosen];
+    if (choice.chosen !== undefined && needs !== undefined && needs !== granted) {
+      warnings.push({
+        kind: 'font-not-granted',
+        font: needs,
+        granted,
+        spell: choice.chosen,
+      });
+    }
+  }
+  return warnings;
 }

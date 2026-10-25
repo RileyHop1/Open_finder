@@ -53,6 +53,24 @@ describe('SpellsStep', () => {
     expect(compendiumApi.searchCompendium).not.toHaveBeenCalled();
   });
 
+  it('shows a Champion its devotion spell pick and Focus Point, with no lists to pick from', async () => {
+    const wrapper = mountStep(buildFor('champion'));
+    await flushPromises();
+    expect(wrapper.text()).toContain('casts only the focus spells it gives you');
+    expect(wrapper.text()).not.toContain('does not cast spells');
+    expect(wrapper.find('fieldset.picks').exists()).toBe(false);
+    expect(compendiumApi.searchCompendium).not.toHaveBeenCalled();
+    const gifts = wrapper.get('[aria-labelledby="spells-gifts-title"]');
+    expect(gifts.text()).toContain('1 Focus Point');
+    expect(gifts.text()).toContain('(for a deity that allows heal)');
+    expect(gifts.text()).not.toContain('not counted against');
+    await wrapper.get('input[name$="-devotion-spell"]').setValue(true);
+    expect(wrapper.emitted('pick')?.[0]).toEqual([
+      'devotion-spell',
+      'shields-of-the-spirit',
+    ]);
+  });
+
   it('lists the class’s cantrips and rank 1 spells from its own tradition', async () => {
     const wrapper = mountStep(buildFor('bard'));
     await flushPromises();

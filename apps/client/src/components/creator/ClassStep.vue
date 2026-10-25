@@ -140,9 +140,8 @@ const proficiencies = computed(() => {
     <details v-if="others.length > 0" class="later" :open="isLater">
       <summary>Other classes</summary>
       <p class="note">
-        You can pick these, but their special features (an Alchemist's reagents, a
-        Champion's cause) are set up in a later update, so you will fill those in by hand
-        for now.
+        You can pick these, but their special features (an Alchemist's reagents and
+        formulas) are set up in a later update, so you will fill those in by hand for now.
       </p>
       <label v-for="c in others" :key="c.slug" class="row">
         <input

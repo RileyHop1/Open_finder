@@ -23,6 +23,21 @@ describe('deriveSpellcasting', () => {
     expect(deriveSpellcasting(undefined, 1, 'int')).toEqual({ warnings: [] });
   });
 
+  it('gives a Champion a devotion entry with no slots: divine, Charisma, not its key attribute', () => {
+    expect(
+      deriveSpellcasting({ slug: 'champion', name: 'Champion' }, 1, 'str').spellcasting,
+    ).toEqual({
+      source: 'class:champion',
+      name: 'Devotion spells',
+      kind: 'spontaneous',
+      tradition: 'divine',
+      attribute: 'cha',
+      rank: 'trained',
+      slots: {},
+      cantrips: 0,
+    });
+  });
+
   it('derives the static parts of a prepared caster at level 1', () => {
     expect(deriveSpellcasting(wizard, 1, 'int').spellcasting).toEqual({
       source: 'class:wizard',

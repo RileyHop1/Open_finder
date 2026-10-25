@@ -13,13 +13,16 @@
  * A class whose tradition depends on a choice (the Witch's patron, the
  * Sorcerer's bloodline) gets no entry until the choice is made and maps to a
  * tradition (`traditionFor`); the derivation says so in a warning instead of
- * guessing. Nothing here refuses anything (ADR 0023).
+ * guessing. A class that casts only focus spells (a Champion, `focusCasting` in
+ * `classSpells.ts`) gets an entry with no slots and no cantrips, for their spell attack
+ * and DC. Nothing here refuses anything (ADR 0023).
  */
 
 import type { Attribute, ProficiencyRank } from '../content/common.js';
 import type { ClassEntry } from '../content/class.js';
 import type { MagicalTradition } from '../content/spell.js';
 import type { SpellcastingEntry } from '../content/spellcasting.js';
+import { CLASS_SPELL_GRANTS } from './classSpells.js';
 import {
   CASTER_TABLES,
   isCasterClass,
@@ -68,8 +71,26 @@ export function deriveSpellcasting(
   classChoices: Readonly<Record<string, string>> = {},
   rank: ProficiencyRank = 'trained',
 ): DerivedSpellcastingResult {
-  if (cls === undefined || !isCasterClass(cls.slug)) {
+  if (cls === undefined) {
     return { warnings: [] };
+  }
+  if (!isCasterClass(cls.slug)) {
+    const focus = CLASS_SPELL_GRANTS[cls.slug]?.focusCasting;
+    return focus === undefined
+      ? { warnings: [] }
+      : {
+          spellcasting: {
+            source: `class:${cls.slug}`,
+            name: focus.name,
+            kind: 'spontaneous',
+            tradition: focus.tradition,
+            attribute: focus.attribute,
+            rank,
+            slots: {},
+            cantrips: 0,
+          },
+          warnings: [],
+        };
   }
   const table = CASTER_TABLES[cls.slug];
   const tradition = traditionFor(cls.slug, classChoices);

@@ -752,10 +752,22 @@ describe('a Cleric’s doctrine sets its ranks', () => {
 });
 
 describe('non-casters', () => {
-  it.each(['fighter', 'rogue', 'monk', 'champion', 'alchemist'])(
-    '%s has none',
-    (slug) => {
-      expect(casting(slug, 'str', 5).spellcasting).toBeUndefined();
-    },
-  );
+  it.each(['fighter', 'rogue', 'monk', 'alchemist'])('%s has none', (slug) => {
+    expect(casting(slug, 'str', 5).spellcasting).toBeUndefined();
+  });
+
+  it('a Champion casts only devotion spells: an entry with no slots, Charisma, not its key', () => {
+    const d = casting('champion', 'str', 5);
+    expect(d.spellcasting).toEqual({
+      source: 'class:champion',
+      name: 'Devotion spells',
+      kind: 'spontaneous',
+      tradition: 'divine',
+      attribute: 'cha',
+      rank: 'trained',
+      slots: {},
+      cantrips: 0,
+    });
+    expect(d.focusPoints).toBe(1);
+  });
 });

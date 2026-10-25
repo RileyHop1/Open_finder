@@ -50,7 +50,9 @@ export function warningText(warning: DeriveWarning): string | undefined {
     case 'deity-not-set':
       return `${titleCase(warning.classSlug)} serves a deity: enter its divine font and skill (Class choices step).`;
     case 'font-not-granted':
-      return `Your deity grants a ${warning.granted} font, not ${warning.font}.`;
+      return warning.spell === undefined
+        ? `Your deity grants a ${warning.granted} font, not ${warning.font}.`
+        : `${titleCase(warning.spell)} is for a deity that allows ${warning.font}; yours grants ${warning.granted}.`;
     case 'sanctification-mismatch':
       return warning.sanctification === undefined
         ? `${titleCase(warning.feature)} is ${warning.needs}: enter a ${warning.needs} sanctification for your deity (Class choices step).`

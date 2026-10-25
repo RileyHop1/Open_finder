@@ -105,6 +105,19 @@ describe('grantedSpells -- spell choices', () => {
     expect(granted.ranked).toEqual(['summon-animal']);
     expect(granted.cantrips).toEqual(['wilding-word']);
   });
+
+  it('gives a Champion a focus pool of 1 and the devotion spell it picks, of any of the three', () => {
+    expect(grantedSpells('champion', {})).toEqual({
+      focusPoints: 1,
+      cantrips: [],
+      focusSpells: [],
+      ranked: [],
+    });
+    // The pick is not checked against the deity's font here; `deityWarnings` says so.
+    expect(
+      grantedSpells('champion', { 'devotion-spell': 'touch-of-the-void' }).focusSpells,
+    ).toEqual(['touch-of-the-void']);
+  });
 });
 
 describe('curriculumFor', () => {

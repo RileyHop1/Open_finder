@@ -231,6 +231,25 @@ describe('SpellsPanel', () => {
     expect(wrapper.emitted('refocus')).toHaveLength(1);
   });
 
+  it('shows an entry with no slots (a Champion’s devotion spells) by its DC alone, not as spontaneous', () => {
+    const devotion = {
+      id: ENTRY_ID,
+      name: 'Devotion spells',
+      kind: 'spontaneous',
+      tradition: 'divine',
+      attribute: 'cha',
+      rank: 'trained',
+      cantrips: [],
+      slots: {},
+      repertoire: [],
+      signature: [],
+    } as SpellcastingEntry;
+    const wrapper = mountPanel(actorWith({ spellcasting: [devotion] }));
+    expect(wrapper.find('h5').text()).toBe('Devotion spells · divine');
+    expect(wrapper.find('[aria-label="Spell slots"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Spell DC');
+  });
+
   it('rests, and rolls the spell attack', async () => {
     const wrapper = mountPanel(cleric());
     await wrapper

@@ -228,6 +228,19 @@ The casting attribute follows the key attribute `actor.applyBuild` settles on: t
 one sent, else the one already on the sheet if the class offers it, else the class's
 first option (so a blank sheet's `str` never becomes a Wizard's casting attribute).
 
+A class that casts **only focus spells** has no casting table but a `focusCasting` in
+its `classSpells.ts` row, and `deriveSpellcasting` gives it an entry with no slots and
+no cantrips (kind `spontaneous`, which nothing reads when there are no slots) so that its
+focus spells have a spell attack and DC. The **Champion** is one: its devotion spells
+are divine and cast with **Charisma**, not its key attribute, from an entry named
+"Devotion spells" at its spellcasting rank (trained). Its row gives a focus pool of 1 and
+a `spellChoices` pick of its first devotion spell: Shields of the Spirit, Lay on Hands or
+Touch of the Void. All three are offered; `needsFont` marks Lay on Hands as for a deity
+that allows heal and Touch of the Void for harm, and a pick the deity's font (as entered,
+[character build](character-build.md), "Deity") does not allow is a `font-not-granted`
+warning naming the spell. A focus spell cast with no entry named is cast from the first
+entry, so its card shows this entry's DC.
+
 ## Statistics
 Each entry has a **spell attack** and a **spell DC**, built into `prepareCharacter`'s
 `statistics` like every other number (ADR 0008), keyed `spellAttack:<entry id>` and
@@ -297,7 +310,8 @@ plain spell list:
 
 - the **focus pool** with a Refocus button, and **Rest (daily preparation)**;
 - per entry, the **spell attack** (with a Roll button) and **spell DC**, each opening its
-  breakdown like any other number;
+  breakdown like any other number. The heading names the tradition, and the kind
+  (prepared or spontaneous) only for an entry with slots or cantrips;
 - **slots per rank**, as pips and as words ("1 of 2 left"; "-1 (1 over the maximum)"
   past the maximum). The pips are decoration (`aria-hidden`, outlined when empty, dashed
   when over), so nothing depends on colour or shape;
