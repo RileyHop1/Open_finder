@@ -489,7 +489,16 @@ export {
   type PreparedCharacter,
 } from './rules/prepareCharacter.js';
 
-export { prepareStrikes, type PreparedStrike } from './rules/prepareStrikes.js';
+export {
+  prepareStrikes,
+  strikeRank,
+  type PreparedStrike,
+} from './rules/prepareStrikes.js';
+
+export {
+  CLASS_WEAPON_GROUP_RANKS,
+  classWeaponGroupRanks,
+} from './rules/weaponGroupRanks.js';
 
 export {
   prepareNpc,

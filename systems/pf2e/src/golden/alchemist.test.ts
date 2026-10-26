@@ -1,7 +1,7 @@
 import type { ArmorEntry, WeaponEntry } from '../index.js';
 import { prepareCharacter } from '../index.js';
 import { describeGolden } from './describeGolden.js';
-import { goldenCharacter, goldenStatistics } from './goldenCharacter.js';
+import { equipped, goldenCharacter, goldenStatistics } from './goldenCharacter.js';
 
 /**
  * A level 1 Alchemist, built by hand -- never a published stat block (ADR
@@ -9,10 +9,9 @@ import { goldenCharacter, goldenStatistics } from './goldenCharacter.js';
  * Alchemist class page (Player Core 2): Perception Trained; Fortitude
  * Expert, Reflex Expert, Will Trained; unarmed/simple weapons and
  * alchemical bombs Trained (no martial); light and medium armor Trained
- * (no heavy); Class DC Trained. Key ability: Intelligence. Alchemical
- * bombs have no equivalent in `WeaponEntry` yet (they are consumable
- * items, not a weapon type Stack B modeled) -- this fixture's strike uses
- * a simple weapon instead, the same as every other non-bomb attack.
+ * (no heavy); Class DC Trained. Key ability: Intelligence. Bombs are
+ * martial weapons, so the bomb's Strike takes its rank from the bomb group
+ * (`ranks.weaponGroups`), not the untrained martial category.
  */
 const LEVEL = 1;
 
@@ -64,30 +63,48 @@ const WEAPON: WeaponEntry = {
   hands: 1,
 };
 
+const BOMB: WeaponEntry = {
+  ...WEAPON,
+  id: '77777777-8888-5999-8aaa-bbbbbbbbbbbb',
+  slug: 'invented-flash-flask',
+  name: 'Invented Flash Flask',
+  traits: ['alchemical', 'bomb', 'consumable', 'splash'],
+  category: 'martial',
+  group: 'bomb',
+  damage: { diceNumber: 1, dieFaces: 6, damageType: 'fire' },
+  range: 20,
+  splash: 1,
+};
+
 // A finesse dagger's attack uses Dexterity, since it beats this build's Strength.
 function buildStatistics() {
-  return goldenStatistics(
-    prepareCharacter(
-      goldenCharacter({
-        level: LEVEL,
-        scores: ABILITY_SCORES,
-        keyAttribute: 'int',
-        ranks: {
-          perception: 'trained',
-          fortitude: 'expert',
-          reflex: 'expert',
-          will: 'trained',
-          classDc: 'trained',
-          armor: 'trained',
-          weapon: 'trained',
-        },
-        armor: ARMOR,
-        weapon: WEAPON,
-        skills: { crafting: 'trained' },
-      }),
-    ),
-    'dagger',
-  );
+  const data = goldenCharacter({
+    level: LEVEL,
+    scores: ABILITY_SCORES,
+    keyAttribute: 'int',
+    ranks: {
+      perception: 'trained',
+      fortitude: 'expert',
+      reflex: 'expert',
+      will: 'trained',
+      classDc: 'trained',
+      armor: 'trained',
+      weapon: 'trained',
+    },
+    armor: ARMOR,
+    weapon: WEAPON,
+    skills: { crafting: 'trained' },
+    extraItems: [equipped(BOMB)],
+  });
+  const prepared = prepareCharacter({
+    ...data,
+    ranks: { ...data.ranks, weaponGroups: { bomb: 'trained' } },
+  });
+  const bomb = prepared.strikes.find((s) => s.key === 'strike:invented-flash-flask');
+  return {
+    ...goldenStatistics(prepared, 'dagger'),
+    ...(bomb === undefined ? {} : { 'strike:bomb': bomb.attacks[0] }),
+  };
 }
 
 describeGolden(
@@ -112,6 +129,9 @@ describeGolden(
       'skill:diplomacy': { total: 0 },
       // 3 (dex) + 3 (trained at level 1) = 6, no Multiple Attack Penalty on the first attack
       'strike:dagger': { total: 6 },
+      // 3 (dex, a thrown bomb is ranged) + 3 (trained in bombs at level 1) = 6; untrained
+      // in martial weapons would make it 3
+      'strike:bomb': { total: 6 },
     },
   },
   buildStatistics,

@@ -380,6 +380,25 @@ describe('CharacterSheet edit mode', () => {
     ]);
   });
 
+  it('shows a weapon group’s rank, edits it, and adds one for another group', async () => {
+    const data = level3();
+    const withBombs = {
+      ...data,
+      ranks: { ...data.ranks, weaponGroups: { bomb: 'trained' } },
+    };
+    const shown = mount(CharacterSheet, { props: { actor: makeActor(withBombs) } });
+    expect(rowFor(shown, 'Bomb group')?.find('td').text()).toBe('Trained');
+
+    const wrapper = await editing(withBombs);
+    await wrapper.find('select[aria-label="Bomb group rank"]').setValue('expert');
+    await wrapper.find('.add-group select').setValue('sword');
+    expect(wrapper.emitted('change')).toEqual([
+      [{ 'system.ranks.weaponGroups.bomb': 'expert' }],
+      [{ 'system.ranks.weaponGroups.sword': 'trained' }],
+    ]);
+    expect(wrapper.find('.add-group').text()).not.toContain('Bomb');
+  });
+
   it('sets, changes, and removes ancestry/class names; a blank name removes the reference', async () => {
     const wrapper = await editing();
     await enter(wrapper, 'Class', 'Invented Warrior');

@@ -72,7 +72,7 @@ total is derived by `prepareCharacter` and never stored.
 | `level` | Integer 1-20 |
 | `attributes` | The six attribute **modifiers** (`str`..`cha`), not scores |
 | `keyAttribute` | Drives the class DC |
-| `ranks` | Explicit proficiency ranks: `perception`, the three saves, `classDc`, `weapons` (unarmed/simple/martial/advanced), `armor` (unarmored/light/medium/heavy), and an open `skills` record so a Lore needs no special case. Anything absent is `untrained` |
+| `ranks` | Explicit proficiency ranks: `perception`, the three saves, `classDc`, `weapons` (unarmed/simple/martial/advanced), `armor` (unarmored/light/medium/heavy), `weaponGroups` (a rank in a weapon group beyond its category, such as an Alchemist's `bomb`), and an open `skills` record so a Lore needs no special case. Anything absent is `untrained` |
 | `ancestry`, `heritage`, `background`, `class` | Optional `{ name, source? }` references; a hand-built character may use none |
 | `ancestryHp`, `classHp` | Inputs to max HP. Max HP itself is derived by `buildMaxHitPoints` (`ancestryHp + (classHp + con) * level`, plus `hp`-selector rule elements and drained), never stored |
 | `hp` | `{ current, temp }` |
@@ -148,8 +148,11 @@ the exact arguments the server passes to `rollStrikeAttack` /
 `rollStrikeDamage`, so the sheet and a roll cannot disagree.
 
 - **To hit:** Strength for melee, Dexterity for a weapon with a `range`, and the
-  better of the two for a melee `finesse` weapon. Proficiency is the character's
-  rank for the weapon's category.
+  better of the two for a melee `finesse` weapon. Proficiency is the better of the
+  character's rank for the weapon's category and for its group (`strikeRank`): an
+  Alchemist's bombs are martial weapons, and it is trained in the bomb group, not
+  in martial weapons. The sheet lists each group rank under the weapon categories
+  and can add one by hand.
 - **Damage:** full Strength for melee and `thrown` weapons, half (rounded down)
   for `propulsive`, a negative Strength modifier in full, and nothing for other
   ranged weapons. Enfeebled and `strike-damage` rule elements are added;

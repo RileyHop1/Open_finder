@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { CharacterData, CharacterItem, WeaponEntry } from '../index.js';
 import { characterDataSchema, rollStrikeAttack, rollStrikeDamage } from '../index.js';
 import { prepareCharacter } from './prepareCharacter.js';
+import { strikeRank } from './prepareStrikes.js';
 
 const IMPORTED_AT = '2026-09-30T00:00:00.000Z';
 
@@ -87,6 +88,31 @@ describe('prepareStrikes', () => {
     );
     // 4 (str) + 0 (untrained)
     expect(advanced?.attacks[0].total).toBe(4);
+  });
+
+  it('uses the weapon group’s rank when it beats the category’s (an Alchemist’s bombs)', () => {
+    const bomb = weapon('flask', { category: 'advanced', group: 'bomb', range: 20 });
+    const [untrained] = strikesOf(character({ items: [wielded(bomb)] }));
+    const [trained] = strikesOf(
+      character({
+        items: [wielded(bomb)],
+        ranks: { weapons: {}, weaponGroups: { bomb: 'trained' } } as never,
+      }),
+    );
+    // 2 (dex, ranged) + 0 (untrained), then + 3 (trained at level 1)
+    expect(untrained?.attacks[0].total).toBe(2);
+    expect(trained?.attacks[0].total).toBe(5);
+    expect(
+      strikeRank(
+        character({
+          ranks: {
+            weapons: { martial: 'expert' },
+            weaponGroups: { bomb: 'trained' },
+          } as never,
+        }).ranks,
+        { category: 'martial', group: 'bomb' },
+      ),
+    ).toBe('expert');
   });
 
   it('lets a finesse weapon use the better of Strength and Dexterity to hit, but Strength for damage', () => {

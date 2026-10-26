@@ -980,6 +980,24 @@ ruling from silently drifting.
 - **Golden test:** `systems/pf2e/src/rules/classResources.test.ts`.
 - **Override:** the Maximum field and the Use, Regain and Refill buttons on the sheet.
 
+### An Alchemist's bombs: the bomb group
+- **Rules text:** the Alchemist's initial proficiencies in Player Core 2 (trained in
+  alchemical bombs), Alchemical Weapon Expertise (expert, level 7) and Alchemical Weapon
+  Mastery (master, level 15). Checked against the pinned upstream data (2026-10-25):
+  **(confirm)**.
+- **The ambiguity:** the rules name "alchemical bombs", a kind of item, and upstream
+  writes the proficiency on that base weapon. Our weapons have a group, not a base.
+- **Our reading:** the Alchemist's rank is in the **bomb group**
+  (`rules/weaponGroupRanks.ts`), and a Strike uses the better of its category's rank
+  and its group's. Every bomb in the core four books is an alchemical bomb, so the two
+  are the same set today.
+- **Alternative reading:** import upstream's base weapon onto every weapon and rank by
+  base. Rejected for now: one class needs it, and the base names would be one more
+  upstream vocabulary in our data; revisit if a feature ranks a single weapon.
+- **Golden test:** `systems/pf2e/src/golden/alchemist.test.ts` (`strike:bomb`) and
+  `systems/pf2e/src/rules/weaponGroupRanks.test.ts`.
+- **Override:** every group rank is editable on the sheet, and one can be added by hand.
+
 ### A deity's divine skill and font
 - **Rules text:** the Cleric's and the Champion's Deity class features in Player Core and
   Player Core 2. Checked against the pinned upstream text (2026-10-23): **(confirm)**.

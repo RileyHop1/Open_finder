@@ -26,7 +26,7 @@ import { gearEntrySchema } from './gear.js';
 import { persistentDamageSchema } from './persistentDamage.js';
 import { spellEntrySchema } from './spell.js';
 import { focusPointsSchema, spellcastingEntrySchema } from './spellcasting.js';
-import { weaponEntrySchema } from './weapon.js';
+import { weaponEntrySchema, weaponGroupSchema } from './weapon.js';
 
 const rank = () => proficiencyRankSchema.default('untrained');
 
@@ -71,6 +71,11 @@ export const characterRanksSchema = z.object({
       medium: 'untrained',
       heavy: 'untrained',
     }),
+  /**
+   * Ranks in a weapon group beyond its category (an Alchemist's bombs, which are martial
+   * weapons). A Strike uses the better of its weapon's category rank and its group's.
+   */
+  weaponGroups: z.partialRecord(weaponGroupSchema, proficiencyRankSchema).default({}),
   skills: z.record(z.string().min(1), proficiencyRankSchema).default({}),
 });
 
